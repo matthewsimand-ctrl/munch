@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '@/lib/store';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, X, Camera, Lock, ArrowRight, ChefHat } from 'lucide-react';
+import { Plus, X, Camera, Lock, ArrowRight, ChefHat, User, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const QUANTITY_OPTIONS = ['1', '2', '3', '4', '5', '½', '¼', '100g', '200g', '500g', '1kg', '1L'];
@@ -14,6 +15,15 @@ export default function Pantry() {
   const { pantryList, addPantryItem, removePantryItem, updatePantryQuantity } = useStore();
   const [input, setInput] = useState('');
   const [quantity, setQuantity] = useState('1');
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+      setUser(session?.user ?? null);
+    });
+    supabase.auth.getSession().then(({ data: { session } }) => setUser(session?.user ?? null));
+    return () => subscription.unsubscribe();
+  }, []);
 
   const handleAdd = () => {
     const trimmed = input.trim();
@@ -36,6 +46,15 @@ export default function Pantry() {
             <ChefHat className="h-7 w-7 text-primary" />
             <span className="font-display text-xl font-bold text-foreground">My Pantry</span>
           </div>
+          {user ? (
+            <Button variant="ghost" size="icon" onClick={() => supabase.auth.signOut()}>
+              <LogOut className="h-5 w-5" />
+            </Button>
+          ) : (
+            <Button variant="ghost" size="icon" onClick={() => navigate('/auth')}>
+              <User className="h-5 w-5" />
+            </Button>
+          )}
           <Button
             onClick={() => navigate('/swipe')}
             disabled={pantryList.length === 0}

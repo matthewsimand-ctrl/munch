@@ -6,12 +6,23 @@ import { recipes } from '@/data/recipes';
 import { calculateMatch } from '@/lib/matchLogic';
 import SwipeCard from '@/components/SwipeCard';
 import { Button } from '@/components/ui/button';
-import { Heart, X, BookOpen, ChefHat, UtensilsCrossed } from 'lucide-react';
+import { Heart, X, BookOpen, ChefHat, UtensilsCrossed, User, LogOut } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useState as useStateAlias, useEffect as useEffectAlias } from 'react';
 
 export default function Swipe() {
   const navigate = useNavigate();
   const { pantryList, likeRecipe, likedRecipes } = useStore();
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [user, setUser] = useStateAlias<any>(null);
+
+  useEffectAlias(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+      setUser(session?.user ?? null);
+    });
+    supabase.auth.getSession().then(({ data: { session } }) => setUser(session?.user ?? null));
+    return () => subscription.unsubscribe();
+  }, []);
 
   const pantryNames = useMemo(() => pantryList.map(p => p.name), [pantryList]);
 
@@ -51,6 +62,15 @@ export default function Swipe() {
               </span>
             )}
           </Button>
+          {user ? (
+            <Button variant="ghost" size="icon" onClick={() => supabase.auth.signOut()}>
+              <LogOut className="h-5 w-5" />
+            </Button>
+          ) : (
+            <Button variant="ghost" size="icon" onClick={() => navigate('/auth')}>
+              <User className="h-5 w-5" />
+            </Button>
+          )}
         </div>
       </div>
 
