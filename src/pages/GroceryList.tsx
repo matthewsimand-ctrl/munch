@@ -1,20 +1,33 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import BottomNav from '@/components/BottomNav';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '@/lib/store';
 import { recipes } from '@/data/recipes';
 import { calculateMatch } from '@/lib/matchLogic';
+import { getCategory, getAisleIndex, type IngredientCategory } from '@/lib/ingredientCategories';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, ShoppingCart, Check } from 'lucide-react';
+import { ShoppingCart, Check, ChevronDown, ChevronUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+
+interface GroceryItem {
+  ingredient: string;
+  category: IngredientCategory;
+  recipes: string[];
+}
+
+interface AisleGroup {
+  category: IngredientCategory;
+  items: GroceryItem[];
+}
 
 export default function GroceryList() {
   const navigate = useNavigate();
   const { likedRecipes, pantryList, addPantryItem } = useStore();
+  const [collapsedAisles, setCollapsedAisles] = useState<Set<string>>(new Set());
 
   const pantryNames = useMemo(() => pantryList.map(p => p.name), [pantryList]);
 
-  const groceryItems = useMemo(() => {
+  const aisleGroups = useMemo(() => {
     const itemMap = new Map<string, string[]>();
     likedRecipes.forEach((id) => {
       const recipe = recipes.find((r) => r.id === id);
@@ -26,33 +39,75 @@ export default function GroceryList() {
         itemMap.set(ing, existing);
       });
     });
-    return Array.from(itemMap.entries()).map(([ingredient, recipeNames]) => ({
+
+    const items: GroceryItem[] = Array.from(itemMap.entries()).map(([ingredient, recipeNames]) => ({
       ingredient,
+      category: getCategory(ingredient),
       recipes: recipeNames,
     }));
+
+    // Group by category
+    const groupMap = new Map<IngredientCategory, GroceryItem[]>();
+    items.forEach(item => {
+      const existing = groupMap.get(item.category) || [];
+      existing.push(item);
+      groupMap.set(item.category, existing);
+    });
+
+    // Sort groups by aisle order, sort items within each group alphabetically
+    const groups: AisleGroup[] = Array.from(groupMap.entries())
+      .map(([category, items]) => ({
+        category,
+        items: items.sort((a, b) => a.ingredient.localeCompare(b.ingredient)),
+      }))
+      .sort((a, b) => getAisleIndex(a.category) - getAisleIndex(b.category));
+
+    return groups;
   }, [likedRecipes, pantryNames]);
 
-  const handleMarkOwned = (ingredient: string) => {
-    addPantryItem(ingredient);
+  const totalItems = aisleGroups.reduce((sum, g) => sum + g.items.length, 0);
+
+  const toggleAisle = (category: string) => {
+    setCollapsedAisles(prev => {
+      const next = new Set(prev);
+      if (next.has(category)) next.delete(category);
+      else next.add(category);
+      return next;
+    });
+  };
+
+  const AISLE_EMOJI: Record<string, string> = {
+    'Produce': '🥬',
+    'Meat & Seafood': '🥩',
+    'Dairy & Eggs': '🥛',
+    'Baking': '🧁',
+    'Grains & Pasta': '🌾',
+    'Canned & Jarred': '🥫',
+    'Oils & Condiments': '🫒',
+    'Spices & Seasonings': '🧂',
+    'Beverages': '🥤',
+    'Other': '📦',
   };
 
   return (
     <div className="min-h-screen bg-background pb-20">
       <div className="px-6 pt-8 pb-4 max-w-md mx-auto w-full">
-        <div className="flex items-center gap-3 mb-6">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/saved')}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
+        <div className="flex items-center gap-3 mb-2">
           <div className="flex items-center gap-2">
             <ShoppingCart className="h-6 w-6 text-primary" />
             <h1 className="font-display text-2xl font-bold text-foreground">Grocery List</h1>
           </div>
-          <span className="ml-auto text-sm text-muted-foreground">{groceryItems.length} items</span>
+          <span className="ml-auto text-sm text-muted-foreground">{totalItems} items</span>
         </div>
+        {totalItems > 0 && (
+          <p className="text-xs text-muted-foreground">
+            Sorted by grocery aisle • {aisleGroups.length} sections
+          </p>
+        )}
       </div>
 
-      <div className="px-6 max-w-md mx-auto w-full space-y-3 pb-8">
-        {groceryItems.length === 0 ? (
+      <div className="px-6 max-w-md mx-auto w-full space-y-4 pb-8">
+        {totalItems === 0 ? (
           <div className="text-center py-16">
             <ShoppingCart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <p className="text-muted-foreground mb-2">Your grocery list is empty!</p>
@@ -60,30 +115,65 @@ export default function GroceryList() {
             <Button onClick={() => navigate('/swipe')}>Find Recipes</Button>
           </div>
         ) : (
-          <AnimatePresence>
-            {groceryItems.map(({ ingredient, recipes: recipeNames }) => (
-              <motion.div
-                key={ingredient}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, x: -100 }}
-                className="flex items-center gap-3 p-3 rounded-xl bg-card border border-border"
-              >
+          aisleGroups.map(({ category, items }) => {
+            const collapsed = collapsedAisles.has(category);
+            return (
+              <div key={category}>
                 <button
-                  onClick={() => handleMarkOwned(ingredient)}
-                  className="h-8 w-8 rounded-full border-2 border-primary/30 flex items-center justify-center hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all shrink-0"
+                  onClick={() => toggleAisle(category)}
+                  className="w-full flex items-center gap-2 py-2 text-left group"
                 >
-                  <Check className="h-4 w-4" />
+                  <span className="text-base">{AISLE_EMOJI[category] || '📦'}</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground group-hover:text-foreground transition-colors">
+                    {category}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground bg-secondary px-1.5 py-0.5 rounded-full">
+                    {items.length}
+                  </span>
+                  <div className="flex-1" />
+                  {collapsed ? (
+                    <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                  ) : (
+                    <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+                  )}
                 </button>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-card-foreground capitalize">{ingredient}</p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    For: {recipeNames.join(', ')}
-                  </p>
-                </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
+                <AnimatePresence>
+                  {!collapsed && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden space-y-1.5"
+                    >
+                      {items.map(({ ingredient, recipes: recipeNames }) => (
+                        <motion.div
+                          key={ingredient}
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, x: -60 }}
+                          className="flex items-center gap-3 p-3 rounded-xl bg-card border border-border"
+                        >
+                          <button
+                            onClick={() => addPantryItem(ingredient)}
+                            className="h-7 w-7 rounded-full border-2 border-primary/30 flex items-center justify-center hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all shrink-0"
+                          >
+                            <Check className="h-3.5 w-3.5" />
+                          </button>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-card-foreground capitalize text-sm">{ingredient}</p>
+                            <p className="text-[10px] text-muted-foreground truncate">
+                              For: {recipeNames.join(', ')}
+                            </p>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            );
+          })
         )}
       </div>
       <BottomNav />
