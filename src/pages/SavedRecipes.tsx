@@ -43,6 +43,7 @@ export default function SavedRecipes() {
             My Recipes
           </h1>
           <div className="ml-auto flex items-center gap-2">
+            <ImportRecipeDialog />
             <Dialog open={createOpen} onOpenChange={setCreateOpen}>
               <DialogTrigger asChild>
                 <Button size="sm">
