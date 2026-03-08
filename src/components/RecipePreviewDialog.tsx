@@ -28,6 +28,14 @@ export default function RecipePreviewDialog({ recipe, match, open, onOpenChange,
           <div className="absolute bottom-3 left-4 right-4">
             <DialogHeader>
               <DialogTitle className="text-xl text-foreground">{recipe.name}</DialogTitle>
+              {chefName && chefId && (
+                <button
+                  onClick={() => { onOpenChange(false); navigate(`/chef/${chefId}`); }}
+                  className="inline-flex items-center gap-1 text-xs text-primary hover:underline w-fit"
+                >
+                  <ChefHat className="h-3 w-3" /> by {chefName}
+                </button>
+              )}
             </DialogHeader>
           </div>
         </div>
