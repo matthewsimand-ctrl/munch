@@ -41,6 +41,7 @@ const initialProfile: UserProfile = {
   dietaryRestrictions: [],
   skillLevel: '',
   flavorProfiles: [],
+  cuisinePreferences: [],
 };
 
 export const useStore = create<AppState>()(

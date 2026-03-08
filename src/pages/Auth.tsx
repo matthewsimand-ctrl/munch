@@ -66,7 +66,7 @@ export default function Auth() {
         }
         // Check if email confirmation is needed
         if (data.user && !data.session) {
-          toast({ title: 'Check your email', description: 'We sent you a confirmation link.' });
+          toast({ title: 'Check your email', description: 'Munch sent you a confirmation link. Please check your inbox.' });
         }
       }
     } catch (err: any) {
