@@ -93,35 +93,34 @@ export default function CookMode() {
     setTimerSeconds(stepTimer);
   }, [currentStep, stepTimer]);
 
-  // Speech
-  const speak = useCallback((text: string) => {
-    synthRef.current.cancel();
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.rate = 0.9;
-    utter.onend = () => setIsSpeaking(false);
-    setIsSpeaking(true);
-    synthRef.current.speak(utter);
-  }, []);
-
-  const stopSpeaking = useCallback(() => {
-    synthRef.current.cancel();
-    setIsSpeaking(false);
-  }, []);
-
   // Auto-read on step change
   useEffect(() => {
     if (steps[currentStep]) {
       speak(`Step ${currentStep + 1}. ${steps[currentStep]}`);
     }
-    return () => { synthRef.current.cancel(); };
+    return () => { stopSpeaking(); };
+  }, [currentStep, steps, speak, stopSpeaking]);
+
+  const goNext = useCallback(() => {
+    if (currentStep < totalSteps - 1) setCurrentStep(s => s + 1);
+  }, [currentStep, totalSteps]);
+
+  const goPrev = useCallback(() => {
+    if (currentStep > 0) setCurrentStep(s => s - 1);
+  }, [currentStep]);
+
+  const repeatStep = useCallback(() => {
+    if (steps[currentStep]) {
+      speak(`Step ${currentStep + 1}. ${steps[currentStep]}`);
+    }
   }, [currentStep, steps, speak]);
 
-  const goNext = () => {
-    if (currentStep < totalSteps - 1) setCurrentStep(s => s + 1);
-  };
-  const goPrev = () => {
-    if (currentStep > 0) setCurrentStep(s => s - 1);
-  };
+  // Voice commands for hands-free control
+  const { isListening, isSupported: voiceSupported, lastCommand, toggleListening } = useVoiceCommands({
+    onNext: goNext,
+    onPrevious: goPrev,
+    onRepeat: repeatStep,
+  });
 
   const startTimer = (secs: number) => {
     setTimerRemaining(secs);
