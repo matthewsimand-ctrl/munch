@@ -22,7 +22,8 @@ interface AisleGroup {
 
 export default function GroceryList() {
   const navigate = useNavigate();
-  const { likedRecipes, pantryList, addPantryItem } = useStore();
+  const { likedRecipes, pantryList, addPantryItem, savedApiRecipes } = useStore();
+  const { data: dbRecipes = [] } = useDbRecipes();
   const [collapsedAisles, setCollapsedAisles] = useState<Set<string>>(new Set());
 
   const pantryNames = useMemo(() => pantryList.map(p => p.name), [pantryList]);
