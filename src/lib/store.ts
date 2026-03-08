@@ -47,6 +47,7 @@ export const useStore = create<AppState>()(
       pantryList: [],
       likedRecipes: [],
       savedApiRecipes: {},
+      cachedNutrition: {},
       onboardingComplete: false,
 
       setUserProfile: (profile) =>
