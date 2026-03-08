@@ -39,7 +39,7 @@ export default function SavedRecipes() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="font-display text-2xl font-bold text-foreground">
-            Saved Recipes
+            My Recipes
           </h1>
           <div className="ml-auto flex items-center gap-2">
             <Dialog open={createOpen} onOpenChange={setCreateOpen}>
