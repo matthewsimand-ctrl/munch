@@ -26,6 +26,7 @@ export default function Swipe() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [user, setUser] = useState<any>(null);
   const [filterText, setFilterText] = useState('');
+  const [filterKey, setFilterKey] = useState(0); // bump to skip exit animation on filter
   const [previewOpen, setPreviewOpen] = useState(false);
   const [mealFilter, setMealFilter] = useState<MealCategory>('all');
   const suggestedCategory = useMemo(() => getTimeBasedCategory(), []);
