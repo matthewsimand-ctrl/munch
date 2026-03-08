@@ -24,6 +24,8 @@ export default function Pantry() {
   const { pantryList, addPantryItem, addPantryItems, removePantryItem, updatePantryQuantity } = useStore();
   const [input, setInput] = useState('');
   const [quantity, setQuantity] = useState('1');
+  const [selectedCategory, setSelectedCategory] = useState<string>('auto');
+  const allCategories = getAllCategories();
   const [user, setUser] = useState<any>(null);
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [sortBy, setSortBy] = useState('recent');
