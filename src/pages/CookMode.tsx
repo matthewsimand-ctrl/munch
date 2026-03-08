@@ -2,9 +2,11 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDbRecipes } from '@/hooks/useDbRecipes';
 import { useStore } from '@/lib/store';
+import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis';
+import { useVoiceCommands } from '@/hooks/useVoiceCommands';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { ArrowLeft, ChevronLeft, ChevronRight, Play, Pause, RotateCcw, Timer, Volume2, VolumeX } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Play, Pause, RotateCcw, Timer, Volume2, VolumeX, Mic, MicOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
