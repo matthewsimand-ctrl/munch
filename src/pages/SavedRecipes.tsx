@@ -81,6 +81,7 @@ export default function SavedRecipes() {
                       <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{recipe.cookTime}</span>
                       <span className="flex items-center gap-1"><BarChart3 className="h-3 w-3" />{recipe.difficulty}</span>
                       <span className="font-semibold text-primary">{match.percentage}%</span>
+                      {source && <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded">{source}</span>}
                     </div>
                   </div>
                   {expanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
