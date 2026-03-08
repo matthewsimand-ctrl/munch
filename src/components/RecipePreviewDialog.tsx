@@ -56,6 +56,11 @@ export default function RecipePreviewDialog({ recipe, match, open, onOpenChange,
                   <MapPin className="h-3 w-3" /> {recipe.cuisine}
                 </Badge>
               )}
+              {recipe.servings && (
+                <Badge variant="secondary" className="gap-1">
+                  <Users className="h-3 w-3" /> Serves {recipe.servings}
+                </Badge>
+              )}
             </div>
 
             {/* Tags */}
