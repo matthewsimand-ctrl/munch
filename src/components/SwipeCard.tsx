@@ -1,5 +1,6 @@
 import { motion, useMotionValue, useTransform, PanInfo } from 'framer-motion';
-import { Clock, BarChart3, Check, ShoppingCart, MapPin } from 'lucide-react';
+import { Clock, BarChart3, Check, ShoppingCart, MapPin, ChefHat } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import type { Recipe } from '@/data/recipes';
 import type { MatchResult } from '@/lib/matchLogic';
 
@@ -9,6 +10,8 @@ interface SwipeCardProps {
   onSwipe: (dir: 'left' | 'right') => void;
   onImageTap?: () => void;
   isTop: boolean;
+  chefName?: string | null;
+  chefId?: string | null;
 }
 
 export default function SwipeCard({ recipe, match, onSwipe, onImageTap, isTop }: SwipeCardProps) {
