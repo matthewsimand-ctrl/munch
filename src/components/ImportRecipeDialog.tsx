@@ -7,7 +7,7 @@ import { Link2, FileText, Loader2, Import } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useStore } from '@/lib/store';
 import { toast } from 'sonner';
-import { v4 as uuidV4 } from 'crypto';
+
 
 interface ImportRecipeDialogProps {
   children?: React.ReactNode;
