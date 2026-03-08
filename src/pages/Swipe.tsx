@@ -6,9 +6,10 @@ import { useStore } from '@/lib/store';
 import { useDbRecipes } from '@/hooks/useDbRecipes';
 import { calculateMatch } from '@/lib/matchLogic';
 import SwipeCard from '@/components/SwipeCard';
+import RecipePreviewDialog from '@/components/RecipePreviewDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Heart, X, BookOpen, ChefHat, UtensilsCrossed, User, LogOut, Search, Loader2, Globe } from 'lucide-react';
+import { Heart, X, BookOpen, UtensilsCrossed, User, LogOut, Search, Loader2, Globe } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useEffect } from 'react';
 import { useRecipeSearch } from '@/hooks/useRecipeSearch';
@@ -20,6 +21,7 @@ export default function Swipe() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [user, setUser] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [previewOpen, setPreviewOpen] = useState(false);
   const { apiRecipes, loading: searchLoading, searched, search } = useRecipeSearch();
   const { data: dbRecipes = [], isLoading: dbLoading } = useDbRecipes();
 
@@ -33,7 +35,6 @@ export default function Swipe() {
 
   const pantryNames = useMemo(() => pantryList.map(p => p.name), [pantryList]);
 
-  // Merge local + API recipes
   const allRecipes = useMemo(() => {
     if (apiRecipes.length > 0) return apiRecipes;
     return dbRecipes;
@@ -45,7 +46,6 @@ export default function Swipe() {
       .sort((a, b) => b.match.percentage - a.match.percentage);
   }, [pantryNames, allRecipes]);
 
-  // Reset index when recipes change
   useMemo(() => {
     setCurrentIndex(0);
   }, [allRecipes]);
@@ -53,7 +53,6 @@ export default function Swipe() {
   const handleSwipe = (dir: 'left' | 'right') => {
     const r = rankedRecipes[currentIndex];
     if (dir === 'right') {
-      // Pass recipe data for API recipes so they persist in saved
       const isApi = r.recipe.id.startsWith('mealdb-') || r.recipe.id.startsWith('tasty-') || r.recipe.id.startsWith('spoon-');
       likeRecipe(r.recipe.id, isApi ? r.recipe : undefined);
     }
@@ -76,8 +75,8 @@ export default function Swipe() {
       {/* Header */}
       <div className="px-6 pt-6 pb-2 max-w-md mx-auto w-full flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <ChefHat className="h-7 w-7 text-primary" />
-          <span className="font-display text-xl font-bold text-foreground">ChefStack</span>
+          <UtensilsCrossed className="h-7 w-7 text-primary" />
+          <span className="font-display text-xl font-bold text-foreground">Munch</span>
         </div>
         <div className="flex gap-2">
           <Button variant="ghost" size="icon" onClick={() => navigate('/pantry')}>
@@ -160,12 +159,13 @@ export default function Swipe() {
                 recipe={current.recipe}
                 match={current.match}
                 onSwipe={handleSwipe}
+                onImageTap={() => setPreviewOpen(true)}
                 isTop={true}
               />
             </AnimatePresence>
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-center">
-              <ChefHat className="h-16 w-16 text-muted-foreground mb-4" />
+              <UtensilsCrossed className="h-16 w-16 text-muted-foreground mb-4" />
               <h2 className="font-display text-2xl font-bold text-foreground mb-2">
                 {searched ? 'No more results!' : "That's all for now!"}
               </h2>
@@ -185,7 +185,7 @@ export default function Swipe() {
         </div>
       </div>
 
-      {/* Source badge on current card */}
+      {/* Source badge */}
       {current?.source && !(searchLoading || dbLoading) && (
         <div className="flex justify-center -mt-2 mb-1">
           <Badge variant="outline" className="text-xs">
@@ -214,6 +214,17 @@ export default function Swipe() {
           </Button>
         </div>
       )}
+
+      {/* Recipe Preview Dialog */}
+      {current && (
+        <RecipePreviewDialog
+          recipe={current.recipe}
+          match={current.match}
+          open={previewOpen}
+          onOpenChange={setPreviewOpen}
+        />
+      )}
+
       <BottomNav />
     </div>
   );

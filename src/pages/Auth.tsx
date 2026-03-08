@@ -5,7 +5,7 @@ import { lovable } from '@/integrations/lovable/index';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ChefHat, Mail } from 'lucide-react';
+import { UtensilsCrossed, Mail } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Auth() {
@@ -60,8 +60,8 @@ export default function Auth() {
     <div className="min-h-screen bg-background flex items-center justify-center px-6">
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center">
-          <ChefHat className="h-12 w-12 text-primary mx-auto mb-3" />
-          <h1 className="font-display text-3xl font-bold text-foreground">ChefStack</h1>
+          <UtensilsCrossed className="h-12 w-12 text-primary mx-auto mb-3" />
+          <h1 className="font-display text-3xl font-bold text-foreground">Munch</h1>
           <p className="text-muted-foreground text-sm mt-1">
             {isLogin ? 'Welcome back, chef!' : 'Create your account'}
           </p>

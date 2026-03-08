@@ -46,6 +46,7 @@ export type Database = {
           cook_time: string
           created_at: string
           created_by: string | null
+          cuisine: string | null
           difficulty: string
           id: string
           image: string
@@ -61,6 +62,7 @@ export type Database = {
           cook_time?: string
           created_at?: string
           created_by?: string | null
+          cuisine?: string | null
           difficulty?: string
           id?: string
           image?: string
@@ -76,6 +78,7 @@ export type Database = {
           cook_time?: string
           created_at?: string
           created_by?: string | null
+          cuisine?: string | null
           difficulty?: string
           id?: string
           image?: string

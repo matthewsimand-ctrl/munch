@@ -1,5 +1,5 @@
 import { motion, useMotionValue, useTransform, PanInfo } from 'framer-motion';
-import { Clock, BarChart3, Check, ShoppingCart } from 'lucide-react';
+import { Clock, BarChart3, Check, ShoppingCart, MapPin } from 'lucide-react';
 import type { Recipe } from '@/data/recipes';
 import type { MatchResult } from '@/lib/matchLogic';
 
@@ -7,10 +7,11 @@ interface SwipeCardProps {
   recipe: Recipe;
   match: MatchResult;
   onSwipe: (dir: 'left' | 'right') => void;
+  onImageTap?: () => void;
   isTop: boolean;
 }
 
-export default function SwipeCard({ recipe, match, onSwipe, isTop }: SwipeCardProps) {
+export default function SwipeCard({ recipe, match, onSwipe, onImageTap, isTop }: SwipeCardProps) {
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-200, 200], [-15, 15]);
   const likeOpacity = useTransform(x, [0, 100], [0, 1]);
@@ -42,7 +43,16 @@ export default function SwipeCard({ recipe, match, onSwipe, isTop }: SwipeCardPr
     >
       <div className={`h-full rounded-2xl border-2 ${borderColor} bg-card shadow-lg overflow-hidden flex flex-col`}>
         {/* Image */}
-        <div className="relative h-56 bg-muted overflow-hidden flex-shrink-0">
+        <div
+          className="relative h-56 bg-muted overflow-hidden flex-shrink-0 cursor-pointer"
+          onClick={(e) => {
+            // Only trigger tap if not dragging
+            if (Math.abs(x.get()) < 5 && onImageTap) {
+              e.stopPropagation();
+              onImageTap();
+            }
+          }}
+        >
           <img
             src={recipe.image}
             alt={recipe.name}
@@ -85,6 +95,11 @@ export default function SwipeCard({ recipe, match, onSwipe, isTop }: SwipeCardPr
             <span className="flex items-center gap-1">
               <BarChart3 className="h-4 w-4" /> {recipe.difficulty}
             </span>
+            {recipe.cuisine && (
+              <span className="flex items-center gap-1">
+                <MapPin className="h-4 w-4" /> {recipe.cuisine}
+              </span>
+            )}
           </div>
 
           {/* Ingredient status */}

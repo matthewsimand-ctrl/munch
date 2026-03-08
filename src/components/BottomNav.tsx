@@ -4,8 +4,8 @@ import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
   { path: '/pantry', label: 'Pantry', icon: UtensilsCrossed },
-  { path: '/swipe', label: 'Swipe', icon: Flame },
-  { path: '/saved', label: 'Saved', icon: Heart },
+  { path: '/swipe', label: 'Browse', icon: Flame },
+  { path: '/saved', label: 'Recipes', icon: Heart },
   { path: '/grocery', label: 'Grocery', icon: ShoppingCart },
 ];
 
