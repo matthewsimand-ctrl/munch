@@ -14,7 +14,8 @@ interface SwipeCardProps {
   chefId?: string | null;
 }
 
-export default function SwipeCard({ recipe, match, onSwipe, onImageTap, isTop }: SwipeCardProps) {
+export default function SwipeCard({ recipe, match, onSwipe, onImageTap, isTop, chefName, chefId }: SwipeCardProps) {
+  const navigate = useNavigate();
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-200, 200], [-15, 15]);
   const likeOpacity = useTransform(x, [0, 100], [0, 1]);
