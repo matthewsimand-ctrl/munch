@@ -83,13 +83,14 @@ export default function CreateRecipeForm({ onClose }: Props) {
         image: finalImage,
         cook_time: cookTime.trim() || '30 min',
         difficulty,
+        cuisine: cuisine.trim() || null,
         ingredients,
         tags,
         instructions: stepList,
         source: 'community',
         created_by: user.id,
         is_public: true,
-      });
+      } as any);
 
       if (error) throw error;
 
