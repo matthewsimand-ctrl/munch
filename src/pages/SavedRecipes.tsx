@@ -6,21 +6,24 @@ import { calculateMatch } from '@/lib/matchLogic';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Clock, BarChart3, Check, ShoppingCart, ChevronDown, ChevronUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useMemo as useMemoAlias } from 'react';
 
 export default function SavedRecipes() {
   const navigate = useNavigate();
   const { likedRecipes, pantryList, unlikeRecipe } = useStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
+  const pantryNames = useMemoAlias(() => pantryList.map(p => p.name), [pantryList]);
+
   const saved = useMemo(() => {
     return likedRecipes
       .map((id) => {
         const recipe = recipes.find((r) => r.id === id);
         if (!recipe) return null;
-        return { recipe, match: calculateMatch(pantryList, recipe.ingredients) };
+        return { recipe, match: calculateMatch(pantryNames, recipe.ingredients) };
       })
       .filter(Boolean) as { recipe: (typeof recipes)[0]; match: ReturnType<typeof calculateMatch> }[];
-  }, [likedRecipes, pantryList]);
+  }, [likedRecipes, pantryNames]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -32,7 +35,12 @@ export default function SavedRecipes() {
           <h1 className="font-display text-2xl font-bold text-foreground">
             Saved Recipes
           </h1>
-          <span className="ml-auto text-sm text-muted-foreground">{saved.length} recipes</span>
+          <div className="ml-auto flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => navigate('/grocery')}>
+              <ShoppingCart className="h-4 w-4 mr-1" /> Grocery List
+            </Button>
+            <span className="text-sm text-muted-foreground">{saved.length}</span>
+          </div>
         </div>
       </div>
 

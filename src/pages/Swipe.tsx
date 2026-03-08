@@ -13,11 +13,13 @@ export default function Swipe() {
   const { pantryList, likeRecipe, likedRecipes } = useStore();
   const [currentIndex, setCurrentIndex] = useState(0);
 
+  const pantryNames = useMemo(() => pantryList.map(p => p.name), [pantryList]);
+
   const rankedRecipes = useMemo(() => {
     return recipes
-      .map((r) => ({ recipe: r, match: calculateMatch(pantryList, r.ingredients) }))
+      .map((r) => ({ recipe: r, match: calculateMatch(pantryNames, r.ingredients) }))
       .sort((a, b) => b.match.percentage - a.match.percentage);
-  }, [pantryList]);
+  }, [pantryNames]);
 
   const handleSwipe = (dir: 'left' | 'right') => {
     if (dir === 'right') {

@@ -7,16 +7,22 @@ export interface UserProfile {
   flavorProfiles: string[];
 }
 
+export interface PantryItem {
+  name: string;
+  quantity: string;
+}
+
 interface AppState {
   userProfile: UserProfile;
-  pantryList: string[];
+  pantryList: PantryItem[];
   likedRecipes: string[];
   onboardingComplete: boolean;
 
   setUserProfile: (profile: Partial<UserProfile>) => void;
   completeOnboarding: () => void;
-  addPantryItem: (item: string) => void;
-  removePantryItem: (item: string) => void;
+  addPantryItem: (name: string, quantity?: string) => void;
+  removePantryItem: (name: string) => void;
+  updatePantryQuantity: (name: string, quantity: string) => void;
   addPantryItems: (items: string[]) => void;
   likeRecipe: (id: string) => void;
   unlikeRecipe: (id: string) => void;
@@ -44,24 +50,34 @@ export const useStore = create<AppState>()(
 
       completeOnboarding: () => set({ onboardingComplete: true }),
 
-      addPantryItem: (item) =>
+      addPantryItem: (name, quantity = '1') => {
+        const normalized = name.toLowerCase().trim();
         set((state) => ({
-          pantryList: state.pantryList.includes(item.toLowerCase().trim())
+          pantryList: state.pantryList.some(p => p.name === normalized)
             ? state.pantryList
-            : [...state.pantryList, item.toLowerCase().trim()],
+            : [...state.pantryList, { name: normalized, quantity }],
+        }));
+      },
+
+      removePantryItem: (name) =>
+        set((state) => ({
+          pantryList: state.pantryList.filter((p) => p.name !== name),
         })),
 
-      removePantryItem: (item) =>
+      updatePantryQuantity: (name, quantity) =>
         set((state) => ({
-          pantryList: state.pantryList.filter((i) => i !== item),
+          pantryList: state.pantryList.map(p =>
+            p.name === name ? { ...p, quantity } : p
+          ),
         })),
 
       addPantryItems: (items) =>
         set((state) => {
-          const existing = new Set(state.pantryList);
-          const newItems = items
+          const existing = new Set(state.pantryList.map(p => p.name));
+          const newItems: PantryItem[] = items
             .map(i => i.toLowerCase().trim())
-            .filter(i => i && !existing.has(i));
+            .filter(i => i && !existing.has(i))
+            .map(name => ({ name, quantity: '1' }));
           return { pantryList: [...state.pantryList, ...newItems] };
         }),
 

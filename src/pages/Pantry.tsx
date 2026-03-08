@@ -3,19 +3,24 @@ import { useNavigate } from 'react-router-dom';
 import { useStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, X, Camera, Lock, ArrowRight, ChefHat } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+const QUANTITY_OPTIONS = ['1', '2', '3', '4', '5', '½', '¼', '100g', '200g', '500g', '1kg', '1L'];
+
 export default function Pantry() {
   const navigate = useNavigate();
-  const { pantryList, addPantryItem, removePantryItem } = useStore();
+  const { pantryList, addPantryItem, removePantryItem, updatePantryQuantity } = useStore();
   const [input, setInput] = useState('');
+  const [quantity, setQuantity] = useState('1');
 
   const handleAdd = () => {
     const trimmed = input.trim();
     if (trimmed) {
-      addPantryItem(trimmed);
+      addPantryItem(trimmed, quantity);
       setInput('');
+      setQuantity('1');
     }
   };
 
@@ -42,7 +47,7 @@ export default function Pantry() {
       </div>
 
       <div className="flex-1 px-6 max-w-md mx-auto w-full space-y-6">
-        {/* Add ingredient */}
+        {/* Add ingredient with quantity */}
         <div className="flex gap-2">
           <Input
             value={input}
@@ -51,6 +56,16 @@ export default function Pantry() {
             placeholder="Add an ingredient..."
             className="flex-1 h-12 bg-card"
           />
+          <Select value={quantity} onValueChange={setQuantity}>
+            <SelectTrigger className="w-20 h-12 bg-card">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {QUANTITY_OPTIONS.map(q => (
+                <SelectItem key={q} value={q}>{q}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button onClick={handleAdd} size="icon" className="h-12 w-12 shrink-0">
             <Plus className="h-5 w-5" />
           </Button>
@@ -61,15 +76,16 @@ export default function Pantry() {
           <AnimatePresence>
             {pantryList.map((item) => (
               <motion.span
-                key={item}
+                key={item.name}
                 initial={{ scale: 0, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0, opacity: 0 }}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary text-secondary-foreground text-sm font-medium"
               >
-                {item}
+                <span className="text-xs text-muted-foreground">{item.quantity}×</span>
+                {item.name}
                 <button
-                  onClick={() => removePantryItem(item)}
+                  onClick={() => removePantryItem(item.name)}
                   className="hover:text-destructive transition-colors"
                 >
                   <X className="h-3.5 w-3.5" />
@@ -108,7 +124,7 @@ export default function Pantry() {
               <button
                 key={item}
                 onClick={() => addPantryItem(item)}
-                disabled={pantryList.includes(item)}
+                disabled={pantryList.some(p => p.name === item)}
                 className="px-3 py-1 rounded-full text-xs font-medium border border-border bg-card text-foreground hover:border-primary/50 disabled:opacity-40 disabled:cursor-default transition-all"
               >
                 + {item}
