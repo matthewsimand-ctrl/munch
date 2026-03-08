@@ -2,6 +2,14 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Home, UtensilsCrossed, Flame, Heart, ShoppingCart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+const TUTORIAL_MAP: Record<string, string> = {
+  Home: 'nav-home',
+  Pantry: 'nav-pantry',
+  Browse: 'nav-browse',
+  Recipes: 'nav-recipes',
+  Grocery: 'nav-grocery',
+};
+
 const NAV_ITEMS = [
   { path: '/dashboard', label: 'Home', icon: Home },
   { path: '/pantry', label: 'Pantry', icon: UtensilsCrossed },
@@ -23,7 +31,7 @@ export default function BottomNav() {
             <button
               key={path}
               onClick={() => navigate(path)}
-              data-tutorial={label === 'Grocery' ? 'nav-grocery' : undefined}
+              data-tutorial={TUTORIAL_MAP[label]}
               className={cn(
                 'flex flex-col items-center gap-0.5 px-3 py-2 rounded-lg transition-colors min-w-[60px]',
                 active

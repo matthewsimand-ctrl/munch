@@ -76,28 +76,24 @@ export default function Dashboard() {
       icon: Flame,
       path: '/swipe',
       color: 'bg-primary/10 text-primary',
-      tutorial: 'action-browse',
     },
     {
       label: 'My Pantry',
       icon: UtensilsCrossed,
       path: '/pantry',
       color: 'bg-accent/20 text-accent-foreground',
-      tutorial: 'action-pantry',
     },
     {
       label: 'Saved Recipes',
       icon: Heart,
       path: '/saved',
       color: 'bg-destructive/10 text-destructive',
-      tutorial: 'action-saved',
     },
     {
       label: 'Meal Prep',
       icon: CalendarDays,
       path: '/meal-prep',
       color: 'bg-success/10 text-foreground',
-      tutorial: 'action-mealprep',
     },
   ];
 
@@ -197,7 +193,6 @@ export default function Dashboard() {
               <button
                 onClick={() => navigate(action.path)}
                 className="w-full flex items-center gap-4 p-4 rounded-xl bg-card border border-border hover:border-primary/30 transition-all group"
-                data-tutorial={action.tutorial}
               >
                 <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${action.color}`}>
                   <action.icon className="h-5 w-5" />

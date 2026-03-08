@@ -2,73 +2,82 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import {
+  Home,
   UtensilsCrossed,
   Flame,
   Heart,
   ShoppingCart,
-  CalendarDays,
-  Settings,
   ArrowRight,
-  X,
   Sparkles,
 } from 'lucide-react';
 
-export interface TutorialStep {
-  target: string; // data-tutorial attribute value
+interface TutorialStep {
+  type: 'fullscreen' | 'spotlight';
+  target?: string; // data-tutorial attribute value
   title: string;
   description: string;
   icon: React.ReactNode;
+  action?: 'tap'; // if set, user must tap the highlighted element to proceed
 }
 
 const TUTORIAL_STEPS: TutorialStep[] = [
   {
-    target: 'stats',
-    title: 'Your Dashboard',
+    type: 'fullscreen',
+    title: 'Welcome to Munch! 🎉',
     description:
-      'Track your pantry items, saved recipes, and available dishes at a glance.',
-    icon: <Sparkles className="h-5 w-5" />,
+      'This is your home dashboard. It shows your stats at a glance and gives you quick access to every feature. Let\'s walk through the tabs at the bottom.',
+    icon: <Sparkles className="h-6 w-6" />,
   },
   {
-    target: 'action-browse',
+    type: 'spotlight',
+    target: 'nav-home',
+    title: 'Home',
+    description:
+      'You\'re here! Your dashboard shows pantry count, saved recipes, and quick actions to jump anywhere.',
+    icon: <Home className="h-5 w-5" />,
+  },
+  {
+    type: 'spotlight',
+    target: 'nav-pantry',
+    title: 'Pantry',
+    description:
+      'Add ingredients you have at home. Munch will match recipes to what\'s in your pantry. Tap to explore!',
+    icon: <UtensilsCrossed className="h-5 w-5" />,
+    action: 'tap',
+  },
+  {
+    type: 'spotlight',
+    target: 'nav-browse',
     title: 'Browse Recipes',
     description:
-      'Swipe through personalized recipe suggestions based on your preferences and pantry.',
+      'Swipe through personalized recipe suggestions tailored to your tastes and dietary needs. Tap to explore!',
     icon: <Flame className="h-5 w-5" />,
+    action: 'tap',
   },
   {
-    target: 'action-pantry',
-    title: 'My Pantry',
-    description:
-      'Add ingredients you have at home. We\'ll match recipes to what you\'ve got.',
-    icon: <UtensilsCrossed className="h-5 w-5" />,
-  },
-  {
-    target: 'action-saved',
+    type: 'spotlight',
+    target: 'nav-recipes',
     title: 'Saved Recipes',
     description:
-      'Your liked recipes live here. Add missing ingredients to your grocery list with one tap.',
+      'Recipes you like land here. You can add missing ingredients to your grocery list with one tap. Tap to explore!',
     icon: <Heart className="h-5 w-5" />,
+    action: 'tap',
   },
   {
-    target: 'action-mealprep',
-    title: 'Meal Prep',
-    description:
-      'Plan your week by dragging saved recipes into a meal calendar.',
-    icon: <CalendarDays className="h-5 w-5" />,
-  },
-  {
+    type: 'spotlight',
     target: 'nav-grocery',
     title: 'Grocery List',
     description:
-      'Missing ingredients are grouped by aisle. Check items off as you shop.',
+      'Missing ingredients are grouped by aisle so shopping is a breeze. Tap to explore!',
     icon: <ShoppingCart className="h-5 w-5" />,
+    action: 'tap',
   },
   {
-    target: 'settings-btn',
-    title: 'Settings',
+    type: 'fullscreen',
+    title: 'You\'re all set! 🚀',
     description:
-      'Update your preferences, redo onboarding, or adjust your default servings anytime.',
-    icon: <Settings className="h-5 w-5" />,
+      'Start by adding items to your pantry, then browse recipes to find your next meal. Happy cooking!',
+    icon: <Sparkles className="h-6 w-6" />,
   },
 ];
 
@@ -83,16 +92,19 @@ export default function SpotlightTutorial({ onComplete }: SpotlightTutorialProps
   const step = TUTORIAL_STEPS[currentStep];
 
   const updateSpotlight = useCallback(() => {
+    if (step.type !== 'spotlight' || !step.target) {
+      setSpotlightRect(null);
+      return;
+    }
     const el = document.querySelector(`[data-tutorial="${step.target}"]`);
     if (el) {
       setSpotlightRect(el.getBoundingClientRect());
     } else {
       setSpotlightRect(null);
     }
-  }, [step.target]);
+  }, [step.target, step.type]);
 
   useEffect(() => {
-    // Small delay so layout is settled
     const timer = setTimeout(updateSpotlight, 150);
     window.addEventListener('resize', updateSpotlight);
     window.addEventListener('scroll', updateSpotlight, true);
@@ -102,6 +114,28 @@ export default function SpotlightTutorial({ onComplete }: SpotlightTutorialProps
       window.removeEventListener('scroll', updateSpotlight, true);
     };
   }, [updateSpotlight]);
+
+  // For 'tap' action steps, allow clicking through the spotlight to the target element
+  useEffect(() => {
+    if (step.action !== 'tap' || !step.target) return;
+
+    const handleClick = (e: MouseEvent) => {
+      const el = document.querySelector(`[data-tutorial="${step.target}"]`);
+      if (el && el.contains(e.target as Node)) {
+        // Let the click go through, then advance after a short delay
+        setTimeout(() => {
+          if (currentStep < TUTORIAL_STEPS.length - 1) {
+            setCurrentStep(currentStep + 1);
+          } else {
+            onComplete();
+          }
+        }, 400);
+      }
+    };
+
+    document.addEventListener('click', handleClick, true);
+    return () => document.removeEventListener('click', handleClick, true);
+  }, [step.action, step.target, currentStep, onComplete]);
 
   const next = () => {
     if (currentStep < TUTORIAL_STEPS.length - 1) {
@@ -114,14 +148,20 @@ export default function SpotlightTutorial({ onComplete }: SpotlightTutorialProps
   const skip = () => onComplete();
 
   const isLast = currentStep === TUTORIAL_STEPS.length - 1;
-  const pad = 8;
+  const pad = 6;
 
-  // Position tooltip below or above the spotlight
-  const tooltipTop = spotlightRect
-    ? spotlightRect.bottom + pad + 12 > window.innerHeight * 0.7
-      ? spotlightRect.top - pad - 12 // show above
-      : spotlightRect.bottom + pad + 12 // show below
-    : '50%';
+  // Tooltip positioning: for bottom nav items, show ABOVE; otherwise center or below
+  const getTooltipStyle = (): React.CSSProperties => {
+    if (step.type === 'fullscreen' || !spotlightRect) {
+      return { top: '50%', transform: 'translateY(-50%)' };
+    }
+    // If target is in the bottom 20% of screen, show tooltip above it
+    if (spotlightRect.top > window.innerHeight * 0.7) {
+      return { bottom: window.innerHeight - spotlightRect.top + pad + 16 };
+    }
+    // Otherwise show below
+    return { top: spotlightRect.bottom + pad + 16 };
+  };
 
   return (
     <div className="fixed inset-0 z-[100]">
@@ -147,12 +187,26 @@ export default function SpotlightTutorial({ onComplete }: SpotlightTutorialProps
           y="0"
           width="100%"
           height="100%"
-          fill="rgba(0,0,0,0.6)"
+          fill="rgba(0,0,0,0.65)"
           mask="url(#spotlight-mask)"
           style={{ pointerEvents: 'auto' }}
           onClick={(e) => e.stopPropagation()}
         />
       </svg>
+
+      {/* Allow clicking through to the spotlight target for tap actions */}
+      {step.action === 'tap' && spotlightRect && (
+        <div
+          className="absolute z-[101]"
+          style={{
+            left: spotlightRect.left - pad,
+            top: spotlightRect.top - pad,
+            width: spotlightRect.width + pad * 2,
+            height: spotlightRect.height + pad * 2,
+            pointerEvents: 'none', // let clicks pass through to the element behind
+          }}
+        />
+      )}
 
       {/* Spotlight border ring */}
       {spotlightRect && (
@@ -177,8 +231,8 @@ export default function SpotlightTutorial({ onComplete }: SpotlightTutorialProps
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
           transition={{ duration: 0.25 }}
-          className="absolute left-4 right-4 max-w-sm mx-auto z-[101]"
-          style={{ top: tooltipTop }}
+          className="absolute left-4 right-4 max-w-sm mx-auto z-[102]"
+          style={getTooltipStyle()}
         >
           <div className="bg-card border border-border rounded-2xl p-5 shadow-xl">
             <div className="flex items-center gap-3 mb-2">
@@ -188,7 +242,7 @@ export default function SpotlightTutorial({ onComplete }: SpotlightTutorialProps
               <div>
                 <h3 className="font-display font-bold text-foreground text-base">{step.title}</h3>
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wide">
-                  Step {currentStep + 1} of {TUTORIAL_STEPS.length}
+                  {currentStep + 1} of {TUTORIAL_STEPS.length}
                 </span>
               </div>
             </div>
@@ -202,10 +256,16 @@ export default function SpotlightTutorial({ onComplete }: SpotlightTutorialProps
               >
                 Skip tutorial
               </button>
-              <Button onClick={next} size="sm" className="gap-1.5">
-                {isLast ? 'Get Started' : 'Next'}
-                {!isLast && <ArrowRight className="h-3.5 w-3.5" />}
-              </Button>
+              {step.action === 'tap' ? (
+                <span className="text-xs font-medium text-primary animate-pulse">
+                  👆 Tap the tab to continue
+                </span>
+              ) : (
+                <Button onClick={next} size="sm" className="gap-1.5">
+                  {isLast ? "Let's Cook!" : 'Next'}
+                  {!isLast && <ArrowRight className="h-3.5 w-3.5" />}
+                </Button>
+              )}
             </div>
             {/* Progress dots */}
             <div className="flex items-center justify-center gap-1.5 mt-3">
