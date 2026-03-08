@@ -3,9 +3,10 @@ import { UtensilsCrossed, Flame, Heart, ShoppingCart, CalendarDays } from 'lucid
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
+  { path: '/dashboard', label: 'Home', icon: Flame },
   { path: '/pantry', label: 'Pantry', icon: UtensilsCrossed },
-  { path: '/swipe', label: 'Browse', icon: Flame },
-  { path: '/saved', label: 'Recipes', icon: Heart },
+  { path: '/swipe', label: 'Browse', icon: Heart },
+  { path: '/saved', label: 'Recipes', icon: ShoppingCart },
   { path: '/meal-prep', label: 'Meal Prep', icon: CalendarDays },
   { path: '/grocery', label: 'Grocery', icon: ShoppingCart },
 ];
