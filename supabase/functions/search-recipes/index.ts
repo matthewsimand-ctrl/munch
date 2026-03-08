@@ -9,7 +9,7 @@ interface NormalizedRecipe {
   id: string;
   name: string;
   image: string;
-  cookTime: string;
+  cook_time: string;
   difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
   ingredients: string[];
   tags: string[];
