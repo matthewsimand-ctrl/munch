@@ -101,7 +101,7 @@ export default function Pantry() {
   const categorizedItems = useMemo(() => {
     return pantryList.map((item, index) => ({
       ...item,
-      category: getCategory(item.name),
+      category: item.category as IngredientCategory || getCategory(item.name),
       index,
     }));
   }, [pantryList]);
