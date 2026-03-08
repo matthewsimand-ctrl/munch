@@ -1,4 +1,5 @@
 import type { Recipe } from '@/data/recipes';
+import { getTimeBoost } from '@/lib/mealTimeUtils';
 
 /**
  * Recommendation engine: scores recipes based on similarity to liked recipes.
@@ -131,10 +132,10 @@ export function rankByRecommendation(
       recipe: r,
       recScore: scoreRecipe(r, profile),
     }))
-    // Add a small random factor for discovery (±10 points)
+    // Add time-of-day boost + small random factor for discovery
     .map(item => ({
       ...item,
-      recScore: item.recScore + (Math.random() * 20 - 10),
+      recScore: item.recScore + getTimeBoost(item.recipe) + (Math.random() * 20 - 10),
     }))
     .sort((a, b) => b.recScore - a.recScore);
 }

@@ -7,11 +7,13 @@ import { useDbRecipes } from '@/hooks/useDbRecipes';
 import { useBrowseFeed } from '@/hooks/useBrowseFeed';
 import { calculateMatch } from '@/lib/matchLogic';
 import { rankByRecommendation } from '@/lib/recommendations';
+import { filterByMealType, getTimeBasedCategory, MEAL_CATEGORIES, type MealCategory } from '@/lib/mealTimeUtils';
 import SwipeCard from '@/components/SwipeCard';
 import RecipePreviewDialog from '@/components/RecipePreviewDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Heart, X, UtensilsCrossed, User, Search, Loader2, Globe } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Heart, X, UtensilsCrossed, User, Search, Loader2, Globe, Clock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useRecipeSearch } from '@/hooks/useRecipeSearch';
 import { Badge } from '@/components/ui/badge';
@@ -24,6 +26,8 @@ export default function Swipe() {
   const [user, setUser] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [mealFilter, setMealFilter] = useState<MealCategory>('all');
+  const suggestedCategory = useMemo(() => getTimeBasedCategory(), []);
   const { apiRecipes, loading: searchLoading, searched, search } = useRecipeSearch();
   const { data: dbRecipes = [], isLoading: dbLoading } = useDbRecipes();
   const { recipes: browseRecipes, loading: browseLoading, loaded: browseLoaded, loadFeed } = useBrowseFeed();
@@ -54,19 +58,25 @@ export default function Swipe() {
 
   // Combine all recipe sources
   const allRecipes = useMemo(() => {
+    let base: Recipe[];
     // If user searched, show search results
-    if (apiRecipes.length > 0) return apiRecipes;
-    // Merge db recipes + browse feed, dedup by id
-    const seen = new Set<string>();
-    const merged: Recipe[] = [];
-    for (const r of [...dbRecipes, ...browseRecipes]) {
-      if (!seen.has(r.id)) {
-        seen.add(r.id);
-        merged.push(r);
+    if (apiRecipes.length > 0) {
+      base = apiRecipes;
+    } else {
+      // Merge db recipes + browse feed, dedup by id
+      const seen = new Set<string>();
+      const merged: Recipe[] = [];
+      for (const r of [...dbRecipes, ...browseRecipes]) {
+        if (!seen.has(r.id)) {
+          seen.add(r.id);
+          merged.push(r);
+        }
       }
+      base = merged;
     }
-    return merged;
-  }, [apiRecipes, dbRecipes, browseRecipes]);
+    // Apply meal type filter
+    return filterByMealType(base, mealFilter);
+  }, [apiRecipes, dbRecipes, browseRecipes, mealFilter]);
 
   // Rank recipes using both pantry match AND recommendation score
   const rankedRecipes = useMemo(() => {
@@ -149,10 +159,25 @@ export default function Swipe() {
           </Button>
         </form>
         <div className="flex items-center gap-2 mt-2">
+          <div className="flex items-center gap-1.5">
+            <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+            <Select value={mealFilter} onValueChange={(v) => { setMealFilter(v as MealCategory); setCurrentIndex(0); }}>
+              <SelectTrigger className="h-7 w-auto min-w-[110px] text-xs border-dashed">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {MEAL_CATEGORIES.map(c => (
+                  <SelectItem key={c.value} value={c.value}>
+                    {c.label}{c.value === suggestedCategory ? ' ✦' : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           {searched && apiRecipes.length > 0 ? (
             <>
               <Badge variant="secondary" className="text-xs">
-                {apiRecipes.length} search results
+                {apiRecipes.length} results
               </Badge>
               <Button
                 variant="ghost"
@@ -165,7 +190,7 @@ export default function Swipe() {
             </>
           ) : (
             <Badge variant="outline" className="text-xs text-muted-foreground">
-              {browseLoading ? 'Loading recipes...' : `${totalAvailable} recipes to browse`}
+              {browseLoading ? 'Loading...' : `${totalAvailable} recipes`}
             </Badge>
           )}
           {currentIndex > 0 && totalAvailable > 0 && (
