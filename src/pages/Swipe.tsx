@@ -186,7 +186,7 @@ export default function Swipe() {
       </div>
 
       {/* Source badge on current card */}
-      {current?.source && !loading && (
+      {current?.source && !(searchLoading || dbLoading) && (
         <div className="flex justify-center -mt-2 mb-1">
           <Badge variant="outline" className="text-xs">
             via {current.source}
