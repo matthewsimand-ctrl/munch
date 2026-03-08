@@ -206,14 +206,6 @@ export default function SavedRecipes() {
                             )
                           )}
 
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-destructive border-destructive/30 hover:bg-destructive hover:text-destructive-foreground"
-                            onClick={() => unlikeRecipe(recipe.id)}
-                          >
-                            Remove
-                          </Button>
                         </div>
                       </div>
                     </motion.div>
