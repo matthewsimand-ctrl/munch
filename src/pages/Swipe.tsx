@@ -13,9 +13,8 @@ import RecipePreviewDialog from '@/components/RecipePreviewDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Heart, X, UtensilsCrossed, User, Search, Loader2, Globe, Clock } from 'lucide-react';
+import { Heart, X, UtensilsCrossed, User, Search, Loader2, Clock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useRecipeSearch } from '@/hooks/useRecipeSearch';
 import { Badge } from '@/components/ui/badge';
 import type { Recipe } from '@/data/recipes';
 

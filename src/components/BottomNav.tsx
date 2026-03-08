@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, UtensilsCrossed, Flame, Heart, ShoppingCart } from 'lucide-react';
+import { Home, UtensilsCrossed, Flame, Heart, ShoppingCart, CalendarDays } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const TUTORIAL_MAP: Record<string, string> = {
@@ -7,6 +7,7 @@ const TUTORIAL_MAP: Record<string, string> = {
   Pantry: 'nav-pantry',
   Browse: 'nav-browse',
   Recipes: 'nav-recipes',
+  Plan: 'nav-plan',
   Grocery: 'nav-grocery',
 };
 
@@ -15,6 +16,7 @@ const NAV_ITEMS = [
   { path: '/pantry', label: 'Pantry', icon: UtensilsCrossed },
   { path: '/swipe', label: 'Browse', icon: Flame },
   { path: '/saved', label: 'Recipes', icon: Heart },
+  { path: '/meal-prep', label: 'Plan', icon: CalendarDays },
   { path: '/grocery', label: 'Grocery', icon: ShoppingCart },
 ];
 
