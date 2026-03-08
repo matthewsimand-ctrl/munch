@@ -58,19 +58,25 @@ export default function Swipe() {
 
   // Combine all recipe sources
   const allRecipes = useMemo(() => {
+    let base: Recipe[];
     // If user searched, show search results
-    if (apiRecipes.length > 0) return apiRecipes;
-    // Merge db recipes + browse feed, dedup by id
-    const seen = new Set<string>();
-    const merged: Recipe[] = [];
-    for (const r of [...dbRecipes, ...browseRecipes]) {
-      if (!seen.has(r.id)) {
-        seen.add(r.id);
-        merged.push(r);
+    if (apiRecipes.length > 0) {
+      base = apiRecipes;
+    } else {
+      // Merge db recipes + browse feed, dedup by id
+      const seen = new Set<string>();
+      const merged: Recipe[] = [];
+      for (const r of [...dbRecipes, ...browseRecipes]) {
+        if (!seen.has(r.id)) {
+          seen.add(r.id);
+          merged.push(r);
+        }
       }
+      base = merged;
     }
-    return merged;
-  }, [apiRecipes, dbRecipes, browseRecipes]);
+    // Apply meal type filter
+    return filterByMealType(base, mealFilter);
+  }, [apiRecipes, dbRecipes, browseRecipes, mealFilter]);
 
   // Rank recipes using both pantry match AND recommendation score
   const rankedRecipes = useMemo(() => {
