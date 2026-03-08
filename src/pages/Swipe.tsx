@@ -53,8 +53,7 @@ export default function Swipe() {
   const handleSwipe = (dir: 'left' | 'right') => {
     const r = rankedRecipes[currentIndex];
     if (dir === 'right') {
-      const isApi = r.recipe.id.startsWith('mealdb-') || r.recipe.id.startsWith('tasty-') || r.recipe.id.startsWith('spoon-');
-      likeRecipe(r.recipe.id, isApi ? r.recipe : undefined);
+      likeRecipe(r.recipe.id, r.recipe);
     }
     setCurrentIndex((prev) => prev + 1);
   };
