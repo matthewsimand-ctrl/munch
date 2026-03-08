@@ -13,15 +13,17 @@ export default function SavedRecipes() {
   const { likedRecipes, pantryList, unlikeRecipe } = useStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
+  const pantryNames = useMemoAlias(() => pantryList.map(p => p.name), [pantryList]);
+
   const saved = useMemo(() => {
     return likedRecipes
       .map((id) => {
         const recipe = recipes.find((r) => r.id === id);
         if (!recipe) return null;
-        return { recipe, match: calculateMatch(pantryList, recipe.ingredients) };
+        return { recipe, match: calculateMatch(pantryNames, recipe.ingredients) };
       })
       .filter(Boolean) as { recipe: (typeof recipes)[0]; match: ReturnType<typeof calculateMatch> }[];
-  }, [likedRecipes, pantryList]);
+  }, [likedRecipes, pantryNames]);
 
   return (
     <div className="min-h-screen bg-background">
