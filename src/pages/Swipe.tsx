@@ -5,6 +5,7 @@ import { AnimatePresence } from 'framer-motion';
 import { useStore } from '@/lib/store';
 import { useDbRecipes } from '@/hooks/useDbRecipes';
 import { useBrowseFeed } from '@/hooks/useBrowseFeed';
+import { useChefProfiles } from '@/hooks/useChefProfiles';
 import { calculateMatch } from '@/lib/matchLogic';
 import { rankByRecommendation } from '@/lib/recommendations';
 import { filterByMealType, getTimeBasedCategory, MEAL_CATEGORIES, type MealCategory } from '@/lib/mealTimeUtils';
