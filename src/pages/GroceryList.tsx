@@ -143,10 +143,10 @@ export default function GroceryList() {
     <div className="min-h-screen bg-background pb-20">
       <div className="px-6 pt-8 pb-4 max-w-md mx-auto w-full">
         <div className="flex items-center gap-3 mb-2" data-tutorial="grocery-header">
-          <div className="flex items-center gap-2">
+          <button onClick={() => navigate('/dashboard')} className="flex items-center gap-2">
             <ShoppingCart className="h-6 w-6 text-primary" />
-            <h1 className="font-display text-2xl font-bold text-foreground">Grocery List</h1>
-          </div>
+            <span className="font-display text-xl font-bold text-foreground">Grocery List</span>
+          </button>
           <div className="ml-auto flex items-center gap-2">
             {totalItems > 0 && (
               <DropdownMenu>

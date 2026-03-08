@@ -39,12 +39,10 @@ export default function SavedRecipes() {
     <div className="min-h-screen bg-background pb-20">
       <div className="px-6 pt-8 pb-4 max-w-md mx-auto w-full">
         <div className="flex items-center gap-3 mb-6">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/swipe')}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <h1 className="font-display text-2xl font-bold text-foreground" data-tutorial="saved-header">
-            My Recipes
-          </h1>
+          <button onClick={() => navigate('/dashboard')} className="flex items-center gap-2">
+            <UtensilsCrossed className="h-6 w-6 text-primary" />
+            <span className="font-display text-xl font-bold text-foreground">My Recipes</span>
+          </button>
           <div className="ml-auto flex items-center gap-2" data-tutorial="saved-actions">
             <ImportRecipeDialog />
             <Dialog open={createOpen} onOpenChange={setCreateOpen}>
