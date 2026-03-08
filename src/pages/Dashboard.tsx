@@ -76,28 +76,24 @@ export default function Dashboard() {
       icon: Flame,
       path: '/swipe',
       color: 'bg-primary/10 text-primary',
-      tutorial: 'action-browse',
     },
     {
       label: 'My Pantry',
       icon: UtensilsCrossed,
       path: '/pantry',
       color: 'bg-accent/20 text-accent-foreground',
-      tutorial: 'action-pantry',
     },
     {
       label: 'Saved Recipes',
       icon: Heart,
       path: '/saved',
       color: 'bg-destructive/10 text-destructive',
-      tutorial: 'action-saved',
     },
     {
       label: 'Meal Prep',
       icon: CalendarDays,
       path: '/meal-prep',
       color: 'bg-success/10 text-foreground',
-      tutorial: 'action-mealprep',
     },
   ];
 
