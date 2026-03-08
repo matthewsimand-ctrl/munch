@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -12,20 +12,26 @@ import {
   Sparkles,
   Plus,
   Search,
-  CalendarDays,
 } from 'lucide-react';
 
 interface TutorialStep {
-  route: string; // which route to be on
-  target?: string; // data-tutorial attribute value to spotlight
+  route: string;
+  target?: string;
   title: string;
   description: string;
   icon: React.ReactNode;
   position?: 'above' | 'below' | 'center';
 }
 
+const ROUTE_TAB_TARGET: Record<string, { target: string; label: string }> = {
+  '/dashboard': { target: 'nav-home', label: 'Home' },
+  '/pantry': { target: 'nav-pantry', label: 'Pantry' },
+  '/swipe': { target: 'nav-browse', label: 'Browse' },
+  '/saved': { target: 'nav-recipes', label: 'Recipes' },
+  '/grocery': { target: 'nav-grocery', label: 'Grocery' },
+};
+
 const TUTORIAL_STEPS: TutorialStep[] = [
-  // Dashboard intro
   {
     route: '/dashboard',
     title: 'Welcome to Munch! 🎉',
@@ -42,7 +48,6 @@ const TUTORIAL_STEPS: TutorialStep[] = [
       'Track your pantry items, saved recipes, and total available recipes right here.',
     icon: <Home className="h-5 w-5" />,
   },
-  // Pantry page
   {
     route: '/pantry',
     target: 'pantry-add-form',
@@ -59,7 +64,6 @@ const TUTORIAL_STEPS: TutorialStep[] = [
       'Tap common ingredients to add them instantly. Great for stocking up your virtual pantry fast!',
     icon: <UtensilsCrossed className="h-5 w-5" />,
   },
-  // Browse / Swipe page
   {
     route: '/swipe',
     target: 'swipe-search',
@@ -76,7 +80,6 @@ const TUTORIAL_STEPS: TutorialStep[] = [
       'Swipe right to save a recipe, left to skip. Recipes are ranked by how well they match your pantry and taste!',
     icon: <Flame className="h-5 w-5" />,
   },
-  // Saved Recipes page
   {
     route: '/saved',
     target: 'saved-header',
@@ -93,7 +96,6 @@ const TUTORIAL_STEPS: TutorialStep[] = [
       'Create your own recipes or import them from any URL. Add missing ingredients to your grocery list with one tap.',
     icon: <Plus className="h-5 w-5" />,
   },
-  // Grocery page
   {
     route: '/grocery',
     target: 'grocery-header',
@@ -102,7 +104,6 @@ const TUTORIAL_STEPS: TutorialStep[] = [
       'Missing ingredients are auto-grouped by aisle. Export to Apple Notes or Google Docs for easy shopping!',
     icon: <ShoppingCart className="h-5 w-5" />,
   },
-  // Final
   {
     route: '/dashboard',
     title: 'You\'re all set! 🚀',
@@ -120,48 +121,57 @@ interface SpotlightTutorialProps {
 export default function SpotlightTutorial({ onComplete }: SpotlightTutorialProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [spotlightRect, setSpotlightRect] = useState<DOMRect | null>(null);
-  const [navigating, setNavigating] = useState(false);
+  const [tooltipHeight, setTooltipHeight] = useState(280);
+  const tooltipRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
 
   const step = TUTORIAL_STEPS[currentStep];
+  const pad = 8;
+  const isLast = currentStep === TUTORIAL_STEPS.length - 1;
+  const isOnExpectedRoute = location.pathname === step.route;
+  const routeTab = ROUTE_TAB_TARGET[step.route];
+  const activeTarget = isOnExpectedRoute ? step.target : routeTab?.target;
+  const stepDescription = isOnExpectedRoute
+    ? step.description
+    : routeTab
+      ? `Tap ${routeTab.label} in the bottom tabs to continue.`
+      : step.description;
 
-  // Navigate to the correct route for the current step
   useEffect(() => {
-    if (location.pathname !== step.route) {
-      setNavigating(true);
-      navigate(step.route);
-    }
-  }, [currentStep, step.route, location.pathname, navigate]);
+    if (!tooltipRef.current) return;
 
-  // After navigation completes, mark navigating done
-  useEffect(() => {
-    if (navigating && location.pathname === step.route) {
-      const timer = setTimeout(() => setNavigating(false), 300);
-      return () => clearTimeout(timer);
-    }
-  }, [navigating, location.pathname, step.route]);
+    const measure = () => {
+      if (tooltipRef.current) {
+        setTooltipHeight(tooltipRef.current.offsetHeight || 280);
+      }
+    };
+
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(tooltipRef.current);
+    return () => observer.disconnect();
+  }, [currentStep, location.pathname]);
 
   const updateSpotlight = useCallback(() => {
-    if (!step.target || navigating) {
+    if (!activeTarget) {
       setSpotlightRect(null);
       return;
     }
-    const el = document.querySelector(`[data-tutorial="${step.target}"]`);
+
+    const el = document.querySelector(`[data-tutorial="${activeTarget}"]`);
     if (el) {
       setSpotlightRect(el.getBoundingClientRect());
     } else {
       setSpotlightRect(null);
     }
-  }, [step.target, navigating]);
+  }, [activeTarget]);
 
   useEffect(() => {
-    // Retry a few times for elements that render after route change
-    const timers = [150, 400, 800].map((ms) =>
-      setTimeout(updateSpotlight, ms)
-    );
+    const timers = [50, 180, 360, 700].map((ms) => setTimeout(updateSpotlight, ms));
     window.addEventListener('resize', updateSpotlight);
     window.addEventListener('scroll', updateSpotlight, true);
+
     return () => {
       timers.forEach(clearTimeout);
       window.removeEventListener('resize', updateSpotlight);
@@ -170,39 +180,41 @@ export default function SpotlightTutorial({ onComplete }: SpotlightTutorialProps
   }, [updateSpotlight]);
 
   const next = () => {
+    if (!isOnExpectedRoute) return;
+
     if (currentStep < TUTORIAL_STEPS.length - 1) {
-      setCurrentStep(currentStep + 1);
+      setCurrentStep((prev) => prev + 1);
     } else {
       onComplete();
     }
   };
 
   const skip = () => {
-    // Navigate back to dashboard before completing
     navigate('/dashboard');
     onComplete();
   };
 
-  const isLast = currentStep === TUTORIAL_STEPS.length - 1;
-  const pad = 8;
-
   const getTooltipStyle = (): React.CSSProperties => {
-    if (step.position === 'center' || !spotlightRect) {
-      return { top: '50%', transform: 'translateY(-50%)' };
-    }
-    // If target is in the bottom half, show above
-    if (spotlightRect.top > window.innerHeight * 0.5) {
-      return { bottom: window.innerHeight - spotlightRect.top + pad + 16 };
-    }
-    // Otherwise show below
-    return { top: spotlightRect.bottom + pad + 16 };
-  };
+    const topPadding = 16;
+    const bottomPadding = 96;
+    const maxTop = Math.max(topPadding, window.innerHeight - tooltipHeight - bottomPadding);
 
-  if (navigating) return null;
+    if (step.position === 'center' || !spotlightRect) {
+      const centeredTop = (window.innerHeight - tooltipHeight) / 2;
+      return { top: `${Math.min(Math.max(centeredTop, topPadding), maxTop)}px` };
+    }
+
+    const placeAbove = spotlightRect.top > window.innerHeight * 0.52;
+    const preferredTop = placeAbove
+      ? spotlightRect.top - tooltipHeight - pad - 16
+      : spotlightRect.bottom + pad + 16;
+
+    const clampedTop = Math.min(Math.max(preferredTop, topPadding), maxTop);
+    return { top: `${clampedTop}px` };
+  };
 
   return (
     <div className="fixed inset-0 z-[100]" style={{ pointerEvents: 'none' }}>
-      {/* Dimmed overlay with cutout */}
       <svg className="absolute inset-0 w-full h-full">
         <defs>
           <mask id="spotlight-mask">
@@ -231,7 +243,6 @@ export default function SpotlightTutorial({ onComplete }: SpotlightTutorialProps
         />
       </svg>
 
-      {/* Spotlight border ring */}
       {spotlightRect && (
         <motion.div
           layoutId="spotlight-ring"
@@ -242,22 +253,22 @@ export default function SpotlightTutorial({ onComplete }: SpotlightTutorialProps
             width: spotlightRect.width + pad * 2,
             height: spotlightRect.height + pad * 2,
           }}
-          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+          transition={{ type: 'tween', duration: 0.2, ease: 'easeOut' }}
         />
       )}
 
-      {/* Tooltip card */}
       <AnimatePresence mode="wait">
         <motion.div
           key={currentStep}
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.25 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.2, ease: 'easeOut' }}
           className="absolute left-4 right-4 max-w-sm mx-auto z-[102]"
           style={{ ...getTooltipStyle(), pointerEvents: 'auto' }}
+          ref={tooltipRef}
         >
-          <div className="bg-card border border-border rounded-2xl p-5 shadow-xl">
+          <div className="bg-card border border-border rounded-2xl p-5 shadow-xl max-h-[calc(100vh-8rem)] overflow-y-auto">
             <div className="flex items-center gap-3 mb-2">
               <div className="h-9 w-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
                 {step.icon}
@@ -269,9 +280,9 @@ export default function SpotlightTutorial({ onComplete }: SpotlightTutorialProps
                 </span>
               </div>
             </div>
-            <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
-              {step.description}
-            </p>
+
+            <p className="text-sm text-muted-foreground mb-4 leading-relaxed">{stepDescription}</p>
+
             <div className="flex items-center justify-between">
               <button
                 onClick={skip}
@@ -279,12 +290,12 @@ export default function SpotlightTutorial({ onComplete }: SpotlightTutorialProps
               >
                 Skip tutorial
               </button>
-              <Button onClick={next} size="sm" className="gap-1.5">
-                {isLast ? "Let's Cook!" : 'Next'}
-                {!isLast && <ArrowRight className="h-3.5 w-3.5" />}
+              <Button onClick={next} size="sm" className="gap-1.5" disabled={!isOnExpectedRoute}>
+                {isOnExpectedRoute ? (isLast ? "Let's Cook!" : 'Next') : `Go to ${routeTab?.label ?? 'tab'}`}
+                {isOnExpectedRoute && !isLast && <ArrowRight className="h-3.5 w-3.5" />}
               </Button>
             </div>
-            {/* Progress dots */}
+
             <div className="flex items-center justify-center gap-1.5 mt-3">
               {TUTORIAL_STEPS.map((_, i) => (
                 <div
@@ -293,8 +304,8 @@ export default function SpotlightTutorial({ onComplete }: SpotlightTutorialProps
                     i === currentStep
                       ? 'w-4 bg-primary'
                       : i < currentStep
-                      ? 'w-1.5 bg-primary/40'
-                      : 'w-1.5 bg-muted'
+                        ? 'w-1.5 bg-primary/40'
+                        : 'w-1.5 bg-muted'
                   }`}
                 />
               ))}
@@ -305,3 +316,4 @@ export default function SpotlightTutorial({ onComplete }: SpotlightTutorialProps
     </div>
   );
 }
+
