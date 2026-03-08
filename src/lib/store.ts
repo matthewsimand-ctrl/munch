@@ -18,6 +18,7 @@ interface AppState {
   pantryList: PantryItem[];
   likedRecipes: string[];
   savedApiRecipes: Record<string, any>;
+  cachedNutrition: Record<string, any>;
   onboardingComplete: boolean;
 
   setUserProfile: (profile: Partial<UserProfile>) => void;
