@@ -143,7 +143,7 @@ export default function Swipe() {
           <Input
             placeholder="Filter by cuisine, ingredient, or dish name..."
             value={filterText}
-            onChange={(e) => { setFilterText(e.target.value); setCurrentIndex(0); }}
+            onChange={(e) => { setFilterText(e.target.value); setCurrentIndex(0); setFilterKey(k => k + 1); }}
             className="pl-9"
           />
           {filterText && (
