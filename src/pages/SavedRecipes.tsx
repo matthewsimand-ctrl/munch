@@ -7,21 +7,21 @@ import { calculateMatch } from '@/lib/matchLogic';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Clock, BarChart3, Check, ShoppingCart, ChevronDown, ChevronUp, Play, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useMemo as useMemoAlias } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import CreateRecipeForm from '@/components/CreateRecipeForm';
 import ImportRecipeDialog from '@/components/ImportRecipeDialog';
 import NutritionCard from '@/components/NutritionCard';
+import { toast } from 'sonner';
 
 export default function SavedRecipes() {
   const navigate = useNavigate();
-  const { likedRecipes, pantryList, unlikeRecipe, savedApiRecipes } = useStore();
+  const { likedRecipes, pantryList, unlikeRecipe, savedApiRecipes, groceryRecipes, addToGrocery, removeFromGrocery } = useStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const { data: dbRecipes = [] } = useDbRecipes();
 
-  const pantryNames = useMemoAlias(() => pantryList.map(p => p.name), [pantryList]);
+  const pantryNames = useMemo(() => pantryList.map(p => p.name), [pantryList]);
 
   const saved = useMemo(() => {
     return likedRecipes
@@ -32,6 +32,8 @@ export default function SavedRecipes() {
       })
       .filter(Boolean) as { recipe: (typeof dbRecipes)[0]; match: ReturnType<typeof calculateMatch>; source?: string }[];
   }, [likedRecipes, pantryNames, savedApiRecipes, dbRecipes]);
+
+  const grocerySet = useMemo(() => new Set(groceryRecipes), [groceryRecipes]);
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -77,6 +79,7 @@ export default function SavedRecipes() {
         ) : (
           saved.map(({ recipe, match, source }) => {
             const expanded = expandedId === recipe.id;
+            const isInGrocery = grocerySet.has(recipe.id);
             const borderColor =
               match.status === 'perfect' ? 'border-success' :
               match.status === 'almost' ? 'border-warning' : 'border-border';
@@ -160,13 +163,41 @@ export default function SavedRecipes() {
                           servings={1}
                         />
 
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-2">
                           <Button
                             size="sm"
                             onClick={() => navigate(`/cook/${recipe.id}`)}
                           >
                             <Play className="h-4 w-4 mr-1" /> Cook
                           </Button>
+
+                          {/* Add/Remove from grocery */}
+                          {match.missing.length > 0 && (
+                            isInGrocery ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  removeFromGrocery(recipe.id);
+                                  toast.success('Removed from grocery list');
+                                }}
+                              >
+                                <Check className="h-4 w-4 mr-1" /> In Grocery List
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  addToGrocery(recipe.id);
+                                  toast.success(`Added ${match.missing.length} missing items to grocery list`);
+                                }}
+                              >
+                                <ShoppingCart className="h-4 w-4 mr-1" /> Add {match.missing.length} to Grocery
+                              </Button>
+                            )
+                          )}
+
                           <Button
                             variant="outline"
                             size="sm"

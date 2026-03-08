@@ -32,15 +32,43 @@ export default function Auth() {
     try {
       if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        if (error) {
+          // Handle "Invalid login credentials" gracefully
+          if (
+            error.message.includes('Invalid login credentials') ||
+            error.message.includes('invalid_credentials')
+          ) {
+            toast({
+              title: 'Account not found',
+              description: "We couldn't find an account with those credentials. Would you like to create one?",
+            });
+            setIsLogin(false);
+            return;
+          }
+          throw error;
+        }
       } else {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: { emailRedirectTo: window.location.origin },
         });
-        if (error) throw error;
-        toast({ title: 'Check your email', description: 'We sent you a confirmation link.' });
+        if (error) {
+          // Handle "User already registered"
+          if (error.message.includes('already registered') || error.message.includes('already exists')) {
+            toast({
+              title: 'Account already exists',
+              description: 'An account with this email already exists. Try signing in instead.',
+            });
+            setIsLogin(true);
+            return;
+          }
+          throw error;
+        }
+        // Check if email confirmation is needed
+        if (data.user && !data.session) {
+          toast({ title: 'Check your email', description: 'We sent you a confirmation link.' });
+        }
       }
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
