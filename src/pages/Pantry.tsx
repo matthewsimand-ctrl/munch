@@ -24,6 +24,8 @@ export default function Pantry() {
   const { pantryList, addPantryItem, addPantryItems, removePantryItem, updatePantryQuantity } = useStore();
   const [input, setInput] = useState('');
   const [quantity, setQuantity] = useState('1');
+  const [selectedCategory, setSelectedCategory] = useState<string>('auto');
+  const allCategories = getAllCategories();
   const [user, setUser] = useState<any>(null);
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [sortBy, setSortBy] = useState('recent');
@@ -99,7 +101,7 @@ export default function Pantry() {
   const categorizedItems = useMemo(() => {
     return pantryList.map((item, index) => ({
       ...item,
-      category: getCategory(item.name),
+      category: item.category as IngredientCategory || getCategory(item.name),
       index,
     }));
   }, [pantryList]);
@@ -124,12 +126,19 @@ export default function Pantry() {
     return getAllCategories().filter(c => cats.has(c));
   }, [categorizedItems]);
 
+  const autoCategory = useMemo(() => {
+    const trimmed = input.trim();
+    return trimmed ? getCategory(trimmed) : 'Other';
+  }, [input]);
+
   const handleAdd = () => {
     const trimmed = input.trim();
     if (trimmed) {
-      addPantryItem(trimmed, quantity);
+      const category = selectedCategory === 'auto' ? getCategory(trimmed) : selectedCategory;
+      addPantryItem(trimmed, quantity, category);
       setInput('');
       setQuantity('1');
+      setSelectedCategory('auto');
     }
   };
 
@@ -162,27 +171,42 @@ export default function Pantry() {
         </div>
 
         {/* Add ingredient */}
-        <div className="flex gap-2 mb-4">
-          <Input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Add an ingredient..."
-            className="flex-1 h-12 bg-card"
-          />
-          <Select value={quantity} onValueChange={setQuantity}>
-            <SelectTrigger className="w-20 h-12 bg-card">
-              <SelectValue />
+        <div className="space-y-2 mb-4">
+          <div className="flex gap-2">
+            <Input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Add an ingredient..."
+              className="flex-1 h-12 bg-card"
+            />
+            <Select value={quantity} onValueChange={setQuantity}>
+              <SelectTrigger className="w-20 h-12 bg-card">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {QUANTITY_OPTIONS.map(q => (
+                  <SelectItem key={q} value={q}>{q}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button onClick={handleAdd} size="icon" className="h-12 w-12 shrink-0">
+              <Plus className="h-5 w-5" />
+            </Button>
+          </div>
+          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            <SelectTrigger className="w-full h-9 bg-card text-xs">
+              <SelectValue placeholder="Category" />
             </SelectTrigger>
             <SelectContent>
-              {QUANTITY_OPTIONS.map(q => (
-                <SelectItem key={q} value={q}>{q}</SelectItem>
+              <SelectItem value="auto">
+                Auto-detect{input.trim() ? ` → ${autoCategory}` : ''}
+              </SelectItem>
+              {allCategories.map(cat => (
+                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <Button onClick={handleAdd} size="icon" className="h-12 w-12 shrink-0">
-            <Plus className="h-5 w-5" />
-          </Button>
         </div>
 
         {/* Filter & Sort bar */}

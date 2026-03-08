@@ -10,6 +10,7 @@ export interface UserProfile {
 export interface PantryItem {
   name: string;
   quantity: string;
+  category?: string;
 }
 
 interface AppState {
@@ -20,7 +21,7 @@ interface AppState {
 
   setUserProfile: (profile: Partial<UserProfile>) => void;
   completeOnboarding: () => void;
-  addPantryItem: (name: string, quantity?: string) => void;
+  addPantryItem: (name: string, quantity?: string, category?: string) => void;
   removePantryItem: (name: string) => void;
   updatePantryQuantity: (name: string, quantity: string) => void;
   addPantryItems: (items: string[]) => void;
@@ -50,12 +51,12 @@ export const useStore = create<AppState>()(
 
       completeOnboarding: () => set({ onboardingComplete: true }),
 
-      addPantryItem: (name, quantity = '1') => {
+      addPantryItem: (name, quantity = '1', category) => {
         const normalized = name.toLowerCase().trim();
         set((state) => ({
           pantryList: state.pantryList.some(p => p.name === normalized)
             ? state.pantryList
-            : [...state.pantryList, { name: normalized, quantity }],
+            : [...state.pantryList, { name: normalized, quantity, category }],
         }));
       },
 
