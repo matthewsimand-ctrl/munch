@@ -35,7 +35,12 @@ export default function SavedRecipes() {
           <h1 className="font-display text-2xl font-bold text-foreground">
             Saved Recipes
           </h1>
-          <span className="ml-auto text-sm text-muted-foreground">{saved.length} recipes</span>
+          <div className="ml-auto flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => navigate('/grocery')}>
+              <ShoppingCart className="h-4 w-4 mr-1" /> Grocery List
+            </Button>
+            <span className="text-sm text-muted-foreground">{saved.length}</span>
+          </div>
         </div>
       </div>
 

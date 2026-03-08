@@ -22,10 +22,12 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/auth" element={<Auth />} />
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/pantry" element={<Pantry />} />
           <Route path="/swipe" element={<Swipe />} />
           <Route path="/saved" element={<SavedRecipes />} />
+          <Route path="/grocery" element={<GroceryList />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
