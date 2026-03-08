@@ -146,6 +146,7 @@ export const useStore = create<AppState>()(
           groceryRecipes: [],
           onboardingComplete: false,
           tutorialComplete: false,
+          showTutorial: false,
         }),
     }),
     { name: 'chefstack-storage' }
