@@ -248,10 +248,10 @@ export default function MealPrep() {
       {/* Header */}
       <div className="px-4 pt-6 pb-2 max-w-6xl mx-auto w-full">
         <div className="flex items-center gap-3 mb-4 flex-wrap">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/swipe')}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <h1 className="font-display text-2xl font-bold text-foreground">Meal Prep</h1>
+          <button onClick={() => navigate('/dashboard')} className="flex items-center gap-2">
+            <CalendarDays className="h-6 w-6 text-primary" />
+            <span className="font-display text-xl font-bold text-foreground">Meal Prep</span>
+          </button>
           <div className="ml-auto flex items-center gap-2">
             <Button variant="ghost" size="icon" onClick={exportPDF} title="Export PDF">
               <FileText className="h-4 w-4" />
