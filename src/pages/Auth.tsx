@@ -14,6 +14,7 @@ export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -30,6 +31,11 @@ export default function Auth() {
     e.preventDefault();
     setLoading(true);
     try {
+      if (!isLogin && password !== confirmPassword) {
+        toast({ title: "Passwords don't match", description: 'Please make sure both passwords are the same.', variant: 'destructive' });
+        setLoading(false);
+        return;
+      }
       if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) {
@@ -120,6 +126,12 @@ export default function Auth() {
             <Label htmlFor="password">Password</Label>
             <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required minLength={6} className="h-12" />
           </div>
+          {!isLogin && (
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Input id="confirmPassword" type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="••••••••" required minLength={6} className="h-12" />
+            </div>
+          )}
           <Button type="submit" className="w-full h-12" disabled={loading}>
             <Mail className="h-4 w-4 mr-2" />
             {loading ? 'Loading...' : isLogin ? 'Sign In' : 'Create Account'}
