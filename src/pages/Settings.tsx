@@ -218,6 +218,18 @@ export default function Settings() {
             </Button>
             <Button
               variant="outline"
+              className="w-full"
+              onClick={() => {
+                setUserProfile({ dietaryRestrictions: [], skillLevel: '', flavorProfiles: [] });
+                useStore.setState({ onboardingComplete: false });
+                toast({ title: 'Preferences reset!' });
+                navigate('/onboarding');
+              }}
+            >
+              <Flame className="h-4 w-4 mr-2" /> Redo Onboarding
+            </Button>
+            <Button
+              variant="outline"
               className="w-full text-destructive border-destructive/30 hover:bg-destructive hover:text-destructive-foreground"
               onClick={() => {
                 resetStore();
