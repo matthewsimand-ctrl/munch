@@ -14,6 +14,15 @@ export default function Swipe() {
   const navigate = useNavigate();
   const { pantryList, likeRecipe, likedRecipes } = useStore();
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [user, setUser] = useStateAlias<any>(null);
+
+  useEffectAlias(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+      setUser(session?.user ?? null);
+    });
+    supabase.auth.getSession().then(({ data: { session } }) => setUser(session?.user ?? null));
+    return () => subscription.unsubscribe();
+  }, []);
 
   const pantryNames = useMemo(() => pantryList.map(p => p.name), [pantryList]);
 
