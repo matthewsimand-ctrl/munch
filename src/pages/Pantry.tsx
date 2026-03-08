@@ -126,12 +126,19 @@ export default function Pantry() {
     return getAllCategories().filter(c => cats.has(c));
   }, [categorizedItems]);
 
+  const autoCategory = useMemo(() => {
+    const trimmed = input.trim();
+    return trimmed ? getCategory(trimmed) : 'Other';
+  }, [input]);
+
   const handleAdd = () => {
     const trimmed = input.trim();
     if (trimmed) {
-      addPantryItem(trimmed, quantity);
+      const category = selectedCategory === 'auto' ? getCategory(trimmed) : selectedCategory;
+      addPantryItem(trimmed, quantity, category);
       setInput('');
       setQuantity('1');
+      setSelectedCategory('auto');
     }
   };
 
