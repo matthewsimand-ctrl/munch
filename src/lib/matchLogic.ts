@@ -1,3 +1,42 @@
+// Base-form mapping: maps specific variants to their generic base ingredient
+const BASE_FORMS: Record<string, string> = {
+  'chicken drumstick': 'chicken',
+  'chicken drumsticks': 'chicken',
+  'chicken thigh': 'chicken',
+  'chicken thighs': 'chicken',
+  'chicken breast': 'chicken',
+  'chicken breasts': 'chicken',
+  'chicken wing': 'chicken',
+  'chicken wings': 'chicken',
+  'chicken leg': 'chicken',
+  'chicken legs': 'chicken',
+  'ground beef': 'beef',
+  'beef steak': 'beef',
+  'beef chuck': 'beef',
+  'pork chop': 'pork',
+  'pork chops': 'pork',
+  'pork loin': 'pork',
+  'salmon fillet': 'salmon',
+  'salmon fillets': 'salmon',
+  'shrimp': 'shrimp',
+  'red onion': 'onion',
+  'yellow onion': 'onion',
+  'white onion': 'onion',
+  'green onions': 'onion',
+  'cherry tomatoes': 'tomato',
+  'roma tomatoes': 'tomato',
+  'bell pepper': 'pepper',
+  'red bell pepper': 'pepper',
+  'green bell pepper': 'pepper',
+};
+
+function getBaseForms(str: string): string[] {
+  const lower = str.toLowerCase().trim();
+  const bases = [lower];
+  if (BASE_FORMS[lower]) bases.push(BASE_FORMS[lower]);
+  return bases;
+}
+
 function normalize(str: string): string {
   return str
     .toLowerCase()
@@ -17,6 +56,17 @@ function fuzzyMatch(pantryItem: string, recipeIngredient: string): boolean {
 
   // Direct substring match
   if (rNorm.includes(pNorm) || pNorm.includes(rNorm)) return true;
+
+  // Base-form match: e.g. "chicken drumstick" in pantry matches "chicken" in recipe and vice versa
+  const pBases = getBaseForms(pantryItem);
+  const rBases = getBaseForms(recipeIngredient);
+  for (const pb of pBases) {
+    for (const rb of rBases) {
+      const pbN = normalize(pb);
+      const rbN = normalize(rb);
+      if (pbN.includes(rbN) || rbN.includes(pbN)) return true;
+    }
+  }
 
   // Token-level: every token in pantry item appears in recipe ingredient
   const pTokens = tokenize(pantryItem);
