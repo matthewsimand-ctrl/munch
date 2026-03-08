@@ -150,10 +150,10 @@ export default function Pantry() {
     <div className="min-h-screen bg-background flex flex-col pb-20">
       <div className="px-6 pt-8 pb-4 max-w-md mx-auto w-full">
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <ChefHat className="h-7 w-7 text-primary" />
+          <button onClick={() => navigate('/dashboard')} className="flex items-center gap-2">
+            <ChefHat className="h-6 w-6 text-primary" />
             <span className="font-display text-xl font-bold text-foreground">My Pantry</span>
-          </div>
+          </button>
           <div className="flex items-center gap-1">
             {user ? (
               <Button variant="ghost" size="icon" onClick={() => supabase.auth.signOut()}>

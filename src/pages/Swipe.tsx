@@ -8,6 +8,7 @@ import { useBrowseFeed } from '@/hooks/useBrowseFeed';
 import { useChefProfiles } from '@/hooks/useChefProfiles';
 import { calculateMatch } from '@/lib/matchLogic';
 import { rankByRecommendation } from '@/lib/recommendations';
+import { expandSearchTerms } from '@/lib/searchSynonyms';
 import { filterByMealType, getTimeBasedCategory, MEAL_CATEGORIES, type MealCategory } from '@/lib/mealTimeUtils';
 import SwipeCard from '@/components/SwipeCard';
 import RecipePreviewDialog from '@/components/RecipePreviewDialog';
@@ -25,6 +26,7 @@ export default function Swipe() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [user, setUser] = useState<any>(null);
   const [filterText, setFilterText] = useState('');
+  const [filterKey, setFilterKey] = useState(0); // bump to skip exit animation on filter
   const [previewOpen, setPreviewOpen] = useState(false);
   const [mealFilter, setMealFilter] = useState<MealCategory>('all');
   const suggestedCategory = useMemo(() => getTimeBasedCategory(), []);
@@ -53,11 +55,12 @@ export default function Swipe() {
 
   const likedIdSet = useMemo(() => new Set(likedRecipes), [likedRecipes]);
 
-  // Text filter function — matches name, cuisine, ingredients, tags
+  // Text filter function — matches name, cuisine, ingredients, tags with synonym expansion
   const matchesFilter = useMemo(() => {
     const q = filterText.trim().toLowerCase();
     if (!q) return () => true;
-    const terms = q.split(/\s+/);
+    const rawTerms = q.split(/\s+/);
+    const expandedTerms = expandSearchTerms(rawTerms);
     return (r: Recipe) => {
       const haystack = [
         r.name,
@@ -65,7 +68,12 @@ export default function Swipe() {
         ...(r.tags || []),
         ...(r.ingredients || []),
       ].join(' ').toLowerCase();
-      return terms.every(t => haystack.includes(t));
+      // Each raw term must match either directly or via any of its synonyms
+      return rawTerms.every(term => {
+        // Get this term's synonyms (including itself)
+        const termSynonyms = expandSearchTerms([term]);
+        return termSynonyms.some(syn => haystack.includes(syn));
+      });
     };
   }, [filterText]);
 
@@ -135,12 +143,12 @@ export default function Swipe() {
           <Input
             placeholder="Filter by cuisine, ingredient, or dish name..."
             value={filterText}
-            onChange={(e) => { setFilterText(e.target.value); setCurrentIndex(0); }}
+            onChange={(e) => { setFilterText(e.target.value); setCurrentIndex(0); setFilterKey(k => k + 1); }}
             className="pl-9"
           />
           {filterText && (
             <button
-              onClick={() => { setFilterText(''); setCurrentIndex(0); }}
+              onClick={() => { setFilterText(''); setCurrentIndex(0); setFilterKey(k => k + 1); }}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
             >
               <X className="h-4 w-4" />
@@ -150,7 +158,7 @@ export default function Swipe() {
         <div className="flex items-center gap-2 mt-2">
           <div className="flex items-center gap-1.5">
             <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-            <Select value={mealFilter} onValueChange={(v) => { setMealFilter(v as MealCategory); setCurrentIndex(0); }}>
+            <Select value={mealFilter} onValueChange={(v) => { setMealFilter(v as MealCategory); setCurrentIndex(0); setFilterKey(k => k + 1); }}>
               <SelectTrigger className="h-7 w-auto min-w-[110px] text-xs border-dashed">
                 <SelectValue />
               </SelectTrigger>
@@ -188,7 +196,7 @@ export default function Swipe() {
               <p className="text-muted-foreground">Loading hundreds of recipes...</p>
             </div>
           ) : current ? (
-            <AnimatePresence>
+            <AnimatePresence key={filterKey}>
               {next && (
                 <SwipeCard
                   key={next.recipe.id}

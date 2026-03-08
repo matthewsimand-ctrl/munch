@@ -43,12 +43,29 @@ export default function Dashboard() {
         .select('display_name')
         .eq('user_id', session.user.id)
         .single()
-        .then(({ data }) => {
-          const full = data?.display_name || session.user.email?.split('@')[0] || '';
+        .then(({ data, error }) => {
+          console.log('Profile fetch:', { data, error });
+          const full = data?.display_name || session.user.email?.split('@')[0] || 'Chef';
           setDisplayName(full);
           setFirstName(full.split(' ')[0]);
         });
     });
+
+    // Also listen for auth changes to refresh name
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!session) return;
+      setUser(session.user);
+      const { data } = await supabase
+        .from('profiles')
+        .select('display_name')
+        .eq('user_id', session.user.id)
+        .single();
+      const full = data?.display_name || session.user.email?.split('@')[0] || 'Chef';
+      setDisplayName(full);
+      setFirstName(full.split(' ')[0]);
+    });
+
+    return () => subscription.unsubscribe();
   }, [navigate]);
 
   useEffect(() => {
