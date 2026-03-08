@@ -79,6 +79,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     description:
       'Swipe right to save a recipe, left to skip. The % match shows how many ingredients you already have in your pantry — 100% means you\'re ready to cook! Tap anywhere on a card to see full details.',
     icon: <Flame className="h-5 w-5" />,
+    position: 'above',
   },
   {
     route: '/saved',
