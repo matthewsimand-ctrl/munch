@@ -115,27 +115,37 @@ export default function SpotlightTutorial({ onComplete }: SpotlightTutorialProps
     };
   }, [updateSpotlight]);
 
-  // For 'tap' action steps, intercept the click to prevent navigation and advance the tutorial
+  // For 'tap' steps, detect taps by coordinates (works even when overlay is the event target)
   useEffect(() => {
     if (step.action !== 'tap' || !step.target) return;
 
-    const handleClick = (e: MouseEvent) => {
+    const handlePointerDown = (e: PointerEvent) => {
       const el = document.querySelector(`[data-tutorial="${step.target}"]`);
-      if (el && el.contains(e.target as Node)) {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        if (currentStep < TUTORIAL_STEPS.length - 1) {
-          setCurrentStep(currentStep + 1);
-        } else {
-          onComplete();
-        }
+      const targetIsTutorialTab = !!el && el.contains(e.target as Node);
+
+      const inSpotlight =
+        !!spotlightRect &&
+        e.clientX >= spotlightRect.left - pad &&
+        e.clientX <= spotlightRect.right + pad &&
+        e.clientY >= spotlightRect.top - pad &&
+        e.clientY <= spotlightRect.bottom + pad;
+
+      if (!targetIsTutorialTab && !inSpotlight) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+
+      if (currentStep < TUTORIAL_STEPS.length - 1) {
+        setCurrentStep(currentStep + 1);
+      } else {
+        onComplete();
       }
     };
 
-    document.addEventListener('click', handleClick, true);
-    return () => document.removeEventListener('click', handleClick, true);
-  }, [step.action, step.target, currentStep, onComplete]);
+    document.addEventListener('pointerdown', handlePointerDown, true);
+    return () => document.removeEventListener('pointerdown', handlePointerDown, true);
+  }, [step.action, step.target, spotlightRect, currentStep, onComplete, pad]);
 
   const next = () => {
     if (currentStep < TUTORIAL_STEPS.length - 1) {
