@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sparkles, Loader2, Flame, Beef, Wheat, Droplets, Heart } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useStore } from '@/lib/store';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 
@@ -22,13 +23,15 @@ export interface NutritionData {
 }
 
 interface NutritionCardProps {
+  recipeId: string;
   recipeName: string;
   ingredients: string[];
   servings?: number;
 }
 
-export default function NutritionCard({ recipeName, ingredients, servings = 1 }: NutritionCardProps) {
-  const [nutrition, setNutrition] = useState<NutritionData | null>(null);
+export default function NutritionCard({ recipeId, recipeName, ingredients, servings = 1 }: NutritionCardProps) {
+  const { cachedNutrition, cacheNutrition } = useStore();
+  const [nutrition, setNutrition] = useState<NutritionData | null>(cachedNutrition[recipeId] || null);
   const [loading, setLoading] = useState(false);
 
   const analyze = async () => {
@@ -44,6 +47,7 @@ export default function NutritionCard({ recipeName, ingredients, servings = 1 }:
       }
 
       setNutrition(data.nutrition);
+      cacheNutrition(recipeId, data.nutrition);
     } catch (err) {
       console.error('Nutrition error:', err);
       toast.error('Something went wrong');
