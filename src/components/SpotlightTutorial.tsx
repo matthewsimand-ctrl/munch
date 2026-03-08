@@ -119,16 +119,18 @@ export default function SpotlightTutorial({ onComplete }: SpotlightTutorialProps
   useEffect(() => {
     if (step.action !== 'tap' || !step.target) return;
 
+    const spotlightPadding = 6;
+
     const handlePointerDown = (e: PointerEvent) => {
       const el = document.querySelector(`[data-tutorial="${step.target}"]`);
       const targetIsTutorialTab = !!el && el.contains(e.target as Node);
 
       const inSpotlight =
         !!spotlightRect &&
-        e.clientX >= spotlightRect.left - pad &&
-        e.clientX <= spotlightRect.right + pad &&
-        e.clientY >= spotlightRect.top - pad &&
-        e.clientY <= spotlightRect.bottom + pad;
+        e.clientX >= spotlightRect.left - spotlightPadding &&
+        e.clientX <= spotlightRect.right + spotlightPadding &&
+        e.clientY >= spotlightRect.top - spotlightPadding &&
+        e.clientY <= spotlightRect.bottom + spotlightPadding;
 
       if (!targetIsTutorialTab && !inSpotlight) return;
 
@@ -145,7 +147,7 @@ export default function SpotlightTutorial({ onComplete }: SpotlightTutorialProps
 
     document.addEventListener('pointerdown', handlePointerDown, true);
     return () => document.removeEventListener('pointerdown', handlePointerDown, true);
-  }, [step.action, step.target, spotlightRect, currentStep, onComplete, pad]);
+  }, [step.action, step.target, spotlightRect, currentStep, onComplete]);
 
   const next = () => {
     if (currentStep < TUTORIAL_STEPS.length - 1) {
