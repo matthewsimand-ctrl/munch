@@ -79,7 +79,7 @@ export default function SavedRecipes() {
                       {recipe.name}
                     </h3>
                     <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
-                      <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{recipe.cookTime}</span>
+                      <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{recipe.cook_time}</span>
                       <span className="flex items-center gap-1"><BarChart3 className="h-3 w-3" />{recipe.difficulty}</span>
                       <span className="font-semibold text-primary">{match.percentage}%</span>
                       {source && <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded">{source}</span>}
