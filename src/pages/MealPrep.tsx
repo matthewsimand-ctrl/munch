@@ -6,9 +6,9 @@ import { useDbRecipes } from '@/hooks/useDbRecipes';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ChevronLeft, ChevronRight, Plus, X, Download, Calendar, CalendarDays, FileText, Table2, GripVertical, User } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X, Calendar, CalendarDays, FileText, Table2, GripVertical, User, Sparkles, Loader2 } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import BottomNav from '@/components/BottomNav';
 import { format, startOfWeek, addDays, addWeeks, subWeeks } from 'date-fns';
@@ -40,6 +40,7 @@ export default function MealPrep() {
   const [addDialog, setAddDialog] = useState<{ day: number; meal: MealType } | null>(null);
   const [dragItem, setDragItem] = useState<MealItem | null>(null);
   const [loading, setLoading] = useState(true);
+  const [aiGenerating, setAiGenerating] = useState(false);
 
   // Get saved recipes list
   const savedRecipes = useMemo(() => {
@@ -65,7 +66,6 @@ export default function MealPrep() {
     setLoading(true);
     const weekStr = format(weekStart, 'yyyy-MM-dd');
 
-    // Find or create meal plan
     let { data: plan } = await supabase
       .from('meal_plans')
       .select('id')
@@ -136,6 +136,7 @@ export default function MealPrep() {
         meal_type: addDialog.meal as MealType,
         servings: 2,
       }]);
+      toast({ title: `Added ${recipeName}` });
     }
     if (error) toast({ title: 'Failed to add', variant: 'destructive' });
     setAddDialog(null);
@@ -156,16 +157,95 @@ export default function MealPrep() {
 
   const handleDrop = async (day: number, meal: MealType) => {
     if (!dragItem) return;
-    // Update in DB
     await supabase.from('meal_plan_items').update({
       day_of_week: day,
       meal_type: meal,
     } as any).eq('id', dragItem.id);
-    // Update local
     setItems(prev => prev.map(i =>
       i.id === dragItem.id ? { ...i, day_of_week: day, meal_type: meal } : i
     ));
     setDragItem(null);
+  };
+
+  // AI Generate meal plan
+  const generateAiPlan = async (days: number) => {
+    if (savedRecipes.length < 2) {
+      toast({ title: 'Need more recipes', description: 'Save at least 2 recipes first to generate a plan.', variant: 'destructive' });
+      return;
+    }
+    if (!mealPlanId) return;
+
+    setAiGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-meal-plan', {
+        body: {
+          savedRecipes: savedRecipes.map(r => ({ id: r.id, name: r.name })),
+          days,
+          mealsPerDay: ['breakfast', 'lunch', 'dinner'],
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      const plan = data?.plan;
+      if (!Array.isArray(plan) || plan.length === 0) {
+        toast({ title: 'No plan generated', description: 'Try again or add more recipes.', variant: 'destructive' });
+        return;
+      }
+
+      // Clear existing items for the affected days
+      const affectedDays = new Set(plan.map((p: any) => p.day));
+      const toRemove = items.filter(i => affectedDays.has(i.day_of_week));
+      for (const item of toRemove) {
+        await supabase.from('meal_plan_items').delete().eq('id', item.id);
+      }
+
+      // Insert new items
+      const newItems: MealItem[] = [];
+      for (const entry of plan) {
+        const recipe = savedRecipes.find(r => r.id === entry.recipe_id);
+        if (!recipe) continue;
+
+        const { data: inserted } = await supabase
+          .from('meal_plan_items')
+          .insert({
+            meal_plan_id: mealPlanId,
+            recipe_id: entry.recipe_id,
+            recipe_data: { name: recipe.name, image: recipe.image },
+            day_of_week: entry.day,
+            meal_type: entry.meal_type,
+            servings: 2,
+            sort_order: 0,
+          } as any)
+          .select()
+          .single();
+
+        if (inserted) {
+          newItems.push({
+            id: inserted.id,
+            recipe_id: entry.recipe_id,
+            recipe_name: recipe.name,
+            recipe_image: recipe.image,
+            day_of_week: entry.day,
+            meal_type: entry.meal_type as MealType,
+            servings: 2,
+          });
+        }
+      }
+
+      setItems(prev => [
+        ...prev.filter(i => !affectedDays.has(i.day_of_week)),
+        ...newItems,
+      ]);
+
+      toast({ title: '✨ AI meal plan generated!', description: `${newItems.length} meals planned across ${days} days.` });
+    } catch (e: any) {
+      console.error('AI generation error:', e);
+      toast({ title: 'Generation failed', description: e.message || 'Please try again.', variant: 'destructive' });
+    } finally {
+      setAiGenerating(false);
+    }
   };
 
   // Export functions
@@ -253,7 +333,22 @@ export default function MealPrep() {
             <CalendarDays className="h-6 w-6 text-primary" />
             <span className="font-display text-xl font-bold text-foreground">Meal Prep</span>
           </button>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="gap-1.5"
+                  disabled={aiGenerating || savedRecipes.length < 2}
+                  onClick={() => generateAiPlan(7)}
+                >
+                  {aiGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                  <span className="hidden sm:inline">{aiGenerating ? 'Generating...' : 'AI Plan'}</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Generate a full week meal plan with AI based on your saved recipes</TooltipContent>
+            </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="ghost" size="icon" onClick={exportPDF}>
@@ -268,7 +363,7 @@ export default function MealPrep() {
                   <Table2 className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Export as CSV</TooltipContent>
+              <TooltipContent>Export as CSV spreadsheet</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -276,25 +371,40 @@ export default function MealPrep() {
                   <Calendar className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Export to Calendar</TooltipContent>
+              <TooltipContent>Export to calendar app</TooltipContent>
             </Tooltip>
-            <Button variant="ghost" size="icon" onClick={() => navigate('/settings')}>
-              <User className="h-5 w-5" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" onClick={() => navigate('/settings')}>
+                  <User className="h-5 w-5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Account settings</TooltipContent>
+            </Tooltip>
           </div>
         </div>
 
         {/* Week Navigation */}
         <div className="flex items-center justify-center gap-4 mb-4">
-          <Button variant="ghost" size="icon" onClick={() => setWeekStart(prev => subWeeks(prev, 1))}>
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" onClick={() => setWeekStart(prev => subWeeks(prev, 1))}>
+                <ChevronLeft className="h-5 w-5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Previous week</TooltipContent>
+          </Tooltip>
           <span className="font-medium text-foreground">
             {format(weekStart, 'MMM d')} — {format(addDays(weekStart, 6), 'MMM d, yyyy')}
           </span>
-          <Button variant="ghost" size="icon" onClick={() => setWeekStart(prev => addWeeks(prev, 1))}>
-            <ChevronRight className="h-5 w-5" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" onClick={() => setWeekStart(prev => addWeeks(prev, 1))}>
+                <ChevronRight className="h-5 w-5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Next week</TooltipContent>
+          </Tooltip>
         </div>
       </div>
 
@@ -349,23 +459,33 @@ export default function MealPrep() {
                                 ))}
                               </SelectContent>
                             </Select>
-                            <button
-                              onClick={() => removeItem(item.id)}
-                              className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  onClick={() => removeItem(item.id)}
+                                  className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent>Remove from plan</TooltipContent>
+                            </Tooltip>
                           </div>
                         </div>
                       </div>
                     </div>
                   ))}
-                  <button
-                    onClick={() => setAddDialog({ day: di, meal })}
-                    className="w-full text-[10px] text-muted-foreground hover:text-primary flex items-center justify-center gap-0.5 py-1 rounded hover:bg-muted/50 transition-colors"
-                  >
-                    <Plus className="h-3 w-3" /> Add
-                  </button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => setAddDialog({ day: di, meal })}
+                        className="w-full text-[10px] text-muted-foreground hover:text-primary flex items-center justify-center gap-0.5 py-1 rounded hover:bg-muted/50 transition-colors"
+                      >
+                        <Plus className="h-3 w-3" /> Add
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>Add a recipe to {DAYS[di]} {meal}</TooltipContent>
+                  </Tooltip>
                 </div>
               );
             })
@@ -375,26 +495,37 @@ export default function MealPrep() {
 
       {/* Add Recipe Dialog */}
       <Dialog open={!!addDialog} onOpenChange={(open) => !open && setAddDialog(null)}>
-        <DialogContent className="max-w-sm max-h-[70vh]">
+        <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>
               Add Recipe — {addDialog ? `${DAYS[addDialog.day]} ${addDialog.meal}` : ''}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-2 max-h-[50vh] overflow-y-auto">
+          <div className="space-y-1 max-h-[50vh] overflow-y-auto pr-1">
             {savedRecipes.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">
-                No saved recipes yet. Browse and save some first!
-              </p>
+              <div className="text-center py-6 space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  No saved recipes yet. Browse and save some first!
+                </p>
+                <Button size="sm" onClick={() => { setAddDialog(null); navigate('/swipe'); }}>
+                  Go to Browse
+                </Button>
+              </div>
             ) : (
               savedRecipes.map((recipe) => (
                 <button
                   key={recipe.id}
+                  type="button"
                   onClick={() => addRecipeToSlot(recipe.id, recipe.name, recipe.image)}
-                  className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors text-left"
+                  className="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-muted transition-colors text-left cursor-pointer border border-transparent hover:border-border"
                 >
-                  <img src={recipe.image} alt={recipe.name} className="h-10 w-10 rounded-md object-cover flex-shrink-0" />
+                  <img
+                    src={recipe.image}
+                    alt={recipe.name}
+                    className="h-10 w-10 rounded-md object-cover flex-shrink-0"
+                  />
                   <span className="text-sm font-medium text-foreground truncate">{recipe.name}</span>
+                  <Plus className="h-4 w-4 text-muted-foreground ml-auto flex-shrink-0" />
                 </button>
               ))
             )}
