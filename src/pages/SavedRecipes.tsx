@@ -152,6 +152,13 @@ export default function SavedRecipes() {
                           </ol>
                         </div>
 
+                        {/* Nutrition */}
+                        <NutritionCard
+                          recipeName={recipe.name}
+                          ingredients={recipe.ingredients}
+                          servings={1}
+                        />
+
                         <div className="flex gap-2">
                           <Button
                             size="sm"
