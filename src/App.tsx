@@ -10,6 +10,8 @@ import Swipe from "./pages/Swipe";
 import SavedRecipes from "./pages/SavedRecipes";
 import CookMode from "./pages/CookMode";
 import GroceryList from "./pages/GroceryList";
+import MealPrep from "./pages/MealPrep";
+import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -30,6 +32,8 @@ const App = () => (
           <Route path="/saved" element={<SavedRecipes />} />
           <Route path="/cook/:id" element={<CookMode />} />
           <Route path="/grocery" element={<GroceryList />} />
+          <Route path="/meal-prep" element={<MealPrep />} />
+          <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

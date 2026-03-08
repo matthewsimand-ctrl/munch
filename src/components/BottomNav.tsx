@@ -1,11 +1,12 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { UtensilsCrossed, Flame, Heart, ShoppingCart } from 'lucide-react';
+import { UtensilsCrossed, Flame, Heart, ShoppingCart, CalendarDays } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
   { path: '/pantry', label: 'Pantry', icon: UtensilsCrossed },
   { path: '/swipe', label: 'Browse', icon: Flame },
   { path: '/saved', label: 'Recipes', icon: Heart },
+  { path: '/meal-prep', label: 'Meal Prep', icon: CalendarDays },
   { path: '/grocery', label: 'Grocery', icon: ShoppingCart },
 ];
 

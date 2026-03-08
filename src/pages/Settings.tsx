@@ -1,0 +1,166 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { useStore } from '@/lib/store';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ArrowLeft, LogOut, User, Users, Utensils, Trash2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import BottomNav from '@/components/BottomNav';
+
+export default function Settings() {
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const { userProfile, setUserProfile, resetStore } = useStore();
+  const [user, setUser] = useState<any>(null);
+  const [displayName, setDisplayName] = useState('');
+  const [defaultServings, setDefaultServings] = useState('2');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        navigate('/auth', { replace: true });
+        return;
+      }
+      setUser(session.user);
+      // Load profile
+      supabase
+        .from('profiles')
+        .select('display_name, default_servings')
+        .eq('user_id', session.user.id)
+        .single()
+        .then(({ data }) => {
+          if (data) {
+            setDisplayName(data.display_name || '');
+            setDefaultServings(String((data as any).default_servings || 2));
+          }
+        });
+    });
+  }, [navigate]);
+
+  const handleSave = async () => {
+    if (!user) return;
+    setLoading(true);
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        display_name: displayName.trim() || null,
+        default_servings: parseInt(defaultServings) || 2,
+      } as any)
+      .eq('user_id', user.id);
+
+    setLoading(false);
+    if (error) {
+      toast({ title: 'Failed to save', variant: 'destructive' });
+    } else {
+      toast({ title: 'Settings saved! ✓' });
+    }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate('/auth', { replace: true });
+  };
+
+  return (
+    <div className="min-h-screen bg-background pb-20">
+      <div className="px-6 pt-8 pb-4 max-w-md mx-auto w-full">
+        <div className="flex items-center gap-3 mb-8">
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="font-display text-2xl font-bold text-foreground">Settings</h1>
+        </div>
+
+        <div className="space-y-8">
+          {/* Profile */}
+          <section className="space-y-4">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <User className="h-4 w-4" />
+              <span className="text-sm font-semibold uppercase tracking-wide">Profile</span>
+            </div>
+            <div className="space-y-3 bg-card rounded-xl p-4 border border-border">
+              <div>
+                <Label>Email</Label>
+                <p className="text-sm text-muted-foreground">{user?.email || '—'}</p>
+              </div>
+              <div>
+                <Label htmlFor="displayName">Display Name</Label>
+                <Input
+                  id="displayName"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="Your name"
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* Cooking Preferences */}
+          <section className="space-y-4">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Utensils className="h-4 w-4" />
+              <span className="text-sm font-semibold uppercase tracking-wide">Cooking Preferences</span>
+            </div>
+            <div className="space-y-3 bg-card rounded-xl p-4 border border-border">
+              <div>
+                <Label>Default Servings</Label>
+                <p className="text-xs text-muted-foreground mb-2">How many people are you usually cooking for?</p>
+                <Select value={defaultServings} onValueChange={setDefaultServings}>
+                  <SelectTrigger className="w-32">
+                    <Users className="h-4 w-4 mr-2" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[1, 2, 3, 4, 5, 6, 8, 10, 12].map((n) => (
+                      <SelectItem key={n} value={String(n)}>
+                        {n} {n === 1 ? 'serving' : 'servings'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Skill Level</Label>
+                <p className="text-sm text-muted-foreground">{userProfile.skillLevel || 'Not set'}</p>
+              </div>
+              <div>
+                <Label>Dietary Restrictions</Label>
+                <p className="text-sm text-muted-foreground">
+                  {userProfile.dietaryRestrictions.length > 0
+                    ? userProfile.dietaryRestrictions.join(', ')
+                    : 'None set'}
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <Button onClick={handleSave} disabled={loading} className="w-full">
+            {loading ? 'Saving...' : 'Save Settings'}
+          </Button>
+
+          {/* Danger Zone */}
+          <section className="space-y-3">
+            <Button variant="outline" className="w-full" onClick={handleLogout}>
+              <LogOut className="h-4 w-4 mr-2" /> Sign Out
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full text-destructive border-destructive/30 hover:bg-destructive hover:text-destructive-foreground"
+              onClick={() => {
+                resetStore();
+                toast({ title: 'Local data cleared' });
+              }}
+            >
+              <Trash2 className="h-4 w-4 mr-2" /> Clear Local Data
+            </Button>
+          </section>
+        </div>
+      </div>
+      <BottomNav />
+    </div>
+  );
+}

@@ -9,7 +9,7 @@ import SwipeCard from '@/components/SwipeCard';
 import RecipePreviewDialog from '@/components/RecipePreviewDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Heart, X, BookOpen, UtensilsCrossed, User, LogOut, Search, Loader2, Globe } from 'lucide-react';
+import { Heart, X, BookOpen, UtensilsCrossed, Settings, Search, Loader2, Globe } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useEffect } from 'react';
 import { useRecipeSearch } from '@/hooks/useRecipeSearch';
@@ -79,9 +79,6 @@ export default function Swipe() {
           <span className="font-display text-xl font-bold text-foreground">Munch</span>
         </div>
         <div className="flex gap-2">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/pantry')}>
-            <UtensilsCrossed className="h-5 w-5" />
-          </Button>
           <Button variant="ghost" size="icon" onClick={() => navigate('/saved')} className="relative">
             <BookOpen className="h-5 w-5" />
             {likedRecipes.length > 0 && (
@@ -90,15 +87,9 @@ export default function Swipe() {
               </span>
             )}
           </Button>
-          {user ? (
-            <Button variant="ghost" size="icon" onClick={() => supabase.auth.signOut()}>
-              <LogOut className="h-5 w-5" />
-            </Button>
-          ) : (
-            <Button variant="ghost" size="icon" onClick={() => navigate('/auth')}>
-              <User className="h-5 w-5" />
-            </Button>
-          )}
+          <Button variant="ghost" size="icon" onClick={() => navigate('/settings')}>
+            <Settings className="h-5 w-5" />
+          </Button>
         </div>
       </div>
 
@@ -184,15 +175,6 @@ export default function Swipe() {
           )}
         </div>
       </div>
-
-      {/* Source badge */}
-      {current?.source && !(searchLoading || dbLoading) && (
-        <div className="flex justify-center -mt-2 mb-1">
-          <Badge variant="outline" className="text-xs">
-            via {current.source}
-          </Badge>
-        </div>
-      )}
 
       {/* Action buttons */}
       {current && !(searchLoading || dbLoading) && (
