@@ -12,6 +12,7 @@ import CookMode from "./pages/CookMode";
 import GroceryList from "./pages/GroceryList";
 import MealPrep from "./pages/MealPrep";
 import Settings from "./pages/Settings";
+import Dashboard from "./pages/Dashboard";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
