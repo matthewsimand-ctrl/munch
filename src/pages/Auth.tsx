@@ -126,6 +126,12 @@ export default function Auth() {
             <Label htmlFor="password">Password</Label>
             <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required minLength={6} className="h-12" />
           </div>
+          {!isLogin && (
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Input id="confirmPassword" type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="••••••••" required minLength={6} className="h-12" />
+            </div>
+          )}
           <Button type="submit" className="w-full h-12" disabled={loading}>
             <Mail className="h-4 w-4 mr-2" />
             {loading ? 'Loading...' : isLogin ? 'Sign In' : 'Create Account'}
