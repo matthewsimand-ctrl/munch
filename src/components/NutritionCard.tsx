@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sparkles, Loader2, Flame, Beef, Wheat, Droplets, Heart } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useStore } from '@/lib/store';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 
