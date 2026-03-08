@@ -325,8 +325,8 @@ export default function Pantry() {
               </>
             )}
           </button>
-        )
-        </div>
+        )}
+
 
         {/* Quick-add suggestions */}
         <div>
