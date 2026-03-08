@@ -5,7 +5,7 @@ import { useStore } from '@/lib/store';
 import { recipes } from '@/data/recipes';
 import { calculateMatch } from '@/lib/matchLogic';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Clock, BarChart3, Check, ShoppingCart, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, Clock, BarChart3, Check, ShoppingCart, ChevronDown, ChevronUp, Play } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMemo as useMemoAlias } from 'react';
 
