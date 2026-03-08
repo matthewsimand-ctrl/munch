@@ -57,9 +57,9 @@ export default function SavedRecipes() {
                 <DialogHeader>
                   <DialogTitle>Create Recipe</DialogTitle>
                 </DialogHeader>
-                <ScrollArea className="max-h-[70vh] pr-4">
+                <div className="max-h-[70vh] overflow-y-auto pr-2 pl-1 pb-2">
                   <CreateRecipeForm onClose={() => setCreateOpen(false)} />
-                </ScrollArea>
+                </div>
               </DialogContent>
             </Dialog>
             <Button variant="outline" size="sm" onClick={() => navigate('/grocery')}>
