@@ -42,10 +42,10 @@ export default function SavedRecipes() {
           <Button variant="ghost" size="icon" onClick={() => navigate('/swipe')}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="font-display text-2xl font-bold text-foreground">
+          <h1 className="font-display text-2xl font-bold text-foreground" data-tutorial="saved-header">
             My Recipes
           </h1>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-2" data-tutorial="saved-actions">
             <ImportRecipeDialog />
             <Dialog open={createOpen} onOpenChange={setCreateOpen}>
               <DialogTrigger asChild>

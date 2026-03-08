@@ -133,7 +133,7 @@ export default function Swipe() {
       </div>
 
       {/* Search Bar */}
-      <div className="px-6 pb-3 max-w-md mx-auto w-full">
+      <div className="px-6 pb-3 max-w-md mx-auto w-full" data-tutorial="swipe-search">
         <form onSubmit={handleSearch} className="flex gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -177,7 +177,7 @@ export default function Swipe() {
       </div>
 
       {/* Card Stack */}
-      <div className="flex-1 flex items-center justify-center px-6">
+      <div className="flex-1 flex items-center justify-center px-6" data-tutorial="swipe-card-area">
         <div className="relative w-full max-w-md h-[440px]">
           {isLoading ? (
             <div className="h-full flex flex-col items-center justify-center text-center">

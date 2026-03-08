@@ -171,7 +171,7 @@ export default function Pantry() {
         </div>
 
         {/* Add ingredient */}
-        <div className="space-y-2 mb-4">
+        <div className="space-y-2 mb-4" data-tutorial="pantry-add-form">
           <div className="flex gap-2">
             <Input
               value={input}
@@ -353,7 +353,7 @@ export default function Pantry() {
 
 
         {/* Quick-add suggestions */}
-        <div>
+        <div data-tutorial="pantry-quick-add">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Common Staples</p>
           <div className="flex flex-wrap gap-2">
             {['salt', 'pepper', 'olive oil', 'garlic', 'onion', 'butter', 'eggs', 'rice', 'flour', 'sugar'].map((item) => (

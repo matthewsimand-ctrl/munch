@@ -23,9 +23,11 @@ interface AppState {
   groceryRecipes: string[]; // recipe IDs explicitly added to grocery list
   onboardingComplete: boolean;
   tutorialComplete: boolean;
+  showTutorial: boolean;
 
   setUserProfile: (profile: Partial<UserProfile>) => void;
   completeOnboarding: () => void;
+  setShowTutorial: (show: boolean) => void;
   addPantryItem: (name: string, quantity?: string, category?: string) => void;
   removePantryItem: (name: string) => void;
   updatePantryQuantity: (name: string, quantity: string) => void;
@@ -57,6 +59,9 @@ export const useStore = create<AppState>()(
       groceryRecipes: [],
       onboardingComplete: false,
       tutorialComplete: false,
+      showTutorial: false,
+
+      setShowTutorial: (show) => set({ showTutorial: show }),
 
       setUserProfile: (profile) =>
         set((state) => ({
@@ -141,6 +146,7 @@ export const useStore = create<AppState>()(
           groceryRecipes: [],
           onboardingComplete: false,
           tutorialComplete: false,
+          showTutorial: false,
         }),
     }),
     { name: 'chefstack-storage' }

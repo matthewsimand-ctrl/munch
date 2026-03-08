@@ -4,7 +4,6 @@ import { useStore } from '@/lib/store';
 import { useDbRecipes } from '@/hooks/useDbRecipes';
 import { supabase } from '@/integrations/supabase/client';
 import BottomNav from '@/components/BottomNav';
-import SpotlightTutorial from '@/components/SpotlightTutorial';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -22,12 +21,11 @@ import { motion } from 'framer-motion';
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { pantryList, likedRecipes, savedApiRecipes, tutorialComplete, completeTutorial } = useStore();
+  const { pantryList, likedRecipes, savedApiRecipes, tutorialComplete, setShowTutorial } = useStore();
   const { data: dbRecipes = [] } = useDbRecipes();
   const [user, setUser] = useState<any>(null);
   const [greeting, setGreeting] = useState('');
   const [displayName, setDisplayName] = useState('');
-  const [showTutorial, setShowTutorial] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -60,12 +58,7 @@ export default function Dashboard() {
       const timer = setTimeout(() => setShowTutorial(true), 600);
       return () => clearTimeout(timer);
     }
-  }, [tutorialComplete, user]);
-
-  const handleTutorialComplete = () => {
-    setShowTutorial(false);
-    completeTutorial();
-  };
+  }, [tutorialComplete, user, setShowTutorial]);
 
   const savedCount = likedRecipes.length;
   const pantryCount = pantryList.length;
@@ -220,10 +213,6 @@ export default function Dashboard() {
         </motion.div>
       </div>
       <BottomNav />
-
-      {showTutorial && (
-        <SpotlightTutorial onComplete={handleTutorialComplete} />
-      )}
     </div>
   );
 }
