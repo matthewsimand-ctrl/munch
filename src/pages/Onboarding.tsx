@@ -88,10 +88,10 @@ export default function Onboarding() {
   const canProceed =
     (step === 0 && displayName.trim().length > 0) ||
     (step === 1 && defaultServings !== '') ||
-    (step === 2 && userProfile.dietaryRestrictions.length > 0) ||
+    (step === 2 && (userProfile.dietaryRestrictions ?? []).length > 0) ||
     (step === 3 && userProfile.skillLevel !== '') ||
-    (step === 4 && userProfile.flavorProfiles.length > 0) ||
-    (step === 5 && userProfile.cuisinePreferences.length > 0);
+    (step === 4 && (userProfile.flavorProfiles ?? []).length > 0) ||
+    (step === 5 && (userProfile.cuisinePreferences ?? []).length > 0);
 
   const next = async () => {
     if (step < TOTAL_STEPS - 1) {
