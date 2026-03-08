@@ -25,6 +25,7 @@ export default function CreateRecipeForm({ onClose }: Props) {
   const [image, setImage] = useState('');
   const [cookTime, setCookTime] = useState('');
   const [difficulty, setDifficulty] = useState('Beginner');
+  const [cuisine, setCuisine] = useState('');
   const [ingredientInput, setIngredientInput] = useState('');
   const [ingredients, setIngredients] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
