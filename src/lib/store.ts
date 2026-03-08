@@ -22,6 +22,7 @@ interface AppState {
   cachedNutrition: Record<string, any>;
   groceryRecipes: string[]; // recipe IDs explicitly added to grocery list
   onboardingComplete: boolean;
+  tutorialComplete: boolean;
 
   setUserProfile: (profile: Partial<UserProfile>) => void;
   completeOnboarding: () => void;
