@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import BottomNav from '@/components/BottomNav';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '@/lib/store';
@@ -7,8 +7,9 @@ import { getCategory, getAllCategories, type IngredientCategory } from '@/lib/in
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, X, Camera, Lock, ArrowRight, ChefHat, User, LogOut, SlidersHorizontal } from 'lucide-react';
+import { Plus, X, Camera, ArrowRight, ChefHat, User, LogOut, SlidersHorizontal, Loader2, Sparkles, ImagePlus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useToast } from '@/hooks/use-toast';
 
 const QUANTITY_OPTIONS = ['1', '2', '3', '4', '5', '½', '¼', '100g', '200g', '500g', '1kg', '1L'];
 const SORT_OPTIONS = [
