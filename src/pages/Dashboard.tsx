@@ -16,6 +16,9 @@ import {
   ArrowRight,
   User,
   Sparkles,
+  Trophy,
+  TrendingUp,
+  Lock,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -26,6 +29,7 @@ export default function Dashboard() {
   const [user, setUser] = useState<any>(null);
   const [greeting, setGreeting] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [firstName, setFirstName] = useState('');
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -40,7 +44,9 @@ export default function Dashboard() {
         .eq('user_id', session.user.id)
         .single()
         .then(({ data }) => {
-          setDisplayName(data?.display_name || session.user.email?.split('@')[0] || '');
+          const full = data?.display_name || session.user.email?.split('@')[0] || '';
+          setDisplayName(full);
+          setFirstName(full.split(' ')[0]);
         });
     });
   }, [navigate]);
@@ -62,6 +68,11 @@ export default function Dashboard() {
 
   const savedCount = likedRecipes.length;
   const pantryCount = pantryList.length;
+
+  // Gamification stats (placeholder values — will be persisted later)
+  const cookingStreak = 3; // TODO: track from cook-mode completions
+  const mealsThisWeek = 5; // TODO: track from cook-mode completions
+  const isPremium = false; // TODO: wire to subscription
 
   const quickActions = [
     {
@@ -129,14 +140,55 @@ export default function Dashboard() {
             {greeting},
           </h1>
           <p className="font-display text-3xl font-bold text-primary">
-            {displayName} 👋
+            chef {firstName} 👨‍🍳
           </p>
           <p className="text-muted-foreground mt-2 text-sm">
             What are we cooking today?
           </p>
         </motion.div>
 
-        {/* Stats Row */}
+        {/* Gamification Stats */}
+        <motion.div
+          variants={container}
+          initial="hidden"
+          animate="show"
+          className="grid grid-cols-3 gap-3 mb-6"
+        >
+          <motion.div variants={item}>
+            <Card className="text-center border-border">
+              <CardContent className="py-4 px-2">
+                <Flame className="h-5 w-5 text-orange-500 mx-auto mb-1" />
+                <p className="text-2xl font-bold text-foreground">{cookingStreak}</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Day Streak</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+          <motion.div variants={item}>
+            <Card className="text-center border-border">
+              <CardContent className="py-4 px-2">
+                <Trophy className="h-5 w-5 text-amber-500 mx-auto mb-1" />
+                <p className="text-2xl font-bold text-foreground">{mealsThisWeek}</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">This Week</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+          <motion.div variants={item}>
+            <Card className={`text-center border-border ${!isPremium ? 'opacity-70' : ''}`}>
+              <CardContent className="py-4 px-2 relative">
+                {!isPremium && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-card/60 rounded-xl z-10">
+                    <Lock className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                )}
+                <TrendingUp className="h-5 w-5 text-emerald-500 mx-auto mb-1" />
+                <p className="text-2xl font-bold text-foreground">{isPremium ? '—' : '🔒'}</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Wk Nutrition</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </motion.div>
+
+        {/* Overview Stats */}
         <motion.div
           variants={container}
           initial="hidden"

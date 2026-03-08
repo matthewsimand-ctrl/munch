@@ -171,41 +171,44 @@ export default function SavedRecipes() {
                           servings={1}
                         />
 
-                        <div className="flex flex-wrap gap-2">
+                        {/* Action bar */}
+                        <div className="flex items-center justify-between gap-2">
+                          {/* Left: Grocery */}
+                          <div className="flex-1">
+                            {match.missing.length > 0 && (
+                              isInGrocery ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    removeFromGrocery(recipe.id);
+                                    toast.success('Removed from grocery list');
+                                  }}
+                                >
+                                  <Check className="h-4 w-4 mr-1" /> In Grocery
+                                </Button>
+                              ) : (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    addToGrocery(recipe.id);
+                                    toast.success(`Added ${match.missing.length} missing items to grocery list`);
+                                  }}
+                                >
+                                  <ShoppingCart className="h-4 w-4 mr-1" /> Add {match.missing.length} to Grocery
+                                </Button>
+                              )
+                            )}
+                          </div>
+
+                          {/* Right: Cook */}
                           <Button
                             size="sm"
                             onClick={() => navigate(`/cook/${recipe.id}`)}
                           >
                             <Play className="h-4 w-4 mr-1" /> Cook
                           </Button>
-
-                          {/* Add/Remove from grocery */}
-                          {match.missing.length > 0 && (
-                            isInGrocery ? (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  removeFromGrocery(recipe.id);
-                                  toast.success('Removed from grocery list');
-                                }}
-                              >
-                                <Check className="h-4 w-4 mr-1" /> In Grocery List
-                              </Button>
-                            ) : (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  addToGrocery(recipe.id);
-                                  toast.success(`Added ${match.missing.length} missing items to grocery list`);
-                                }}
-                              >
-                                <ShoppingCart className="h-4 w-4 mr-1" /> Add {match.missing.length} to Grocery
-                              </Button>
-                            )
-                          )}
-
                         </div>
                       </div>
                     </motion.div>
