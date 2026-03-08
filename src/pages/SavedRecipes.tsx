@@ -52,7 +52,7 @@ export default function SavedRecipes() {
             <Button onClick={() => navigate('/swipe')}>Go to Swipe</Button>
           </div>
         ) : (
-          saved.map(({ recipe, match }) => {
+          saved.map(({ recipe, match, source }) => {
             const expanded = expandedId === recipe.id;
             const borderColor =
               match.status === 'perfect' ? 'border-success' :
