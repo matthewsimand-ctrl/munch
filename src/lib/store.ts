@@ -5,6 +5,7 @@ export interface UserProfile {
   dietaryRestrictions: string[];
   skillLevel: string;
   flavorProfiles: string[];
+  cuisinePreferences: string[];
 }
 
 export interface PantryItem {
@@ -40,6 +41,7 @@ const initialProfile: UserProfile = {
   dietaryRestrictions: [],
   skillLevel: '',
   flavorProfiles: [],
+  cuisinePreferences: [],
 };
 
 export const useStore = create<AppState>()(
