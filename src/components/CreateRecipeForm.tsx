@@ -254,7 +254,7 @@ export default function CreateRecipeForm({ onClose }: Props) {
         instructions: stepList,
         source: 'community',
         created_by: user.id,
-        is_public: true,
+        is_public: isPublic,
       } as any);
 
       if (error) throw error;
