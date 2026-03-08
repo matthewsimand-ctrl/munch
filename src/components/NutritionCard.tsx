@@ -23,6 +23,7 @@ export interface NutritionData {
 }
 
 interface NutritionCardProps {
+  recipeId: string;
   recipeName: string;
   ingredients: string[];
   servings?: number;
