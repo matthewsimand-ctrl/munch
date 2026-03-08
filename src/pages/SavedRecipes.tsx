@@ -5,7 +5,7 @@ import { useStore } from '@/lib/store';
 import { useDbRecipes } from '@/hooks/useDbRecipes';
 import { calculateMatch } from '@/lib/matchLogic';
 import { Button } from '@/components/ui/button';
-import { Clock, BarChart3, Check, ShoppingCart, ChevronDown, ChevronUp, Play, Plus, Trash2, Link, Upload } from 'lucide-react';
+import { Clock, BarChart3, Check, ShoppingCart, ChevronDown, ChevronUp, Play, Plus, Trash2, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
@@ -109,9 +109,12 @@ export default function SavedRecipes() {
                     <h3 className="font-display font-bold text-card-foreground truncate">
                       {recipe.name}
                     </h3>
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5 flex-wrap">
                       <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{recipe.cook_time}</span>
                       <span className="flex items-center gap-1"><BarChart3 className="h-3 w-3" />{recipe.difficulty}</span>
+                      {recipe.servings && (
+                        <span className="flex items-center gap-1"><Users className="h-3 w-3" />{recipe.servings}</span>
+                      )}
                       <span className="font-semibold text-primary">{match.percentage}%</span>
                     </div>
                   </div>
