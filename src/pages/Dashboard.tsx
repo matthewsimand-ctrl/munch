@@ -59,12 +59,7 @@ export default function Dashboard() {
       const timer = setTimeout(() => setShowTutorial(true), 600);
       return () => clearTimeout(timer);
     }
-  }, [tutorialComplete, user]);
-
-  const handleTutorialComplete = () => {
-    setShowTutorial(false);
-    completeTutorial();
-  };
+  }, [tutorialComplete, user, setShowTutorial]);
 
   const savedCount = likedRecipes.length;
   const pantryCount = pantryList.length;
