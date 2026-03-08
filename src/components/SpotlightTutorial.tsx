@@ -115,21 +115,21 @@ export default function SpotlightTutorial({ onComplete }: SpotlightTutorialProps
     };
   }, [updateSpotlight]);
 
-  // For 'tap' action steps, allow clicking through the spotlight to the target element
+  // For 'tap' action steps, intercept the click to prevent navigation and advance the tutorial
   useEffect(() => {
     if (step.action !== 'tap' || !step.target) return;
 
     const handleClick = (e: MouseEvent) => {
       const el = document.querySelector(`[data-tutorial="${step.target}"]`);
       if (el && el.contains(e.target as Node)) {
-        // Let the click go through, then advance after a short delay
-        setTimeout(() => {
-          if (currentStep < TUTORIAL_STEPS.length - 1) {
-            setCurrentStep(currentStep + 1);
-          } else {
-            onComplete();
-          }
-        }, 400);
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        if (currentStep < TUTORIAL_STEPS.length - 1) {
+          setCurrentStep(currentStep + 1);
+        } else {
+          onComplete();
+        }
       }
     };
 
