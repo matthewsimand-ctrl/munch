@@ -139,7 +139,7 @@ export default function Swipe() {
       {/* Card Stack */}
       <div className="flex-1 flex items-center justify-center px-6">
         <div className="relative w-full max-w-md h-[440px]">
-          {loading ? (
+          {(searchLoading || dbLoading) ? (
             <div className="h-full flex flex-col items-center justify-center text-center">
               <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
               <p className="text-muted-foreground">Searching recipes...</p>
