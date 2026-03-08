@@ -22,12 +22,11 @@ import { motion } from 'framer-motion';
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { pantryList, likedRecipes, savedApiRecipes, tutorialComplete, completeTutorial } = useStore();
+  const { pantryList, likedRecipes, savedApiRecipes, tutorialComplete, setShowTutorial } = useStore();
   const { data: dbRecipes = [] } = useDbRecipes();
   const [user, setUser] = useState<any>(null);
   const [greeting, setGreeting] = useState('');
   const [displayName, setDisplayName] = useState('');
-  const [showTutorial, setShowTutorial] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
