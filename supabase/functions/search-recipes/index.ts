@@ -36,7 +36,7 @@ async function searchMealDB(query: string): Promise<NormalizedRecipe[]> {
         id: `mealdb-${m.idMeal}`,
         name: m.strMeal,
         image: m.strMealThumb,
-        cookTime: '30 min',
+        cook_time: '30 min',
         difficulty: 'Intermediate' as const,
         ingredients,
         tags: m.strTags ? m.strTags.split(',').map((t: string) => t.trim().toLowerCase()) : [],
