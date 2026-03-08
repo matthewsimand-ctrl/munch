@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, Clock, BarChart3, Check, ShoppingCart, ChevronDown, ChevronUp, Play, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { ScrollArea } from '@/components/ui/scroll-area';
+
 import CreateRecipeForm from '@/components/CreateRecipeForm';
 import ImportRecipeDialog from '@/components/ImportRecipeDialog';
 import NutritionCard from '@/components/NutritionCard';
@@ -57,9 +57,9 @@ export default function SavedRecipes() {
                 <DialogHeader>
                   <DialogTitle>Create Recipe</DialogTitle>
                 </DialogHeader>
-                <ScrollArea className="max-h-[70vh] pr-4">
+                <div className="max-h-[70vh] overflow-y-auto pr-2 pl-1 pb-2">
                   <CreateRecipeForm onClose={() => setCreateOpen(false)} />
-                </ScrollArea>
+                </div>
               </DialogContent>
             </Dialog>
             <Button variant="outline" size="sm" onClick={() => navigate('/grocery')}>
