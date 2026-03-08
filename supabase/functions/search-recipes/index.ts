@@ -77,7 +77,7 @@ async function searchTasty(query: string, apiKey: string): Promise<NormalizedRec
         id: `tasty-${r.id}`,
         name: r.name,
         image: r.thumbnail_url || '',
-        cookTime: totalTime ? `${totalTime} min` : '30 min',
+        cook_time: totalTime ? `${totalTime} min` : '30 min',
         difficulty: (r.total_time_minutes && r.total_time_minutes > 45) ? 'Advanced' as const : 'Intermediate' as const,
         ingredients,
         tags: (r.tags || []).slice(0, 5).map((t: any) => t.display_name?.toLowerCase()).filter(Boolean),
