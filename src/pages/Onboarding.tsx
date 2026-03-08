@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '@/lib/store';
@@ -12,7 +12,12 @@ import { ChefHat, ArrowRight, ArrowLeft, Users } from 'lucide-react';
 const DIETARY_OPTIONS = ['Vegetarian', 'Vegan', 'Gluten-Free', 'Dairy-Free', 'Nut-Free', 'None'];
 const SKILL_OPTIONS = ['Beginner', 'Intermediate', 'Advanced'];
 const FLAVOR_OPTIONS = ['Spicy', 'Sweet', 'Savory', 'Umami', 'Fresh/Citrusy'];
-const TOTAL_STEPS = 5;
+const CUISINE_OPTIONS = [
+  'Italian', 'Mexican', 'Chinese', 'Japanese', 'Indian',
+  'Thai', 'Korean', 'Mediterranean', 'French', 'American',
+  'Middle Eastern', 'Vietnamese', 'Greek', 'Ethiopian', 'Caribbean',
+];
+const TOTAL_STEPS = 6;
 
 const Chip = ({
   label,
@@ -71,19 +76,28 @@ export default function Onboarding() {
     });
   };
 
+  const toggleCuisine = (item: string) => {
+    const current = userProfile.cuisinePreferences;
+    setUserProfile({
+      cuisinePreferences: current.includes(item)
+        ? current.filter(c => c !== item)
+        : [...current, item],
+    });
+  };
+
   const canProceed =
     (step === 0 && displayName.trim().length > 0) ||
     (step === 1 && defaultServings !== '') ||
     (step === 2 && userProfile.dietaryRestrictions.length > 0) ||
     (step === 3 && userProfile.skillLevel !== '') ||
-    (step === 4 && userProfile.flavorProfiles.length > 0);
+    (step === 4 && userProfile.flavorProfiles.length > 0) ||
+    (step === 5 && userProfile.cuisinePreferences.length > 0);
 
   const next = async () => {
     if (step < TOTAL_STEPS - 1) {
       setDirection(1);
       setStep(step + 1);
     } else {
-      // Save name & servings to profile
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         await supabase
@@ -95,7 +109,7 @@ export default function Onboarding() {
           .eq('user_id', session.user.id);
       }
       completeOnboarding();
-      navigate('/pantry');
+      navigate('/dashboard');
     }
   };
 
@@ -244,6 +258,27 @@ export default function Onboarding() {
                   </div>
                 </div>
               )}
+
+              {step === 5 && (
+                <div>
+                  <h1 className="font-display text-3xl font-bold text-foreground mb-2">
+                    What cuisines excite you?
+                  </h1>
+                  <p className="text-muted-foreground mb-8">
+                    Pick your favorites — we'll prioritize these in your feed.
+                  </p>
+                  <div className="flex flex-wrap gap-3">
+                    {CUISINE_OPTIONS.map((opt) => (
+                      <Chip
+                        key={opt}
+                        label={opt}
+                        selected={userProfile.cuisinePreferences.includes(opt)}
+                        onClick={() => toggleCuisine(opt)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
             </motion.div>
           </AnimatePresence>
         </div>
@@ -260,7 +295,7 @@ export default function Onboarding() {
           disabled={!canProceed}
           className="flex-1 h-12 text-base font-semibold"
         >
-          {step === TOTAL_STEPS - 1 ? 'Build My Pantry' : 'Continue'}
+          {step === TOTAL_STEPS - 1 ? "Let's Go!" : 'Continue'}
           <ArrowRight className="h-4 w-4 ml-2" />
         </Button>
       </div>
