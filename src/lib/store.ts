@@ -5,6 +5,7 @@ export interface UserProfile {
   dietaryRestrictions: string[];
   skillLevel: string;
   flavorProfiles: string[];
+  cuisinePreferences: string[];
 }
 
 export interface PantryItem {
