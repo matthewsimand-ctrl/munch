@@ -27,6 +27,10 @@ export default function Pantry() {
   const [user, setUser] = useState<any>(null);
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [sortBy, setSortBy] = useState('recent');
+  const [scanning, setScanning] = useState(false);
+  const [scannedItems, setScannedItems] = useState<string[] | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
