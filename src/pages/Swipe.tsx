@@ -46,7 +46,7 @@ export default function Swipe() {
       .sort((a, b) => b.match.percentage - a.match.percentage);
   }, [pantryNames, allRecipes]);
 
-  useMemo(() => {
+  useEffect(() => {
     setCurrentIndex(0);
   }, [allRecipes]);
 
