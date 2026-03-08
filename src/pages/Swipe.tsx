@@ -23,11 +23,10 @@ export default function Swipe() {
   const { pantryList, likeRecipe, likedRecipes, savedApiRecipes } = useStore();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [user, setUser] = useState<any>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [filterText, setFilterText] = useState('');
   const [previewOpen, setPreviewOpen] = useState(false);
   const [mealFilter, setMealFilter] = useState<MealCategory>('all');
   const suggestedCategory = useMemo(() => getTimeBasedCategory(), []);
-  const { apiRecipes, loading: searchLoading, searched, search } = useRecipeSearch();
   const { data: dbRecipes = [], isLoading: dbLoading } = useDbRecipes();
   const { recipes: browseRecipes, loading: browseLoading, loaded: browseLoaded, loadFeed } = useBrowseFeed();
 
@@ -39,14 +38,12 @@ export default function Swipe() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Auto-load browse feed on mount
   useEffect(() => {
     loadFeed();
   }, [loadFeed]);
 
   const pantryNames = useMemo(() => pantryList.map(p => p.name), [pantryList]);
 
-  // Build liked recipe objects for the recommendation engine
   const likedRecipeObjects = useMemo(() => {
     return likedRecipes
       .map(id => dbRecipes.find(r => r.id === id) || savedApiRecipes[id])
@@ -55,53 +52,46 @@ export default function Swipe() {
 
   const likedIdSet = useMemo(() => new Set(likedRecipes), [likedRecipes]);
 
+  // Text filter function — matches name, cuisine, ingredients, tags
+  const matchesFilter = useMemo(() => {
+    const q = filterText.trim().toLowerCase();
+    if (!q) return () => true;
+    const terms = q.split(/\s+/);
+    return (r: Recipe) => {
+      const haystack = [
+        r.name,
+        r.cuisine || '',
+        ...(r.tags || []),
+        ...(r.ingredients || []),
+      ].join(' ').toLowerCase();
+      return terms.every(t => haystack.includes(t));
+    };
+  }, [filterText]);
+
   // Combine all recipe sources
   const allRecipes = useMemo(() => {
-    let base: Recipe[];
-    // If user searched, show search results
-    if (apiRecipes.length > 0) {
-      base = apiRecipes;
-    } else {
-      // Merge db recipes + browse feed, dedup by id
-      const seen = new Set<string>();
-      const merged: Recipe[] = [];
-      for (const r of [...dbRecipes, ...browseRecipes]) {
-        if (!seen.has(r.id)) {
-          seen.add(r.id);
-          merged.push(r);
-        }
+    const seen = new Set<string>();
+    const merged: Recipe[] = [];
+    for (const r of [...dbRecipes, ...browseRecipes]) {
+      if (!seen.has(r.id)) {
+        seen.add(r.id);
+        merged.push(r);
       }
-      base = merged;
     }
-    // Apply meal type filter
-    return filterByMealType(base, mealFilter);
-  }, [apiRecipes, dbRecipes, browseRecipes, mealFilter]);
+    // Apply meal type filter then text filter
+    return filterByMealType(merged, mealFilter).filter(matchesFilter);
+  }, [dbRecipes, browseRecipes, mealFilter, matchesFilter]);
 
-  // Rank recipes using both pantry match AND recommendation score
+  // Rank recipes
   const rankedRecipes = useMemo(() => {
-    // If searching, just use pantry match
-    if (apiRecipes.length > 0) {
-      return allRecipes
-        .map(r => ({
-          recipe: r,
-          match: calculateMatch(pantryNames, r.ingredients),
-          recScore: 50,
-          source: (r as any).source,
-        }))
-        .sort((a, b) => b.match.percentage - a.match.percentage);
-    }
-
-    // For browse: combine recommendation score + pantry match
     const recommended = rankByRecommendation(allRecipes, likedRecipeObjects, likedIdSet);
-
     return recommended.map(({ recipe, recScore }) => {
       const match = calculateMatch(pantryNames, recipe.ingredients);
-      // Combined score: 40% pantry match + 60% recommendation
       const combinedScore = match.percentage * 0.4 + recScore * 0.6;
       return { recipe, match, recScore, combinedScore, source: (recipe as any).source };
     })
     .sort((a, b) => b.combinedScore - a.combinedScore);
-  }, [pantryNames, allRecipes, likedRecipeObjects, likedIdSet, apiRecipes]);
+  }, [pantryNames, allRecipes, likedRecipeObjects, likedIdSet]);
 
   useEffect(() => {
     setCurrentIndex(0);
@@ -115,17 +105,9 @@ export default function Swipe() {
     setCurrentIndex(prev => prev + 1);
   };
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      setCurrentIndex(0);
-      search(searchQuery.trim());
-    }
-  };
-
   const current = rankedRecipes[currentIndex];
   const next = rankedRecipes[currentIndex + 1];
-  const isLoading = searchLoading || (dbLoading && !browseLoaded) || (browseLoading && dbRecipes.length === 0);
+  const isLoading = (dbLoading && !browseLoaded) || (browseLoading && dbRecipes.length === 0);
   const totalAvailable = rankedRecipes.length;
 
   return (
@@ -141,22 +123,25 @@ export default function Swipe() {
         </Button>
       </div>
 
-      {/* Search Bar */}
+      {/* Filter Bar */}
       <div className="px-6 pb-3 max-w-md mx-auto w-full" data-tutorial="swipe-search">
-        <form onSubmit={handleSearch} className="flex gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search recipes or paste a URL..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
-            />
-          </div>
-          <Button type="submit" size="sm" disabled={searchLoading || !searchQuery.trim()}>
-            {searchLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />}
-          </Button>
-        </form>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Filter by cuisine, ingredient, or dish name..."
+            value={filterText}
+            onChange={(e) => { setFilterText(e.target.value); setCurrentIndex(0); }}
+            className="pl-9"
+          />
+          {filterText && (
+            <button
+              onClick={() => { setFilterText(''); setCurrentIndex(0); }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
         <div className="flex items-center gap-2 mt-2">
           <div className="flex items-center gap-1.5">
             <Clock className="h-3.5 w-3.5 text-muted-foreground" />
@@ -173,23 +158,12 @@ export default function Swipe() {
               </SelectContent>
             </Select>
           </div>
-          {searched && apiRecipes.length > 0 ? (
-            <>
-              <Badge variant="secondary" className="text-xs">
-                {apiRecipes.length} results
-              </Badge>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs h-6 px-2"
-                onClick={() => { setCurrentIndex(0); search(searchQuery); }}
-              >
-                Refresh
-              </Button>
-            </>
-          ) : (
-            <Badge variant="outline" className="text-xs text-muted-foreground">
-              {browseLoading ? 'Loading...' : `${totalAvailable} recipes`}
+          <Badge variant="outline" className="text-xs text-muted-foreground">
+            {browseLoading ? 'Loading...' : `${totalAvailable} recipes`}
+          </Badge>
+          {filterText && (
+            <Badge variant="secondary" className="text-xs">
+              Filtered
             </Badge>
           )}
           {currentIndex > 0 && totalAvailable > 0 && (
@@ -206,9 +180,7 @@ export default function Swipe() {
           {isLoading ? (
             <div className="h-full flex flex-col items-center justify-center text-center">
               <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
-              <p className="text-muted-foreground">
-                {browseLoading ? 'Loading hundreds of recipes...' : 'Searching recipes...'}
-              </p>
+              <p className="text-muted-foreground">Loading hundreds of recipes...</p>
             </div>
           ) : current ? (
             <AnimatePresence>
@@ -234,20 +206,28 @@ export default function Swipe() {
             <div className="h-full flex flex-col items-center justify-center text-center">
               <UtensilsCrossed className="h-16 w-16 text-muted-foreground mb-4" />
               <h2 className="font-display text-2xl font-bold text-foreground mb-2">
-                {searched ? 'No more results!' : "You've browsed them all!"}
+                {filterText ? 'No matches found' : "You've browsed them all!"}
               </h2>
               <p className="text-muted-foreground mb-6">
-                {searched
-                  ? 'Try a different search or check your saved recipes.'
-                  : `You've seen all ${totalAvailable + currentIndex} recipes. Try searching for more!`}
+                {filterText
+                  ? 'Try a different filter or clear your search.'
+                  : 'Try a different filter or check your saved recipes.'}
               </p>
               <div className="flex gap-3">
-                <Button variant="outline" onClick={() => navigate('/pantry')}>
-                  Update Pantry
-                </Button>
-                <Button onClick={() => navigate('/saved')}>
-                  View Saved ({likedRecipes.length})
-                </Button>
+                {filterText ? (
+                  <Button onClick={() => { setFilterText(''); setCurrentIndex(0); }}>
+                    Clear Filter
+                  </Button>
+                ) : (
+                  <>
+                    <Button variant="outline" onClick={() => navigate('/pantry')}>
+                      Update Pantry
+                    </Button>
+                    <Button onClick={() => navigate('/saved')}>
+                      View Saved ({likedRecipes.length})
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           )}

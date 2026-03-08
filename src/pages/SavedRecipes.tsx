@@ -88,11 +88,20 @@ export default function SavedRecipes() {
               <motion.div
                 key={recipe.id}
                 layout
-                className={`rounded-xl border-2 ${borderColor} bg-card overflow-hidden shadow-sm`}
+                className={`rounded-xl border-2 ${borderColor} bg-card overflow-hidden shadow-sm relative`}
               >
+                {/* Quick delete button */}
+                <button
+                  onClick={(e) => { e.stopPropagation(); unlikeRecipe(recipe.id); }}
+                  className="absolute top-2 right-2 z-10 h-7 w-7 rounded-full bg-destructive/10 hover:bg-destructive hover:text-destructive-foreground text-destructive flex items-center justify-center transition-colors"
+                  title="Remove recipe"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+
                 <button
                   onClick={() => setExpandedId(expanded ? null : recipe.id)}
-                  className="w-full flex items-center gap-3 p-3 text-left"
+                  className="w-full flex items-center gap-3 p-3 pr-10 text-left"
                 >
                   <img
                     src={recipe.image}
@@ -107,7 +116,6 @@ export default function SavedRecipes() {
                       <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{recipe.cook_time}</span>
                       <span className="flex items-center gap-1"><BarChart3 className="h-3 w-3" />{recipe.difficulty}</span>
                       <span className="font-semibold text-primary">{match.percentage}%</span>
-                      
                     </div>
                   </div>
                   {expanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
