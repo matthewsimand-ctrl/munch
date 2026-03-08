@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { ScrollArea } from '@/components/ui/scroll-area';
 import CreateRecipeForm from '@/components/CreateRecipeForm';
 import ImportRecipeDialog from '@/components/ImportRecipeDialog';
+import NutritionCard from '@/components/NutritionCard';
 
 export default function SavedRecipes() {
   const navigate = useNavigate();
@@ -150,6 +151,13 @@ export default function SavedRecipes() {
                             ))}
                           </ol>
                         </div>
+
+                        {/* Nutrition */}
+                        <NutritionCard
+                          recipeName={recipe.name}
+                          ingredients={recipe.ingredients}
+                          servings={1}
+                        />
 
                         <div className="flex gap-2">
                           <Button
