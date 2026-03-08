@@ -14,6 +14,12 @@ export interface PantryItem {
   category?: string;
 }
 
+export interface CustomGroceryItem {
+  name: string;
+  quantity: string;
+  category?: string;
+}
+
 interface AppState {
   userProfile: UserProfile;
   pantryList: PantryItem[];
@@ -21,6 +27,7 @@ interface AppState {
   savedApiRecipes: Record<string, any>;
   cachedNutrition: Record<string, any>;
   groceryRecipes: string[]; // recipe IDs explicitly added to grocery list
+  customGroceryItems: CustomGroceryItem[]; // manually added grocery items
   onboardingComplete: boolean;
   tutorialComplete: boolean;
   showTutorial: boolean;
@@ -37,6 +44,9 @@ interface AppState {
   cacheNutrition: (recipeId: string, data: any) => void;
   addToGrocery: (recipeId: string) => void;
   removeFromGrocery: (recipeId: string) => void;
+  addCustomGroceryItem: (name: string, quantity?: string) => void;
+  removeCustomGroceryItem: (name: string) => void;
+  updateCustomGroceryQuantity: (name: string, quantity: string) => void;
   completeTutorial: () => void;
   resetStore: () => void;
 }
