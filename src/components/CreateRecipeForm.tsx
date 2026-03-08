@@ -261,7 +261,7 @@ export default function CreateRecipeForm({ onClose }: Props) {
         tags,
         instructions: stepList,
         source: 'community',
-        created_by: user.id,
+        created_by: userId,
         is_public: isPublic,
       } as any);
 
