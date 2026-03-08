@@ -10,6 +10,7 @@ export interface UserProfile {
 export interface PantryItem {
   name: string;
   quantity: string;
+  category?: string;
 }
 
 interface AppState {
