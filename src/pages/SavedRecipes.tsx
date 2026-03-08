@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import BottomNav from '@/components/BottomNav';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '@/lib/store';
 import { recipes } from '@/data/recipes';
