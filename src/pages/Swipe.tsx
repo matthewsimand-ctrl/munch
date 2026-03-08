@@ -8,6 +8,7 @@ import { useBrowseFeed } from '@/hooks/useBrowseFeed';
 import { useChefProfiles } from '@/hooks/useChefProfiles';
 import { calculateMatch } from '@/lib/matchLogic';
 import { rankByRecommendation } from '@/lib/recommendations';
+import { expandSearchTerms } from '@/lib/searchSynonyms';
 import { filterByMealType, getTimeBasedCategory, MEAL_CATEGORIES, type MealCategory } from '@/lib/mealTimeUtils';
 import SwipeCard from '@/components/SwipeCard';
 import RecipePreviewDialog from '@/components/RecipePreviewDialog';
