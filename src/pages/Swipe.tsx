@@ -3,21 +3,26 @@ import BottomNav from '@/components/BottomNav';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { useStore } from '@/lib/store';
-import { recipes } from '@/data/recipes';
+import { recipes as localRecipes } from '@/data/recipes';
 import { calculateMatch } from '@/lib/matchLogic';
 import SwipeCard from '@/components/SwipeCard';
 import { Button } from '@/components/ui/button';
-import { Heart, X, BookOpen, ChefHat, UtensilsCrossed, User, LogOut } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Heart, X, BookOpen, ChefHat, UtensilsCrossed, User, LogOut, Search, Loader2, Globe } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useState as useStateAlias, useEffect as useEffectAlias } from 'react';
+import { useEffect } from 'react';
+import { useRecipeSearch } from '@/hooks/useRecipeSearch';
+import { Badge } from '@/components/ui/badge';
 
 export default function Swipe() {
   const navigate = useNavigate();
   const { pantryList, likeRecipe, likedRecipes } = useStore();
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [user, setUser] = useStateAlias<any>(null);
+  const [user, setUser] = useState<any>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const { apiRecipes, loading, searched, search } = useRecipeSearch();
 
-  useEffectAlias(() => {
+  useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
       setUser(session?.user ?? null);
     });
@@ -27,17 +32,36 @@ export default function Swipe() {
 
   const pantryNames = useMemo(() => pantryList.map(p => p.name), [pantryList]);
 
+  // Merge local + API recipes
+  const allRecipes = useMemo(() => {
+    if (apiRecipes.length > 0) return apiRecipes;
+    return localRecipes;
+  }, [apiRecipes]);
+
   const rankedRecipes = useMemo(() => {
-    return recipes
-      .map((r) => ({ recipe: r, match: calculateMatch(pantryNames, r.ingredients) }))
+    return allRecipes
+      .map((r) => ({ recipe: r, match: calculateMatch(pantryNames, r.ingredients), source: (r as any).source }))
       .sort((a, b) => b.match.percentage - a.match.percentage);
-  }, [pantryNames]);
+  }, [pantryNames, allRecipes]);
+
+  // Reset index when recipes change
+  useMemo(() => {
+    setCurrentIndex(0);
+  }, [allRecipes]);
 
   const handleSwipe = (dir: 'left' | 'right') => {
     if (dir === 'right') {
       likeRecipe(rankedRecipes[currentIndex].recipe.id);
     }
     setCurrentIndex((prev) => prev + 1);
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      setCurrentIndex(0);
+      search(searchQuery.trim());
+    }
   };
 
   const current = rankedRecipes[currentIndex];
@@ -75,10 +99,48 @@ export default function Swipe() {
         </div>
       </div>
 
+      {/* Search Bar */}
+      <div className="px-6 pb-3 max-w-md mx-auto w-full">
+        <form onSubmit={handleSearch} className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search recipes online..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Button type="submit" size="sm" disabled={loading || !searchQuery.trim()}>
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />}
+          </Button>
+        </form>
+        {searched && apiRecipes.length > 0 && (
+          <div className="flex items-center gap-2 mt-2">
+            <Badge variant="secondary" className="text-xs">
+              {apiRecipes.length} results from APIs
+            </Badge>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs h-6 px-2"
+              onClick={() => { setCurrentIndex(0); search(searchQuery); }}
+            >
+              Refresh
+            </Button>
+          </div>
+        )}
+      </div>
+
       {/* Card Stack */}
       <div className="flex-1 flex items-center justify-center px-6">
-        <div className="relative w-full max-w-md h-[480px]">
-          {current ? (
+        <div className="relative w-full max-w-md h-[440px]">
+          {loading ? (
+            <div className="h-full flex flex-col items-center justify-center text-center">
+              <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
+              <p className="text-muted-foreground">Searching recipes...</p>
+            </div>
+          ) : current ? (
             <AnimatePresence>
               {next && (
                 <SwipeCard
@@ -101,10 +163,10 @@ export default function Swipe() {
             <div className="h-full flex flex-col items-center justify-center text-center">
               <ChefHat className="h-16 w-16 text-muted-foreground mb-4" />
               <h2 className="font-display text-2xl font-bold text-foreground mb-2">
-                That's all for now!
+                {searched ? 'No more results!' : "That's all for now!"}
               </h2>
               <p className="text-muted-foreground mb-6">
-                You've seen all recipes. Add more ingredients or check your saved ones.
+                {searched ? 'Try a different search or check your saved recipes.' : "You've seen all recipes. Search online or check your saved ones."}
               </p>
               <div className="flex gap-3">
                 <Button variant="outline" onClick={() => navigate('/pantry')}>
@@ -119,8 +181,17 @@ export default function Swipe() {
         </div>
       </div>
 
+      {/* Source badge on current card */}
+      {current?.source && !loading && (
+        <div className="flex justify-center -mt-2 mb-1">
+          <Badge variant="outline" className="text-xs">
+            via {current.source}
+          </Badge>
+        </div>
+      )}
+
       {/* Action buttons */}
-      {current && (
+      {current && !loading && (
         <div className="p-6 max-w-md mx-auto w-full flex justify-center gap-6">
           <Button
             variant="outline"
