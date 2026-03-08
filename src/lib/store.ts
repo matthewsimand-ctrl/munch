@@ -21,7 +21,7 @@ interface AppState {
 
   setUserProfile: (profile: Partial<UserProfile>) => void;
   completeOnboarding: () => void;
-  addPantryItem: (name: string, quantity?: string) => void;
+  addPantryItem: (name: string, quantity?: string, category?: string) => void;
   removePantryItem: (name: string) => void;
   updatePantryQuantity: (name: string, quantity: string) => void;
   addPantryItems: (items: string[]) => void;
