@@ -113,7 +113,7 @@ async function searchSpoonacular(query: string, apiKey: string): Promise<Normali
         id: `spoon-${r.id}`,
         name: r.title,
         image: r.image || '',
-        cookTime: r.readyInMinutes ? `${r.readyInMinutes} min` : '30 min',
+        cook_time: r.readyInMinutes ? `${r.readyInMinutes} min` : '30 min',
         difficulty,
         ingredients,
         tags: (r.dishTypes || []).slice(0, 5).map((t: string) => t.toLowerCase()),
