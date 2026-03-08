@@ -6,8 +6,15 @@ import { useDbRecipes } from '@/hooks/useDbRecipes';
 import { calculateMatch } from '@/lib/matchLogic';
 import { getCategory, getAisleIndex, type IngredientCategory } from '@/lib/ingredientCategories';
 import { Button } from '@/components/ui/button';
-import { ShoppingCart, Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { ShoppingCart, Check, ChevronDown, ChevronUp, Download, FileText, Share2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { toast } from 'sonner';
 
 interface GroceryItem {
   ingredient: string;
@@ -77,6 +84,52 @@ export default function GroceryList() {
     });
   };
 
+  const buildChecklistText = () => {
+    let text = '🛒 Grocery List\n\n';
+    aisleGroups.forEach(({ category, items }) => {
+      text += `${AISLE_EMOJI[category] || '📦'} ${category}\n`;
+      items.forEach(({ ingredient }) => {
+        text += `☐ ${ingredient}\n`;
+      });
+      text += '\n';
+    });
+    return text;
+  };
+
+  const exportAsAppleNote = () => {
+    const text = buildChecklistText();
+    // Apple Notes supports plain text via share sheet / clipboard
+    if (navigator.share) {
+      navigator.share({ title: 'Grocery List', text }).catch(() => {
+        navigator.clipboard.writeText(text);
+        toast.success('Copied to clipboard — paste into Apple Notes');
+      });
+    } else {
+      navigator.clipboard.writeText(text);
+      toast.success('Copied to clipboard — paste into Apple Notes');
+    }
+  };
+
+  const exportAsGoogleDoc = () => {
+    const text = buildChecklistText();
+    // Google Docs can be pre-filled via a URL with content, but simplest is clipboard
+    // We'll create an HTML checklist and copy it
+    const html = aisleGroups.map(({ category, items }) =>
+      `<h3>${AISLE_EMOJI[category] || '📦'} ${category}</h3><ul style="list-style:none;padding:0;">${items.map(({ ingredient }) =>
+        `<li>☐ ${ingredient}</li>`
+      ).join('')}</ul>`
+    ).join('');
+
+    const blob = new Blob([html], { type: 'text/html' });
+    const item = new ClipboardItem({ 'text/html': blob, 'text/plain': new Blob([text], { type: 'text/plain' }) });
+    navigator.clipboard.write([item]).then(() => {
+      toast.success('Copied as checklist — paste into Google Docs');
+    }).catch(() => {
+      navigator.clipboard.writeText(text);
+      toast.success('Copied to clipboard — paste into Google Docs');
+    });
+  };
+
   const AISLE_EMOJI: Record<string, string> = {
     'Produce': '🥬',
     'Meat & Seafood': '🥩',
@@ -98,7 +151,28 @@ export default function GroceryList() {
             <ShoppingCart className="h-6 w-6 text-primary" />
             <h1 className="font-display text-2xl font-bold text-foreground">Grocery List</h1>
           </div>
-          <span className="ml-auto text-sm text-muted-foreground">{totalItems} items</span>
+          <div className="ml-auto flex items-center gap-2">
+            {totalItems > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <Share2 className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={exportAsAppleNote}>
+                    <FileText className="h-4 w-4 mr-2" />
+                    Apple Notes
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={exportAsGoogleDoc}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Google Docs Checklist
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            <span className="text-sm text-muted-foreground">{totalItems} items</span>
+          </div>
         </div>
         {totalItems > 0 && (
           <p className="text-xs text-muted-foreground">
