@@ -54,11 +54,12 @@ export default function Swipe() {
 
   const likedIdSet = useMemo(() => new Set(likedRecipes), [likedRecipes]);
 
-  // Text filter function — matches name, cuisine, ingredients, tags
+  // Text filter function — matches name, cuisine, ingredients, tags with synonym expansion
   const matchesFilter = useMemo(() => {
     const q = filterText.trim().toLowerCase();
     if (!q) return () => true;
-    const terms = q.split(/\s+/);
+    const rawTerms = q.split(/\s+/);
+    const expandedTerms = expandSearchTerms(rawTerms);
     return (r: Recipe) => {
       const haystack = [
         r.name,
@@ -66,7 +67,12 @@ export default function Swipe() {
         ...(r.tags || []),
         ...(r.ingredients || []),
       ].join(' ').toLowerCase();
-      return terms.every(t => haystack.includes(t));
+      // Each raw term must match either directly or via any of its synonyms
+      return rawTerms.every(term => {
+        // Get this term's synonyms (including itself)
+        const termSynonyms = expandSearchTerms([term]);
+        return termSynonyms.some(syn => haystack.includes(syn));
+      });
     };
   }, [filterText]);
 
