@@ -20,7 +20,8 @@ export default function Swipe() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [user, setUser] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const { apiRecipes, loading, searched, search } = useRecipeSearch();
+  const { apiRecipes, loading: searchLoading, searched, search } = useRecipeSearch();
+  const { data: dbRecipes = [], isLoading: dbLoading } = useDbRecipes();
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
