@@ -7,7 +7,7 @@ import { calculateMatch } from '@/lib/matchLogic';
 import { getCategory, getAisleIndex, type IngredientCategory } from '@/lib/ingredientCategories';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ShoppingCart, Check, ChevronDown, ChevronUp, Download, FileText, Share2, Plus, Minus, X, PlusCircle } from 'lucide-react';
+import { ShoppingCart, Check, ChevronDown, ChevronUp, Download, FileText, Share2, Plus, Minus, X, PlusCircle, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   DropdownMenu,
