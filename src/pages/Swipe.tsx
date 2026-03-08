@@ -159,10 +159,25 @@ export default function Swipe() {
           </Button>
         </form>
         <div className="flex items-center gap-2 mt-2">
+          <div className="flex items-center gap-1.5">
+            <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+            <Select value={mealFilter} onValueChange={(v) => { setMealFilter(v as MealCategory); setCurrentIndex(0); }}>
+              <SelectTrigger className="h-7 w-auto min-w-[110px] text-xs border-dashed">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {MEAL_CATEGORIES.map(c => (
+                  <SelectItem key={c.value} value={c.value}>
+                    {c.label}{c.value === suggestedCategory ? ' ✦' : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           {searched && apiRecipes.length > 0 ? (
             <>
               <Badge variant="secondary" className="text-xs">
-                {apiRecipes.length} search results
+                {apiRecipes.length} results
               </Badge>
               <Button
                 variant="ghost"
@@ -175,7 +190,7 @@ export default function Swipe() {
             </>
           ) : (
             <Badge variant="outline" className="text-xs text-muted-foreground">
-              {browseLoading ? 'Loading recipes...' : `${totalAvailable} recipes to browse`}
+              {browseLoading ? 'Loading...' : `${totalAvailable} recipes`}
             </Badge>
           )}
           {currentIndex > 0 && totalAvailable > 0 && (
