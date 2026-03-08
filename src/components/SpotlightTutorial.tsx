@@ -164,9 +164,9 @@ export default function SpotlightTutorial({ onComplete }: SpotlightTutorialProps
   };
 
   return (
-    <div className="fixed inset-0 z-[100]">
+    <div className="fixed inset-0 z-[100]" style={{ pointerEvents: 'none' }}>
       {/* Dimmed overlay with cutout */}
-      <svg className="absolute inset-0 w-full h-full" style={{ pointerEvents: 'none' }}>
+      <svg className="absolute inset-0 w-full h-full">
         <defs>
           <mask id="spotlight-mask">
             <rect x="0" y="0" width="100%" height="100%" fill="white" />
@@ -194,20 +194,6 @@ export default function SpotlightTutorial({ onComplete }: SpotlightTutorialProps
         />
       </svg>
 
-      {/* Allow clicking through to the spotlight target for tap actions */}
-      {step.action === 'tap' && spotlightRect && (
-        <div
-          className="absolute z-[101]"
-          style={{
-            left: spotlightRect.left - pad,
-            top: spotlightRect.top - pad,
-            width: spotlightRect.width + pad * 2,
-            height: spotlightRect.height + pad * 2,
-            pointerEvents: 'none', // let clicks pass through to the element behind
-          }}
-        />
-      )}
-
       {/* Spotlight border ring */}
       {spotlightRect && (
         <motion.div
@@ -232,7 +218,7 @@ export default function SpotlightTutorial({ onComplete }: SpotlightTutorialProps
           exit={{ opacity: 0, y: -10 }}
           transition={{ duration: 0.25 }}
           className="absolute left-4 right-4 max-w-sm mx-auto z-[102]"
-          style={getTooltipStyle()}
+          style={{ ...getTooltipStyle(), pointerEvents: 'auto' }}
         >
           <div className="bg-card border border-border rounded-2xl p-5 shadow-xl">
             <div className="flex items-center gap-3 mb-2">
