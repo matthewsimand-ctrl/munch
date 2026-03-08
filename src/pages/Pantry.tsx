@@ -40,7 +40,7 @@ export default function Pantry() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col pb-20">
       <div className="px-6 pt-8 pb-4 max-w-md mx-auto w-full">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
