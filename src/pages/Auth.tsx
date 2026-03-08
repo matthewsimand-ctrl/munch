@@ -33,16 +33,15 @@ export default function Auth() {
       if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) {
-          // Handle "Invalid login credentials" gracefully
           if (
             error.message.includes('Invalid login credentials') ||
             error.message.includes('invalid_credentials')
           ) {
             toast({
-              title: 'Account not found',
-              description: "We couldn't find an account with those credentials. Would you like to create one?",
+              title: 'Invalid credentials',
+              description: 'The email or password you entered is incorrect. Please try again or create a new account.',
+              variant: 'destructive',
             });
-            setIsLogin(false);
             return;
           }
           throw error;
