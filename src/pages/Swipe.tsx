@@ -6,7 +6,9 @@ import { recipes } from '@/data/recipes';
 import { calculateMatch } from '@/lib/matchLogic';
 import SwipeCard from '@/components/SwipeCard';
 import { Button } from '@/components/ui/button';
-import { Heart, X, BookOpen, ChefHat, UtensilsCrossed } from 'lucide-react';
+import { Heart, X, BookOpen, ChefHat, UtensilsCrossed, User } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useState as useStateAlias, useEffect as useEffectAlias } from 'react';
 
 export default function Swipe() {
   const navigate = useNavigate();
