@@ -15,6 +15,15 @@ export default function Pantry() {
   const { pantryList, addPantryItem, removePantryItem, updatePantryQuantity } = useStore();
   const [input, setInput] = useState('');
   const [quantity, setQuantity] = useState('1');
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+      setUser(session?.user ?? null);
+    });
+    supabase.auth.getSession().then(({ data: { session } }) => setUser(session?.user ?? null));
+    return () => subscription.unsubscribe();
+  }, []);
 
   const handleAdd = () => {
     const trimmed = input.trim();
