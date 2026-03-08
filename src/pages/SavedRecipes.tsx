@@ -11,6 +11,7 @@ import { useMemo as useMemoAlias } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import CreateRecipeForm from '@/components/CreateRecipeForm';
+import ImportRecipeDialog from '@/components/ImportRecipeDialog';
 
 export default function SavedRecipes() {
   const navigate = useNavigate();
@@ -42,6 +43,7 @@ export default function SavedRecipes() {
             My Recipes
           </h1>
           <div className="ml-auto flex items-center gap-2">
+            <ImportRecipeDialog />
             <Dialog open={createOpen} onOpenChange={setCreateOpen}>
               <DialogTrigger asChild>
                 <Button size="sm">
