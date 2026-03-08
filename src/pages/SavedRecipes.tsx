@@ -5,7 +5,7 @@ import { useStore } from '@/lib/store';
 import { recipes } from '@/data/recipes';
 import { calculateMatch } from '@/lib/matchLogic';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Clock, BarChart3, Check, ShoppingCart, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, Clock, BarChart3, Check, ShoppingCart, ChevronDown, ChevronUp, Play } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMemo as useMemoAlias } from 'react';
 
@@ -128,14 +128,22 @@ export default function SavedRecipes() {
                           </ol>
                         </div>
 
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-destructive border-destructive/30 hover:bg-destructive hover:text-destructive-foreground"
-                          onClick={() => unlikeRecipe(recipe.id)}
-                        >
-                          Remove
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => navigate(`/cook/${recipe.id}`)}
+                          >
+                            <Play className="h-4 w-4 mr-1" /> Cook
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-destructive border-destructive/30 hover:bg-destructive hover:text-destructive-foreground"
+                            onClick={() => unlikeRecipe(recipe.id)}
+                          >
+                            Remove
+                          </Button>
+                        </div>
                       </div>
                     </motion.div>
                   )}

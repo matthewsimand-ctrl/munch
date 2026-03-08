@@ -8,6 +8,7 @@ import Onboarding from "./pages/Onboarding";
 import Pantry from "./pages/Pantry";
 import Swipe from "./pages/Swipe";
 import SavedRecipes from "./pages/SavedRecipes";
+import CookMode from "./pages/CookMode";
 import GroceryList from "./pages/GroceryList";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -27,6 +28,7 @@ const App = () => (
           <Route path="/pantry" element={<Pantry />} />
           <Route path="/swipe" element={<Swipe />} />
           <Route path="/saved" element={<SavedRecipes />} />
+          <Route path="/cook/:id" element={<CookMode />} />
           <Route path="/grocery" element={<GroceryList />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
