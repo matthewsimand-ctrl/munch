@@ -69,7 +69,7 @@ export default function SavedRecipes() {
         {saved.length === 0 ? (
           <div className="text-center py-16">
             <p className="text-muted-foreground mb-4">No saved recipes yet. Start swiping!</p>
-            <Button onClick={() => navigate('/swipe')}>Go to Swipe</Button>
+            <Button onClick={() => navigate('/swipe')}>Go to Browse</Button>
           </div>
         ) : (
           saved.map(({ recipe, match, source }) => {
