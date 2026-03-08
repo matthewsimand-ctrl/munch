@@ -155,6 +155,7 @@ export const useStore = create<AppState>()(
           savedApiRecipes: {},
           cachedNutrition: {},
           groceryRecipes: [],
+          customGroceryItems: [],
           onboardingComplete: false,
           tutorialComplete: false,
           showTutorial: false,
