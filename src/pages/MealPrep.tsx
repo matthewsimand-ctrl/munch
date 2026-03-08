@@ -278,6 +278,9 @@ export default function MealPrep() {
               </TooltipTrigger>
               <TooltipContent>Export to Calendar</TooltipContent>
             </Tooltip>
+            <Button variant="ghost" size="icon" onClick={() => navigate('/settings')}>
+              <User className="h-5 w-5" />
+            </Button>
           </div>
         </div>
 

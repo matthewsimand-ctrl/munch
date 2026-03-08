@@ -224,6 +224,9 @@ export default function GroceryList() {
               <PlusCircle className="h-4 w-4" />
             </Button>
             <span className="text-sm text-muted-foreground">{totalItems} items</span>
+            <Button variant="ghost" size="icon" onClick={() => navigate('/settings')}>
+              <User className="h-5 w-5" />
+            </Button>
           </div>
         </div>
 
