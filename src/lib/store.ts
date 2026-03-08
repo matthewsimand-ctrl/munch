@@ -129,6 +129,8 @@ export const useStore = create<AppState>()(
           groceryRecipes: state.groceryRecipes.filter(id => id !== recipeId),
         })),
 
+      completeTutorial: () => set({ tutorialComplete: true }),
+
       resetStore: () =>
         set({
           userProfile: initialProfile,
@@ -138,6 +140,7 @@ export const useStore = create<AppState>()(
           cachedNutrition: {},
           groceryRecipes: [],
           onboardingComplete: false,
+          tutorialComplete: false,
         }),
     }),
     { name: 'chefstack-storage' }
