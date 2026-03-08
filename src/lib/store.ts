@@ -20,14 +20,22 @@ export interface CustomGroceryItem {
   category?: string;
 }
 
+export interface RecipeFolder {
+  id: string;
+  name: string;
+  recipeIds: string[];
+}
+
 interface AppState {
   userProfile: UserProfile;
   pantryList: PantryItem[];
   likedRecipes: string[];
   savedApiRecipes: Record<string, any>;
   cachedNutrition: Record<string, any>;
-  groceryRecipes: string[]; // recipe IDs explicitly added to grocery list
-  customGroceryItems: CustomGroceryItem[]; // manually added grocery items
+  groceryRecipes: string[];
+  customGroceryItems: CustomGroceryItem[];
+  recipeMealTags: Record<string, string>; // recipeId -> meal type
+  recipeFolders: RecipeFolder[];
   onboardingComplete: boolean;
   tutorialComplete: boolean;
   showTutorial: boolean;
@@ -47,6 +55,12 @@ interface AppState {
   addCustomGroceryItem: (name: string, quantity?: string) => void;
   removeCustomGroceryItem: (name: string) => void;
   updateCustomGroceryQuantity: (name: string, quantity: string) => void;
+  setRecipeMealTag: (recipeId: string, tag: string) => void;
+  createFolder: (name: string) => void;
+  renameFolder: (folderId: string, name: string) => void;
+  deleteFolder: (folderId: string) => void;
+  addRecipeToFolder: (folderId: string, recipeId: string) => void;
+  removeRecipeFromFolder: (folderId: string, recipeId: string) => void;
   completeTutorial: () => void;
   resetStore: () => void;
 }
@@ -68,6 +82,8 @@ export const useStore = create<AppState>()(
       cachedNutrition: {},
       groceryRecipes: [],
       customGroceryItems: [],
+      recipeMealTags: {},
+      recipeFolders: [],
       onboardingComplete: false,
       tutorialComplete: false,
       showTutorial: false,
@@ -126,6 +142,10 @@ export const useStore = create<AppState>()(
         set((state) => ({
           likedRecipes: state.likedRecipes.filter((r) => r !== id),
           groceryRecipes: state.groceryRecipes.filter((r) => r !== id),
+          recipeFolders: state.recipeFolders.map(f => ({
+            ...f,
+            recipeIds: f.recipeIds.filter(r => r !== id),
+          })),
         })),
 
       cacheNutrition: (recipeId, data) =>
@@ -166,6 +186,49 @@ export const useStore = create<AppState>()(
           ),
         })),
 
+      setRecipeMealTag: (recipeId, tag) =>
+        set((state) => ({
+          recipeMealTags: { ...state.recipeMealTags, [recipeId]: tag },
+        })),
+
+      createFolder: (name) =>
+        set((state) => ({
+          recipeFolders: [
+            ...state.recipeFolders,
+            { id: crypto.randomUUID(), name, recipeIds: [] },
+          ],
+        })),
+
+      renameFolder: (folderId, name) =>
+        set((state) => ({
+          recipeFolders: state.recipeFolders.map(f =>
+            f.id === folderId ? { ...f, name } : f
+          ),
+        })),
+
+      deleteFolder: (folderId) =>
+        set((state) => ({
+          recipeFolders: state.recipeFolders.filter(f => f.id !== folderId),
+        })),
+
+      addRecipeToFolder: (folderId, recipeId) =>
+        set((state) => ({
+          recipeFolders: state.recipeFolders.map(f =>
+            f.id === folderId && !f.recipeIds.includes(recipeId)
+              ? { ...f, recipeIds: [...f.recipeIds, recipeId] }
+              : f
+          ),
+        })),
+
+      removeRecipeFromFolder: (folderId, recipeId) =>
+        set((state) => ({
+          recipeFolders: state.recipeFolders.map(f =>
+            f.id === folderId
+              ? { ...f, recipeIds: f.recipeIds.filter(r => r !== recipeId) }
+              : f
+          ),
+        })),
+
       completeTutorial: () => set({ tutorialComplete: true }),
 
       resetStore: () =>
@@ -177,6 +240,8 @@ export const useStore = create<AppState>()(
           cachedNutrition: {},
           groceryRecipes: [],
           customGroceryItems: [],
+          recipeMealTags: {},
+          recipeFolders: [],
           onboardingComplete: false,
           tutorialComplete: false,
           showTutorial: false,
