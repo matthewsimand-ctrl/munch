@@ -148,7 +148,7 @@ export default function Swipe() {
           />
           {filterText && (
             <button
-              onClick={() => { setFilterText(''); setCurrentIndex(0); }}
+              onClick={() => { setFilterText(''); setCurrentIndex(0); setFilterKey(k => k + 1); }}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
             >
               <X className="h-4 w-4" />
