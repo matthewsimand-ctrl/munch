@@ -214,10 +214,6 @@ export default function Dashboard() {
         </motion.div>
       </div>
       <BottomNav />
-
-      {showTutorial && (
-        <SpotlightTutorial onComplete={handleTutorialComplete} />
-      )}
     </div>
   );
 }
