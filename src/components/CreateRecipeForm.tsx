@@ -310,6 +310,7 @@ export default function CreateRecipeForm({ onClose }: Props) {
         source: 'community',
         created_by: userId,
         is_public: isPublic,
+        servings: parseInt(servings) || 4,
       } as any);
 
       if (error) throw error;
