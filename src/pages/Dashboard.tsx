@@ -4,7 +4,7 @@ import { useStore } from '@/lib/store';
 import { useDbRecipes } from '@/hooks/useDbRecipes';
 import { supabase } from '@/integrations/supabase/client';
 import BottomNav from '@/components/BottomNav';
-import SpotlightTutorial from '@/components/SpotlightTutorial';
+import BottomNav from '@/components/BottomNav';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
