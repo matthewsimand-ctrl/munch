@@ -115,8 +115,8 @@ export default function Swipe() {
               className="pl-9"
             />
           </div>
-          <Button type="submit" size="sm" disabled={loading || !searchQuery.trim()}>
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />}
+          <Button type="submit" size="sm" disabled={searchLoading || !searchQuery.trim()}>
+            {searchLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />}
           </Button>
         </form>
         {searched && apiRecipes.length > 0 && (
