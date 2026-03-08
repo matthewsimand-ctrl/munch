@@ -55,11 +55,12 @@ export default function Onboarding() {
   const [defaultServings, setDefaultServings] = useState('2');
 
   const toggleDietary = (item: string) => {
+    const dietaryRestrictions = userProfile.dietaryRestrictions ?? [];
     if (item === 'None') {
       setUserProfile({ dietaryRestrictions: ['None'] });
       return;
     }
-    const current = userProfile.dietaryRestrictions.filter(d => d !== 'None');
+    const current = dietaryRestrictions.filter(d => d !== 'None');
     setUserProfile({
       dietaryRestrictions: current.includes(item)
         ? current.filter(d => d !== item)
@@ -68,7 +69,7 @@ export default function Onboarding() {
   };
 
   const toggleFlavor = (item: string) => {
-    const current = userProfile.flavorProfiles;
+    const current = userProfile.flavorProfiles ?? [];
     setUserProfile({
       flavorProfiles: current.includes(item)
         ? current.filter(f => f !== item)
@@ -199,7 +200,7 @@ export default function Onboarding() {
                       <Chip
                         key={opt}
                         label={opt}
-                        selected={userProfile.dietaryRestrictions.includes(opt)}
+                        selected={(userProfile.dietaryRestrictions ?? []).includes(opt)}
                         onClick={() => toggleDietary(opt)}
                       />
                     ))}
@@ -251,7 +252,7 @@ export default function Onboarding() {
                       <Chip
                         key={opt}
                         label={opt}
-                        selected={userProfile.flavorProfiles.includes(opt)}
+                        selected={(userProfile.flavorProfiles ?? []).includes(opt)}
                         onClick={() => toggleFlavor(opt)}
                       />
                     ))}
@@ -272,7 +273,7 @@ export default function Onboarding() {
                       <Chip
                         key={opt}
                         label={opt}
-                        selected={userProfile.cuisinePreferences.includes(opt)}
+                        selected={(userProfile.cuisinePreferences ?? []).includes(opt)}
                         onClick={() => toggleCuisine(opt)}
                       />
                     ))}
