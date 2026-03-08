@@ -193,7 +193,6 @@ export default function Dashboard() {
               <button
                 onClick={() => navigate(action.path)}
                 className="w-full flex items-center gap-4 p-4 rounded-xl bg-card border border-border hover:border-primary/30 transition-all group"
-                data-tutorial={action.tutorial}
               >
                 <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${action.color}`}>
                   <action.icon className="h-5 w-5" />
