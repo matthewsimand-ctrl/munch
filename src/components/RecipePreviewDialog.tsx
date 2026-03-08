@@ -1,18 +1,22 @@
+import { useNavigate } from 'react-router-dom';
 import type { Recipe } from '@/data/recipes';
 import type { MatchResult } from '@/lib/matchLogic';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Clock, BarChart3, Check, ShoppingCart, MapPin } from 'lucide-react';
+import { Clock, BarChart3, Check, ShoppingCart, MapPin, ChefHat } from 'lucide-react';
 
 interface Props {
   recipe: Recipe | null;
   match: MatchResult | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  chefName?: string | null;
+  chefId?: string | null;
 }
 
-export default function RecipePreviewDialog({ recipe, match, open, onOpenChange }: Props) {
+export default function RecipePreviewDialog({ recipe, match, open, onOpenChange, chefName, chefId }: Props) {
+  const navigate = useNavigate();
   if (!recipe || !match) return null;
 
   return (
@@ -24,6 +28,14 @@ export default function RecipePreviewDialog({ recipe, match, open, onOpenChange 
           <div className="absolute bottom-3 left-4 right-4">
             <DialogHeader>
               <DialogTitle className="text-xl text-foreground">{recipe.name}</DialogTitle>
+              {chefName && chefId && (
+                <button
+                  onClick={() => { onOpenChange(false); navigate(`/chef/${chefId}`); }}
+                  className="inline-flex items-center gap-1 text-xs text-primary hover:underline w-fit"
+                >
+                  <ChefHat className="h-3 w-3" /> by {chefName}
+                </button>
+              )}
             </DialogHeader>
           </div>
         </div>

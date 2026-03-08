@@ -1,5 +1,6 @@
 import { motion, useMotionValue, useTransform, PanInfo } from 'framer-motion';
-import { Clock, BarChart3, Check, ShoppingCart, MapPin } from 'lucide-react';
+import { Clock, BarChart3, Check, ShoppingCart, MapPin, ChefHat } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import type { Recipe } from '@/data/recipes';
 import type { MatchResult } from '@/lib/matchLogic';
 
@@ -9,9 +10,12 @@ interface SwipeCardProps {
   onSwipe: (dir: 'left' | 'right') => void;
   onImageTap?: () => void;
   isTop: boolean;
+  chefName?: string | null;
+  chefId?: string | null;
 }
 
-export default function SwipeCard({ recipe, match, onSwipe, onImageTap, isTop }: SwipeCardProps) {
+export default function SwipeCard({ recipe, match, onSwipe, onImageTap, isTop, chefName, chefId }: SwipeCardProps) {
+  const navigate = useNavigate();
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-200, 200], [-15, 15]);
   const likeOpacity = useTransform(x, [0, 100], [0, 1]);
@@ -84,9 +88,17 @@ export default function SwipeCard({ recipe, match, onSwipe, onImageTap, isTop }:
 
         {/* Content */}
         <div className="flex-1 p-5 flex flex-col">
-          <h2 className="font-display text-xl font-bold text-card-foreground mb-2">
+          <h2 className="font-display text-xl font-bold text-card-foreground mb-1">
             {recipe.name}
           </h2>
+          {chefName && chefId && (
+            <button
+              onClick={(e) => { e.stopPropagation(); navigate(`/chef/${chefId}`); }}
+              className="inline-flex items-center gap-1 text-xs text-primary hover:underline mb-2"
+            >
+              <ChefHat className="h-3 w-3" /> by {chefName}
+            </button>
+          )}
 
           <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
             <span className="flex items-center gap-1">

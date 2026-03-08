@@ -15,6 +15,7 @@ import MealPrep from "./pages/MealPrep";
 import Settings from "./pages/Settings";
 import Dashboard from "./pages/Dashboard";
 import Auth from "./pages/Auth";
+import ChefProfile from "./pages/ChefProfile";
 import NotFound from "./pages/NotFound";
 import SpotlightTutorial from "./components/SpotlightTutorial";
 
@@ -42,6 +43,7 @@ function AppRoutes() {
         <Route path="/grocery" element={<GroceryList />} />
         <Route path="/meal-prep" element={<MealPrep />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/chef/:userId" element={<ChefProfile />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
       {showTutorial && (

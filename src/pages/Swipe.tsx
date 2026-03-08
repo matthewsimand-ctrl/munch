@@ -5,6 +5,7 @@ import { AnimatePresence } from 'framer-motion';
 import { useStore } from '@/lib/store';
 import { useDbRecipes } from '@/hooks/useDbRecipes';
 import { useBrowseFeed } from '@/hooks/useBrowseFeed';
+import { useChefProfiles } from '@/hooks/useChefProfiles';
 import { calculateMatch } from '@/lib/matchLogic';
 import { rankByRecommendation } from '@/lib/recommendations';
 import { filterByMealType, getTimeBasedCategory, MEAL_CATEGORIES, type MealCategory } from '@/lib/mealTimeUtils';
@@ -92,6 +93,10 @@ export default function Swipe() {
     })
     .sort((a, b) => b.combinedScore - a.combinedScore);
   }, [pantryNames, allRecipes, likedRecipeObjects, likedIdSet]);
+
+  // Fetch chef profiles for recipes with created_by
+  const chefIds = useMemo(() => rankedRecipes.map(r => r.recipe.created_by), [rankedRecipes]);
+  const { data: chefProfiles = {} } = useChefProfiles(chefIds);
 
   useEffect(() => {
     setCurrentIndex(0);
@@ -191,6 +196,8 @@ export default function Swipe() {
                   match={next.match}
                   onSwipe={() => {}}
                   isTop={false}
+                  chefName={next.recipe.created_by ? chefProfiles[next.recipe.created_by]?.display_name : null}
+                  chefId={next.recipe.created_by}
                 />
               )}
               <SwipeCard
@@ -200,6 +207,8 @@ export default function Swipe() {
                 onSwipe={handleSwipe}
                 onImageTap={() => setPreviewOpen(true)}
                 isTop={true}
+                chefName={current.recipe.created_by ? chefProfiles[current.recipe.created_by]?.display_name : null}
+                chefId={current.recipe.created_by}
               />
             </AnimatePresence>
           ) : (
@@ -262,6 +271,8 @@ export default function Swipe() {
           match={current.match}
           open={previewOpen}
           onOpenChange={setPreviewOpen}
+          chefName={current.recipe.created_by ? chefProfiles[current.recipe.created_by]?.display_name : null}
+          chefId={current.recipe.created_by}
         />
       )}
 
