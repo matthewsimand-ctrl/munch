@@ -77,7 +77,7 @@ export default function Onboarding() {
   };
 
   const toggleCuisine = (item: string) => {
-    const current = userProfile.cuisinePreferences;
+    const current = userProfile.cuisinePreferences ?? [];
     setUserProfile({
       cuisinePreferences: current.includes(item)
         ? current.filter(c => c !== item)
