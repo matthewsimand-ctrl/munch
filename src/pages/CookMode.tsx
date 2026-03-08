@@ -35,10 +35,9 @@ function formatTime(seconds: number): string {
 
 export default function CookMode() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const recipe = recipes.find(r => r.id === id);
-
-  const [currentStep, setCurrentStep] = useState(0);
+  const { data: dbRecipes = [] } = useDbRecipes();
+  const { savedApiRecipes } = useStore();
+  const recipe = dbRecipes.find(r => r.id === id) || savedApiRecipes[id || ''];
   const [timerSeconds, setTimerSeconds] = useState<number | null>(null);
   const [timerRunning, setTimerRunning] = useState(false);
   const [timerRemaining, setTimerRemaining] = useState(0);

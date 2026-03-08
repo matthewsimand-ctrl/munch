@@ -13,18 +13,19 @@ export default function SavedRecipes() {
   const navigate = useNavigate();
   const { likedRecipes, pantryList, unlikeRecipe, savedApiRecipes } = useStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const { data: dbRecipes = [] } = useDbRecipes();
 
   const pantryNames = useMemoAlias(() => pantryList.map(p => p.name), [pantryList]);
 
   const saved = useMemo(() => {
     return likedRecipes
       .map((id) => {
-        const recipe = recipes.find((r) => r.id === id) || savedApiRecipes[id];
+        const recipe = dbRecipes.find((r) => r.id === id) || savedApiRecipes[id];
         if (!recipe) return null;
         return { recipe, match: calculateMatch(pantryNames, recipe.ingredients), source: (recipe as any).source };
       })
-      .filter(Boolean) as { recipe: (typeof recipes)[0]; match: ReturnType<typeof calculateMatch>; source?: string }[];
-  }, [likedRecipes, pantryNames, savedApiRecipes]);
+      .filter(Boolean) as { recipe: (typeof dbRecipes)[0]; match: ReturnType<typeof calculateMatch>; source?: string }[];
+  }, [likedRecipes, pantryNames, savedApiRecipes, dbRecipes]);
 
   return (
     <div className="min-h-screen bg-background pb-20">

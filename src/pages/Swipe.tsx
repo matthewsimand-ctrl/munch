@@ -195,7 +195,7 @@ export default function Swipe() {
       )}
 
       {/* Action buttons */}
-      {current && !loading && (
+      {current && !(searchLoading || dbLoading) && (
         <div className="p-6 max-w-md mx-auto w-full flex justify-center gap-6">
           <Button
             variant="outline"

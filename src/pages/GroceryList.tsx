@@ -31,7 +31,7 @@ export default function GroceryList() {
   const aisleGroups = useMemo(() => {
     const itemMap = new Map<string, string[]>();
     likedRecipes.forEach((id) => {
-      const recipe = recipes.find((r) => r.id === id);
+      const recipe = dbRecipes.find((r) => r.id === id) || savedApiRecipes[id];
       if (!recipe) return;
       const match = calculateMatch(pantryNames, recipe.ingredients);
       match.missing.forEach((ing) => {
