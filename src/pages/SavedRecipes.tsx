@@ -5,9 +5,12 @@ import { useStore } from '@/lib/store';
 import { useDbRecipes } from '@/hooks/useDbRecipes';
 import { calculateMatch } from '@/lib/matchLogic';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Clock, BarChart3, Check, ShoppingCart, ChevronDown, ChevronUp, Play } from 'lucide-react';
+import { ArrowLeft, Clock, BarChart3, Check, ShoppingCart, ChevronDown, ChevronUp, Play, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMemo as useMemoAlias } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import CreateRecipeForm from '@/components/CreateRecipeForm';
 
 export default function SavedRecipes() {
   const navigate = useNavigate();
