@@ -12,6 +12,7 @@ import CookMode from "./pages/CookMode";
 import GroceryList from "./pages/GroceryList";
 import MealPrep from "./pages/MealPrep";
 import Settings from "./pages/Settings";
+import Dashboard from "./pages/Dashboard";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -25,6 +26,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/pantry" element={<Pantry />} />

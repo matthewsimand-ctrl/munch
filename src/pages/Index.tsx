@@ -17,7 +17,7 @@ const Index = () => {
       } else if (pantryList.length === 0) {
         navigate('/pantry', { replace: true });
       } else {
-        navigate('/swipe', { replace: true });
+        navigate('/dashboard', { replace: true });
       }
       setChecked(true);
     });

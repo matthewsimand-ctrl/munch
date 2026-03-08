@@ -9,7 +9,7 @@ import SwipeCard from '@/components/SwipeCard';
 import RecipePreviewDialog from '@/components/RecipePreviewDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Heart, X, BookOpen, UtensilsCrossed, Settings, Search, Loader2, Globe } from 'lucide-react';
+import { Heart, X, UtensilsCrossed, User, Search, Loader2, Globe } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useEffect } from 'react';
 import { useRecipeSearch } from '@/hooks/useRecipeSearch';
@@ -73,23 +73,13 @@ export default function Swipe() {
     <div className="min-h-screen bg-background flex flex-col pb-20">
       {/* Header */}
       <div className="px-6 pt-6 pb-2 max-w-md mx-auto w-full flex items-center justify-between">
-        <div className="flex items-center gap-2">
+        <button onClick={() => navigate('/dashboard')} className="flex items-center gap-2">
           <UtensilsCrossed className="h-7 w-7 text-primary" />
           <span className="font-display text-xl font-bold text-foreground">Munch</span>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/saved')} className="relative">
-            <BookOpen className="h-5 w-5" />
-            {likedRecipes.length > 0 && (
-              <span className="absolute -top-1 -right-1 h-5 w-5 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center font-bold">
-                {likedRecipes.length}
-              </span>
-            )}
-          </Button>
-          <Button variant="ghost" size="icon" onClick={() => navigate('/settings')}>
-            <Settings className="h-5 w-5" />
-          </Button>
-        </div>
+        </button>
+        <Button variant="ghost" size="icon" onClick={() => navigate('/settings')}>
+          <User className="h-5 w-5" />
+        </Button>
       </div>
 
       {/* Search Bar */}
