@@ -42,8 +42,23 @@ export default function SavedRecipes() {
             Saved Recipes
           </h1>
           <div className="ml-auto flex items-center gap-2">
+            <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm">
+                  <Plus className="h-4 w-4 mr-1" /> Create
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md max-h-[90vh]">
+                <DialogHeader>
+                  <DialogTitle>Create Recipe</DialogTitle>
+                </DialogHeader>
+                <ScrollArea className="max-h-[70vh] pr-4">
+                  <CreateRecipeForm onClose={() => setCreateOpen(false)} />
+                </ScrollArea>
+              </DialogContent>
+            </Dialog>
             <Button variant="outline" size="sm" onClick={() => navigate('/grocery')}>
-              <ShoppingCart className="h-4 w-4 mr-1" /> Grocery List
+              <ShoppingCart className="h-4 w-4 mr-1" /> Grocery
             </Button>
             <span className="text-sm text-muted-foreground">{saved.length}</span>
           </div>
