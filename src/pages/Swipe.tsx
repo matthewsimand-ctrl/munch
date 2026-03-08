@@ -1,29 +1,32 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import BottomNav from '@/components/BottomNav';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { useStore } from '@/lib/store';
 import { useDbRecipes } from '@/hooks/useDbRecipes';
+import { useBrowseFeed } from '@/hooks/useBrowseFeed';
 import { calculateMatch } from '@/lib/matchLogic';
+import { rankByRecommendation } from '@/lib/recommendations';
 import SwipeCard from '@/components/SwipeCard';
 import RecipePreviewDialog from '@/components/RecipePreviewDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Heart, X, UtensilsCrossed, User, Search, Loader2, Globe } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useEffect } from 'react';
 import { useRecipeSearch } from '@/hooks/useRecipeSearch';
 import { Badge } from '@/components/ui/badge';
+import type { Recipe } from '@/data/recipes';
 
 export default function Swipe() {
   const navigate = useNavigate();
-  const { pantryList, likeRecipe, likedRecipes } = useStore();
+  const { pantryList, likeRecipe, likedRecipes, savedApiRecipes } = useStore();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [user, setUser] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [previewOpen, setPreviewOpen] = useState(false);
   const { apiRecipes, loading: searchLoading, searched, search } = useRecipeSearch();
   const { data: dbRecipes = [], isLoading: dbLoading } = useDbRecipes();
+  const { recipes: browseRecipes, loading: browseLoading, loaded: browseLoaded, loadFeed } = useBrowseFeed();
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
@@ -33,29 +36,74 @@ export default function Swipe() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Auto-load browse feed on mount
+  useEffect(() => {
+    loadFeed();
+  }, [loadFeed]);
+
   const pantryNames = useMemo(() => pantryList.map(p => p.name), [pantryList]);
 
-  const allRecipes = useMemo(() => {
-    if (apiRecipes.length > 0) return apiRecipes;
-    return dbRecipes;
-  }, [apiRecipes, dbRecipes]);
+  // Build liked recipe objects for the recommendation engine
+  const likedRecipeObjects = useMemo(() => {
+    return likedRecipes
+      .map(id => dbRecipes.find(r => r.id === id) || savedApiRecipes[id])
+      .filter(Boolean) as Recipe[];
+  }, [likedRecipes, dbRecipes, savedApiRecipes]);
 
+  const likedIdSet = useMemo(() => new Set(likedRecipes), [likedRecipes]);
+
+  // Combine all recipe sources
+  const allRecipes = useMemo(() => {
+    // If user searched, show search results
+    if (apiRecipes.length > 0) return apiRecipes;
+    // Merge db recipes + browse feed, dedup by id
+    const seen = new Set<string>();
+    const merged: Recipe[] = [];
+    for (const r of [...dbRecipes, ...browseRecipes]) {
+      if (!seen.has(r.id)) {
+        seen.add(r.id);
+        merged.push(r);
+      }
+    }
+    return merged;
+  }, [apiRecipes, dbRecipes, browseRecipes]);
+
+  // Rank recipes using both pantry match AND recommendation score
   const rankedRecipes = useMemo(() => {
-    return allRecipes
-      .map((r) => ({ recipe: r, match: calculateMatch(pantryNames, r.ingredients), source: (r as any).source }))
-      .sort((a, b) => b.match.percentage - a.match.percentage);
-  }, [pantryNames, allRecipes]);
+    // If searching, just use pantry match
+    if (apiRecipes.length > 0) {
+      return allRecipes
+        .map(r => ({
+          recipe: r,
+          match: calculateMatch(pantryNames, r.ingredients),
+          recScore: 50,
+          source: (r as any).source,
+        }))
+        .sort((a, b) => b.match.percentage - a.match.percentage);
+    }
+
+    // For browse: combine recommendation score + pantry match
+    const recommended = rankByRecommendation(allRecipes, likedRecipeObjects, likedIdSet);
+
+    return recommended.map(({ recipe, recScore }) => {
+      const match = calculateMatch(pantryNames, recipe.ingredients);
+      // Combined score: 40% pantry match + 60% recommendation
+      const combinedScore = match.percentage * 0.4 + recScore * 0.6;
+      return { recipe, match, recScore, combinedScore, source: (recipe as any).source };
+    })
+    .sort((a, b) => b.combinedScore - a.combinedScore);
+  }, [pantryNames, allRecipes, likedRecipeObjects, likedIdSet, apiRecipes]);
 
   useEffect(() => {
     setCurrentIndex(0);
-  }, [allRecipes]);
+  }, [allRecipes.length]);
 
   const handleSwipe = (dir: 'left' | 'right') => {
     const r = rankedRecipes[currentIndex];
     if (dir === 'right') {
       likeRecipe(r.recipe.id, r.recipe);
     }
-    setCurrentIndex((prev) => prev + 1);
+    setCurrentIndex(prev => prev + 1);
   };
 
   const handleSearch = (e: React.FormEvent) => {
@@ -68,6 +116,8 @@ export default function Swipe() {
 
   const current = rankedRecipes[currentIndex];
   const next = rankedRecipes[currentIndex + 1];
+  const isLoading = searchLoading || (dbLoading && !browseLoaded) || (browseLoading && dbRecipes.length === 0);
+  const totalAvailable = rankedRecipes.length;
 
   return (
     <div className="min-h-screen bg-background flex flex-col pb-20">
@@ -88,7 +138,7 @@ export default function Swipe() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search recipes online..."
+              placeholder="Search recipes or paste a URL..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9"
@@ -98,30 +148,43 @@ export default function Swipe() {
             {searchLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />}
           </Button>
         </form>
-        {searched && apiRecipes.length > 0 && (
-          <div className="flex items-center gap-2 mt-2">
-            <Badge variant="secondary" className="text-xs">
-              {apiRecipes.length} results from APIs
+        <div className="flex items-center gap-2 mt-2">
+          {searched && apiRecipes.length > 0 ? (
+            <>
+              <Badge variant="secondary" className="text-xs">
+                {apiRecipes.length} search results
+              </Badge>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs h-6 px-2"
+                onClick={() => { setCurrentIndex(0); search(searchQuery); }}
+              >
+                Refresh
+              </Button>
+            </>
+          ) : (
+            <Badge variant="outline" className="text-xs text-muted-foreground">
+              {browseLoading ? 'Loading recipes...' : `${totalAvailable} recipes to browse`}
             </Badge>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-xs h-6 px-2"
-              onClick={() => { setCurrentIndex(0); search(searchQuery); }}
-            >
-              Refresh
-            </Button>
-          </div>
-        )}
+          )}
+          {currentIndex > 0 && totalAvailable > 0 && (
+            <span className="text-xs text-muted-foreground ml-auto">
+              {currentIndex}/{totalAvailable}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Card Stack */}
       <div className="flex-1 flex items-center justify-center px-6">
         <div className="relative w-full max-w-md h-[440px]">
-          {(searchLoading || dbLoading) ? (
+          {isLoading ? (
             <div className="h-full flex flex-col items-center justify-center text-center">
               <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
-              <p className="text-muted-foreground">Searching recipes...</p>
+              <p className="text-muted-foreground">
+                {browseLoading ? 'Loading hundreds of recipes...' : 'Searching recipes...'}
+              </p>
             </div>
           ) : current ? (
             <AnimatePresence>
@@ -147,10 +210,12 @@ export default function Swipe() {
             <div className="h-full flex flex-col items-center justify-center text-center">
               <UtensilsCrossed className="h-16 w-16 text-muted-foreground mb-4" />
               <h2 className="font-display text-2xl font-bold text-foreground mb-2">
-                {searched ? 'No more results!' : "That's all for now!"}
+                {searched ? 'No more results!' : "You've browsed them all!"}
               </h2>
               <p className="text-muted-foreground mb-6">
-                {searched ? 'Try a different search or check your saved recipes.' : "You've seen all recipes. Search online or check your saved ones."}
+                {searched
+                  ? 'Try a different search or check your saved recipes.'
+                  : `You've seen all ${totalAvailable + currentIndex} recipes. Try searching for more!`}
               </p>
               <div className="flex gap-3">
                 <Button variant="outline" onClick={() => navigate('/pantry')}>
@@ -166,7 +231,7 @@ export default function Swipe() {
       </div>
 
       {/* Action buttons */}
-      {current && !(searchLoading || dbLoading) && (
+      {current && !isLoading && (
         <div className="p-6 max-w-md mx-auto w-full flex justify-center gap-6">
           <Button
             variant="outline"
