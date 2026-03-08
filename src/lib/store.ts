@@ -14,6 +14,12 @@ export interface PantryItem {
   category?: string;
 }
 
+export interface CustomGroceryItem {
+  name: string;
+  quantity: string;
+  category?: string;
+}
+
 interface AppState {
   userProfile: UserProfile;
   pantryList: PantryItem[];
@@ -21,6 +27,7 @@ interface AppState {
   savedApiRecipes: Record<string, any>;
   cachedNutrition: Record<string, any>;
   groceryRecipes: string[]; // recipe IDs explicitly added to grocery list
+  customGroceryItems: CustomGroceryItem[]; // manually added grocery items
   onboardingComplete: boolean;
   tutorialComplete: boolean;
   showTutorial: boolean;
@@ -37,6 +44,9 @@ interface AppState {
   cacheNutrition: (recipeId: string, data: any) => void;
   addToGrocery: (recipeId: string) => void;
   removeFromGrocery: (recipeId: string) => void;
+  addCustomGroceryItem: (name: string, quantity?: string) => void;
+  removeCustomGroceryItem: (name: string) => void;
+  updateCustomGroceryQuantity: (name: string, quantity: string) => void;
   completeTutorial: () => void;
   resetStore: () => void;
 }
@@ -57,6 +67,7 @@ export const useStore = create<AppState>()(
       savedApiRecipes: {},
       cachedNutrition: {},
       groceryRecipes: [],
+      customGroceryItems: [],
       onboardingComplete: false,
       tutorialComplete: false,
       showTutorial: false,
@@ -134,6 +145,27 @@ export const useStore = create<AppState>()(
           groceryRecipes: state.groceryRecipes.filter(id => id !== recipeId),
         })),
 
+      addCustomGroceryItem: (name, quantity = '1') => {
+        const normalized = name.toLowerCase().trim();
+        set((state) => ({
+          customGroceryItems: state.customGroceryItems.some(i => i.name === normalized)
+            ? state.customGroceryItems
+            : [...state.customGroceryItems, { name: normalized, quantity }],
+        }));
+      },
+
+      removeCustomGroceryItem: (name) =>
+        set((state) => ({
+          customGroceryItems: state.customGroceryItems.filter(i => i.name !== name),
+        })),
+
+      updateCustomGroceryQuantity: (name, quantity) =>
+        set((state) => ({
+          customGroceryItems: state.customGroceryItems.map(i =>
+            i.name === name ? { ...i, quantity } : i
+          ),
+        })),
+
       completeTutorial: () => set({ tutorialComplete: true }),
 
       resetStore: () =>
@@ -144,6 +176,7 @@ export const useStore = create<AppState>()(
           savedApiRecipes: {},
           cachedNutrition: {},
           groceryRecipes: [],
+          customGroceryItems: [],
           onboardingComplete: false,
           tutorialComplete: false,
           showTutorial: false,

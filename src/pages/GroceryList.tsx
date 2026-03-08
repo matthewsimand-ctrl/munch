@@ -6,7 +6,8 @@ import { useDbRecipes } from '@/hooks/useDbRecipes';
 import { calculateMatch } from '@/lib/matchLogic';
 import { getCategory, getAisleIndex, type IngredientCategory } from '@/lib/ingredientCategories';
 import { Button } from '@/components/ui/button';
-import { ShoppingCart, Check, ChevronDown, ChevronUp, Download, FileText, Share2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { ShoppingCart, Check, ChevronDown, ChevronUp, Download, FileText, Share2, Plus, Minus, X, PlusCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   DropdownMenu,
@@ -15,11 +16,14 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
+import PageHeader from '@/components/PageHeader';
 
 interface GroceryItem {
   ingredient: string;
   category: IngredientCategory;
   recipes: string[];
+  quantity?: string;
+  isCustom?: boolean;
 }
 
 interface AisleGroup {
@@ -29,30 +33,48 @@ interface AisleGroup {
 
 export default function GroceryList() {
   const navigate = useNavigate();
-  const { groceryRecipes, pantryList, addPantryItem, savedApiRecipes } = useStore();
+  const { groceryRecipes, pantryList, addPantryItem, savedApiRecipes, customGroceryItems, addCustomGroceryItem, removeCustomGroceryItem, updateCustomGroceryQuantity } = useStore();
   const { data: dbRecipes = [] } = useDbRecipes();
   const [collapsedAisles, setCollapsedAisles] = useState<Set<string>>(new Set());
+  const [newItemName, setNewItemName] = useState('');
+  const [newItemQty, setNewItemQty] = useState('1');
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [editingItem, setEditingItem] = useState<string | null>(null);
 
   const pantryNames = useMemo(() => pantryList.map(p => p.name), [pantryList]);
 
   const aisleGroups = useMemo(() => {
-    const itemMap = new Map<string, string[]>();
-    // Only include recipes explicitly added to grocery
+    const itemMap = new Map<string, { recipes: string[]; quantity?: string; isCustom?: boolean }>();
+
+    // Recipe-based items
     groceryRecipes.forEach((id) => {
       const recipe = dbRecipes.find((r) => r.id === id) || savedApiRecipes[id];
       if (!recipe) return;
       const match = calculateMatch(pantryNames, recipe.ingredients);
       match.missing.forEach((ing) => {
-        const existing = itemMap.get(ing) || [];
-        existing.push(recipe.name);
+        const existing = itemMap.get(ing) || { recipes: [] };
+        existing.recipes.push(recipe.name);
         itemMap.set(ing, existing);
       });
     });
 
-    const items: GroceryItem[] = Array.from(itemMap.entries()).map(([ingredient, recipeNames]) => ({
+    // Custom items
+    customGroceryItems.forEach(({ name, quantity }) => {
+      const existing = itemMap.get(name);
+      if (existing) {
+        existing.quantity = quantity;
+        existing.isCustom = true;
+      } else {
+        itemMap.set(name, { recipes: [], quantity, isCustom: true });
+      }
+    });
+
+    const items: GroceryItem[] = Array.from(itemMap.entries()).map(([ingredient, data]) => ({
       ingredient,
       category: getCategory(ingredient),
-      recipes: recipeNames,
+      recipes: data.recipes,
+      quantity: data.quantity,
+      isCustom: data.isCustom,
     }));
 
     const groupMap = new Map<IngredientCategory, GroceryItem[]>();
@@ -70,7 +92,7 @@ export default function GroceryList() {
       .sort((a, b) => getAisleIndex(a.category) - getAisleIndex(b.category));
 
     return groups;
-  }, [groceryRecipes, pantryNames, dbRecipes, savedApiRecipes]);
+  }, [groceryRecipes, pantryNames, dbRecipes, savedApiRecipes, customGroceryItems]);
 
   const totalItems = aisleGroups.reduce((sum, g) => sum + g.items.length, 0);
 
@@ -81,6 +103,32 @@ export default function GroceryList() {
       else next.add(category);
       return next;
     });
+  };
+
+  const handleAddCustomItem = () => {
+    const name = newItemName.trim();
+    if (!name) return;
+    addCustomGroceryItem(name, newItemQty || '1');
+    setNewItemName('');
+    setNewItemQty('1');
+    setShowAddForm(false);
+    toast.success(`Added ${name} to grocery list`);
+  };
+
+  const handleCheckOff = (ingredient: string, isCustom?: boolean) => {
+    addPantryItem(ingredient);
+    if (isCustom) removeCustomGroceryItem(ingredient);
+  };
+
+  const incrementQty = (name: string, currentQty: string) => {
+    const num = parseInt(currentQty) || 1;
+    updateCustomGroceryQuantity(name, String(num + 1));
+  };
+
+  const decrementQty = (name: string, currentQty: string) => {
+    const num = parseInt(currentQty) || 1;
+    if (num <= 1) return;
+    updateCustomGroceryQuantity(name, String(num - 1));
   };
 
   const AISLE_EMOJI: Record<string, string> = {
@@ -100,8 +148,8 @@ export default function GroceryList() {
     let text = '🛒 Grocery List\n\n';
     aisleGroups.forEach(({ category, items }) => {
       text += `${AISLE_EMOJI[category] || '📦'} ${category}\n`;
-      items.forEach(({ ingredient }) => {
-        text += `☐ ${ingredient}\n`;
+      items.forEach(({ ingredient, quantity }) => {
+        text += `☐ ${ingredient}${quantity ? ` (×${quantity})` : ''}\n`;
       });
       text += '\n';
     });
@@ -124,8 +172,8 @@ export default function GroceryList() {
   const exportAsGoogleDoc = () => {
     const text = buildChecklistText();
     const html = aisleGroups.map(({ category, items }) =>
-      `<h3>${AISLE_EMOJI[category] || '📦'} ${category}</h3><ul style="list-style:none;padding:0;">${items.map(({ ingredient }) =>
-        `<li>☐ ${ingredient}</li>`
+      `<h3>${AISLE_EMOJI[category] || '📦'} ${category}</h3><ul style="list-style:none;padding:0;">${items.map(({ ingredient, quantity }) =>
+        `<li>☐ ${ingredient}${quantity ? ` (×${quantity})` : ''}</li>`
       ).join('')}</ul>`
     ).join('');
 
@@ -167,9 +215,52 @@ export default function GroceryList() {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setShowAddForm(!showAddForm)}
+            >
+              <PlusCircle className="h-4 w-4" />
+            </Button>
             <span className="text-sm text-muted-foreground">{totalItems} items</span>
           </div>
         </div>
+
+        {/* Add custom item form */}
+        <AnimatePresence>
+          {showAddForm && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="flex items-center gap-2 py-3">
+                <Input
+                  placeholder="Item name..."
+                  value={newItemName}
+                  onChange={(e) => setNewItemName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddCustomItem()}
+                  className="flex-1 h-9 text-sm"
+                  autoFocus
+                />
+                <Input
+                  type="number"
+                  min="1"
+                  value={newItemQty}
+                  onChange={(e) => setNewItemQty(e.target.value)}
+                  className="w-16 h-9 text-sm text-center"
+                  placeholder="Qty"
+                />
+                <Button size="sm" onClick={handleAddCustomItem} className="h-9 px-3">
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {totalItems > 0 && (
           <p className="text-xs text-muted-foreground">
             Sorted by grocery aisle • {aisleGroups.length} sections
@@ -183,9 +274,14 @@ export default function GroceryList() {
             <ShoppingCart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <p className="text-muted-foreground mb-2">Your grocery list is empty!</p>
             <p className="text-sm text-muted-foreground mb-4">
-              Go to your saved recipes and tap "Add to Grocery" on any recipe to add missing ingredients.
+              Add items from recipes or tap + to add your own.
             </p>
-            <Button onClick={() => navigate('/saved')}>View Recipes</Button>
+            <div className="flex gap-2 justify-center">
+              <Button onClick={() => navigate('/saved')}>View Recipes</Button>
+              <Button variant="outline" onClick={() => setShowAddForm(true)}>
+                <Plus className="h-4 w-4 mr-1" /> Add Item
+              </Button>
+            </div>
           </div>
         ) : (
           aisleGroups.map(({ category, items }) => {
@@ -219,7 +315,7 @@ export default function GroceryList() {
                       transition={{ duration: 0.2 }}
                       className="overflow-hidden space-y-1.5"
                     >
-                      {items.map(({ ingredient, recipes: recipeNames }) => (
+                      {items.map(({ ingredient, recipes: recipeNames, quantity, isCustom }) => (
                         <motion.div
                           key={ingredient}
                           initial={{ opacity: 0, y: 6 }}
@@ -228,17 +324,49 @@ export default function GroceryList() {
                           className="flex items-center gap-3 p-3 rounded-xl bg-card border border-border"
                         >
                           <button
-                            onClick={() => addPantryItem(ingredient)}
+                            onClick={() => handleCheckOff(ingredient, isCustom)}
                             className="h-7 w-7 rounded-full border-2 border-primary/30 flex items-center justify-center hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all shrink-0"
                           >
                             <Check className="h-3.5 w-3.5" />
                           </button>
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-card-foreground capitalize text-sm">{ingredient}</p>
-                            <p className="text-[10px] text-muted-foreground truncate">
-                              For: {recipeNames.join(', ')}
-                            </p>
+                            {recipeNames.length > 0 && (
+                              <p className="text-[10px] text-muted-foreground truncate">
+                                For: {recipeNames.join(', ')}
+                              </p>
+                            )}
+                            {isCustom && recipeNames.length === 0 && (
+                              <p className="text-[10px] text-muted-foreground">Manually added</p>
+                            )}
                           </div>
+
+                          {/* Quantity controls for custom items */}
+                          {isCustom && (
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                onClick={() => decrementQty(ingredient, quantity || '1')}
+                                className="h-6 w-6 rounded-full flex items-center justify-center text-muted-foreground hover:bg-secondary transition-colors"
+                              >
+                                <Minus className="h-3 w-3" />
+                              </button>
+                              <span className="text-xs font-medium w-6 text-center text-foreground">
+                                {quantity || '1'}
+                              </span>
+                              <button
+                                onClick={() => incrementQty(ingredient, quantity || '1')}
+                                className="h-6 w-6 rounded-full flex items-center justify-center text-muted-foreground hover:bg-secondary transition-colors"
+                              >
+                                <Plus className="h-3 w-3" />
+                              </button>
+                              <button
+                                onClick={() => removeCustomGroceryItem(ingredient)}
+                                className="h-6 w-6 rounded-full flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors ml-1"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                          )}
                         </motion.div>
                       ))}
                     </motion.div>

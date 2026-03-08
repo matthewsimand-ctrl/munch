@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ChevronLeft, ChevronRight, Plus, X, Download, Calendar, CalendarDays, FileText, Table2, GripVertical } from 'lucide-react';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import BottomNav from '@/components/BottomNav';
@@ -253,15 +254,30 @@ export default function MealPrep() {
             <span className="font-display text-xl font-bold text-foreground">Meal Prep</span>
           </button>
           <div className="ml-auto flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={exportPDF} title="Export PDF">
-              <FileText className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={exportCSV} title="Export CSV">
-              <Table2 className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={exportICS} title="Export Calendar">
-              <Calendar className="h-4 w-4" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" onClick={exportPDF}>
+                  <FileText className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Export as PDF</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" onClick={exportCSV}>
+                  <Table2 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Export as CSV</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" onClick={exportICS}>
+                  <Calendar className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Export to Calendar</TooltipContent>
+            </Tooltip>
           </div>
         </div>
 
