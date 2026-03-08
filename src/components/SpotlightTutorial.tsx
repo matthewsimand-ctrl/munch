@@ -218,7 +218,7 @@ export default function SpotlightTutorial({ onComplete }: SpotlightTutorialProps
           exit={{ opacity: 0, y: -10 }}
           transition={{ duration: 0.25 }}
           className="absolute left-4 right-4 max-w-sm mx-auto z-[102]"
-          style={getTooltipStyle()}
+          style={{ ...getTooltipStyle(), pointerEvents: 'auto' }}
         >
           <div className="bg-card border border-border rounded-2xl p-5 shadow-xl">
             <div className="flex items-center gap-3 mb-2">
