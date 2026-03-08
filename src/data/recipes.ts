@@ -11,6 +11,7 @@ export interface Recipe {
   source?: string;
   created_by?: string | null;
   is_public?: boolean;
+  servings?: number;
 }
 
 // Legacy compat alias
