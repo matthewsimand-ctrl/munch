@@ -139,6 +139,7 @@ export default function Swipe() {
           </Button>
         </div>
       )}
+      <BottomNav />
     </div>
   );
 }
