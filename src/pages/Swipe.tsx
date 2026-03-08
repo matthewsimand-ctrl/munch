@@ -94,6 +94,10 @@ export default function Swipe() {
     .sort((a, b) => b.combinedScore - a.combinedScore);
   }, [pantryNames, allRecipes, likedRecipeObjects, likedIdSet]);
 
+  // Fetch chef profiles for recipes with created_by
+  const chefIds = useMemo(() => rankedRecipes.map(r => r.recipe.created_by), [rankedRecipes]);
+  const { data: chefProfiles = {} } = useChefProfiles(chefIds);
+
   useEffect(() => {
     setCurrentIndex(0);
   }, [allRecipes.length]);
