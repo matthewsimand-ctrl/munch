@@ -65,7 +65,7 @@ export default function SavedRecipes() {
         </PageHeader>
       </div>
 
-      <div className="px-6 max-w-md mx-auto w-full space-y-4 pb-8">
+      <div className="px-4 max-w-md mx-auto w-full space-y-4 pb-8">
         {saved.length === 0 ? (
           <div className="text-center py-16">
             <p className="text-muted-foreground mb-4">No saved recipes yet. Start swiping!</p>
