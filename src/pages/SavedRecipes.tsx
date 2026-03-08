@@ -38,9 +38,9 @@ export default function SavedRecipes() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <div className="px-6 pt-8 pb-4 max-w-md mx-auto w-full">
+      <div className="px-4 pt-8 pb-4 max-w-md mx-auto w-full">
         <PageHeader title="Recipes">
-          <div className="flex items-center gap-2" data-tutorial="saved-actions">
+          <div className="flex items-center gap-1.5 flex-wrap" data-tutorial="saved-actions">
             <ImportRecipeDialog />
             <Dialog open={createOpen} onOpenChange={setCreateOpen}>
               <DialogTrigger asChild>
