@@ -17,7 +17,19 @@ interface AppState {
   userProfile: UserProfile;
   pantryList: PantryItem[];
   likedRecipes: string[];
+  savedApiRecipes: Record<string, any>;
   onboardingComplete: boolean;
+
+  setUserProfile: (profile: Partial<UserProfile>) => void;
+  completeOnboarding: () => void;
+  addPantryItem: (name: string, quantity?: string, category?: string) => void;
+  removePantryItem: (name: string) => void;
+  updatePantryQuantity: (name: string, quantity: string) => void;
+  addPantryItems: (items: string[]) => void;
+  likeRecipe: (id: string, recipeData?: any) => void;
+  unlikeRecipe: (id: string) => void;
+  resetStore: () => void;
+}
 
   setUserProfile: (profile: Partial<UserProfile>) => void;
   completeOnboarding: () => void;
