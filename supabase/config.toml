@@ -1,1 +1,4 @@
 project_id = "cgyvtpxopnhuzonhdijd"
+
+[functions.scan-fridge]
+verify_jwt = false
