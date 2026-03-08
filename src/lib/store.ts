@@ -19,6 +19,7 @@ interface AppState {
   likedRecipes: string[];
   savedApiRecipes: Record<string, any>;
   cachedNutrition: Record<string, any>;
+  groceryRecipes: string[]; // recipe IDs explicitly added to grocery list
   onboardingComplete: boolean;
 
   setUserProfile: (profile: Partial<UserProfile>) => void;
@@ -30,9 +31,10 @@ interface AppState {
   likeRecipe: (id: string, recipeData?: any) => void;
   unlikeRecipe: (id: string) => void;
   cacheNutrition: (recipeId: string, data: any) => void;
+  addToGrocery: (recipeId: string) => void;
+  removeFromGrocery: (recipeId: string) => void;
   resetStore: () => void;
 }
-
 
 const initialProfile: UserProfile = {
   dietaryRestrictions: [],
@@ -48,6 +50,7 @@ export const useStore = create<AppState>()(
       likedRecipes: [],
       savedApiRecipes: {},
       cachedNutrition: {},
+      groceryRecipes: [],
       onboardingComplete: false,
 
       setUserProfile: (profile) =>
@@ -101,11 +104,24 @@ export const useStore = create<AppState>()(
       unlikeRecipe: (id) =>
         set((state) => ({
           likedRecipes: state.likedRecipes.filter((r) => r !== id),
+          groceryRecipes: state.groceryRecipes.filter((r) => r !== id),
         })),
 
       cacheNutrition: (recipeId, data) =>
         set((state) => ({
           cachedNutrition: { ...state.cachedNutrition, [recipeId]: data },
+        })),
+
+      addToGrocery: (recipeId) =>
+        set((state) => ({
+          groceryRecipes: state.groceryRecipes.includes(recipeId)
+            ? state.groceryRecipes
+            : [...state.groceryRecipes, recipeId],
+        })),
+
+      removeFromGrocery: (recipeId) =>
+        set((state) => ({
+          groceryRecipes: state.groceryRecipes.filter(id => id !== recipeId),
         })),
 
       resetStore: () =>
@@ -115,6 +131,7 @@ export const useStore = create<AppState>()(
           likedRecipes: [],
           savedApiRecipes: {},
           cachedNutrition: {},
+          groceryRecipes: [],
           onboardingComplete: false,
         }),
     }),

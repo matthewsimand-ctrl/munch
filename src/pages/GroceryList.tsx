@@ -29,7 +29,7 @@ interface AisleGroup {
 
 export default function GroceryList() {
   const navigate = useNavigate();
-  const { likedRecipes, pantryList, addPantryItem, savedApiRecipes } = useStore();
+  const { groceryRecipes, pantryList, addPantryItem, savedApiRecipes } = useStore();
   const { data: dbRecipes = [] } = useDbRecipes();
   const [collapsedAisles, setCollapsedAisles] = useState<Set<string>>(new Set());
 
@@ -37,7 +37,8 @@ export default function GroceryList() {
 
   const aisleGroups = useMemo(() => {
     const itemMap = new Map<string, string[]>();
-    likedRecipes.forEach((id) => {
+    // Only include recipes explicitly added to grocery
+    groceryRecipes.forEach((id) => {
       const recipe = dbRecipes.find((r) => r.id === id) || savedApiRecipes[id];
       if (!recipe) return;
       const match = calculateMatch(pantryNames, recipe.ingredients);
@@ -54,7 +55,6 @@ export default function GroceryList() {
       recipes: recipeNames,
     }));
 
-    // Group by category
     const groupMap = new Map<IngredientCategory, GroceryItem[]>();
     items.forEach(item => {
       const existing = groupMap.get(item.category) || [];
@@ -62,7 +62,6 @@ export default function GroceryList() {
       groupMap.set(item.category, existing);
     });
 
-    // Sort groups by aisle order, sort items within each group alphabetically
     const groups: AisleGroup[] = Array.from(groupMap.entries())
       .map(([category, items]) => ({
         category,
@@ -71,7 +70,7 @@ export default function GroceryList() {
       .sort((a, b) => getAisleIndex(a.category) - getAisleIndex(b.category));
 
     return groups;
-  }, [likedRecipes, pantryNames]);
+  }, [groceryRecipes, pantryNames, dbRecipes, savedApiRecipes]);
 
   const totalItems = aisleGroups.reduce((sum, g) => sum + g.items.length, 0);
 
@@ -82,6 +81,19 @@ export default function GroceryList() {
       else next.add(category);
       return next;
     });
+  };
+
+  const AISLE_EMOJI: Record<string, string> = {
+    'Produce': '🥬',
+    'Meat & Seafood': '🥩',
+    'Dairy & Eggs': '🥛',
+    'Baking': '🧁',
+    'Grains & Pasta': '🌾',
+    'Canned & Jarred': '🥫',
+    'Oils & Condiments': '🫒',
+    'Spices & Seasonings': '🧂',
+    'Beverages': '🥤',
+    'Other': '📦',
   };
 
   const buildChecklistText = () => {
@@ -98,7 +110,6 @@ export default function GroceryList() {
 
   const exportAsAppleNote = () => {
     const text = buildChecklistText();
-    // Apple Notes supports plain text via share sheet / clipboard
     if (navigator.share) {
       navigator.share({ title: 'Grocery List', text }).catch(() => {
         navigator.clipboard.writeText(text);
@@ -112,8 +123,6 @@ export default function GroceryList() {
 
   const exportAsGoogleDoc = () => {
     const text = buildChecklistText();
-    // Google Docs can be pre-filled via a URL with content, but simplest is clipboard
-    // We'll create an HTML checklist and copy it
     const html = aisleGroups.map(({ category, items }) =>
       `<h3>${AISLE_EMOJI[category] || '📦'} ${category}</h3><ul style="list-style:none;padding:0;">${items.map(({ ingredient }) =>
         `<li>☐ ${ingredient}</li>`
@@ -128,19 +137,6 @@ export default function GroceryList() {
       navigator.clipboard.writeText(text);
       toast.success('Copied to clipboard — paste into Google Docs');
     });
-  };
-
-  const AISLE_EMOJI: Record<string, string> = {
-    'Produce': '🥬',
-    'Meat & Seafood': '🥩',
-    'Dairy & Eggs': '🥛',
-    'Baking': '🧁',
-    'Grains & Pasta': '🌾',
-    'Canned & Jarred': '🥫',
-    'Oils & Condiments': '🫒',
-    'Spices & Seasonings': '🧂',
-    'Beverages': '🥤',
-    'Other': '📦',
   };
 
   return (
@@ -186,8 +182,10 @@ export default function GroceryList() {
           <div className="text-center py-16">
             <ShoppingCart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <p className="text-muted-foreground mb-2">Your grocery list is empty!</p>
-            <p className="text-sm text-muted-foreground mb-4">Save some recipes and missing ingredients will appear here.</p>
-            <Button onClick={() => navigate('/swipe')}>Find Recipes</Button>
+            <p className="text-sm text-muted-foreground mb-4">
+              Go to your saved recipes and tap "Add to Grocery" on any recipe to add missing ingredients.
+            </p>
+            <Button onClick={() => navigate('/saved')}>View Recipes</Button>
           </div>
         ) : (
           aisleGroups.map(({ category, items }) => {
