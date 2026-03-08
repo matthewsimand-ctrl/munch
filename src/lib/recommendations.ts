@@ -1,4 +1,5 @@
 import type { Recipe } from '@/data/recipes';
+import { getTimeBoost } from '@/lib/mealTimeUtils';
 
 /**
  * Recommendation engine: scores recipes based on similarity to liked recipes.
