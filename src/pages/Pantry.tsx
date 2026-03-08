@@ -171,7 +171,7 @@ export default function Pantry() {
         </div>
 
         {/* Add ingredient */}
-        <div className="space-y-2 mb-4">
+        <div className="space-y-2 mb-4" data-tutorial="pantry-add-form">
           <div className="flex gap-2">
             <Input
               value={input}
