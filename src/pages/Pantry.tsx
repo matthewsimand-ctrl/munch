@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import BottomNav from '@/components/BottomNav';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '@/lib/store';
 import { supabase } from '@/integrations/supabase/client';
