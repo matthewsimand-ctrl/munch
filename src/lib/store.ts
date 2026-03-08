@@ -22,6 +22,7 @@ interface AppState {
   cachedNutrition: Record<string, any>;
   groceryRecipes: string[]; // recipe IDs explicitly added to grocery list
   onboardingComplete: boolean;
+  tutorialComplete: boolean;
 
   setUserProfile: (profile: Partial<UserProfile>) => void;
   completeOnboarding: () => void;
@@ -34,6 +35,7 @@ interface AppState {
   cacheNutrition: (recipeId: string, data: any) => void;
   addToGrocery: (recipeId: string) => void;
   removeFromGrocery: (recipeId: string) => void;
+  completeTutorial: () => void;
   resetStore: () => void;
 }
 
@@ -54,6 +56,7 @@ export const useStore = create<AppState>()(
       cachedNutrition: {},
       groceryRecipes: [],
       onboardingComplete: false,
+      tutorialComplete: false,
 
       setUserProfile: (profile) =>
         set((state) => ({
@@ -126,6 +129,8 @@ export const useStore = create<AppState>()(
           groceryRecipes: state.groceryRecipes.filter(id => id !== recipeId),
         })),
 
+      completeTutorial: () => set({ tutorialComplete: true }),
+
       resetStore: () =>
         set({
           userProfile: initialProfile,
@@ -135,6 +140,7 @@ export const useStore = create<AppState>()(
           cachedNutrition: {},
           groceryRecipes: [],
           onboardingComplete: false,
+          tutorialComplete: false,
         }),
     }),
     { name: 'chefstack-storage' }

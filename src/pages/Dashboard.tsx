@@ -4,6 +4,7 @@ import { useStore } from '@/lib/store';
 import { useDbRecipes } from '@/hooks/useDbRecipes';
 import { supabase } from '@/integrations/supabase/client';
 import BottomNav from '@/components/BottomNav';
+import SpotlightTutorial from '@/components/SpotlightTutorial';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -21,11 +22,12 @@ import { motion } from 'framer-motion';
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { pantryList, likedRecipes, savedApiRecipes } = useStore();
+  const { pantryList, likedRecipes, savedApiRecipes, tutorialComplete, completeTutorial } = useStore();
   const { data: dbRecipes = [] } = useDbRecipes();
   const [user, setUser] = useState<any>(null);
   const [greeting, setGreeting] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [showTutorial, setShowTutorial] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -34,7 +36,6 @@ export default function Dashboard() {
         return;
       }
       setUser(session.user);
-      // Fetch display name from profile
       supabase
         .from('profiles')
         .select('display_name')
@@ -53,6 +54,19 @@ export default function Dashboard() {
     else setGreeting('Good evening');
   }, []);
 
+  // Show tutorial after a short delay for first-time users
+  useEffect(() => {
+    if (!tutorialComplete && user) {
+      const timer = setTimeout(() => setShowTutorial(true), 600);
+      return () => clearTimeout(timer);
+    }
+  }, [tutorialComplete, user]);
+
+  const handleTutorialComplete = () => {
+    setShowTutorial(false);
+    completeTutorial();
+  };
+
   const savedCount = likedRecipes.length;
   const pantryCount = pantryList.length;
 
@@ -62,24 +76,28 @@ export default function Dashboard() {
       icon: Flame,
       path: '/swipe',
       color: 'bg-primary/10 text-primary',
+      tutorial: 'action-browse',
     },
     {
       label: 'My Pantry',
       icon: UtensilsCrossed,
       path: '/pantry',
       color: 'bg-accent/20 text-accent-foreground',
+      tutorial: 'action-pantry',
     },
     {
       label: 'Saved Recipes',
       icon: Heart,
       path: '/saved',
       color: 'bg-destructive/10 text-destructive',
+      tutorial: 'action-saved',
     },
     {
       label: 'Meal Prep',
       icon: CalendarDays,
       path: '/meal-prep',
       color: 'bg-success/10 text-foreground',
+      tutorial: 'action-mealprep',
     },
   ];
 
@@ -102,7 +120,12 @@ export default function Dashboard() {
             <UtensilsCrossed className="h-7 w-7 text-primary" />
             <span className="font-display text-xl font-bold text-foreground">Munch</span>
           </div>
-          <Button variant="ghost" size="icon" onClick={() => navigate('/settings')}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate('/settings')}
+            data-tutorial="settings-btn"
+          >
             <User className="h-5 w-5" />
           </Button>
         </div>
@@ -130,6 +153,7 @@ export default function Dashboard() {
           initial="hidden"
           animate="show"
           className="grid grid-cols-3 gap-3 mb-8"
+          data-tutorial="stats"
         >
           <motion.div variants={item}>
             <Card className="text-center border-border">
@@ -173,6 +197,7 @@ export default function Dashboard() {
               <button
                 onClick={() => navigate(action.path)}
                 className="w-full flex items-center gap-4 p-4 rounded-xl bg-card border border-border hover:border-primary/30 transition-all group"
+                data-tutorial={action.tutorial}
               >
                 <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${action.color}`}>
                   <action.icon className="h-5 w-5" />
@@ -200,6 +225,10 @@ export default function Dashboard() {
         </motion.div>
       </div>
       <BottomNav />
+
+      {showTutorial && (
+        <SpotlightTutorial onComplete={handleTutorialComplete} />
+      )}
     </div>
   );
 }
