@@ -6,8 +6,15 @@ import { useDbRecipes } from '@/hooks/useDbRecipes';
 import { calculateMatch } from '@/lib/matchLogic';
 import { getCategory, getAisleIndex, type IngredientCategory } from '@/lib/ingredientCategories';
 import { Button } from '@/components/ui/button';
-import { ShoppingCart, Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { ShoppingCart, Check, ChevronDown, ChevronUp, Download, FileText, Share2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { toast } from 'sonner';
 
 interface GroceryItem {
   ingredient: string;
