@@ -50,8 +50,11 @@ export default function Swipe() {
   }, [allRecipes]);
 
   const handleSwipe = (dir: 'left' | 'right') => {
+    const r = rankedRecipes[currentIndex];
     if (dir === 'right') {
-      likeRecipe(rankedRecipes[currentIndex].recipe.id);
+      // Pass recipe data for API recipes so they persist in saved
+      const isApi = r.recipe.id.startsWith('mealdb-') || r.recipe.id.startsWith('tasty-') || r.recipe.id.startsWith('spoon-');
+      likeRecipe(r.recipe.id, isApi ? r.recipe : undefined);
     }
     setCurrentIndex((prev) => prev + 1);
   };
