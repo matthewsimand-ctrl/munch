@@ -145,6 +145,7 @@ export default function SavedRecipes() {
           })
         )}
       </div>
+      <BottomNav />
     </div>
   );
 }

@@ -159,6 +159,7 @@ export default function Pantry() {
           {pantryList.length} ingredient{pantryList.length !== 1 ? 's' : ''} in your pantry
         </p>
       </div>
+      <BottomNav />
     </div>
   );
 }

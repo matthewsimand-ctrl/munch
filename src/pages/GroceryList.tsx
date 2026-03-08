@@ -86,6 +86,7 @@ export default function GroceryList() {
           </AnimatePresence>
         )}
       </div>
+      <BottomNav />
     </div>
   );
 }
