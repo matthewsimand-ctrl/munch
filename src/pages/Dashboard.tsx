@@ -53,7 +53,7 @@ export default function Dashboard() {
     else setGreeting('Good evening');
   }, []);
 
-  const displayName = user?.user_metadata?.display_name || user?.email?.split('@')[0] || '';
+  const savedCount = likedRecipes.length;
 
   const savedCount = likedRecipes.length;
   const pantryCount = pantryList.length;
