@@ -105,6 +105,7 @@ export const useStore = create<AppState>()(
           userProfile: initialProfile,
           pantryList: [],
           likedRecipes: [],
+          savedApiRecipes: {},
           onboardingComplete: false,
         }),
     }),
