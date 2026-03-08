@@ -5,7 +5,7 @@ import { useStore } from '@/lib/store';
 import { useDbRecipes } from '@/hooks/useDbRecipes';
 import { calculateMatch } from '@/lib/matchLogic';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Clock, BarChart3, Check, ShoppingCart, ChevronDown, ChevronUp, Play, Plus } from 'lucide-react';
+import { ArrowLeft, Clock, BarChart3, Check, ShoppingCart, ChevronDown, ChevronUp, Play, Plus, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
