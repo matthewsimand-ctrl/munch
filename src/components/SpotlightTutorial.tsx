@@ -205,7 +205,9 @@ export default function SpotlightTutorial({ onComplete }: SpotlightTutorialProps
       return { top: `${Math.min(Math.max(centeredTop, topPadding), maxTop)}px` };
     }
 
-    const placeAbove = spotlightRect.top > window.innerHeight * 0.52;
+    // Respect explicit position hint
+    const forceAbove = step.position === 'above';
+    const placeAbove = forceAbove || spotlightRect.top > window.innerHeight * 0.52;
     const preferredTop = placeAbove
       ? spotlightRect.top - tooltipHeight - pad - 16
       : spotlightRect.bottom + pad + 16;
