@@ -1,3 +1,4 @@
+import { useState, useRef } from 'react';
 import { motion, useMotionValue, useTransform, PanInfo } from 'framer-motion';
 import { Clock, BarChart3, Check, ShoppingCart, MapPin, ChefHat, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -17,9 +18,11 @@ interface SwipeCardProps {
 export default function SwipeCard({ recipe, match, onSwipe, onImageTap, isTop, chefName, chefId }: SwipeCardProps) {
   const navigate = useNavigate();
   const x = useMotionValue(0);
-  const rotate = useTransform(x, [-200, 200], [-15, 15]);
-  const likeOpacity = useTransform(x, [0, 100], [0, 1]);
-  const nopeOpacity = useTransform(x, [-100, 0], [1, 0]);
+  const rotate = useTransform(x, [-200, 200], [-12, 12]);
+  const likeOpacity = useTransform(x, [0, 80], [0, 1]);
+  const nopeOpacity = useTransform(x, [-80, 0], [1, 0]);
+  const isDragging = useRef(false);
+  const [swiped, setSwiped] = useState(false);
 
   const borderColor =
     match.status === 'perfect' ? 'border-success' :
@@ -29,31 +32,82 @@ export default function SwipeCard({ recipe, match, onSwipe, onImageTap, isTop, c
     match.status === 'perfect' ? 'bg-success text-success-foreground' :
     match.status === 'almost' ? 'bg-warning text-warning-foreground' : 'bg-muted text-muted-foreground';
 
-  const handleDragEnd = (_: any, info: PanInfo) => {
-    if (info.offset.x > 100) onSwipe('right');
-    else if (info.offset.x < -100) onSwipe('left');
+  const handleDragStart = () => {
+    isDragging.current = true;
   };
+
+  const handleDragEnd = (_: any, info: PanInfo) => {
+    const threshold = 80;
+    const velocity = info.velocity.x;
+    const offset = info.offset.x;
+
+    // Use both offset and velocity for responsive feel
+    if (offset > threshold || velocity > 500) {
+      setSwiped(true);
+      onSwipe('right');
+    } else if (offset < -threshold || velocity < -500) {
+      setSwiped(true);
+      onSwipe('left');
+    }
+
+    // Reset dragging flag after a tick
+    requestAnimationFrame(() => { isDragging.current = false; });
+  };
+
+  const handleTap = () => {
+    if (!isDragging.current && onImageTap) {
+      onImageTap();
+    }
+  };
+
+  if (!isTop) {
+    // Background card: static, no animation, slightly scaled down
+    return (
+      <div className="absolute inset-0" style={{ zIndex: 0 }}>
+        <div
+          className={`h-full rounded-2xl border-2 ${borderColor} bg-card shadow-md overflow-hidden flex flex-col`}
+          style={{ transform: 'scale(0.97)', transformOrigin: 'center bottom', opacity: 0.7 }}
+        >
+          <div className="relative h-56 bg-muted overflow-hidden flex-shrink-0">
+            <img
+              src={recipe.image}
+              alt={recipe.name}
+              className="w-full h-full object-cover"
+              loading="lazy"
+            />
+            <div className={`absolute bottom-3 right-3 ${badgeBg} px-3 py-1.5 rounded-full text-sm font-bold shadow-md`}>
+              {match.percentage}% Match
+            </div>
+          </div>
+          <div className="flex-1 p-5 flex flex-col">
+            <h2 className="font-display text-xl font-bold text-card-foreground mb-1">
+              {recipe.name}
+            </h2>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <motion.div
-      className={`absolute inset-0 cursor-grab active:cursor-grabbing`}
-      style={{ x, rotate, zIndex: isTop ? 10 : 0 }}
-      drag={isTop ? 'x' : false}
+      className="absolute inset-0 touch-pan-y cursor-grab active:cursor-grabbing"
+      style={{ x, rotate, zIndex: 10 }}
+      drag="x"
       dragConstraints={{ left: 0, right: 0 }}
-      dragElastic={0.8}
+      dragElastic={0.9}
+      dragMomentum={false}
+      onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
-      whileDrag={{ scale: 1.02 }}
-      exit={{ x: x.get() > 0 ? 400 : -400, opacity: 0, transition: { duration: 0.3 } }}
+      exit={{
+        x: x.get() > 0 ? 300 : -300,
+        opacity: 0,
+        transition: { duration: 0.2, ease: 'easeOut' },
+      }}
     >
       <div
-        className={`h-full rounded-2xl border-2 ${borderColor} bg-card shadow-lg overflow-hidden flex flex-col cursor-pointer`}
-        onClick={(e) => {
-          // Only trigger tap if not dragging
-          if (Math.abs(x.get()) < 5 && onImageTap) {
-            e.stopPropagation();
-            onImageTap();
-          }
-        }}
+        className={`h-full rounded-2xl border-2 ${borderColor} bg-card shadow-lg overflow-hidden flex flex-col`}
+        onClick={handleTap}
       >
         {/* Image */}
         <div className="relative h-56 bg-muted overflow-hidden flex-shrink-0">
@@ -61,25 +115,22 @@ export default function SwipeCard({ recipe, match, onSwipe, onImageTap, isTop, c
             src={recipe.image}
             alt={recipe.name}
             className="w-full h-full object-cover"
+            draggable={false}
             loading="lazy"
           />
           {/* Swipe feedback overlays */}
-          {isTop && (
-            <>
-              <motion.div
-                className="absolute top-4 left-4 bg-success text-success-foreground px-4 py-2 rounded-lg font-bold text-lg rotate-[-12deg] border-2 border-success"
-                style={{ opacity: likeOpacity }}
-              >
-                SAVE
-              </motion.div>
-              <motion.div
-                className="absolute top-4 right-4 bg-destructive text-destructive-foreground px-4 py-2 rounded-lg font-bold text-lg rotate-[12deg] border-2 border-destructive"
-                style={{ opacity: nopeOpacity }}
-              >
-                NOPE
-              </motion.div>
-            </>
-          )}
+          <motion.div
+            className="absolute top-4 left-4 bg-success text-success-foreground px-4 py-2 rounded-lg font-bold text-lg rotate-[-12deg] border-2 border-success"
+            style={{ opacity: likeOpacity }}
+          >
+            SAVE
+          </motion.div>
+          <motion.div
+            className="absolute top-4 right-4 bg-destructive text-destructive-foreground px-4 py-2 rounded-lg font-bold text-lg rotate-[12deg] border-2 border-destructive"
+            style={{ opacity: nopeOpacity }}
+          >
+            NOPE
+          </motion.div>
           {/* Match badge */}
           <div className={`absolute bottom-3 right-3 ${badgeBg} px-3 py-1.5 rounded-full text-sm font-bold shadow-md`}>
             {match.percentage}% Match
@@ -100,7 +151,7 @@ export default function SwipeCard({ recipe, match, onSwipe, onImageTap, isTop, c
             </button>
           )}
 
-          <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
+          <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4 flex-wrap">
             <span className="flex items-center gap-1">
               <Clock className="h-4 w-4" /> {recipe.cook_time}
             </span>
@@ -114,7 +165,7 @@ export default function SwipeCard({ recipe, match, onSwipe, onImageTap, isTop, c
             )}
             {recipe.servings && (
               <span className="flex items-center gap-1">
-                <Users className="h-4 w-4" /> {recipe.servings} servings
+                <Users className="h-4 w-4" /> {recipe.servings}
               </span>
             )}
           </div>
