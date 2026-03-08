@@ -188,9 +188,14 @@ export default function CookMode() {
             </motion.div>
           )}
         </AnimatePresence>
-        {isListening && !lastCommand && (
+        {voiceError && (
+          <p className="text-[11px] text-center text-destructive mt-1 px-2">
+            {voiceError}
+          </p>
+        )}
+        {isListening && !lastCommand && !voiceError && (
           <p className="text-[10px] text-center text-muted-foreground mt-1">
-            Say "next", "previous", or "repeat"
+            🎤 Listening — say "next", "back", or "repeat"
           </p>
         )}
         <Progress value={progress} className="h-1.5 mt-2" />
