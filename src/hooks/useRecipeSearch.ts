@@ -2,9 +2,14 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Recipe } from '@/data/recipes';
 import { useToast } from '@/hooks/use-toast';
+import { useStore } from '@/lib/store';
 
 interface APIRecipe extends Recipe {
   source: string;
+}
+
+function isUrl(str: string): boolean {
+  return /^https?:\/\//i.test(str.trim()) || /^www\./i.test(str.trim());
 }
 
 export function useRecipeSearch() {
@@ -12,12 +17,52 @@ export function useRecipeSearch() {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const { toast } = useToast();
+  const { likeRecipe } = useStore();
 
   const search = useCallback(async (query: string) => {
     if (!query.trim()) return;
     setLoading(true);
     setSearched(true);
+
     try {
+      // If the query is a URL, use the import-recipe function instead
+      if (isUrl(query.trim())) {
+        const { data, error } = await supabase.functions.invoke('import-recipe', {
+          body: { url: query.trim() },
+        });
+
+        if (error || !data?.success) {
+          toast({
+            title: 'Could not import recipe',
+            description: data?.error || error?.message || 'Failed to extract recipe from URL',
+            variant: 'destructive',
+          });
+          setApiRecipes([]);
+          setLoading(false);
+          return;
+        }
+
+        const recipe = data.recipe;
+        const id = `imported-${Date.now()}`;
+        const recipeData: APIRecipe = {
+          id,
+          name: recipe.name,
+          ingredients: recipe.ingredients || [],
+          instructions: recipe.instructions || [],
+          cook_time: recipe.cook_time || '30 min',
+          difficulty: recipe.difficulty || 'Intermediate',
+          tags: recipe.tags || [],
+          image: recipe.image || '/placeholder.svg',
+          source: 'Imported',
+        };
+
+        setApiRecipes([recipeData]);
+        toast({ title: `Found "${recipe.name}" from URL!` });
+        setLoading(false);
+        return;
+      }
+
+      // Normal keyword search
       const { data, error } = await supabase.functions.invoke('search-recipes', {
         body: { query },
       });
@@ -35,7 +80,7 @@ export function useRecipeSearch() {
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [toast, likeRecipe]);
 
   return { apiRecipes, loading, searched, search };
 }

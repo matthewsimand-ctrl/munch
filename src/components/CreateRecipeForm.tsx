@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, X, Loader2, Camera } from 'lucide-react';
+import { Plus, X, Loader2, Camera, ClipboardPaste } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -15,11 +15,160 @@ interface Props {
   onClose: () => void;
 }
 
+// ---- Local heuristic parser (no AI) ----
+function parseRecipeText(raw: string): {
+  name: string;
+  ingredients: string[];
+  instructions: string[];
+  cookTime: string;
+  difficulty: string;
+  cuisine: string;
+} {
+  const lines = raw
+    .split(/\r?\n/)
+    .map(l => l.trim())
+    .filter(Boolean);
+
+  let name = '';
+  const ingredients: string[] = [];
+  const instructions: string[] = [];
+  let cookTime = '';
+  let cuisine = '';
+  let difficulty = 'Intermediate';
+
+  // Detect sections
+  type Section = 'unknown' | 'ingredients' | 'instructions' | 'meta';
+  let currentSection: Section = 'unknown';
+
+  const ingredientHeaders = /^(ingredients|what you.?ll need|you.?ll need|shopping list)/i;
+  const instructionHeaders = /^(instructions|directions|steps|method|preparation|how to make|how to cook)/i;
+  const metaHeaders = /^(notes|nutrition|tips|info|cook time|prep time|servings)/i;
+  const timePattern = /(\d+\s*(min|minute|minutes|hr|hrs|hour|hours))/i;
+  const servingsPattern = /serv(es|ings?)?\s*:?\s*\d+/i;
+
+  // Heuristic: first non-trivial line that isn't a section header = recipe name
+  for (const line of lines) {
+    const stripped = line.replace(/^#+\s*/, '').replace(/\*+/g, '').trim();
+    if (
+      stripped.length > 2 &&
+      !ingredientHeaders.test(stripped) &&
+      !instructionHeaders.test(stripped) &&
+      !metaHeaders.test(stripped) &&
+      !servingsPattern.test(stripped) &&
+      !timePattern.test(stripped)
+    ) {
+      name = stripped;
+      break;
+    }
+  }
+
+  for (const line of lines) {
+    const stripped = line.replace(/^#+\s*/, '').replace(/\*+/g, '').trim();
+
+    // Check for section headers
+    if (ingredientHeaders.test(stripped)) {
+      currentSection = 'ingredients';
+      continue;
+    }
+    if (instructionHeaders.test(stripped)) {
+      currentSection = 'instructions';
+      continue;
+    }
+    if (metaHeaders.test(stripped)) {
+      currentSection = 'meta';
+      continue;
+    }
+
+    // Skip the name line
+    if (stripped === name) continue;
+
+    // Extract cook time from anywhere
+    if (!cookTime) {
+      const timeMatch = stripped.match(/(?:cook|prep|total|time)[:\s]*(\d+\s*(?:min|minute|minutes|hr|hrs|hour|hours)[\s\d]*(?:min|minute|minutes)?)/i);
+      if (timeMatch) {
+        cookTime = timeMatch[1].trim();
+        continue;
+      }
+    }
+
+    if (currentSection === 'ingredients') {
+      // Clean up bullet points, numbers, dashes
+      const cleaned = stripped.replace(/^[-•*·▪◦]\s*/, '').replace(/^\d+[.)]\s*/, '').trim();
+      if (cleaned.length > 1) {
+        // Extract just the ingredient name (strip quantities)
+        const ingName = stripQuantity(cleaned);
+        if (ingName) ingredients.push(ingName);
+      }
+    } else if (currentSection === 'instructions') {
+      const cleaned = stripped.replace(/^[-•*·▪◦]\s*/, '').replace(/^\d+[.)]\s*/, '').trim();
+      if (cleaned.length > 5) {
+        instructions.push(cleaned);
+      }
+    } else if (currentSection === 'unknown') {
+      // Try to auto-detect: short lines with common ingredient patterns
+      const cleaned = stripped.replace(/^[-•*·▪◦]\s*/, '').replace(/^\d+[.)]\s*/, '').trim();
+      if (looksLikeIngredient(cleaned)) {
+        currentSection = 'ingredients';
+        const ingName = stripQuantity(cleaned);
+        if (ingName) ingredients.push(ingName);
+      } else if (looksLikeInstruction(cleaned)) {
+        currentSection = 'instructions';
+        instructions.push(cleaned);
+      }
+    }
+  }
+
+  // If we found nothing in sections, try splitting: short lines = ingredients, long = instructions
+  if (ingredients.length === 0 && instructions.length === 0) {
+    for (const line of lines) {
+      const stripped = line.replace(/^[-•*·▪◦]\s*/, '').replace(/^\d+[.)]\s*/, '').replace(/^#+\s*/, '').trim();
+      if (stripped === name || stripped.length < 2) continue;
+      if (stripped.length < 50 && !stripped.includes('.')) {
+        const ingName = stripQuantity(stripped);
+        if (ingName) ingredients.push(ingName);
+      } else if (stripped.length >= 15) {
+        instructions.push(stripped);
+      }
+    }
+  }
+
+  return { name, ingredients, instructions, cookTime, difficulty, cuisine };
+}
+
+function stripQuantity(s: string): string {
+  // Remove leading quantities like "2 cups", "1/2 tsp", "100g", etc.
+  return s
+    .replace(/^[\d½¼¾⅓⅔⅛\/\s.,-]+\s*(cups?|tbsp|tsp|tablespoons?|teaspoons?|oz|ounces?|lbs?|pounds?|g|grams?|kg|ml|liters?|litres?|cloves?|cans?|bunch(es)?|pieces?|slices?|pinch(es)?|dash(es)?|handfuls?|sprigs?|stalks?|heads?|sticks?|packages?|packets?|bottles?|jars?|bags?|boxes?|containers?|large|medium|small|whole|half)\s*/i, '')
+    .replace(/^of\s+/i, '')
+    .replace(/,\s*(divided|chopped|minced|diced|sliced|grated|melted|softened|room temperature|to taste|optional|fresh|dried|frozen|canned|packed|loosely packed|firmly packed).*$/i, '')
+    .trim()
+    .toLowerCase();
+}
+
+function looksLikeIngredient(s: string): boolean {
+  if (s.length > 80 || s.length < 2) return false;
+  // Contains a quantity-like start
+  if (/^[\d½¼¾⅓⅔⅛\/]/.test(s)) return true;
+  // Common ingredient words
+  if (/\b(cup|tbsp|tsp|oz|tablespoon|teaspoon|pound|clove|pinch|dash)\b/i.test(s)) return true;
+  return false;
+}
+
+function looksLikeInstruction(s: string): boolean {
+  if (s.length < 15) return false;
+  // Starts with a verb or numbered step
+  if (/^(preheat|heat|cook|bake|mix|stir|add|combine|place|pour|whisk|fold|season|serve|let|bring|cut|chop|dice|slice|drain|rinse|set|remove|transfer|cover|simmer|boil|sauté|fry|grill|roast|broil|blend|process)/i.test(s)) return true;
+  if (/^\d+[.)]\s*\w/.test(s)) return true;
+  return false;
+}
+
 export default function CreateRecipeForm({ onClose }: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
   const [fetchingPhoto, setFetchingPhoto] = useState(false);
+  const [showPaste, setShowPaste] = useState(false);
+  const [pasteText, setPasteText] = useState('');
 
   const [name, setName] = useState('');
   const [image, setImage] = useState('');
@@ -31,6 +180,20 @@ export default function CreateRecipeForm({ onClose }: Props) {
   const [tagInput, setTagInput] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [instructions, setInstructions] = useState('');
+
+  const handleParsePaste = () => {
+    if (!pasteText.trim()) return;
+    const parsed = parseRecipeText(pasteText);
+    if (parsed.name) setName(parsed.name);
+    if (parsed.ingredients.length > 0) setIngredients(parsed.ingredients);
+    if (parsed.instructions.length > 0) setInstructions(parsed.instructions.join('\n'));
+    if (parsed.cookTime) setCookTime(parsed.cookTime);
+    if (parsed.cuisine) setCuisine(parsed.cuisine);
+    if (parsed.difficulty) setDifficulty(parsed.difficulty);
+    setShowPaste(false);
+    setPasteText('');
+    toast({ title: `Parsed ${parsed.ingredients.length} ingredients & ${parsed.instructions.length} steps` });
+  };
 
   const fetchRandomPhoto = async () => {
     setFetchingPhoto(true);
@@ -106,6 +269,39 @@ export default function CreateRecipeForm({ onClose }: Props) {
 
   return (
     <div className="space-y-4">
+      {/* Paste & Auto-Parse */}
+      {showPaste ? (
+        <div className="space-y-3 p-4 rounded-xl bg-muted/50 border border-border">
+          <label className="text-sm font-medium text-foreground">Paste recipe text</label>
+          <p className="text-xs text-muted-foreground">
+            Paste the full recipe text and we'll auto-detect the name, ingredients, and steps.
+          </p>
+          <Textarea
+            value={pasteText}
+            onChange={(e) => setPasteText(e.target.value)}
+            placeholder={"Grandma's Famous Pasta\n\nIngredients:\n2 cups flour\n3 eggs\n...\n\nInstructions:\n1. Mix flour and eggs...\n2. Knead the dough..."}
+            rows={8}
+            autoFocus
+          />
+          <div className="flex gap-2">
+            <Button onClick={handleParsePaste} disabled={!pasteText.trim()} className="flex-1">
+              <ClipboardPaste className="h-4 w-4 mr-1" /> Auto-Fill Fields
+            </Button>
+            <Button variant="outline" onClick={() => { setShowPaste(false); setPasteText(''); }}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <Button
+          variant="outline"
+          className="w-full border-dashed"
+          onClick={() => setShowPaste(true)}
+        >
+          <ClipboardPaste className="h-4 w-4 mr-2" /> Paste & Auto-Parse Recipe Text
+        </Button>
+      )}
+
       <div>
         <label className="text-sm font-medium text-foreground">Recipe Name *</label>
         <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Grandma's Pasta" />
