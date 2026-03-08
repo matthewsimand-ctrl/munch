@@ -6,6 +6,7 @@ import { calculateMatch } from '@/lib/matchLogic';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Clock, BarChart3, Check, ShoppingCart, ChevronDown, ChevronUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useMemo as useMemoAlias } from 'react';
 
 export default function SavedRecipes() {
   const navigate = useNavigate();
