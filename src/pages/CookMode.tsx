@@ -116,7 +116,7 @@ export default function CookMode() {
   }, [currentStep, steps, speak]);
 
   // Voice commands for hands-free control
-  const { isListening, isSupported: voiceSupported, lastCommand, toggleListening } = useVoiceCommands({
+  const { isListening, isSupported: voiceSupported, lastCommand, error: voiceError, toggleListening } = useVoiceCommands({
     onNext: goNext,
     onPrevious: goPrev,
     onRepeat: repeatStep,
