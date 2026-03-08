@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, UtensilsCrossed, Flame, Heart, ShoppingCart, CalendarDays } from 'lucide-react';
+import { Home, UtensilsCrossed, BookOpen, Heart, ShoppingCart, CalendarDays } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const TUTORIAL_MAP: Record<string, string> = {
