@@ -31,16 +31,6 @@ interface AppState {
   resetStore: () => void;
 }
 
-  setUserProfile: (profile: Partial<UserProfile>) => void;
-  completeOnboarding: () => void;
-  addPantryItem: (name: string, quantity?: string, category?: string) => void;
-  removePantryItem: (name: string) => void;
-  updatePantryQuantity: (name: string, quantity: string) => void;
-  addPantryItems: (items: string[]) => void;
-  likeRecipe: (id: string) => void;
-  unlikeRecipe: (id: string) => void;
-  resetStore: () => void;
-}
 
 const initialProfile: UserProfile = {
   dietaryRestrictions: [],
