@@ -20,7 +20,8 @@ const SORT_OPTIONS = [
 
 export default function Pantry() {
   const navigate = useNavigate();
-  const { pantryList, addPantryItem, removePantryItem, updatePantryQuantity } = useStore();
+  const { toast } = useToast();
+  const { pantryList, addPantryItem, addPantryItems, removePantryItem, updatePantryQuantity } = useStore();
   const [input, setInput] = useState('');
   const [quantity, setQuantity] = useState('1');
   const [user, setUser] = useState<any>(null);
