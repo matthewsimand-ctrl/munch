@@ -14,10 +14,79 @@ export type Database = {
   }
   public: {
     Tables: {
+      meal_plan_items: {
+        Row: {
+          created_at: string
+          day_of_week: number
+          id: string
+          meal_plan_id: string
+          meal_type: string
+          recipe_data: Json | null
+          recipe_id: string
+          servings: number
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          day_of_week: number
+          id?: string
+          meal_plan_id: string
+          meal_type?: string
+          recipe_data?: Json | null
+          recipe_id: string
+          servings?: number
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          day_of_week?: number
+          id?: string
+          meal_plan_id?: string
+          meal_type?: string
+          recipe_data?: Json | null
+          recipe_id?: string
+          servings?: number
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meal_plan_items_meal_plan_id_fkey"
+            columns: ["meal_plan_id"]
+            isOneToOne: false
+            referencedRelation: "meal_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meal_plans: {
+        Row: {
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+          week_start: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+          week_start: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+          week_start?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
           created_at: string
+          default_servings: number
           display_name: string | null
           id: string
           updated_at: string
@@ -26,6 +95,7 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           created_at?: string
+          default_servings?: number
           display_name?: string | null
           id?: string
           updated_at?: string
@@ -34,6 +104,7 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           created_at?: string
+          default_servings?: number
           display_name?: string | null
           id?: string
           updated_at?: string
