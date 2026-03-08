@@ -1,15 +1,18 @@
+import { useNavigate } from 'react-router-dom';
 import type { Recipe } from '@/data/recipes';
 import type { MatchResult } from '@/lib/matchLogic';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Clock, BarChart3, Check, ShoppingCart, MapPin } from 'lucide-react';
+import { Clock, BarChart3, Check, ShoppingCart, MapPin, ChefHat } from 'lucide-react';
 
 interface Props {
   recipe: Recipe | null;
   match: MatchResult | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  chefName?: string | null;
+  chefId?: string | null;
 }
 
 export default function RecipePreviewDialog({ recipe, match, open, onOpenChange }: Props) {
