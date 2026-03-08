@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, X, Loader2, Camera, ClipboardPaste } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Plus, X, Loader2, Camera, ClipboardPaste, Globe } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -180,6 +181,7 @@ export default function CreateRecipeForm({ onClose }: Props) {
   const [tagInput, setTagInput] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [instructions, setInstructions] = useState('');
+  const [isPublic, setIsPublic] = useState(false);
 
   const handleParsePaste = () => {
     if (!pasteText.trim()) return;
@@ -252,7 +254,7 @@ export default function CreateRecipeForm({ onClose }: Props) {
         instructions: stepList,
         source: 'community',
         created_by: user.id,
-        is_public: true,
+        is_public: isPublic,
       } as any);
 
       if (error) throw error;
@@ -402,6 +404,24 @@ export default function CreateRecipeForm({ onClose }: Props) {
           rows={5}
         />
         <p className="text-xs text-muted-foreground mt-1">Put each step on a new line.</p>
+      </div>
+
+      <div className="flex items-start space-x-3 rounded-lg border border-border p-3 bg-muted/30">
+        <Checkbox
+          id="is-public"
+          checked={isPublic}
+          onCheckedChange={(checked) => setIsPublic(checked === true)}
+          className="mt-0.5"
+        />
+        <div className="space-y-0.5">
+          <label htmlFor="is-public" className="text-sm font-medium text-foreground flex items-center gap-1.5 cursor-pointer">
+            <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+            Make discoverable by other users
+          </label>
+          <p className="text-xs text-muted-foreground">
+            Your recipe will appear in the Browse section for everyone to find.
+          </p>
+        </div>
       </div>
 
       <div className="flex gap-2 pt-2">
