@@ -15,6 +15,7 @@ interface NormalizedRecipe {
   tags: string[];
   instructions: string[];
   source: string;
+  cuisine?: string;
 }
 
 // --- TheMealDB ---
@@ -23,7 +24,7 @@ async function searchMealDB(query: string): Promise<NormalizedRecipe[]> {
     const res = await fetch(`https://www.themealdb.com/api/json/v1/1/search.php?s=${encodeURIComponent(query)}`);
     const data = await res.json();
     if (!data.meals) return [];
-    return data.meals.slice(0, 5).map((m: any) => {
+    return data.meals.map((m: any) => {
       const ingredients: string[] = [];
       for (let i = 1; i <= 20; i++) {
         const ing = m[`strIngredient${i}`];
@@ -42,6 +43,7 @@ async function searchMealDB(query: string): Promise<NormalizedRecipe[]> {
         tags: m.strTags ? m.strTags.split(',').map((t: string) => t.trim().toLowerCase()) : [],
         instructions: instructions.slice(0, 10),
         source: 'TheMealDB',
+        cuisine: m.strArea || undefined,
       };
     });
   } catch (e) {
@@ -50,11 +52,90 @@ async function searchMealDB(query: string): Promise<NormalizedRecipe[]> {
   }
 }
 
+async function browseMealDBByLetter(letter: string): Promise<NormalizedRecipe[]> {
+  try {
+    const res = await fetch(`https://www.themealdb.com/api/json/v1/1/search.php?f=${letter}`);
+    const data = await res.json();
+    if (!data.meals) return [];
+    return data.meals.map((m: any) => {
+      const ingredients: string[] = [];
+      for (let i = 1; i <= 20; i++) {
+        const ing = m[`strIngredient${i}`];
+        if (ing && ing.trim()) ingredients.push(ing.trim().toLowerCase());
+      }
+      const instructions = m.strInstructions
+        ? m.strInstructions.split(/\r?\n/).filter((s: string) => s.trim().length > 5)
+        : [];
+      return {
+        id: `mealdb-${m.idMeal}`,
+        name: m.strMeal,
+        image: m.strMealThumb,
+        cook_time: '30 min',
+        difficulty: 'Intermediate' as const,
+        ingredients,
+        tags: m.strTags ? m.strTags.split(',').map((t: string) => t.trim().toLowerCase()) : [],
+        instructions: instructions.slice(0, 10),
+        source: 'TheMealDB',
+        cuisine: m.strArea || undefined,
+      };
+    });
+  } catch (e) {
+    console.error('MealDB browse error:', e);
+    return [];
+  }
+}
+
+async function browseMealDBByCategory(category: string): Promise<NormalizedRecipe[]> {
+  try {
+    // This endpoint returns limited data, just id/name/thumb
+    const res = await fetch(`https://www.themealdb.com/api/json/v1/1/filter.php?c=${encodeURIComponent(category)}`);
+    const data = await res.json();
+    if (!data.meals) return [];
+    // Fetch full details for each (limited to 8 per category to stay fast)
+    const meals = data.meals.slice(0, 8);
+    const detailed = await Promise.allSettled(
+      meals.map(async (m: any) => {
+        const detailRes = await fetch(`https://www.themealdb.com/api/json/v1/1/lookup.php?i=${m.idMeal}`);
+        const detailData = await detailRes.json();
+        return detailData.meals?.[0];
+      })
+    );
+    return detailed
+      .filter((r): r is PromiseFulfilledResult<any> => r.status === 'fulfilled' && r.value)
+      .map(r => {
+        const m = r.value;
+        const ingredients: string[] = [];
+        for (let i = 1; i <= 20; i++) {
+          const ing = m[`strIngredient${i}`];
+          if (ing && ing.trim()) ingredients.push(ing.trim().toLowerCase());
+        }
+        const instructions = m.strInstructions
+          ? m.strInstructions.split(/\r?\n/).filter((s: string) => s.trim().length > 5)
+          : [];
+        return {
+          id: `mealdb-${m.idMeal}`,
+          name: m.strMeal,
+          image: m.strMealThumb,
+          cook_time: '30 min',
+          difficulty: 'Intermediate' as const,
+          ingredients,
+          tags: m.strTags ? m.strTags.split(',').map((t: string) => t.trim().toLowerCase()) : [],
+          instructions: instructions.slice(0, 10),
+          source: 'TheMealDB',
+          cuisine: m.strArea || undefined,
+        };
+      });
+  } catch (e) {
+    console.error('MealDB category error:', e);
+    return [];
+  }
+}
+
 // --- Tasty (RapidAPI) ---
-async function searchTasty(query: string, apiKey: string): Promise<NormalizedRecipe[]> {
+async function searchTasty(query: string, apiKey: string, size = 5): Promise<NormalizedRecipe[]> {
   try {
     const res = await fetch(
-      `https://tasty.p.rapidapi.com/recipes/list?from=0&size=5&q=${encodeURIComponent(query)}`,
+      `https://tasty.p.rapidapi.com/recipes/list?from=0&size=${size}&q=${encodeURIComponent(query)}`,
       {
         headers: {
           'X-RapidAPI-Key': apiKey,
@@ -64,7 +145,7 @@ async function searchTasty(query: string, apiKey: string): Promise<NormalizedRec
     );
     const data = await res.json();
     if (!data.results) return [];
-    return data.results.slice(0, 5).map((r: any) => {
+    return data.results.map((r: any) => {
       const ingredients = (r.sections?.[0]?.components || [])
         .map((c: any) => c.ingredient?.name?.toLowerCase())
         .filter(Boolean);
@@ -92,14 +173,14 @@ async function searchTasty(query: string, apiKey: string): Promise<NormalizedRec
 }
 
 // --- Spoonacular ---
-async function searchSpoonacular(query: string, apiKey: string): Promise<NormalizedRecipe[]> {
+async function searchSpoonacular(query: string, apiKey: string, number = 5): Promise<NormalizedRecipe[]> {
   try {
     const searchRes = await fetch(
-      `https://api.spoonacular.com/recipes/complexSearch?query=${encodeURIComponent(query)}&number=5&addRecipeInformation=true&fillIngredients=true&apiKey=${apiKey}`
+      `https://api.spoonacular.com/recipes/complexSearch?query=${encodeURIComponent(query)}&number=${number}&addRecipeInformation=true&fillIngredients=true&apiKey=${apiKey}`
     );
     const data = await searchRes.json();
     if (!data.results) return [];
-    return data.results.slice(0, 5).map((r: any) => {
+    return data.results.map((r: any) => {
       const ingredients = (r.extendedIngredients || [])
         .map((i: any) => i.name?.toLowerCase())
         .filter(Boolean);
@@ -119,6 +200,7 @@ async function searchSpoonacular(query: string, apiKey: string): Promise<Normali
         tags: (r.dishTypes || []).slice(0, 5).map((t: string) => t.toLowerCase()),
         instructions: instructions.slice(0, 10),
         source: 'Spoonacular',
+        cuisine: (r.cuisines || [])[0] || undefined,
       };
     });
   } catch (e) {
@@ -127,35 +209,124 @@ async function searchSpoonacular(query: string, apiKey: string): Promise<Normali
   }
 }
 
+async function browseSpoonacularRandom(apiKey: string, number = 20): Promise<NormalizedRecipe[]> {
+  try {
+    const res = await fetch(
+      `https://api.spoonacular.com/recipes/random?number=${number}&apiKey=${apiKey}`
+    );
+    const data = await res.json();
+    if (!data.recipes) return [];
+    return data.recipes.map((r: any) => {
+      const ingredients = (r.extendedIngredients || [])
+        .map((i: any) => i.name?.toLowerCase())
+        .filter(Boolean);
+      const instructions = r.analyzedInstructions?.[0]?.steps
+        ?.sort((a: any, b: any) => a.number - b.number)
+        .map((s: any) => s.step)
+        .filter(Boolean) || [];
+      const difficulty = r.readyInMinutes > 60 ? 'Advanced' as const
+        : r.readyInMinutes > 30 ? 'Intermediate' as const : 'Beginner' as const;
+      return {
+        id: `spoon-${r.id}`,
+        name: r.title,
+        image: r.image || '',
+        cook_time: r.readyInMinutes ? `${r.readyInMinutes} min` : '30 min',
+        difficulty,
+        ingredients,
+        tags: (r.dishTypes || []).slice(0, 5).map((t: string) => t.toLowerCase()),
+        instructions: instructions.slice(0, 10),
+        source: 'Spoonacular',
+        cuisine: (r.cuisines || [])[0] || undefined,
+      };
+    });
+  } catch (e) {
+    console.error('Spoonacular random error:', e);
+    return [];
+  }
+}
+
+// Dedup by name (case insensitive)
+function dedup(recipes: NormalizedRecipe[]): NormalizedRecipe[] {
+  const seen = new Set<string>();
+  return recipes.filter(r => {
+    const key = r.name.toLowerCase().trim();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return r.ingredients.length > 0 && r.instructions.length > 0;
+  });
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { query, sources } = await req.json();
-    const searchQuery = query || 'chicken';
-    const activeSources: string[] = sources || ['mealdb', 'tasty', 'spoonacular'];
-
+    const { query, mode } = await req.json();
     const RAPIDAPI_KEY = Deno.env.get('RAPIDAPI_KEY') || '';
     const SPOONACULAR_API_KEY = Deno.env.get('SPOONACULAR_API_KEY') || '';
 
-    const promises: Promise<NormalizedRecipe[]>[] = [];
+    // "browse" mode: bulk-fetch large catalog
+    if (mode === 'browse') {
+      console.log('Browse mode: fetching large catalog...');
+      const promises: Promise<NormalizedRecipe[]>[] = [];
 
-    if (activeSources.includes('mealdb')) {
-      promises.push(searchMealDB(searchQuery));
+      // MealDB: fetch by first letter (a-z) to get ~200+ recipes
+      const letters = 'abcdefghijklmnopqrstuvwxyz'.split('');
+      for (const letter of letters) {
+        promises.push(browseMealDBByLetter(letter));
+      }
+
+      // MealDB categories for more coverage
+      const categories = ['Chicken', 'Beef', 'Seafood', 'Pasta', 'Vegetarian', 'Dessert', 'Breakfast', 'Pork', 'Lamb', 'Vegan', 'Starter', 'Side'];
+      for (const cat of categories) {
+        promises.push(browseMealDBByCategory(cat));
+      }
+
+      // Spoonacular random batches
+      if (SPOONACULAR_API_KEY) {
+        promises.push(browseSpoonacularRandom(SPOONACULAR_API_KEY, 50));
+      }
+
+      // Tasty popular queries
+      if (RAPIDAPI_KEY) {
+        const tastyQueries = ['popular', 'easy dinner', 'quick lunch', 'healthy', 'comfort food', 'dessert', 'breakfast', 'pasta', 'chicken', 'vegetarian'];
+        for (const q of tastyQueries) {
+          promises.push(searchTasty(q, RAPIDAPI_KEY, 10));
+        }
+      }
+
+      const results = await Promise.allSettled(promises);
+      const allRecipes = results
+        .filter((r): r is PromiseFulfilledResult<NormalizedRecipe[]> => r.status === 'fulfilled')
+        .flatMap(r => r.value);
+
+      const unique = dedup(allRecipes);
+      console.log(`Browse: fetched ${allRecipes.length} total, ${unique.length} unique`);
+
+      return new Response(JSON.stringify({ recipes: unique }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
-    if (activeSources.includes('tasty') && RAPIDAPI_KEY) {
-      promises.push(searchTasty(searchQuery, RAPIDAPI_KEY));
+
+    // Regular search mode
+    const searchQuery = query || 'chicken';
+
+    const promises: Promise<NormalizedRecipe[]>[] = [];
+    promises.push(searchMealDB(searchQuery));
+    if (RAPIDAPI_KEY) {
+      promises.push(searchTasty(searchQuery, RAPIDAPI_KEY, 10));
     }
-    if (activeSources.includes('spoonacular') && SPOONACULAR_API_KEY) {
-      promises.push(searchSpoonacular(searchQuery, SPOONACULAR_API_KEY));
+    if (SPOONACULAR_API_KEY) {
+      promises.push(searchSpoonacular(searchQuery, SPOONACULAR_API_KEY, 10));
     }
 
     const results = await Promise.allSettled(promises);
-    const recipes = results
-      .filter((r): r is PromiseFulfilledResult<NormalizedRecipe[]> => r.status === 'fulfilled')
-      .flatMap(r => r.value);
+    const recipes = dedup(
+      results
+        .filter((r): r is PromiseFulfilledResult<NormalizedRecipe[]> => r.status === 'fulfilled')
+        .flatMap(r => r.value)
+    );
 
     return new Response(JSON.stringify({ recipes }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
