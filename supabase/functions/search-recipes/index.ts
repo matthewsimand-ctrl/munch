@@ -9,7 +9,7 @@ interface NormalizedRecipe {
   id: string;
   name: string;
   image: string;
-  cookTime: string;
+  cook_time: string;
   difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
   ingredients: string[];
   tags: string[];
@@ -36,7 +36,7 @@ async function searchMealDB(query: string): Promise<NormalizedRecipe[]> {
         id: `mealdb-${m.idMeal}`,
         name: m.strMeal,
         image: m.strMealThumb,
-        cookTime: '30 min',
+        cook_time: '30 min',
         difficulty: 'Intermediate' as const,
         ingredients,
         tags: m.strTags ? m.strTags.split(',').map((t: string) => t.trim().toLowerCase()) : [],
@@ -77,7 +77,7 @@ async function searchTasty(query: string, apiKey: string): Promise<NormalizedRec
         id: `tasty-${r.id}`,
         name: r.name,
         image: r.thumbnail_url || '',
-        cookTime: totalTime ? `${totalTime} min` : '30 min',
+        cook_time: totalTime ? `${totalTime} min` : '30 min',
         difficulty: (r.total_time_minutes && r.total_time_minutes > 45) ? 'Advanced' as const : 'Intermediate' as const,
         ingredients,
         tags: (r.tags || []).slice(0, 5).map((t: any) => t.display_name?.toLowerCase()).filter(Boolean),
@@ -113,7 +113,7 @@ async function searchSpoonacular(query: string, apiKey: string): Promise<Normali
         id: `spoon-${r.id}`,
         name: r.title,
         image: r.image || '',
-        cookTime: r.readyInMinutes ? `${r.readyInMinutes} min` : '30 min',
+        cook_time: r.readyInMinutes ? `${r.readyInMinutes} min` : '30 min',
         difficulty,
         ingredients,
         tags: (r.dishTypes || []).slice(0, 5).map((t: string) => t.toLowerCase()),

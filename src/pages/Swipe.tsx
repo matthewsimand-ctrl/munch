@@ -3,7 +3,7 @@ import BottomNav from '@/components/BottomNav';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { useStore } from '@/lib/store';
-import { recipes as localRecipes } from '@/data/recipes';
+import { useDbRecipes } from '@/hooks/useDbRecipes';
 import { calculateMatch } from '@/lib/matchLogic';
 import SwipeCard from '@/components/SwipeCard';
 import { Button } from '@/components/ui/button';
@@ -20,7 +20,8 @@ export default function Swipe() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [user, setUser] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const { apiRecipes, loading, searched, search } = useRecipeSearch();
+  const { apiRecipes, loading: searchLoading, searched, search } = useRecipeSearch();
+  const { data: dbRecipes = [], isLoading: dbLoading } = useDbRecipes();
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
@@ -35,8 +36,8 @@ export default function Swipe() {
   // Merge local + API recipes
   const allRecipes = useMemo(() => {
     if (apiRecipes.length > 0) return apiRecipes;
-    return localRecipes;
-  }, [apiRecipes]);
+    return dbRecipes;
+  }, [apiRecipes, dbRecipes]);
 
   const rankedRecipes = useMemo(() => {
     return allRecipes
@@ -114,8 +115,8 @@ export default function Swipe() {
               className="pl-9"
             />
           </div>
-          <Button type="submit" size="sm" disabled={loading || !searchQuery.trim()}>
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />}
+          <Button type="submit" size="sm" disabled={searchLoading || !searchQuery.trim()}>
+            {searchLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />}
           </Button>
         </form>
         {searched && apiRecipes.length > 0 && (
@@ -138,7 +139,7 @@ export default function Swipe() {
       {/* Card Stack */}
       <div className="flex-1 flex items-center justify-center px-6">
         <div className="relative w-full max-w-md h-[440px]">
-          {loading ? (
+          {(searchLoading || dbLoading) ? (
             <div className="h-full flex flex-col items-center justify-center text-center">
               <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
               <p className="text-muted-foreground">Searching recipes...</p>
@@ -185,7 +186,7 @@ export default function Swipe() {
       </div>
 
       {/* Source badge on current card */}
-      {current?.source && !loading && (
+      {current?.source && !(searchLoading || dbLoading) && (
         <div className="flex justify-center -mt-2 mb-1">
           <Badge variant="outline" className="text-xs">
             via {current.source}
@@ -194,7 +195,7 @@ export default function Swipe() {
       )}
 
       {/* Action buttons */}
-      {current && !loading && (
+      {current && !(searchLoading || dbLoading) && (
         <div className="p-6 max-w-md mx-auto w-full flex justify-center gap-6">
           <Button
             variant="outline"

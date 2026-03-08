@@ -2,29 +2,34 @@ import { useState, useMemo } from 'react';
 import BottomNav from '@/components/BottomNav';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '@/lib/store';
-import { recipes } from '@/data/recipes';
+import { useDbRecipes } from '@/hooks/useDbRecipes';
 import { calculateMatch } from '@/lib/matchLogic';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Clock, BarChart3, Check, ShoppingCart, ChevronDown, ChevronUp, Play } from 'lucide-react';
+import { ArrowLeft, Clock, BarChart3, Check, ShoppingCart, ChevronDown, ChevronUp, Play, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMemo as useMemoAlias } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import CreateRecipeForm from '@/components/CreateRecipeForm';
 
 export default function SavedRecipes() {
   const navigate = useNavigate();
   const { likedRecipes, pantryList, unlikeRecipe, savedApiRecipes } = useStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const { data: dbRecipes = [] } = useDbRecipes();
 
   const pantryNames = useMemoAlias(() => pantryList.map(p => p.name), [pantryList]);
 
   const saved = useMemo(() => {
     return likedRecipes
       .map((id) => {
-        const recipe = recipes.find((r) => r.id === id) || savedApiRecipes[id];
+        const recipe = dbRecipes.find((r) => r.id === id) || savedApiRecipes[id];
         if (!recipe) return null;
         return { recipe, match: calculateMatch(pantryNames, recipe.ingredients), source: (recipe as any).source };
       })
-      .filter(Boolean) as { recipe: (typeof recipes)[0]; match: ReturnType<typeof calculateMatch>; source?: string }[];
-  }, [likedRecipes, pantryNames, savedApiRecipes]);
+      .filter(Boolean) as { recipe: (typeof dbRecipes)[0]; match: ReturnType<typeof calculateMatch>; source?: string }[];
+  }, [likedRecipes, pantryNames, savedApiRecipes, dbRecipes]);
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -37,8 +42,23 @@ export default function SavedRecipes() {
             Saved Recipes
           </h1>
           <div className="ml-auto flex items-center gap-2">
+            <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm">
+                  <Plus className="h-4 w-4 mr-1" /> Create
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md max-h-[90vh]">
+                <DialogHeader>
+                  <DialogTitle>Create Recipe</DialogTitle>
+                </DialogHeader>
+                <ScrollArea className="max-h-[70vh] pr-4">
+                  <CreateRecipeForm onClose={() => setCreateOpen(false)} />
+                </ScrollArea>
+              </DialogContent>
+            </Dialog>
             <Button variant="outline" size="sm" onClick={() => navigate('/grocery')}>
-              <ShoppingCart className="h-4 w-4 mr-1" /> Grocery List
+              <ShoppingCart className="h-4 w-4 mr-1" /> Grocery
             </Button>
             <span className="text-sm text-muted-foreground">{saved.length}</span>
           </div>
@@ -78,7 +98,7 @@ export default function SavedRecipes() {
                       {recipe.name}
                     </h3>
                     <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
-                      <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{recipe.cookTime}</span>
+                      <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{recipe.cook_time}</span>
                       <span className="flex items-center gap-1"><BarChart3 className="h-3 w-3" />{recipe.difficulty}</span>
                       <span className="font-semibold text-primary">{match.percentage}%</span>
                       {source && <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded">{source}</span>}

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import BottomNav from '@/components/BottomNav';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '@/lib/store';
-import { recipes } from '@/data/recipes';
+import { useDbRecipes } from '@/hooks/useDbRecipes';
 import { calculateMatch } from '@/lib/matchLogic';
 import { getCategory, getAisleIndex, type IngredientCategory } from '@/lib/ingredientCategories';
 import { Button } from '@/components/ui/button';
@@ -22,7 +22,8 @@ interface AisleGroup {
 
 export default function GroceryList() {
   const navigate = useNavigate();
-  const { likedRecipes, pantryList, addPantryItem } = useStore();
+  const { likedRecipes, pantryList, addPantryItem, savedApiRecipes } = useStore();
+  const { data: dbRecipes = [] } = useDbRecipes();
   const [collapsedAisles, setCollapsedAisles] = useState<Set<string>>(new Set());
 
   const pantryNames = useMemo(() => pantryList.map(p => p.name), [pantryList]);
@@ -30,7 +31,7 @@ export default function GroceryList() {
   const aisleGroups = useMemo(() => {
     const itemMap = new Map<string, string[]>();
     likedRecipes.forEach((id) => {
-      const recipe = recipes.find((r) => r.id === id);
+      const recipe = dbRecipes.find((r) => r.id === id) || savedApiRecipes[id];
       if (!recipe) return;
       const match = calculateMatch(pantryNames, recipe.ingredients);
       match.missing.forEach((ing) => {

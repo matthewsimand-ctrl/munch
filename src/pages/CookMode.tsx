@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { recipes } from '@/data/recipes';
+import { useDbRecipes } from '@/hooks/useDbRecipes';
+import { useStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { ArrowLeft, ChevronLeft, ChevronRight, Play, Pause, RotateCcw, Timer, Volume2, VolumeX } from 'lucide-react';
@@ -36,7 +37,9 @@ function formatTime(seconds: number): string {
 export default function CookMode() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const recipe = recipes.find(r => r.id === id);
+  const { data: dbRecipes = [] } = useDbRecipes();
+  const { savedApiRecipes } = useStore();
+  const recipe = dbRecipes.find(r => r.id === id) || savedApiRecipes[id || ''];
 
   const [currentStep, setCurrentStep] = useState(0);
   const [timerSeconds, setTimerSeconds] = useState<number | null>(null);
