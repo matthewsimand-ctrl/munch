@@ -79,6 +79,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     description:
       'Swipe right to save a recipe, left to skip. The % match shows how many ingredients you already have in your pantry — 100% means you\'re ready to cook! Tap anywhere on a card to see full details.',
     icon: <Flame className="h-5 w-5" />,
+    position: 'above',
   },
   {
     route: '/saved',
@@ -204,7 +205,9 @@ export default function SpotlightTutorial({ onComplete }: SpotlightTutorialProps
       return { top: `${Math.min(Math.max(centeredTop, topPadding), maxTop)}px` };
     }
 
-    const placeAbove = spotlightRect.top > window.innerHeight * 0.52;
+    // Respect explicit position hint
+    const forceAbove = step.position === 'above';
+    const placeAbove = forceAbove || spotlightRect.top > window.innerHeight * 0.52;
     const preferredTop = placeAbove
       ? spotlightRect.top - tooltipHeight - pad - 16
       : spotlightRect.bottom + pad + 16;
