@@ -85,11 +85,14 @@ export const useStore = create<AppState>()(
           return { pantryList: [...state.pantryList, ...newItems] };
         }),
 
-      likeRecipe: (id) =>
+      likeRecipe: (id, recipeData) =>
         set((state) => ({
           likedRecipes: state.likedRecipes.includes(id)
             ? state.likedRecipes
             : [...state.likedRecipes, id],
+          savedApiRecipes: recipeData
+            ? { ...state.savedApiRecipes, [id]: recipeData }
+            : state.savedApiRecipes,
         })),
 
       unlikeRecipe: (id) =>
