@@ -196,7 +196,7 @@ export default function Swipe() {
               <p className="text-muted-foreground">Loading hundreds of recipes...</p>
             </div>
           ) : current ? (
-            <AnimatePresence>
+            <AnimatePresence key={filterKey}>
               {next && (
                 <SwipeCard
                   key={next.recipe.id}
