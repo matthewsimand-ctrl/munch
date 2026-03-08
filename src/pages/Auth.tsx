@@ -31,6 +31,11 @@ export default function Auth() {
     e.preventDefault();
     setLoading(true);
     try {
+      if (!isLogin && password !== confirmPassword) {
+        toast({ title: 'Passwords don't match', description: 'Please make sure both passwords are the same.', variant: 'destructive' });
+        setLoading(false);
+        return;
+      }
       if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) {
