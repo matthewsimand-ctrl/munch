@@ -5,13 +5,14 @@ import { useStore } from '@/lib/store';
 import { useDbRecipes } from '@/hooks/useDbRecipes';
 import { calculateMatch } from '@/lib/matchLogic';
 import { Button } from '@/components/ui/button';
-import { Clock, BarChart3, Check, ShoppingCart, ChevronDown, ChevronUp, Play, Plus, Trash2, UtensilsCrossed } from 'lucide-react';
+import { Clock, BarChart3, Check, ShoppingCart, ChevronDown, ChevronUp, Play, Plus, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 import CreateRecipeForm from '@/components/CreateRecipeForm';
 import ImportRecipeDialog from '@/components/ImportRecipeDialog';
 import NutritionCard from '@/components/NutritionCard';
+import PageHeader from '@/components/PageHeader';
 import { toast } from 'sonner';
 
 export default function SavedRecipes() {
@@ -38,12 +39,8 @@ export default function SavedRecipes() {
   return (
     <div className="min-h-screen bg-background pb-20">
       <div className="px-6 pt-8 pb-4 max-w-md mx-auto w-full">
-        <div className="flex items-center gap-3 mb-6">
-          <button onClick={() => navigate('/dashboard')} className="flex items-center gap-2">
-            <UtensilsCrossed className="h-6 w-6 text-primary" />
-            <span className="font-display text-xl font-bold text-foreground">My Recipes</span>
-          </button>
-          <div className="ml-auto flex items-center gap-2" data-tutorial="saved-actions">
+        <PageHeader title="Recipes">
+          <div className="flex items-center gap-2" data-tutorial="saved-actions">
             <ImportRecipeDialog />
             <Dialog open={createOpen} onOpenChange={setCreateOpen}>
               <DialogTrigger asChild>
@@ -65,7 +62,7 @@ export default function SavedRecipes() {
             </Button>
             <span className="text-sm text-muted-foreground">{saved.length}</span>
           </div>
-        </div>
+        </PageHeader>
       </div>
 
       <div className="px-6 max-w-md mx-auto w-full space-y-4 pb-8">

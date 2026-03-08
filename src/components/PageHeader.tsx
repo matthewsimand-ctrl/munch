@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
-import { UtensilsCrossed } from 'lucide-react';
+import { UtensilsCrossed, User } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface Props {
   title: string;
@@ -15,7 +16,12 @@ export default function PageHeader({ title, children }: Props) {
         <UtensilsCrossed className="h-6 w-6 text-primary" />
         <span className="font-display text-xl font-bold text-foreground">{title}</span>
       </button>
-      {children && <div className="ml-auto flex items-center gap-2">{children}</div>}
+      <div className="ml-auto flex items-center gap-2">
+        {children}
+        <Button variant="ghost" size="icon" onClick={() => navigate('/settings')}>
+          <User className="h-5 w-5" />
+        </Button>
+      </div>
     </div>
   );
 }

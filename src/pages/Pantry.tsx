@@ -152,18 +152,12 @@ export default function Pantry() {
         <div className="flex items-center justify-between mb-4">
           <button onClick={() => navigate('/dashboard')} className="flex items-center gap-2">
             <ChefHat className="h-6 w-6 text-primary" />
-            <span className="font-display text-xl font-bold text-foreground">My Pantry</span>
+            <span className="font-display text-xl font-bold text-foreground">Pantry</span>
           </button>
           <div className="flex items-center gap-1">
-            {user ? (
-              <Button variant="ghost" size="icon" onClick={() => supabase.auth.signOut()}>
-                <LogOut className="h-5 w-5" />
-              </Button>
-            ) : (
-              <Button variant="ghost" size="icon" onClick={() => navigate('/auth')}>
-                <User className="h-5 w-5" />
-              </Button>
-            )}
+            <Button variant="ghost" size="icon" onClick={() => navigate('/settings')}>
+              <User className="h-5 w-5" />
+            </Button>
             <Button onClick={() => navigate('/swipe')} disabled={pantryList.length === 0} size="sm">
               Start Cooking <ArrowRight className="h-4 w-4 ml-1" />
             </Button>

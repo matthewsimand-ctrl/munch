@@ -244,17 +244,35 @@ export default function SpotlightTutorial({ onComplete }: SpotlightTutorialProps
       </svg>
 
       {spotlightRect && (
-        <motion.div
-          layoutId="spotlight-ring"
-          className="absolute border-2 border-primary rounded-xl pointer-events-none"
-          style={{
-            left: spotlightRect.left - pad,
-            top: spotlightRect.top - pad,
-            width: spotlightRect.width + pad * 2,
-            height: spotlightRect.height + pad * 2,
-          }}
-          transition={{ type: 'tween', duration: 0.2, ease: 'easeOut' }}
-        />
+        <>
+          <motion.div
+            layoutId="spotlight-ring"
+            className="absolute border-2 border-primary rounded-xl pointer-events-none"
+            style={{
+              left: spotlightRect.left - pad,
+              top: spotlightRect.top - pad,
+              width: spotlightRect.width + pad * 2,
+              height: spotlightRect.height + pad * 2,
+            }}
+            transition={{ type: 'tween', duration: 0.2, ease: 'easeOut' }}
+          />
+          {/* Pass-through div so users can tap the spotlighted element (e.g. bottom nav tabs) */}
+          <div
+            className="absolute z-[101]"
+            style={{
+              left: spotlightRect.left - pad,
+              top: spotlightRect.top - pad,
+              width: spotlightRect.width + pad * 2,
+              height: spotlightRect.height + pad * 2,
+              pointerEvents: 'auto',
+            }}
+            onClick={() => {
+              // Find and click the actual element behind the spotlight
+              const el = document.querySelector(`[data-tutorial="${activeTarget}"]`) as HTMLElement;
+              if (el) el.click();
+            }}
+          />
+        </>
       )}
 
       <AnimatePresence mode="wait">

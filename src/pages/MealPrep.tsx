@@ -6,7 +6,7 @@ import { useDbRecipes } from '@/hooks/useDbRecipes';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ChevronLeft, ChevronRight, Plus, X, Download, Calendar, CalendarDays, FileText, Table2, GripVertical } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X, Download, Calendar, CalendarDays, FileText, Table2, GripVertical, User } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
@@ -278,6 +278,9 @@ export default function MealPrep() {
               </TooltipTrigger>
               <TooltipContent>Export to Calendar</TooltipContent>
             </Tooltip>
+            <Button variant="ghost" size="icon" onClick={() => navigate('/settings')}>
+              <User className="h-5 w-5" />
+            </Button>
           </div>
         </div>
 
