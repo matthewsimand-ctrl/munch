@@ -35,6 +35,7 @@ interface AppState {
   cacheNutrition: (recipeId: string, data: any) => void;
   addToGrocery: (recipeId: string) => void;
   removeFromGrocery: (recipeId: string) => void;
+  completeTutorial: () => void;
   resetStore: () => void;
 }
 
