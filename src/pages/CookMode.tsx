@@ -47,9 +47,9 @@ export default function CookMode() {
   const [timerSeconds, setTimerSeconds] = useState<number | null>(null);
   const [timerRunning, setTimerRunning] = useState(false);
   const [timerRemaining, setTimerRemaining] = useState(0);
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const synthRef = useRef(window.speechSynthesis);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  
+  const { isSpeaking, speak, stop: stopSpeaking } = useSpeechSynthesis();
 
   const steps = recipe?.instructions ?? [];
   const totalSteps = steps.length;
