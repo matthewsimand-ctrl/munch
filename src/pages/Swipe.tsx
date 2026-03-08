@@ -196,6 +196,8 @@ export default function Swipe() {
                   match={next.match}
                   onSwipe={() => {}}
                   isTop={false}
+                  chefName={next.recipe.created_by ? chefProfiles[next.recipe.created_by]?.display_name : null}
+                  chefId={next.recipe.created_by}
                 />
               )}
               <SwipeCard
@@ -205,6 +207,8 @@ export default function Swipe() {
                 onSwipe={handleSwipe}
                 onImageTap={() => setPreviewOpen(true)}
                 isTop={true}
+                chefName={current.recipe.created_by ? chefProfiles[current.recipe.created_by]?.display_name : null}
+                chefId={current.recipe.created_by}
               />
             </AnimatePresence>
           ) : (
