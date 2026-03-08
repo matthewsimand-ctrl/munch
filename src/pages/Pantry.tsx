@@ -239,6 +239,23 @@ export default function Pantry() {
       </div>
 
       <div className="flex-1 px-6 max-w-md mx-auto w-full space-y-6 overflow-y-auto">
+        {/* Quick-add suggestions */}
+        <div data-tutorial="pantry-quick-add">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Common Staples</p>
+          <div className="flex flex-wrap gap-2">
+            {['salt', 'pepper', 'olive oil', 'garlic', 'onion', 'butter', 'eggs', 'rice', 'flour', 'sugar'].map((item) => (
+              <button
+                key={item}
+                onClick={() => addPantryItem(item)}
+                disabled={pantryList.some(p => p.name === item)}
+                className="px-3 py-1 rounded-full text-xs font-medium border border-border bg-card text-foreground hover:border-primary/50 disabled:opacity-40 disabled:cursor-default transition-all"
+              >
+                + {item}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Ingredient list */}
         <div className="space-y-1.5">
           <AnimatePresence>
