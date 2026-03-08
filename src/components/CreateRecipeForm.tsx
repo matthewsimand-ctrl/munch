@@ -232,8 +232,16 @@ export default function CreateRecipeForm({ onClose }: Props) {
       return;
     }
 
+    // Try server-side check first, fall back to local session
+    let userId: string | undefined;
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    if (user) {
+      userId = user.id;
+    } else {
+      const { data: { session } } = await supabase.auth.getSession();
+      userId = session?.user?.id;
+    }
+    if (!userId) {
       toast({ title: 'Please sign in to create recipes', variant: 'destructive' });
       return;
     }
@@ -253,7 +261,7 @@ export default function CreateRecipeForm({ onClose }: Props) {
         tags,
         instructions: stepList,
         source: 'community',
-        created_by: user.id,
+        created_by: userId,
         is_public: isPublic,
       } as any);
 
