@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import BottomNav from '@/components/BottomNav';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { useStore } from '@/lib/store';
