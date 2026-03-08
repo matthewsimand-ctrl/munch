@@ -15,7 +15,8 @@ interface Props {
   chefId?: string | null;
 }
 
-export default function RecipePreviewDialog({ recipe, match, open, onOpenChange }: Props) {
+export default function RecipePreviewDialog({ recipe, match, open, onOpenChange, chefName, chefId }: Props) {
+  const navigate = useNavigate();
   if (!recipe || !match) return null;
 
   return (
