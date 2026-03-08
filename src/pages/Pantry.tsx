@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import BottomNav from '@/components/BottomNav';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '@/lib/store';
 import { supabase } from '@/integrations/supabase/client';
@@ -39,7 +40,7 @@ export default function Pantry() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col pb-20">
       <div className="px-6 pt-8 pb-4 max-w-md mx-auto w-full">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
@@ -158,6 +159,7 @@ export default function Pantry() {
           {pantryList.length} ingredient{pantryList.length !== 1 ? 's' : ''} in your pantry
         </p>
       </div>
+      <BottomNav />
     </div>
   );
 }

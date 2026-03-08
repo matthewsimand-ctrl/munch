@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import BottomNav from '@/components/BottomNav';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { useStore } from '@/lib/store';
@@ -43,7 +44,7 @@ export default function Swipe() {
   const next = rankedRecipes[currentIndex + 1];
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col pb-20">
       {/* Header */}
       <div className="px-6 pt-6 pb-2 max-w-md mx-auto w-full flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -138,6 +139,7 @@ export default function Swipe() {
           </Button>
         </div>
       )}
+      <BottomNav />
     </div>
   );
 }
