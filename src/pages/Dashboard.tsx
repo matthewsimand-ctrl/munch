@@ -54,8 +54,6 @@ export default function Dashboard() {
   }, []);
 
   const savedCount = likedRecipes.length;
-
-  const savedCount = likedRecipes.length;
   const pantryCount = pantryList.length;
 
   const quickActions = [
