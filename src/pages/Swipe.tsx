@@ -271,6 +271,8 @@ export default function Swipe() {
           match={current.match}
           open={previewOpen}
           onOpenChange={setPreviewOpen}
+          chefName={current.recipe.created_by ? chefProfiles[current.recipe.created_by]?.display_name : null}
+          chefId={current.recipe.created_by}
         />
       )}
 
