@@ -6,7 +6,7 @@ import { useDbRecipes } from '@/hooks/useDbRecipes';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, ChevronLeft, ChevronRight, Plus, X, Download, Calendar, FileText, Table2, GripVertical } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X, Download, Calendar, CalendarDays, FileText, Table2, GripVertical } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import BottomNav from '@/components/BottomNav';
