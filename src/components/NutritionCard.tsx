@@ -29,8 +29,9 @@ interface NutritionCardProps {
   servings?: number;
 }
 
-export default function NutritionCard({ recipeName, ingredients, servings = 1 }: NutritionCardProps) {
-  const [nutrition, setNutrition] = useState<NutritionData | null>(null);
+export default function NutritionCard({ recipeId, recipeName, ingredients, servings = 1 }: NutritionCardProps) {
+  const { cachedNutrition, cacheNutrition } = useStore();
+  const [nutrition, setNutrition] = useState<NutritionData | null>(cachedNutrition[recipeId] || null);
   const [loading, setLoading] = useState(false);
 
   const analyze = async () => {
