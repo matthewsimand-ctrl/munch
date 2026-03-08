@@ -125,6 +125,7 @@ export type Database = {
           instructions: string[]
           is_public: boolean
           name: string
+          servings: number
           source: string | null
           tags: string[]
           updated_at: string
@@ -141,6 +142,7 @@ export type Database = {
           instructions?: string[]
           is_public?: boolean
           name: string
+          servings?: number
           source?: string | null
           tags?: string[]
           updated_at?: string
@@ -157,6 +159,7 @@ export type Database = {
           instructions?: string[]
           is_public?: boolean
           name?: string
+          servings?: number
           source?: string | null
           tags?: string[]
           updated_at?: string
