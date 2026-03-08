@@ -11,7 +11,7 @@ import { useMemo as useMemoAlias } from 'react';
 
 export default function SavedRecipes() {
   const navigate = useNavigate();
-  const { likedRecipes, pantryList, unlikeRecipe } = useStore();
+  const { likedRecipes, pantryList, unlikeRecipe, savedApiRecipes } = useStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const pantryNames = useMemoAlias(() => pantryList.map(p => p.name), [pantryList]);
@@ -19,12 +19,12 @@ export default function SavedRecipes() {
   const saved = useMemo(() => {
     return likedRecipes
       .map((id) => {
-        const recipe = recipes.find((r) => r.id === id);
+        const recipe = recipes.find((r) => r.id === id) || savedApiRecipes[id];
         if (!recipe) return null;
-        return { recipe, match: calculateMatch(pantryNames, recipe.ingredients) };
+        return { recipe, match: calculateMatch(pantryNames, recipe.ingredients), source: (recipe as any).source };
       })
-      .filter(Boolean) as { recipe: (typeof recipes)[0]; match: ReturnType<typeof calculateMatch> }[];
-  }, [likedRecipes, pantryNames]);
+      .filter(Boolean) as { recipe: (typeof recipes)[0]; match: ReturnType<typeof calculateMatch>; source?: string }[];
+  }, [likedRecipes, pantryNames, savedApiRecipes]);
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -52,7 +52,7 @@ export default function SavedRecipes() {
             <Button onClick={() => navigate('/swipe')}>Go to Swipe</Button>
           </div>
         ) : (
-          saved.map(({ recipe, match }) => {
+          saved.map(({ recipe, match, source }) => {
             const expanded = expandedId === recipe.id;
             const borderColor =
               match.status === 'perfect' ? 'border-success' :
@@ -81,6 +81,7 @@ export default function SavedRecipes() {
                       <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{recipe.cookTime}</span>
                       <span className="flex items-center gap-1"><BarChart3 className="h-3 w-3" />{recipe.difficulty}</span>
                       <span className="font-semibold text-primary">{match.percentage}%</span>
+                      {source && <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded">{source}</span>}
                     </div>
                   </div>
                   {expanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}

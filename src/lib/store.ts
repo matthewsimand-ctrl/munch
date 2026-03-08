@@ -17,6 +17,7 @@ interface AppState {
   userProfile: UserProfile;
   pantryList: PantryItem[];
   likedRecipes: string[];
+  savedApiRecipes: Record<string, any>;
   onboardingComplete: boolean;
 
   setUserProfile: (profile: Partial<UserProfile>) => void;
@@ -25,10 +26,11 @@ interface AppState {
   removePantryItem: (name: string) => void;
   updatePantryQuantity: (name: string, quantity: string) => void;
   addPantryItems: (items: string[]) => void;
-  likeRecipe: (id: string) => void;
+  likeRecipe: (id: string, recipeData?: any) => void;
   unlikeRecipe: (id: string) => void;
   resetStore: () => void;
 }
+
 
 const initialProfile: UserProfile = {
   dietaryRestrictions: [],
@@ -42,6 +44,7 @@ export const useStore = create<AppState>()(
       userProfile: initialProfile,
       pantryList: [],
       likedRecipes: [],
+      savedApiRecipes: {},
       onboardingComplete: false,
 
       setUserProfile: (profile) =>
@@ -82,11 +85,14 @@ export const useStore = create<AppState>()(
           return { pantryList: [...state.pantryList, ...newItems] };
         }),
 
-      likeRecipe: (id) =>
+      likeRecipe: (id, recipeData) =>
         set((state) => ({
           likedRecipes: state.likedRecipes.includes(id)
             ? state.likedRecipes
             : [...state.likedRecipes, id],
+          savedApiRecipes: recipeData
+            ? { ...state.savedApiRecipes, [id]: recipeData }
+            : state.savedApiRecipes,
         })),
 
       unlikeRecipe: (id) =>
@@ -99,6 +105,7 @@ export const useStore = create<AppState>()(
           userProfile: initialProfile,
           pantryList: [],
           likedRecipes: [],
+          savedApiRecipes: {},
           onboardingComplete: false,
         }),
     }),
