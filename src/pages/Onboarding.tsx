@@ -92,7 +92,7 @@ export default function Onboarding() {
       <div className="px-6 pt-8 pb-4 max-w-md mx-auto w-full">
         <div className="flex items-center gap-2 mb-6">
           <ChefHat className="h-7 w-7 text-primary" />
-          <span className="font-display text-xl font-bold text-foreground">ChefStack</span>
+          <span className="font-display text-xl font-bold text-foreground">Munch</span>
         </div>
         <Progress value={((step + 1) / 3) * 100} className="h-2 bg-secondary" />
         <p className="text-xs text-muted-foreground mt-2">Step {step + 1} of 3</p>
