@@ -125,12 +125,12 @@ export default function CreateRecipeForm({ onClose }: Props) {
         )}
       </div>
 
-      <div className="flex gap-3">
-        <div className="flex-1">
+      <div className="grid grid-cols-3 gap-3">
+        <div>
           <label className="text-sm font-medium text-foreground">Cook Time</label>
-          <Input value={cookTime} onChange={e => setCookTime(e.target.value)} placeholder="e.g. 25 min" />
+          <Input value={cookTime} onChange={e => setCookTime(e.target.value)} placeholder="25 min" />
         </div>
-        <div className="flex-1">
+        <div>
           <label className="text-sm font-medium text-foreground">Difficulty</label>
           <Select value={difficulty} onValueChange={setDifficulty}>
             <SelectTrigger><SelectValue /></SelectTrigger>
@@ -140,6 +140,10 @@ export default function CreateRecipeForm({ onClose }: Props) {
               <SelectItem value="Advanced">Advanced</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+        <div>
+          <label className="text-sm font-medium text-foreground">Cuisine</label>
+          <Input value={cuisine} onChange={e => setCuisine(e.target.value)} placeholder="Italian" />
         </div>
       </div>
 
