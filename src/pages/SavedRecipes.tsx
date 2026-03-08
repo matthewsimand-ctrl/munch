@@ -11,7 +11,7 @@ import { useMemo as useMemoAlias } from 'react';
 
 export default function SavedRecipes() {
   const navigate = useNavigate();
-  const { likedRecipes, pantryList, unlikeRecipe } = useStore();
+  const { likedRecipes, pantryList, unlikeRecipe, savedApiRecipes } = useStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const pantryNames = useMemoAlias(() => pantryList.map(p => p.name), [pantryList]);
@@ -19,12 +19,12 @@ export default function SavedRecipes() {
   const saved = useMemo(() => {
     return likedRecipes
       .map((id) => {
-        const recipe = recipes.find((r) => r.id === id);
+        const recipe = recipes.find((r) => r.id === id) || savedApiRecipes[id];
         if (!recipe) return null;
-        return { recipe, match: calculateMatch(pantryNames, recipe.ingredients) };
+        return { recipe, match: calculateMatch(pantryNames, recipe.ingredients), source: (recipe as any).source };
       })
-      .filter(Boolean) as { recipe: (typeof recipes)[0]; match: ReturnType<typeof calculateMatch> }[];
-  }, [likedRecipes, pantryNames]);
+      .filter(Boolean) as { recipe: (typeof recipes)[0]; match: ReturnType<typeof calculateMatch>; source?: string }[];
+  }, [likedRecipes, pantryNames, savedApiRecipes]);
 
   return (
     <div className="min-h-screen bg-background pb-20">
