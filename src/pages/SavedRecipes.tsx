@@ -5,7 +5,7 @@ import { useStore } from '@/lib/store';
 import { useDbRecipes } from '@/hooks/useDbRecipes';
 import { calculateMatch } from '@/lib/matchLogic';
 import { Button } from '@/components/ui/button';
-import { Clock, BarChart3, Check, ShoppingCart, ChevronDown, ChevronUp, Play, Plus, Trash2 } from 'lucide-react';
+import { Clock, BarChart3, Check, ShoppingCart, ChevronDown, ChevronUp, Play, Plus, Trash2, Link, Upload } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
@@ -38,34 +38,36 @@ export default function SavedRecipes() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <div className="px-4 pt-8 pb-4 max-w-md mx-auto w-full">
+      <div className="px-4 pt-8 pb-2 max-w-2xl mx-auto w-full">
         <PageHeader title="Recipes">
-          <div className="flex items-center gap-1.5 flex-wrap" data-tutorial="saved-actions">
-            <ImportRecipeDialog />
-            <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm">
-                  <Plus className="h-4 w-4 mr-1" /> Create
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-md max-h-[90vh]">
-                <DialogHeader>
-                  <DialogTitle>Create Recipe</DialogTitle>
-                </DialogHeader>
-                <div className="max-h-[70vh] overflow-y-auto pr-2 pl-1 pb-2">
-                  <CreateRecipeForm onClose={() => setCreateOpen(false)} />
-                </div>
-              </DialogContent>
-            </Dialog>
-            <Button variant="outline" size="sm" onClick={() => navigate('/grocery')}>
-              <ShoppingCart className="h-4 w-4 mr-1" /> Grocery
-            </Button>
-            <span className="text-sm text-muted-foreground">{saved.length}</span>
-          </div>
+          <span className="text-sm text-muted-foreground font-medium">{saved.length} saved</span>
         </PageHeader>
+
+        {/* Action row — clean horizontal bar below header */}
+        <div className="flex items-center gap-2 mt-1" data-tutorial="saved-actions">
+          <ImportRecipeDialog />
+          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" variant="default">
+                <Plus className="h-4 w-4 mr-1" /> Create
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md max-h-[90vh]">
+              <DialogHeader>
+                <DialogTitle>Create Recipe</DialogTitle>
+              </DialogHeader>
+              <div className="max-h-[70vh] overflow-y-auto pr-2 pl-1 pb-2">
+                <CreateRecipeForm onClose={() => setCreateOpen(false)} />
+              </div>
+            </DialogContent>
+          </Dialog>
+          <Button variant="outline" size="sm" onClick={() => navigate('/grocery')}>
+            <ShoppingCart className="h-4 w-4 mr-1" /> Grocery
+          </Button>
+        </div>
       </div>
 
-      <div className="px-4 max-w-md mx-auto w-full space-y-4 pb-8">
+      <div className="px-4 max-w-2xl mx-auto w-full space-y-3 pb-8 mt-4">
         {saved.length === 0 ? (
           <div className="text-center py-16">
             <p className="text-muted-foreground mb-4">No saved recipes yet. Start swiping!</p>
@@ -168,7 +170,6 @@ export default function SavedRecipes() {
 
                         {/* Action bar */}
                         <div className="flex items-center justify-between gap-2">
-                          {/* Left: Grocery */}
                           <div className="flex-1">
                             {match.missing.length > 0 && (
                               isInGrocery ? (
@@ -196,8 +197,6 @@ export default function SavedRecipes() {
                               )
                             )}
                           </div>
-
-                          {/* Right: Cook */}
                           <Button
                             size="sm"
                             onClick={() => navigate(`/cook/${recipe.id}`)}
