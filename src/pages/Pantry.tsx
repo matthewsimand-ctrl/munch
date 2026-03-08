@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import BottomNav from '@/components/BottomNav';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '@/lib/store';
@@ -7,8 +7,9 @@ import { getCategory, getAllCategories, type IngredientCategory } from '@/lib/in
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, X, Camera, Lock, ArrowRight, ChefHat, User, LogOut, SlidersHorizontal } from 'lucide-react';
+import { Plus, X, Camera, ArrowRight, ChefHat, User, LogOut, SlidersHorizontal, Loader2, Sparkles, ImagePlus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useToast } from '@/hooks/use-toast';
 
 const QUANTITY_OPTIONS = ['1', '2', '3', '4', '5', '½', '¼', '100g', '200g', '500g', '1kg', '1L'];
 const SORT_OPTIONS = [
@@ -19,12 +20,17 @@ const SORT_OPTIONS = [
 
 export default function Pantry() {
   const navigate = useNavigate();
-  const { pantryList, addPantryItem, removePantryItem, updatePantryQuantity } = useStore();
+  const { toast } = useToast();
+  const { pantryList, addPantryItem, addPantryItems, removePantryItem, updatePantryQuantity } = useStore();
   const [input, setInput] = useState('');
   const [quantity, setQuantity] = useState('1');
   const [user, setUser] = useState<any>(null);
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [sortBy, setSortBy] = useState('recent');
+  const [scanning, setScanning] = useState(false);
+  const [scannedItems, setScannedItems] = useState<string[] | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
@@ -33,6 +39,62 @@ export default function Pantry() {
     supabase.auth.getSession().then(({ data: { session } }) => setUser(session?.user ?? null));
     return () => subscription.unsubscribe();
   }, []);
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // Show preview
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    setScanning(true);
+    setScannedItems(null);
+
+    try {
+      // Convert to base64
+      const reader = new FileReader();
+      const base64 = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const { data, error } = await supabase.functions.invoke('scan-fridge', {
+        body: { imageBase64: base64 },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      const ingredients: string[] = data?.ingredients || [];
+      if (ingredients.length === 0) {
+        toast({ title: 'No ingredients found', description: 'Try a clearer photo of your fridge or pantry.' });
+      } else {
+        setScannedItems(ingredients);
+      }
+    } catch (err: any) {
+      console.error('Fridge scan error:', err);
+      toast({ title: 'Scan failed', description: err.message || 'Could not analyze the image.', variant: 'destructive' });
+      setPreviewUrl(null);
+    } finally {
+      setScanning(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const acceptScannedItems = () => {
+    if (scannedItems) {
+      addPantryItems(scannedItems);
+      toast({ title: `Added ${scannedItems.length} ingredients`, description: 'Items added to your pantry.' });
+      setScannedItems(null);
+      setPreviewUrl(null);
+    }
+  };
+
+  const dismissScan = () => {
+    setScannedItems(null);
+    setPreviewUrl(null);
+  };
 
   const categorizedItems = useMemo(() => {
     return pantryList.map((item, index) => ({
@@ -202,17 +264,69 @@ export default function Pantry() {
           )}
         </div>
 
-        {/* Premium photo upload mock */}
-        <div className="relative rounded-xl border-2 border-dashed border-border bg-card/50 p-6 text-center overflow-hidden">
-          <div className="absolute inset-0 bg-background/60 backdrop-blur-sm z-10 flex flex-col items-center justify-center">
-            <Lock className="h-6 w-6 text-muted-foreground mb-2" />
-            <span className="text-sm font-semibold text-foreground">Premium Feature</span>
-            <span className="text-xs text-muted-foreground mt-1">Snap your fridge, we'll list the ingredients</span>
+        {/* AI Fridge Scanner */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={handlePhotoUpload}
+        />
+        
+        {scannedItems ? (
+          <div className="rounded-xl border-2 border-primary/30 bg-card p-4 space-y-3">
+            {previewUrl && (
+              <img src={previewUrl} alt="Scanned" className="w-full h-32 object-cover rounded-lg" />
+            )}
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary" />
+              <span className="text-sm font-semibold text-foreground">Found {scannedItems.length} ingredients</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {scannedItems.map(item => (
+                <span
+                  key={item}
+                  className="px-2.5 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20"
+                >
+                  {item}
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={acceptScannedItems} size="sm" className="flex-1">
+                <Plus className="h-4 w-4 mr-1" /> Add All to Pantry
+              </Button>
+              <Button onClick={dismissScan} variant="outline" size="sm">
+                Dismiss
+              </Button>
+            </div>
           </div>
-          <Camera className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-          <p className="text-sm text-muted-foreground">Upload a photo of your fridge</p>
-          <Button variant="outline" size="sm" className="mt-3" disabled>Upload Photo</Button>
-        </div>
+        ) : (
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={scanning}
+            className="w-full rounded-xl border-2 border-dashed border-primary/30 bg-card/50 p-6 text-center hover:border-primary/60 hover:bg-card transition-all disabled:opacity-60"
+          >
+            {scanning ? (
+              <>
+                <Loader2 className="h-10 w-10 text-primary mx-auto mb-3 animate-spin" />
+                <p className="text-sm font-semibold text-foreground">Analyzing your fridge...</p>
+                <p className="text-xs text-muted-foreground mt-1">AI is identifying ingredients</p>
+              </>
+            ) : (
+              <>
+                <div className="relative inline-block">
+                  <Camera className="h-10 w-10 text-primary mx-auto mb-3" />
+                  <Sparkles className="h-4 w-4 text-accent absolute -top-1 -right-1" />
+                </div>
+                <p className="text-sm font-semibold text-foreground">Scan Your Fridge</p>
+                <p className="text-xs text-muted-foreground mt-1">Take a photo and AI will identify ingredients</p>
+              </>
+            )}
+          </button>
+        )}
+
 
         {/* Quick-add suggestions */}
         <div>
