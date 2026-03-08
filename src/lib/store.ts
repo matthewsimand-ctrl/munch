@@ -59,6 +59,9 @@ export const useStore = create<AppState>()(
       groceryRecipes: [],
       onboardingComplete: false,
       tutorialComplete: false,
+      showTutorial: false,
+
+      setShowTutorial: (show) => set({ showTutorial: show }),
 
       setUserProfile: (profile) =>
         set((state) => ({
