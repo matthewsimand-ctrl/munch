@@ -26,6 +26,8 @@ export default function Swipe() {
   const [user, setUser] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [mealFilter, setMealFilter] = useState<MealCategory>('all');
+  const suggestedCategory = useMemo(() => getTimeBasedCategory(), []);
   const { apiRecipes, loading: searchLoading, searched, search } = useRecipeSearch();
   const { data: dbRecipes = [], isLoading: dbLoading } = useDbRecipes();
   const { recipes: browseRecipes, loading: browseLoading, loaded: browseLoaded, loadFeed } = useBrowseFeed();
