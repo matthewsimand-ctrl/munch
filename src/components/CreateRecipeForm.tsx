@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, X, Loader2, Camera, ClipboardPaste, Globe } from 'lucide-react';
+import { Plus, X, Loader2, Camera, ClipboardPaste, Globe, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -168,6 +168,8 @@ export default function CreateRecipeForm({ onClose }: Props) {
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
   const [fetchingPhoto, setFetchingPhoto] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const [showPaste, setShowPaste] = useState(false);
   const [pasteText, setPasteText] = useState('');
 
@@ -207,6 +209,46 @@ export default function CreateRecipeForm({ onClose }: Props) {
       toast({ title: 'Could not fetch photo', variant: 'destructive' });
     } finally {
       setFetchingPhoto(false);
+    }
+  };
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast({ title: 'Please select an image file', variant: 'destructive' });
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: 'Image too large (max 5MB)', variant: 'destructive' });
+      return;
+    }
+
+    setUploadingPhoto(true);
+    try {
+      const session = (await supabase.auth.getSession()).data.session;
+      const userId = session?.user?.id || 'anonymous';
+      const ext = file.name.split('.').pop() || 'jpg';
+      const filePath = `${userId}/${Date.now()}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('recipe-photos')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('recipe-photos')
+        .getPublicUrl(filePath);
+
+      setImage(publicUrl);
+      toast({ title: 'Photo uploaded!' });
+    } catch (err: any) {
+      console.error('Photo upload error:', err);
+      toast({ title: 'Upload failed', description: err.message, variant: 'destructive' });
+    } finally {
+      setUploadingPhoto(false);
     }
   };
 
@@ -325,9 +367,24 @@ export default function CreateRecipeForm({ onClose }: Props) {
         <label className="text-sm font-medium text-foreground">Photo</label>
         <div className="flex gap-2 mt-1">
           <Input value={image} onChange={e => setImage(e.target.value)} placeholder="Image URL (optional)" className="flex-1" />
+          <input
+            ref={photoInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handlePhotoUpload}
+            className="hidden"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => photoInputRef.current?.click()}
+            disabled={uploadingPhoto}
+          >
+            {uploadingPhoto ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+          </Button>
           <Button type="button" variant="outline" size="sm" onClick={fetchRandomPhoto} disabled={fetchingPhoto}>
             {fetchingPhoto ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
-            Random
           </Button>
         </div>
         {image && (
