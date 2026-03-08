@@ -112,6 +112,11 @@ export default function SwipeCard({ recipe, match, onSwipe, onImageTap, isTop, c
                 <MapPin className="h-4 w-4" /> {recipe.cuisine}
               </span>
             )}
+            {recipe.servings && (
+              <span className="flex items-center gap-1">
+                <Users className="h-4 w-4" /> {recipe.servings} servings
+              </span>
+            )}
           </div>
 
           {/* Ingredient status */}

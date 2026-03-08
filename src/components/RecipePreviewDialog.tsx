@@ -4,7 +4,7 @@ import type { MatchResult } from '@/lib/matchLogic';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Clock, BarChart3, Check, ShoppingCart, MapPin, ChefHat } from 'lucide-react';
+import { Clock, BarChart3, Check, ShoppingCart, MapPin, ChefHat, Users } from 'lucide-react';
 
 interface Props {
   recipe: Recipe | null;
