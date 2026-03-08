@@ -8,6 +8,7 @@ import Onboarding from "./pages/Onboarding";
 import Pantry from "./pages/Pantry";
 import Swipe from "./pages/Swipe";
 import SavedRecipes from "./pages/SavedRecipes";
+import CookMode from "./pages/CookMode";
 import GroceryList from "./pages/GroceryList";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
