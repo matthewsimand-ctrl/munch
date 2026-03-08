@@ -40,6 +40,62 @@ export default function Pantry() {
     return () => subscription.unsubscribe();
   }, []);
 
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // Show preview
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    setScanning(true);
+    setScannedItems(null);
+
+    try {
+      // Convert to base64
+      const reader = new FileReader();
+      const base64 = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const { data, error } = await supabase.functions.invoke('scan-fridge', {
+        body: { imageBase64: base64 },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      const ingredients: string[] = data?.ingredients || [];
+      if (ingredients.length === 0) {
+        toast({ title: 'No ingredients found', description: 'Try a clearer photo of your fridge or pantry.' });
+      } else {
+        setScannedItems(ingredients);
+      }
+    } catch (err: any) {
+      console.error('Fridge scan error:', err);
+      toast({ title: 'Scan failed', description: err.message || 'Could not analyze the image.', variant: 'destructive' });
+      setPreviewUrl(null);
+    } finally {
+      setScanning(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const acceptScannedItems = () => {
+    if (scannedItems) {
+      addPantryItems(scannedItems);
+      toast({ title: `Added ${scannedItems.length} ingredients`, description: 'Items added to your pantry.' });
+      setScannedItems(null);
+      setPreviewUrl(null);
+    }
+  };
+
+  const dismissScan = () => {
+    setScannedItems(null);
+    setPreviewUrl(null);
+  };
+
   const categorizedItems = useMemo(() => {
     return pantryList.map((item, index) => ({
       ...item,
