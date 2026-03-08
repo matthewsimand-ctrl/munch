@@ -406,6 +406,24 @@ export default function CreateRecipeForm({ onClose }: Props) {
         <p className="text-xs text-muted-foreground mt-1">Put each step on a new line.</p>
       </div>
 
+      <div className="flex items-start space-x-3 rounded-lg border border-border p-3 bg-muted/30">
+        <Checkbox
+          id="is-public"
+          checked={isPublic}
+          onCheckedChange={(checked) => setIsPublic(checked === true)}
+          className="mt-0.5"
+        />
+        <div className="space-y-0.5">
+          <label htmlFor="is-public" className="text-sm font-medium text-foreground flex items-center gap-1.5 cursor-pointer">
+            <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+            Make discoverable by other users
+          </label>
+          <p className="text-xs text-muted-foreground">
+            Your recipe will appear in the Browse section for everyone to find.
+          </p>
+        </div>
+      </div>
+
       <div className="flex gap-2 pt-2">
         <Button onClick={handleSubmit} disabled={loading} className="flex-1">
           {loading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
