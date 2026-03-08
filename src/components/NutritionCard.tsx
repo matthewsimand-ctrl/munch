@@ -47,6 +47,7 @@ export default function NutritionCard({ recipeId, recipeName, ingredients, servi
       }
 
       setNutrition(data.nutrition);
+      cacheNutrition(recipeId, data.nutrition);
     } catch (err) {
       console.error('Nutrition error:', err);
       toast.error('Something went wrong');
