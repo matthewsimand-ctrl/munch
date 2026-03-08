@@ -80,7 +80,7 @@ export default function SwipeCard({ recipe, match, onSwipe, isTop }: SwipeCardPr
 
           <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
             <span className="flex items-center gap-1">
-              <Clock className="h-4 w-4" /> {recipe.cookTime}
+              <Clock className="h-4 w-4" /> {recipe.cook_time}
             </span>
             <span className="flex items-center gap-1">
               <BarChart3 className="h-4 w-4" /> {recipe.difficulty}

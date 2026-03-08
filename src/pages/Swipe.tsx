@@ -3,7 +3,7 @@ import BottomNav from '@/components/BottomNav';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { useStore } from '@/lib/store';
-import { recipes as localRecipes } from '@/data/recipes';
+import { useDbRecipes } from '@/hooks/useDbRecipes';
 import { calculateMatch } from '@/lib/matchLogic';
 import SwipeCard from '@/components/SwipeCard';
 import { Button } from '@/components/ui/button';

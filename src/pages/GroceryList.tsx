@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import BottomNav from '@/components/BottomNav';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '@/lib/store';
-import { recipes } from '@/data/recipes';
+import { useDbRecipes } from '@/hooks/useDbRecipes';
 import { calculateMatch } from '@/lib/matchLogic';
 import { getCategory, getAisleIndex, type IngredientCategory } from '@/lib/ingredientCategories';
 import { Button } from '@/components/ui/button';
