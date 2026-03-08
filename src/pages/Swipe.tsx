@@ -36,8 +36,8 @@ export default function Swipe() {
   // Merge local + API recipes
   const allRecipes = useMemo(() => {
     if (apiRecipes.length > 0) return apiRecipes;
-    return localRecipes;
-  }, [apiRecipes]);
+    return dbRecipes;
+  }, [apiRecipes, dbRecipes]);
 
   const rankedRecipes = useMemo(() => {
     return allRecipes
