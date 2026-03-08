@@ -212,6 +212,46 @@ export default function CreateRecipeForm({ onClose }: Props) {
     }
   };
 
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast({ title: 'Please select an image file', variant: 'destructive' });
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: 'Image too large (max 5MB)', variant: 'destructive' });
+      return;
+    }
+
+    setUploadingPhoto(true);
+    try {
+      const session = (await supabase.auth.getSession()).data.session;
+      const userId = session?.user?.id || 'anonymous';
+      const ext = file.name.split('.').pop() || 'jpg';
+      const filePath = `${userId}/${Date.now()}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('recipe-photos')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('recipe-photos')
+        .getPublicUrl(filePath);
+
+      setImage(publicUrl);
+      toast({ title: 'Photo uploaded!' });
+    } catch (err: any) {
+      console.error('Photo upload error:', err);
+      toast({ title: 'Upload failed', description: err.message, variant: 'destructive' });
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
   const addIngredient = () => {
     const val = ingredientInput.trim().toLowerCase();
     if (val && !ingredients.includes(val)) {
