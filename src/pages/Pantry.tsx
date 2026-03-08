@@ -46,6 +46,15 @@ export default function Pantry() {
             <ChefHat className="h-7 w-7 text-primary" />
             <span className="font-display text-xl font-bold text-foreground">My Pantry</span>
           </div>
+          {user ? (
+            <Button variant="ghost" size="icon" onClick={() => supabase.auth.signOut()}>
+              <LogOut className="h-5 w-5" />
+            </Button>
+          ) : (
+            <Button variant="ghost" size="icon" onClick={() => navigate('/auth')}>
+              <User className="h-5 w-5" />
+            </Button>
+          )}
           <Button
             onClick={() => navigate('/swipe')}
             disabled={pantryList.length === 0}
