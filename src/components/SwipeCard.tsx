@@ -45,18 +45,18 @@ export default function SwipeCard({ recipe, match, onSwipe, onImageTap, isTop, c
       whileDrag={{ scale: 1.02 }}
       exit={{ x: x.get() > 0 ? 400 : -400, opacity: 0, transition: { duration: 0.3 } }}
     >
-      <div className={`h-full rounded-2xl border-2 ${borderColor} bg-card shadow-lg overflow-hidden flex flex-col`}>
+      <div
+        className={`h-full rounded-2xl border-2 ${borderColor} bg-card shadow-lg overflow-hidden flex flex-col cursor-pointer`}
+        onClick={(e) => {
+          // Only trigger tap if not dragging
+          if (Math.abs(x.get()) < 5 && onImageTap) {
+            e.stopPropagation();
+            onImageTap();
+          }
+        }}
+      >
         {/* Image */}
-        <div
-          className="relative h-56 bg-muted overflow-hidden flex-shrink-0 cursor-pointer"
-          onClick={(e) => {
-            // Only trigger tap if not dragging
-            if (Math.abs(x.get()) < 5 && onImageTap) {
-              e.stopPropagation();
-              onImageTap();
-            }
-          }}
-        >
+        <div className="relative h-56 bg-muted overflow-hidden flex-shrink-0">
           <img
             src={recipe.image}
             alt={recipe.name}
