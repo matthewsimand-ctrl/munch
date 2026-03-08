@@ -154,6 +154,7 @@ export default function SavedRecipes() {
 
                         {/* Nutrition */}
                         <NutritionCard
+                          recipeId={recipe.id}
                           recipeName={recipe.name}
                           ingredients={recipe.ingredients}
                           servings={1}
