@@ -29,6 +29,7 @@ interface AppState {
   addPantryItems: (items: string[]) => void;
   likeRecipe: (id: string, recipeData?: any) => void;
   unlikeRecipe: (id: string) => void;
+  cacheNutrition: (recipeId: string, data: any) => void;
   resetStore: () => void;
 }
 
