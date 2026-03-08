@@ -26,7 +26,7 @@ export default function SavedRecipes() {
   }, [likedRecipes, pantryNames]);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-20">
       <div className="px-6 pt-8 pb-4 max-w-md mx-auto w-full">
         <div className="flex items-center gap-3 mb-6">
           <Button variant="ghost" size="icon" onClick={() => navigate('/swipe')}>
