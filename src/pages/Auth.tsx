@@ -32,7 +32,7 @@ export default function Auth() {
     setLoading(true);
     try {
       if (!isLogin && password !== confirmPassword) {
-        toast({ title: 'Passwords don't match', description: 'Please make sure both passwords are the same.', variant: 'destructive' });
+        toast({ title: "Passwords don't match", description: 'Please make sure both passwords are the same.', variant: 'destructive' });
         setLoading(false);
         return;
       }
