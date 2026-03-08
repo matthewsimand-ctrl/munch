@@ -16,6 +16,7 @@ export default function SavedRecipes() {
   const navigate = useNavigate();
   const { likedRecipes, pantryList, unlikeRecipe, savedApiRecipes } = useStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
   const { data: dbRecipes = [] } = useDbRecipes();
 
   const pantryNames = useMemoAlias(() => pantryList.map(p => p.name), [pantryList]);
