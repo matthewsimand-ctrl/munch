@@ -273,7 +273,7 @@ export default function Onboarding() {
                       <Chip
                         key={opt}
                         label={opt}
-                        selected={userProfile.cuisinePreferences.includes(opt)}
+                        selected={(userProfile.cuisinePreferences ?? []).includes(opt)}
                         onClick={() => toggleCuisine(opt)}
                       />
                     ))}
