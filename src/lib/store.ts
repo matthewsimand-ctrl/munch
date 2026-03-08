@@ -7,16 +7,22 @@ export interface UserProfile {
   flavorProfiles: string[];
 }
 
+export interface PantryItem {
+  name: string;
+  quantity: string;
+}
+
 interface AppState {
   userProfile: UserProfile;
-  pantryList: string[];
+  pantryList: PantryItem[];
   likedRecipes: string[];
   onboardingComplete: boolean;
 
   setUserProfile: (profile: Partial<UserProfile>) => void;
   completeOnboarding: () => void;
-  addPantryItem: (item: string) => void;
-  removePantryItem: (item: string) => void;
+  addPantryItem: (name: string, quantity?: string) => void;
+  removePantryItem: (name: string) => void;
+  updatePantryQuantity: (name: string, quantity: string) => void;
   addPantryItems: (items: string[]) => void;
   likeRecipe: (id: string) => void;
   unlikeRecipe: (id: string) => void;
