@@ -103,12 +103,18 @@ export const useStore = create<AppState>()(
           likedRecipes: state.likedRecipes.filter((r) => r !== id),
         })),
 
+      cacheNutrition: (recipeId, data) =>
+        set((state) => ({
+          cachedNutrition: { ...state.cachedNutrition, [recipeId]: data },
+        })),
+
       resetStore: () =>
         set({
           userProfile: initialProfile,
           pantryList: [],
           likedRecipes: [],
           savedApiRecipes: {},
+          cachedNutrition: {},
           onboardingComplete: false,
         }),
     }),
