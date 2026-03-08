@@ -252,7 +252,7 @@ export default function Onboarding() {
                       <Chip
                         key={opt}
                         label={opt}
-                        selected={userProfile.flavorProfiles.includes(opt)}
+                        selected={(userProfile.flavorProfiles ?? []).includes(opt)}
                         onClick={() => toggleFlavor(opt)}
                       />
                     ))}
