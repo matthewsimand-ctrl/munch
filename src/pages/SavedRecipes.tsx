@@ -128,14 +128,22 @@ export default function SavedRecipes() {
                           </ol>
                         </div>
 
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-destructive border-destructive/30 hover:bg-destructive hover:text-destructive-foreground"
-                          onClick={() => unlikeRecipe(recipe.id)}
-                        >
-                          Remove
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => navigate(`/cook/${recipe.id}`)}
+                          >
+                            <Play className="h-4 w-4 mr-1" /> Cook
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-destructive border-destructive/30 hover:bg-destructive hover:text-destructive-foreground"
+                            onClick={() => unlikeRecipe(recipe.id)}
+                          >
+                            Remove
+                          </Button>
+                        </div>
                       </div>
                     </motion.div>
                   )}

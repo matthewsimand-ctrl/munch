@@ -28,6 +28,7 @@ const App = () => (
           <Route path="/pantry" element={<Pantry />} />
           <Route path="/swipe" element={<Swipe />} />
           <Route path="/saved" element={<SavedRecipes />} />
+          <Route path="/cook/:id" element={<CookMode />} />
           <Route path="/grocery" element={<GroceryList />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
