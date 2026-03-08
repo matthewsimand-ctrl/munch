@@ -264,16 +264,68 @@ export default function Pantry() {
           )}
         </div>
 
-        {/* Premium photo upload mock */}
-        <div className="relative rounded-xl border-2 border-dashed border-border bg-card/50 p-6 text-center overflow-hidden">
-          <div className="absolute inset-0 bg-background/60 backdrop-blur-sm z-10 flex flex-col items-center justify-center">
-            <Lock className="h-6 w-6 text-muted-foreground mb-2" />
-            <span className="text-sm font-semibold text-foreground">Premium Feature</span>
-            <span className="text-xs text-muted-foreground mt-1">Snap your fridge, we'll list the ingredients</span>
+        {/* AI Fridge Scanner */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={handlePhotoUpload}
+        />
+        
+        {scannedItems ? (
+          <div className="rounded-xl border-2 border-primary/30 bg-card p-4 space-y-3">
+            {previewUrl && (
+              <img src={previewUrl} alt="Scanned" className="w-full h-32 object-cover rounded-lg" />
+            )}
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary" />
+              <span className="text-sm font-semibold text-foreground">Found {scannedItems.length} ingredients</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {scannedItems.map(item => (
+                <span
+                  key={item}
+                  className="px-2.5 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20"
+                >
+                  {item}
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={acceptScannedItems} size="sm" className="flex-1">
+                <Plus className="h-4 w-4 mr-1" /> Add All to Pantry
+              </Button>
+              <Button onClick={dismissScan} variant="outline" size="sm">
+                Dismiss
+              </Button>
+            </div>
           </div>
-          <Camera className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-          <p className="text-sm text-muted-foreground">Upload a photo of your fridge</p>
-          <Button variant="outline" size="sm" className="mt-3" disabled>Upload Photo</Button>
+        ) : (
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={scanning}
+            className="w-full rounded-xl border-2 border-dashed border-primary/30 bg-card/50 p-6 text-center hover:border-primary/60 hover:bg-card transition-all disabled:opacity-60"
+          >
+            {scanning ? (
+              <>
+                <Loader2 className="h-10 w-10 text-primary mx-auto mb-3 animate-spin" />
+                <p className="text-sm font-semibold text-foreground">Analyzing your fridge...</p>
+                <p className="text-xs text-muted-foreground mt-1">AI is identifying ingredients</p>
+              </>
+            ) : (
+              <>
+                <div className="relative inline-block">
+                  <Camera className="h-10 w-10 text-primary mx-auto mb-3" />
+                  <Sparkles className="h-4 w-4 text-accent absolute -top-1 -right-1" />
+                </div>
+                <p className="text-sm font-semibold text-foreground">Scan Your Fridge</p>
+                <p className="text-xs text-muted-foreground mt-1">Take a photo and AI will identify ingredients</p>
+              </>
+            )}
+          </button>
+        )
         </div>
 
         {/* Quick-add suggestions */}
