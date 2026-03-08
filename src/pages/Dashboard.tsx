@@ -25,6 +25,7 @@ export default function Dashboard() {
   const { data: dbRecipes = [] } = useDbRecipes();
   const [user, setUser] = useState<any>(null);
   const [greeting, setGreeting] = useState('');
+  const [displayName, setDisplayName] = useState('');
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -33,6 +34,15 @@ export default function Dashboard() {
         return;
       }
       setUser(session.user);
+      // Fetch display name from profile
+      supabase
+        .from('profiles')
+        .select('display_name')
+        .eq('user_id', session.user.id)
+        .single()
+        .then(({ data }) => {
+          setDisplayName(data?.display_name || session.user.email?.split('@')[0] || '');
+        });
     });
   }, [navigate]);
 
@@ -42,8 +52,6 @@ export default function Dashboard() {
     else if (hour < 17) setGreeting('Good afternoon');
     else setGreeting('Good evening');
   }, []);
-
-  const displayName = user?.user_metadata?.display_name || user?.email?.split('@')[0] || '';
 
   const savedCount = likedRecipes.length;
   const pantryCount = pantryList.length;

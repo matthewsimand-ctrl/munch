@@ -6,9 +6,26 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, LogOut, User, Users, Utensils, Trash2 } from 'lucide-react';
+import { ArrowLeft, LogOut, User, Users, Utensils, Trash2, Flame } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import BottomNav from '@/components/BottomNav';
+
+const DIETARY_OPTIONS = ['Vegetarian', 'Vegan', 'Gluten-Free', 'Dairy-Free', 'Nut-Free', 'None'];
+const SKILL_OPTIONS = ['Beginner', 'Intermediate', 'Advanced'];
+const FLAVOR_OPTIONS = ['Spicy', 'Sweet', 'Savory', 'Umami', 'Fresh/Citrusy'];
+
+const Chip = ({ label, selected, onClick }: { label: string; selected: boolean; onClick: () => void }) => (
+  <button
+    onClick={onClick}
+    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
+      selected
+        ? 'bg-primary text-primary-foreground border-primary'
+        : 'bg-card text-foreground border-border hover:border-primary/50'
+    }`}
+  >
+    {label}
+  </button>
+);
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -26,7 +43,6 @@ export default function Settings() {
         return;
       }
       setUser(session.user);
-      // Load profile
       supabase
         .from('profiles')
         .select('display_name, default_servings')
@@ -40,6 +56,28 @@ export default function Settings() {
         });
     });
   }, [navigate]);
+
+  const toggleDietary = (item: string) => {
+    if (item === 'None') {
+      setUserProfile({ dietaryRestrictions: ['None'] });
+      return;
+    }
+    const current = userProfile.dietaryRestrictions.filter(d => d !== 'None');
+    setUserProfile({
+      dietaryRestrictions: current.includes(item)
+        ? current.filter(d => d !== item)
+        : [...current, item],
+    });
+  };
+
+  const toggleFlavor = (item: string) => {
+    const current = userProfile.flavorProfiles;
+    setUserProfile({
+      flavorProfiles: current.includes(item)
+        ? current.filter(f => f !== item)
+        : [...current, item],
+    });
+  };
 
   const handleSave = async () => {
     if (!user) return;
@@ -94,6 +132,7 @@ export default function Settings() {
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   placeholder="Your name"
+                  maxLength={50}
                 />
               </div>
             </div>
@@ -105,7 +144,7 @@ export default function Settings() {
               <Utensils className="h-4 w-4" />
               <span className="text-sm font-semibold uppercase tracking-wide">Cooking Preferences</span>
             </div>
-            <div className="space-y-3 bg-card rounded-xl p-4 border border-border">
+            <div className="space-y-4 bg-card rounded-xl p-4 border border-border">
               <div>
                 <Label>Default Servings</Label>
                 <p className="text-xs text-muted-foreground mb-2">How many people are you usually cooking for?</p>
@@ -123,17 +162,47 @@ export default function Settings() {
                   </SelectContent>
                 </Select>
               </div>
+
               <div>
                 <Label>Skill Level</Label>
-                <p className="text-sm text-muted-foreground">{userProfile.skillLevel || 'Not set'}</p>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {SKILL_OPTIONS.map((opt) => (
+                    <Chip
+                      key={opt}
+                      label={opt}
+                      selected={userProfile.skillLevel === opt}
+                      onClick={() => setUserProfile({ skillLevel: opt })}
+                    />
+                  ))}
+                </div>
               </div>
+
               <div>
                 <Label>Dietary Restrictions</Label>
-                <p className="text-sm text-muted-foreground">
-                  {userProfile.dietaryRestrictions.length > 0
-                    ? userProfile.dietaryRestrictions.join(', ')
-                    : 'None set'}
-                </p>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {DIETARY_OPTIONS.map((opt) => (
+                    <Chip
+                      key={opt}
+                      label={opt}
+                      selected={userProfile.dietaryRestrictions.includes(opt)}
+                      onClick={() => toggleDietary(opt)}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <Label>Flavor Preferences</Label>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {FLAVOR_OPTIONS.map((opt) => (
+                    <Chip
+                      key={opt}
+                      label={opt}
+                      selected={userProfile.flavorProfiles.includes(opt)}
+                      onClick={() => toggleFlavor(opt)}
+                    />
+                  ))}
+                </div>
               </div>
             </div>
           </section>

@@ -1,14 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '@/lib/store';
+import { supabase } from '@/integrations/supabase/client';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { ChefHat, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ChefHat, ArrowRight, ArrowLeft, Users } from 'lucide-react';
 
 const DIETARY_OPTIONS = ['Vegetarian', 'Vegan', 'Gluten-Free', 'Dairy-Free', 'Nut-Free', 'None'];
 const SKILL_OPTIONS = ['Beginner', 'Intermediate', 'Advanced'];
 const FLAVOR_OPTIONS = ['Spicy', 'Sweet', 'Savory', 'Umami', 'Fresh/Citrusy'];
+const TOTAL_STEPS = 5;
 
 const Chip = ({
   label,
@@ -42,6 +46,8 @@ export default function Onboarding() {
   const { userProfile, setUserProfile, completeOnboarding } = useStore();
   const [step, setStep] = useState(0);
   const [direction, setDirection] = useState(1);
+  const [displayName, setDisplayName] = useState('');
+  const [defaultServings, setDefaultServings] = useState('2');
 
   const toggleDietary = (item: string) => {
     if (item === 'None') {
@@ -66,15 +72,28 @@ export default function Onboarding() {
   };
 
   const canProceed =
-    (step === 0 && userProfile.dietaryRestrictions.length > 0) ||
-    (step === 1 && userProfile.skillLevel !== '') ||
-    (step === 2 && userProfile.flavorProfiles.length > 0);
+    (step === 0 && displayName.trim().length > 0) ||
+    (step === 1 && defaultServings !== '') ||
+    (step === 2 && userProfile.dietaryRestrictions.length > 0) ||
+    (step === 3 && userProfile.skillLevel !== '') ||
+    (step === 4 && userProfile.flavorProfiles.length > 0);
 
-  const next = () => {
-    if (step < 2) {
+  const next = async () => {
+    if (step < TOTAL_STEPS - 1) {
       setDirection(1);
       setStep(step + 1);
     } else {
+      // Save name & servings to profile
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        await supabase
+          .from('profiles')
+          .update({
+            display_name: displayName.trim(),
+            default_servings: parseInt(defaultServings) || 2,
+          } as any)
+          .eq('user_id', session.user.id);
+      }
       completeOnboarding();
       navigate('/pantry');
     }
@@ -94,8 +113,8 @@ export default function Onboarding() {
           <ChefHat className="h-7 w-7 text-primary" />
           <span className="font-display text-xl font-bold text-foreground">Munch</span>
         </div>
-        <Progress value={((step + 1) / 3) * 100} className="h-2 bg-secondary" />
-        <p className="text-xs text-muted-foreground mt-2">Step {step + 1} of 3</p>
+        <Progress value={((step + 1) / TOTAL_STEPS) * 100} className="h-2 bg-secondary" />
+        <p className="text-xs text-muted-foreground mt-2">Step {step + 1} of {TOTAL_STEPS}</p>
       </div>
 
       <div className="flex-1 flex items-center justify-center px-6 overflow-hidden">
@@ -111,6 +130,49 @@ export default function Onboarding() {
               transition={{ duration: 0.3, ease: 'easeInOut' }}
             >
               {step === 0 && (
+                <div>
+                  <h1 className="font-display text-3xl font-bold text-foreground mb-2">
+                    What should we call you?
+                  </h1>
+                  <p className="text-muted-foreground mb-8">
+                    We'll use this to personalize your experience.
+                  </p>
+                  <Input
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="Your name"
+                    className="text-lg h-14"
+                    maxLength={50}
+                    autoFocus
+                  />
+                </div>
+              )}
+
+              {step === 1 && (
+                <div>
+                  <h1 className="font-display text-3xl font-bold text-foreground mb-2">
+                    How many mouths to feed?
+                  </h1>
+                  <p className="text-muted-foreground mb-8">
+                    We'll set this as your default serving size.
+                  </p>
+                  <Select value={defaultServings} onValueChange={setDefaultServings}>
+                    <SelectTrigger className="w-full h-14 text-lg">
+                      <Users className="h-5 w-5 mr-2 text-muted-foreground" />
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[1, 2, 3, 4, 5, 6, 8, 10, 12].map((n) => (
+                        <SelectItem key={n} value={String(n)}>
+                          {n} {n === 1 ? 'serving' : 'servings'}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {step === 2 && (
                 <div>
                   <h1 className="font-display text-3xl font-bold text-foreground mb-2">
                     Any dietary needs?
@@ -131,7 +193,7 @@ export default function Onboarding() {
                 </div>
               )}
 
-              {step === 1 && (
+              {step === 3 && (
                 <div>
                   <h1 className="font-display text-3xl font-bold text-foreground mb-2">
                     What's your skill level?
@@ -162,7 +224,7 @@ export default function Onboarding() {
                 </div>
               )}
 
-              {step === 2 && (
+              {step === 4 && (
                 <div>
                   <h1 className="font-display text-3xl font-bold text-foreground mb-2">
                     Flavor cravings?
@@ -198,7 +260,7 @@ export default function Onboarding() {
           disabled={!canProceed}
           className="flex-1 h-12 text-base font-semibold"
         >
-          {step === 2 ? 'Build My Pantry' : 'Continue'}
+          {step === TOTAL_STEPS - 1 ? 'Build My Pantry' : 'Continue'}
           <ArrowRight className="h-4 w-4 ml-2" />
         </Button>
       </div>
