@@ -177,7 +177,7 @@ export default function Swipe() {
       </div>
 
       {/* Card Stack */}
-      <div className="flex-1 flex items-center justify-center px-6">
+      <div className="flex-1 flex items-center justify-center px-6" data-tutorial="swipe-card-area">
         <div className="relative w-full max-w-md h-[440px]">
           {isLoading ? (
             <div className="h-full flex flex-col items-center justify-center text-center">
