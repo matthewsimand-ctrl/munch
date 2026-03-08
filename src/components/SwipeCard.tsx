@@ -88,9 +88,17 @@ export default function SwipeCard({ recipe, match, onSwipe, onImageTap, isTop, c
 
         {/* Content */}
         <div className="flex-1 p-5 flex flex-col">
-          <h2 className="font-display text-xl font-bold text-card-foreground mb-2">
+          <h2 className="font-display text-xl font-bold text-card-foreground mb-1">
             {recipe.name}
           </h2>
+          {chefName && chefId && (
+            <button
+              onClick={(e) => { e.stopPropagation(); navigate(`/chef/${chefId}`); }}
+              className="inline-flex items-center gap-1 text-xs text-primary hover:underline mb-2"
+            >
+              <ChefHat className="h-3 w-3" /> by {chefName}
+            </button>
+          )}
 
           <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
             <span className="flex items-center gap-1">
