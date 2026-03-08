@@ -116,10 +116,10 @@ export default function Dashboard() {
       <div className="px-6 pt-8 pb-4 max-w-md mx-auto w-full">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-2">
+          <button onClick={() => navigate('/dashboard')} className="flex items-center gap-2">
             <UtensilsCrossed className="h-7 w-7 text-primary" />
             <span className="font-display text-xl font-bold text-foreground">Munch</span>
-          </div>
+          </button>
           <Button
             variant="ghost"
             size="icon"

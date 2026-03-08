@@ -4,7 +4,7 @@ import type { MatchResult } from '@/lib/matchLogic';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Clock, BarChart3, Check, ShoppingCart, MapPin, ChefHat } from 'lucide-react';
+import { Clock, BarChart3, Check, ShoppingCart, MapPin, ChefHat, Users } from 'lucide-react';
 
 interface Props {
   recipe: Recipe | null;
@@ -54,6 +54,11 @@ export default function RecipePreviewDialog({ recipe, match, open, onOpenChange,
               {recipe.cuisine && (
                 <Badge variant="outline" className="gap-1">
                   <MapPin className="h-3 w-3" /> {recipe.cuisine}
+                </Badge>
+              )}
+              {recipe.servings && (
+                <Badge variant="secondary" className="gap-1">
+                  <Users className="h-3 w-3" /> Serves {recipe.servings}
                 </Badge>
               )}
             </div>

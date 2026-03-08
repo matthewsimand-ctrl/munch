@@ -178,6 +178,7 @@ export default function CreateRecipeForm({ onClose }: Props) {
   const [cookTime, setCookTime] = useState('');
   const [difficulty, setDifficulty] = useState('Beginner');
   const [cuisine, setCuisine] = useState('');
+  const [servings, setServings] = useState('4');
   const [ingredientInput, setIngredientInput] = useState('');
   const [ingredients, setIngredients] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
@@ -309,6 +310,7 @@ export default function CreateRecipeForm({ onClose }: Props) {
         source: 'community',
         created_by: userId,
         is_public: isPublic,
+        servings: parseInt(servings) || 4,
       } as any);
 
       if (error) throw error;
@@ -392,10 +394,21 @@ export default function CreateRecipeForm({ onClose }: Props) {
         )}
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="text-sm font-medium text-foreground">Cook Time</label>
           <Input value={cookTime} onChange={e => setCookTime(e.target.value)} placeholder="25 min" />
+        </div>
+        <div>
+          <label className="text-sm font-medium text-foreground">Servings</label>
+          <Select value={servings} onValueChange={setServings}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {[1, 2, 3, 4, 5, 6, 8, 10, 12].map(n => (
+                <SelectItem key={n} value={String(n)}>{n} {n === 1 ? 'serving' : 'servings'}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div>
           <label className="text-sm font-medium text-foreground">Difficulty</label>

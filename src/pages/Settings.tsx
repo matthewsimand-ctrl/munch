@@ -80,19 +80,33 @@ export default function Settings() {
   };
 
   const handleSave = async () => {
-    if (!user) return;
+    let userId = user?.id;
+    
+    // Re-fetch session if user state is stale
+    if (!userId) {
+      const { data: { session } } = await supabase.auth.getSession();
+      userId = session?.user?.id;
+      if (session?.user) setUser(session.user);
+    }
+    
+    if (!userId) {
+      toast({ title: 'Not signed in', variant: 'destructive' });
+      return;
+    }
+    
     setLoading(true);
     const { error } = await supabase
       .from('profiles')
-      .update({
+      .upsert({
+        user_id: userId,
         display_name: displayName.trim() || null,
         default_servings: parseInt(defaultServings) || 2,
-      } as any)
-      .eq('user_id', user.id);
+      } as any, { onConflict: 'user_id' });
 
     setLoading(false);
     if (error) {
-      toast({ title: 'Failed to save', variant: 'destructive' });
+      console.error('Profile save error:', error);
+      toast({ title: 'Failed to save', description: error.message, variant: 'destructive' });
     } else {
       toast({ title: 'Settings saved! ✓' });
     }
