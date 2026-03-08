@@ -9,7 +9,7 @@ import SwipeCard from '@/components/SwipeCard';
 import RecipePreviewDialog from '@/components/RecipePreviewDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Heart, X, BookOpen, UtensilsCrossed, Settings, Search, Loader2, Globe } from 'lucide-react';
+import { Heart, X, UtensilsCrossed, User, Search, Loader2, Globe } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useEffect } from 'react';
 import { useRecipeSearch } from '@/hooks/useRecipeSearch';
