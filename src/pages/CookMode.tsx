@@ -2,9 +2,11 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDbRecipes } from '@/hooks/useDbRecipes';
 import { useStore } from '@/lib/store';
+import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis';
+import { useVoiceCommands } from '@/hooks/useVoiceCommands';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { ArrowLeft, ChevronLeft, ChevronRight, Play, Pause, RotateCcw, Timer, Volume2, VolumeX } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Play, Pause, RotateCcw, Timer, Volume2, VolumeX, Mic, MicOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
@@ -45,9 +47,9 @@ export default function CookMode() {
   const [timerSeconds, setTimerSeconds] = useState<number | null>(null);
   const [timerRunning, setTimerRunning] = useState(false);
   const [timerRemaining, setTimerRemaining] = useState(0);
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const synthRef = useRef(window.speechSynthesis);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  
+  const { isSpeaking, speak, stop: stopSpeaking } = useSpeechSynthesis();
 
   const steps = recipe?.instructions ?? [];
   const totalSteps = steps.length;
@@ -91,35 +93,34 @@ export default function CookMode() {
     setTimerSeconds(stepTimer);
   }, [currentStep, stepTimer]);
 
-  // Speech
-  const speak = useCallback((text: string) => {
-    synthRef.current.cancel();
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.rate = 0.9;
-    utter.onend = () => setIsSpeaking(false);
-    setIsSpeaking(true);
-    synthRef.current.speak(utter);
-  }, []);
-
-  const stopSpeaking = useCallback(() => {
-    synthRef.current.cancel();
-    setIsSpeaking(false);
-  }, []);
-
   // Auto-read on step change
   useEffect(() => {
     if (steps[currentStep]) {
       speak(`Step ${currentStep + 1}. ${steps[currentStep]}`);
     }
-    return () => { synthRef.current.cancel(); };
+    return () => { stopSpeaking(); };
+  }, [currentStep, steps, speak, stopSpeaking]);
+
+  const goNext = useCallback(() => {
+    if (currentStep < totalSteps - 1) setCurrentStep(s => s + 1);
+  }, [currentStep, totalSteps]);
+
+  const goPrev = useCallback(() => {
+    if (currentStep > 0) setCurrentStep(s => s - 1);
+  }, [currentStep]);
+
+  const repeatStep = useCallback(() => {
+    if (steps[currentStep]) {
+      speak(`Step ${currentStep + 1}. ${steps[currentStep]}`);
+    }
   }, [currentStep, steps, speak]);
 
-  const goNext = () => {
-    if (currentStep < totalSteps - 1) setCurrentStep(s => s + 1);
-  };
-  const goPrev = () => {
-    if (currentStep > 0) setCurrentStep(s => s - 1);
-  };
+  // Voice commands for hands-free control
+  const { isListening, isSupported: voiceSupported, lastCommand, toggleListening } = useVoiceCommands({
+    onNext: goNext,
+    onPrevious: goPrev,
+    onRepeat: repeatStep,
+  });
 
   const startTimer = (secs: number) => {
     setTimerRemaining(secs);
@@ -153,15 +154,46 @@ export default function CookMode() {
               Step {currentStep + 1} of {totalSteps}
             </p>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => isSpeaking ? stopSpeaking() : speak(`Step ${currentStep + 1}. ${steps[currentStep]}`)}
-          >
-            {isSpeaking ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
-          </Button>
+          <div className="flex items-center gap-1">
+            {voiceSupported && (
+              <Button
+                variant={isListening ? "default" : "ghost"}
+                size="icon"
+                onClick={toggleListening}
+                className={cn(isListening && "animate-pulse")}
+                title={isListening ? "Voice commands active" : "Enable voice commands"}
+              >
+                {isListening ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => isSpeaking ? stopSpeaking() : speak(`Step ${currentStep + 1}. ${steps[currentStep]}`)}
+            >
+              {isSpeaking ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+            </Button>
+          </div>
         </div>
-        <Progress value={progress} className="h-1.5" />
+        {/* Voice command indicator */}
+        <AnimatePresence>
+          {lastCommand && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="text-xs text-center text-primary font-medium mt-1"
+            >
+              🎤 Heard: "{lastCommand}"
+            </motion.div>
+          )}
+        </AnimatePresence>
+        {isListening && !lastCommand && (
+          <p className="text-[10px] text-center text-muted-foreground mt-1">
+            Say "next", "previous", or "repeat"
+          </p>
+        )}
+        <Progress value={progress} className="h-1.5 mt-2" />
       </div>
 
       {/* Step Content */}
