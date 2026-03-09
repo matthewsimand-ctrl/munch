@@ -9,6 +9,7 @@ import {
   Sparkles,
   Share2,
   Loader2,
+  Pencil,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useStore } from "@/lib/store";
@@ -36,7 +37,7 @@ const CATEGORIES_ORDER = [
 ];
 
 export default function GroceryList() {
-  const { customGroceryItems, removeCustomGroceryItem } = useStore();
+  const { customGroceryItems } = useStore();
 
   // Merge store custom items into local state on first render
   const [items, setItems] = useState<GroceryItem[]>(() => {
@@ -55,6 +56,21 @@ export default function GroceryList() {
   const [newCat, setNewCat] = useState("Fresh Produce");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [fillingFromPlan, setFillingFromPlan] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingName, setEditingName] = useState('');
+  const [editingQty, setEditingQty] = useState('');
+
+  const startEdit = (item: GroceryItem) => {
+    setEditingId(item.id);
+    setEditingName(item.name);
+    setEditingQty(item.quantity);
+  };
+
+  const saveEdit = () => {
+    if (editingId === null || !editingName.trim()) return;
+    setItems((prev) => prev.map((item) => item.id === editingId ? { ...item, name: editingName.trim(), quantity: editingQty.trim() || '1', category: getCategory(editingName.trim()) || item.category } : item));
+    setEditingId(null);
+  };
 
   const toggle = (id: number) =>
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, checked: !i.checked } : i)));
@@ -280,17 +296,42 @@ export default function GroceryList() {
                       </button>
 
                       <div className="flex-1 min-w-0">
-                        <span className={`text-sm font-medium transition-colors ${item.checked ? "text-gray-400 line-through" : "text-gray-800"}`}>
-                          {item.name}
-                        </span>
+                        {editingId === item.id ? (
+                          <div className="flex gap-2">
+                            <input value={editingName} onChange={(e) => setEditingName(e.target.value)} className="flex-1 px-2 py-1 text-sm border border-gray-200 rounded" />
+                            <input value={editingQty} onChange={(e) => setEditingQty(e.target.value)} className="w-16 px-2 py-1 text-sm border border-gray-200 rounded" />
+                          </div>
+                        ) : (
+                          <span className={`text-sm font-medium transition-colors ${item.checked ? "text-gray-400 line-through" : "text-gray-800"}`}>
+                            {item.name}
+                          </span>
+                        )}
                         {item.fromRecipe && (
                           <div className="text-xs text-gray-400 mt-0.5">For: {item.fromRecipe}</div>
                         )}
                       </div>
 
-                      <span className={`text-sm shrink-0 ${item.checked ? "text-gray-400" : "text-gray-600 font-medium"}`}>
-                        {item.quantity}
-                      </span>
+                      {editingId !== item.id && (
+                        <span className={`text-sm shrink-0 ${item.checked ? "text-gray-400" : "text-gray-600 font-medium"}`}>
+                          {item.quantity}
+                        </span>
+                      )}
+
+                      {editingId === item.id ? (
+                        <button
+                          onClick={saveEdit}
+                          className="text-green-600 hover:text-green-700 shrink-0"
+                        >
+                          <Check size={14} />
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => startEdit(item)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-300 hover:text-orange-500 shrink-0"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                      )}
 
                       <button
                         onClick={() => remove(item.id)}

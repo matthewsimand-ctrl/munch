@@ -6,9 +6,10 @@ import { useDbRecipes } from '@/hooks/useDbRecipes';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ChevronLeft, ChevronRight, Plus, X, Calendar, CalendarDays, FileText, Table2, GripVertical, User, Sparkles, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X, Calendar, CalendarDays, FileText, Table2, GripVertical, User, Sparkles, Loader2, ExternalLink } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 
@@ -49,6 +50,8 @@ export default function MealPrep() {
     const dayOfWeek = today.getDay();
     return dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Mon=0, Sun=6
   });
+  const [recipePreview, setRecipePreview] = useState<{ name: string; sourceUrl?: string; instructions: string[] } | null>(null);
+  const [rawApiPreview, setRawApiPreview] = useState<{ name: string; payload: unknown } | null>(null);
 
   // Get saved recipes list - check both DB recipes and locally cached API recipes
   const savedRecipes = useMemo(() => {
@@ -119,6 +122,37 @@ export default function MealPrep() {
   useEffect(() => {
     if (user) loadMealPlan();
   }, [user, weekStart, loadMealPlan]);
+
+  const openRecipePreview = (item: MealItem) => {
+    const dbRecipe = dbRecipes.find((r) => r.id === item.recipe_id);
+    const apiRecipe = savedApiRecipes[item.recipe_id];
+    const sourceUrl = dbRecipe?.source_url || apiRecipe?.source_url;
+    const instructions = (dbRecipe?.instructions || apiRecipe?.instructions || []).filter(Boolean);
+
+    if (!sourceUrl && instructions.length === 0) {
+      toast({ title: 'No recipe details yet', description: 'This meal does not have a source link or instructions.' });
+      return;
+    }
+
+    setRecipePreview({
+      name: item.recipe_name,
+      sourceUrl,
+      instructions,
+    });
+  };
+
+  const openRawApiPreview = (item: MealItem) => {
+    const dbRecipe = dbRecipes.find((r) => r.id === item.recipe_id);
+    const apiRecipe = savedApiRecipes[item.recipe_id];
+    const payload = dbRecipe?.raw_api_payload || apiRecipe?.raw_api_payload;
+
+    if (!payload) {
+      toast({ title: 'No API payload found', description: 'This recipe was likely created/imported manually.' });
+      return;
+    }
+
+    setRawApiPreview({ name: item.recipe_name, payload });
+  };
 
   const addRecipeToSlot = async (recipeId: string, recipeName: string, recipeImage: string) => {
     if (!mealPlanId || !addDialog) return;
@@ -648,7 +682,8 @@ export default function MealPrep() {
                       {slotItems.map((item) => (
                         <div
                           key={item.id}
-                          className="flex items-center gap-3 bg-background rounded-lg p-2.5 border border-border"
+                          className="flex items-center gap-3 bg-background rounded-lg p-2.5 border border-border cursor-pointer hover:border-primary/40"
+                          onClick={() => openRecipePreview(item)}
                         >
                           {item.recipe_image && (
                             <img src={item.recipe_image} alt={item.recipe_name} className="h-10 w-10 rounded-md object-cover flex-shrink-0" />
@@ -669,10 +704,14 @@ export default function MealPrep() {
                                   ))}
                                 </SelectContent>
                               </Select>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); openRawApiPreview(item); }}
+                                className="text-[10px] text-muted-foreground hover:text-primary"
+                              >JSON</button>
                             </div>
                           </div>
                           <button
-                            onClick={() => removeItem(item.id)}
+                            onClick={(e) => { e.stopPropagation(); removeItem(item.id); }}
                             className="text-muted-foreground hover:text-destructive"
                           >
                             <X className="h-4 w-4" />
@@ -721,7 +760,8 @@ export default function MealPrep() {
                       key={item.id}
                       draggable
                       onDragStart={() => handleDragStart(item)}
-                      className="bg-background rounded-md p-1.5 mb-1 border border-border cursor-grab active:cursor-grabbing shadow-sm group text-[11px]"
+                      className="bg-background rounded-md p-1.5 mb-1 border border-border cursor-grab active:cursor-grabbing shadow-sm group text-[11px] hover:border-primary/40"
+                      onClick={() => openRecipePreview(item)}
                     >
                       <div className="flex items-start gap-1">
                         <GripVertical className="h-3 w-3 text-muted-foreground flex-shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -741,10 +781,14 @@ export default function MealPrep() {
                                 ))}
                               </SelectContent>
                             </Select>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); openRawApiPreview(item); }}
+                              className="text-[10px] text-muted-foreground hover:text-primary"
+                            >JSON</button>
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <button
-                                  onClick={() => removeItem(item.id)}
+                                  onClick={(e) => { e.stopPropagation(); removeItem(item.id); }}
                                   className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
                                 >
                                   <X className="h-3 w-3" />
@@ -853,7 +897,54 @@ export default function MealPrep() {
         </AlertDialogContent>
       </AlertDialog>
 
-      
+
+      <Sheet open={!!recipePreview} onOpenChange={(open) => !open && setRecipePreview(null)}>
+        <SheetContent side="bottom" className="h-[88vh] p-0">
+          <SheetHeader className="px-4 py-3 border-b">
+            <div className="flex items-center justify-between gap-3">
+              <SheetTitle className="text-left">{recipePreview?.name}</SheetTitle>
+              {recipePreview?.sourceUrl && (
+                <Button size="sm" variant="outline" asChild>
+                  <a href={recipePreview.sourceUrl} target="_blank" rel="noreferrer">
+                    <ExternalLink className="h-3.5 w-3.5 mr-1" />Open in New Tab
+                  </a>
+                </Button>
+              )}
+            </div>
+          </SheetHeader>
+          <div className="h-[calc(88vh-64px)]">
+            {recipePreview?.sourceUrl ? (
+              <iframe
+                title={recipePreview.name}
+                src={recipePreview.sourceUrl}
+                className="w-full h-full border-0"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div className="h-full overflow-y-auto p-4">
+                <p className="text-sm font-semibold mb-2">Instructions</p>
+                <ol className="space-y-2 text-sm">
+                  {(recipePreview?.instructions || []).map((step, idx) => (
+                    <li key={idx}>{idx + 1}. {step}</li>
+                  ))}
+                </ol>
+              </div>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <Dialog open={!!rawApiPreview} onOpenChange={(open) => !open && setRawApiPreview(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>MealDB API JSON — {rawApiPreview?.name}</DialogTitle>
+          </DialogHeader>
+          <pre className="max-h-[60vh] overflow-auto rounded bg-muted p-3 text-xs">
+{JSON.stringify(rawApiPreview?.payload, null, 2)}
+          </pre>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }

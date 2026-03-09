@@ -9,6 +9,8 @@ export interface Recipe {
   instructions: string[];
   cuisine?: string | null;
   source?: string;
+  source_url?: string;
+  raw_api_payload?: unknown;
   created_by?: string | null;
   is_public?: boolean;
   servings?: number;
