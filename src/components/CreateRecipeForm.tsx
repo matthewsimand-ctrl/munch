@@ -164,7 +164,7 @@ function parseRecipeText(raw: string): {
         if (ingName) ingredients.push(ingName);
       }
     } else if (currentSection === 'instructions') {
-      const cleaned = stripped.replace(/^[-•*·▪◦]\s*/, '').replace(/^\d+[.)]\s*/, '').trim();
+      const cleaned = stripped.replace(/^[-•*·▪◦▢]\s*/, '').replace(/^\d+[.)]\s*/, '').trim();
       if (cleaned.length > 5) {
         instructions.push(cleaned);
       }
