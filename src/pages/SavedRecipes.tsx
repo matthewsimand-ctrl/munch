@@ -78,6 +78,7 @@ export default function SavedRecipes() {
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [renamingFolder, setRenamingFolder] = useState<string | null>(null);
+  const [analyzingNutrition, setAnalyzingNutrition] = useState<string | null>(null);
   const [renameInput, setRenameInput] = useState("");
 
   // Resolve all saved recipes from DB + saved API cache
