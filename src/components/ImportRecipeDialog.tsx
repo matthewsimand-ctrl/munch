@@ -19,7 +19,7 @@ interface ImportRecipeDialogProps {
   children?: React.ReactNode;
 }
 
-type ImportTab = 'url' | 'pdf';
+type ImportTab = 'url' | 'pdf' | 'photo';
 
 interface IngredientEntry {
   name: string;
@@ -50,6 +50,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
   const [manualText, setManualText] = useState('');
   const [lastImportError, setLastImportError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const recipePhotoInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const { likeRecipe } = useStore();
 
@@ -84,7 +85,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
     setFetchingPhoto(false);
   };
 
-  const handleExtract = async (payload: { url?: string; textContent?: string }) => {
+  const handleExtract = async (payload: { url?: string; textContent?: string; imageBase64?: string; imageMimeType?: string }) => {
     setLoading(true);
     setLastImportError('');
 
@@ -254,6 +255,44 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
   const handleManualImport = () => {
     if (!manualText.trim()) return;
     handleExtract({ textContent: manualText.trim() });
+  };
+
+  const handleRecipePhotoImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Image too large (max 10MB)');
+      return;
+    }
+
+    const toBase64 = (input: File) =>
+      new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = String(reader.result || '');
+          const base64 = result.split(',')[1];
+          if (!base64) {
+            reject(new Error('Failed to read image'));
+            return;
+          }
+          resolve(base64);
+        };
+        reader.onerror = () => reject(reader.error || new Error('Failed to read image'));
+        reader.readAsDataURL(input);
+      });
+
+    try {
+      const imageBase64 = await toBase64(file);
+      handleExtract({ imageBase64, imageMimeType: file.type || 'image/jpeg' });
+    } catch {
+      toast.error('Could not read image. Try a different file.');
+    }
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -654,12 +693,15 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
           // Import Mode (URL/PDF/Paste)
           <div className="px-6 pb-6">
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ImportTab)} className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="url" className="flex items-center gap-1.5">
                   <Link2 className="h-3.5 w-3.5" /> From URL
                 </TabsTrigger>
                 <TabsTrigger value="pdf" className="flex items-center gap-1.5">
                   <FileText className="h-3.5 w-3.5" /> From PDF
+                </TabsTrigger>
+                <TabsTrigger value="photo" className="flex items-center gap-1.5">
+                  <Camera className="h-3.5 w-3.5" /> From Photo
                 </TabsTrigger>
               </TabsList>
 
@@ -772,6 +814,37 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
                     <>
                       <FileText className="h-6 w-6 text-muted-foreground" />
                       <span className="text-sm text-muted-foreground">Click to upload PDF (max 20MB)</span>
+                    </>
+                  )}
+                </Button>
+              </TabsContent>
+
+              <TabsContent value="photo" className="space-y-4 pt-4">
+                <p className="text-sm text-muted-foreground">
+                  🧠 Upload a photo of a recipe card, cookbook page, or screenshot. AI will read the image and map it to recipe fields.
+                </p>
+                <input
+                  ref={recipePhotoInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleRecipePhotoImport}
+                  className="hidden"
+                />
+                <Button
+                  variant="outline"
+                  className="w-full h-24 border-dashed border-2 flex flex-col gap-2"
+                  onClick={() => recipePhotoInputRef.current?.click()}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                      <span className="text-sm">Reading photo...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Camera className="h-6 w-6 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">Click to upload recipe photo (max 10MB)</span>
                     </>
                   )}
                 </Button>
