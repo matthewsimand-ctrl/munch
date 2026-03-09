@@ -42,10 +42,24 @@ export default function CookMode() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: dbRecipes = [] } = useDbRecipes();
-  const { savedApiRecipes, markRecipeCooked, recipeFolders, createFolder, addRecipeToFolder } = useStore();
+  const { savedApiRecipes, markRecipeCooked, recipeFolders, createFolder, addRecipeToFolder, archiveBehavior } = useStore();
   const recipe = dbRecipes.find(r => r.id === id) || savedApiRecipes[id || ''];
   const [isDone, setIsDone] = useState(false);
   const [showArchivePrompt, setShowArchivePrompt] = useState(false);
+
+  const archiveRecipe = useCallback(() => {
+    if (!id) return;
+    let archiveFolder = recipeFolders.find(f => f.name.toLowerCase() === 'archive');
+    if (!archiveFolder) {
+      createFolder('Archive');
+      const folders = useStore.getState().recipeFolders;
+      archiveFolder = folders.find(f => f.name === 'Archive');
+    }
+    if (archiveFolder) {
+      addRecipeToFolder(archiveFolder.id, id);
+      toast.success('Moved to Archive folder');
+    }
+  }, [id, recipeFolders, createFolder, addRecipeToFolder]);
 
   const [currentStep, setCurrentStep] = useState(0);
   const [timerRunning, setTimerRunning] = useState(false);
