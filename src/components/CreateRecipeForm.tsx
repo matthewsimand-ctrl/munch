@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, X, Loader2, Camera, ClipboardPaste, Globe, Upload } from 'lucide-react';
+import { Plus, X, Loader2, Camera, ClipboardPaste, Globe, Upload, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { useStore } from '@/lib/store';
@@ -77,6 +77,20 @@ async function getRandomFoodishImage(recipeName = ''): Promise<string | null> {
 
 interface Props {
   onClose: () => void;
+}
+
+const QUANTITY_HINTS: { keywords: string[]; defaultValue: string; options: string[] }[] = [
+  { keywords: ["milk", "stock", "broth", "water", "oil", "soy sauce", "vinegar", "juice"], defaultValue: "1 cup", options: ["1 tbsp", "1 tsp", "1/4 cup", "1/2 cup", "1 cup", "1 liter"] },
+  { keywords: ["flour", "sugar", "salt", "rice", "pasta", "oats"], defaultValue: "100 g", options: ["1 tsp", "1 tbsp", "1/2 cup", "1 cup", "100 g", "1 kg", "1 lb"] },
+  { keywords: ["tomato", "onion", "egg", "lemon", "lime", "potato", "carrot", "pepper", "avocado"], defaultValue: "1 unit", options: ["1 unit", "2 units", "3 units", "1/2 unit"] },
+  { keywords: ["can", "canned", "beans", "coconut milk"], defaultValue: "1 container", options: ["1 container", "2 containers", "400 ml"] },
+  { keywords: ["chicken", "beef", "pork", "fish", "salmon", "tofu"], defaultValue: "1 lb", options: ["200 g", "500 g", "1 kg", "1 lb", "2 lb"] },
+];
+
+function detectQuantityConfig(ingredientName: string) {
+  const normalized = ingredientName.toLowerCase();
+  const match = QUANTITY_HINTS.find((entry) => entry.keywords.some((keyword) => normalized.includes(keyword)));
+  return match || { defaultValue: "1 unit", options: ["1 unit", "2 units", "1/2 cup", "1 cup", "100 g", "1 kg", "1 lb", "1 container"] };
 }
 
 // ---- Local heuristic parser (no AI) ----
@@ -215,7 +229,6 @@ function looksLikeInstruction(s: string): boolean {
 export default function CreateRecipeForm({ onClose }: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { likeRecipe } = useStore();
   const [loading, setLoading] = useState(false);
   const [fetchingPhoto, setFetchingPhoto] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -230,12 +243,14 @@ export default function CreateRecipeForm({ onClose }: Props) {
   const [cuisine, setCuisine] = useState('');
   const [servings, setServings] = useState('4');
   const [ingredientInput, setIngredientInput] = useState('');
+  const [ingredientQuantity, setIngredientQuantity] = useState('1 unit');
   const [ingredients, setIngredients] = useState<string[]>([]);
   const [instructionInput, setInstructionInput] = useState('');
   const [instructions, setInstructions] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
   const [tags, setTags] = useState<string[]>([]);
-  const [isPublic, setIsPublic] = useState(false);
+  const { likeRecipe, shareCustomRecipesByDefault } = useStore();
+  const [isPublic, setIsPublic] = useState(shareCustomRecipesByDefault);
 
   const handleParsePaste = () => {
     if (!pasteText.trim()) return;
@@ -309,9 +324,12 @@ export default function CreateRecipeForm({ onClose }: Props) {
 
   const addIngredient = () => {
     const val = ingredientInput.trim();
-    if (val && !ingredients.includes(val)) {
-      setIngredients(prev => [...prev, val]);
+    if (!val) return;
+    const formatted = `${val} (${ingredientQuantity})`;
+    if (!ingredients.includes(formatted)) {
+      setIngredients(prev => [...prev, formatted]);
       setIngredientInput('');
+      setIngredientQuantity('1 unit');
     }
   };
 
@@ -334,6 +352,8 @@ export default function CreateRecipeForm({ onClose }: Props) {
       setTagInput('');
     }
   };
+
+  const quantityConfig = detectQuantityConfig(ingredientInput);
 
   const handleSubmit = async () => {
     if (!name.trim() || ingredients.length === 0) {
@@ -520,20 +540,37 @@ export default function CreateRecipeForm({ onClose }: Props) {
         </div>
       </div>
 
-      <div>
-        <label className="text-sm font-medium text-foreground">Ingredients *</label>
-        <div className="flex gap-2 mt-1">
+      <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-3">
+        <div className="flex items-center justify-between">
+          <label className="text-sm font-medium text-foreground">Ingredients *</label>
+          <span className="text-[11px] text-muted-foreground inline-flex items-center gap-1"><Sparkles className="h-3 w-3" /> smart quantity suggestions</span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-[1fr_160px_auto] gap-2">
           <Input
             value={ingredientInput}
-            onChange={e => setIngredientInput(e.target.value)}
-            placeholder="e.g. 2 cups flour"
+            onChange={e => {
+              const next = e.target.value;
+              setIngredientInput(next);
+              if (next.trim().length > 2) {
+                setIngredientQuantity(detectQuantityConfig(next).defaultValue);
+              }
+            }}
+            placeholder="Ingredient name"
             onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addIngredient())}
           />
-          <Button type="button" variant="outline" size="icon" onClick={addIngredient}>
-            <Plus className="h-4 w-4" />
+          <Select value={ingredientQuantity} onValueChange={setIngredientQuantity}>
+            <SelectTrigger><SelectValue placeholder="Quantity" /></SelectTrigger>
+            <SelectContent>
+              {quantityConfig.options.map((option) => (
+                <SelectItem key={option} value={option}>{option}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button type="button" variant="outline" onClick={addIngredient}>
+            <Plus className="h-4 w-4 mr-1" /> Add
           </Button>
         </div>
-        <div className="flex flex-wrap gap-1.5 mt-2">
+        <div className="flex flex-wrap gap-1.5">
           {ingredients.map(ing => (
             <Badge key={ing} variant="secondary" className="gap-1">
               {ing}

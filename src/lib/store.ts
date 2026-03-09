@@ -50,6 +50,7 @@ interface AppState {
   earnedBadges: string[];
   archiveBehavior: 'ask' | 'always' | 'never';
   chefAvatarUrl: string | null;
+  shareCustomRecipesByDefault: boolean;
 
   setUserProfile: (profile: Partial<UserProfile>) => void;
   completeOnboarding: () => void;
@@ -83,6 +84,7 @@ interface AppState {
   earnBadge: (badgeId: string) => void;
   setArchiveBehavior: (behavior: 'ask' | 'always' | 'never') => void;
   setChefAvatarUrl: (url: string | null) => void;
+  setShareCustomRecipesByDefault: (enabled: boolean) => void;
   resetStore: () => void;
 }
 
@@ -118,6 +120,7 @@ export const useStore = create<AppState>()(
       earnedBadges: [],
       archiveBehavior: 'ask' as const,
       chefAvatarUrl: null,
+      shareCustomRecipesByDefault: true,
 
       setShowTutorial: (show) => set({ showTutorial: show }),
 
@@ -331,6 +334,8 @@ export const useStore = create<AppState>()(
 
       setChefAvatarUrl: (url) => set({ chefAvatarUrl: url }),
 
+      setShareCustomRecipesByDefault: (enabled) => set({ shareCustomRecipesByDefault: enabled }),
+
       resetStore: () =>
         set({
           userProfile: initialProfile,
@@ -354,6 +359,7 @@ export const useStore = create<AppState>()(
           earnedBadges: [],
           archiveBehavior: 'ask' as const,
           chefAvatarUrl: null,
+          shareCustomRecipesByDefault: true,
         }),
     }),
     { name: 'chefstack-storage' }
