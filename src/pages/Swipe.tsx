@@ -93,6 +93,7 @@ export default function Browse() {
   const currentMatch = currentRecipe ? calculateMatch(pantryNames, currentRecipe.ingredients) : null;
   const nextMatch = nextRecipe ? calculateMatch(pantryNames, nextRecipe.ingredients) : null;
   const selectedMatch = selectedRecipe ? calculateMatch(pantryNames, selectedRecipe.ingredients) : null;
+  const selectedInstructions = selectedRecipe ? normalizeStringArray((selectedRecipe as any).instructions) : [];
 
   // Count saved recipes
   const savedCount = likedRecipes.length;
