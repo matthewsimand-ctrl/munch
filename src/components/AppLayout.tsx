@@ -34,10 +34,10 @@ export default function AppLayout() {
         }`}
       >
         {/* Logo */}
-        <div className="relative flex items-center justify-between px-5 py-5 border-b border-gray-100">
+        <div className="flex items-center justify-between px-3 py-5 border-b border-gray-100">
           <div
-            className={`flex items-center gap-2.5 ${
-              collapsed ? "justify-center w-full" : ""
+            className={`flex items-center gap-2.5 transition-all ${
+              collapsed ? "mx-auto" : "ml-2"
             }`}
           >
             <div className="w-8 h-8 bg-orange-500 rounded-xl flex items-center justify-center shadow-sm">
@@ -48,13 +48,25 @@ export default function AppLayout() {
             )}
           </div>
 
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-          </button>
+          {!collapsed && (
+            <button
+              onClick={() => setCollapsed(!collapsed)}
+              className="text-gray-400 hover:text-gray-600 transition-colors mr-2"
+              title="Collapse sidebar"
+            >
+              <ChevronLeft size={18} />
+            </button>
+          )}
+          
+          {collapsed && (
+            <button
+              onClick={() => setCollapsed(!collapsed)}
+              className="absolute right-2 top-5 text-gray-400 hover:text-gray-600 transition-colors"
+              title="Expand sidebar"
+            >
+              <ChevronRight size={18} />
+            </button>
+          )}
         </div>
 
         {/* Nav links */}
