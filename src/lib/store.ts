@@ -47,6 +47,7 @@ interface AppState {
   totalXp: number;
   earnedBadges: string[];
   archiveBehavior: 'ask' | 'always' | 'never';
+  chefAvatarUrl: string | null;
 
   setUserProfile: (profile: Partial<UserProfile>) => void;
   completeOnboarding: () => void;
@@ -77,6 +78,7 @@ interface AppState {
   addXp: (amount: number) => void;
   earnBadge: (badgeId: string) => void;
   setArchiveBehavior: (behavior: 'ask' | 'always' | 'never') => void;
+  setChefAvatarUrl: (url: string | null) => void;
   resetStore: () => void;
 }
 
@@ -110,6 +112,7 @@ export const useStore = create<AppState>()(
       totalXp: 0,
       earnedBadges: [],
       archiveBehavior: 'ask' as const,
+      chefAvatarUrl: null,
 
       setShowTutorial: (show) => set({ showTutorial: show }),
 
@@ -306,6 +309,8 @@ export const useStore = create<AppState>()(
 
       setArchiveBehavior: (behavior) => set({ archiveBehavior: behavior }),
 
+      setChefAvatarUrl: (url) => set({ chefAvatarUrl: url }),
+
       resetStore: () =>
         set({
           userProfile: initialProfile,
@@ -327,6 +332,7 @@ export const useStore = create<AppState>()(
           totalXp: 0,
           earnedBadges: [],
           archiveBehavior: 'ask' as const,
+          chefAvatarUrl: null,
         }),
     }),
     { name: 'chefstack-storage' }

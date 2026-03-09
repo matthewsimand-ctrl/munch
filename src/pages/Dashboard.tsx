@@ -1,14 +1,14 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   Flame, Clock, Heart, ShoppingCart, TrendingUp, ChevronRight,
   Sparkles, Calendar, Star, Plus, Check, Users, MapPin,
-  Trophy, ChefHat, Zap, Award,
+  Trophy, ChefHat, Zap, Award, Camera,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useStore } from "@/lib/store";
 import { useBrowseFeed } from "@/hooks/useBrowseFeed";
-import chefAvatar from "@/assets/chef-avatar.png";
+import defaultChefAvatar from "@/assets/chef-avatar.png";
 import { calculateMatch } from "@/lib/matchLogic";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -45,8 +45,29 @@ export default function Dashboard() {
   });
 
   const { recipes: browseRecipes, loading: browseLoading, loadFeed } = useBrowseFeed();
-  const { likedRecipes, likeRecipe, savedApiRecipes, pantryList, addCustomGroceryItem, cookingStreak, totalMealsCooked, cookedRecipeIds, totalXp, earnedBadges, earnBadge } = useStore();
+  const { likedRecipes, likeRecipe, savedApiRecipes, pantryList, addCustomGroceryItem, cookingStreak, totalMealsCooked, cookedRecipeIds, totalXp, earnedBadges, earnBadge, chefAvatarUrl, setChefAvatarUrl } = useStore();
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingAvatar(true);
+    try {
+      const ext = file.name.split('.').pop();
+      const fileName = `chef-avatar-${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from('recipe-photos').upload(fileName, file, { upsert: true });
+      if (error) throw error;
+      const { data: { publicUrl } } = supabase.storage.from('recipe-photos').getPublicUrl(fileName);
+      setChefAvatarUrl(publicUrl);
+      toast.success('Avatar updated!');
+    } catch {
+      toast.error('Failed to upload avatar');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   const BADGES = useMemo(() => [
     { id: 'first_cook', label: 'First Cook', emoji: '👨‍🍳', desc: 'Cook your first recipe', unlocked: totalMealsCooked >= 1 },
@@ -301,7 +322,18 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-8">
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <div className="flex items-center gap-3 mb-3">
-              <img src={chefAvatar} alt="Chef" className="w-10 h-10 rounded-full bg-amber-50 object-cover" />
+              <button
+                onClick={() => avatarInputRef.current?.click()}
+                className="relative w-10 h-10 rounded-full bg-amber-50 overflow-hidden group shrink-0"
+                title="Change avatar"
+                disabled={uploadingAvatar}
+              >
+                <img src={chefAvatarUrl || defaultChefAvatar} alt="Chef" className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <Camera size={14} className="text-white" />
+                </div>
+              </button>
+              <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <Star size={15} className="text-amber-500 fill-amber-500" />
