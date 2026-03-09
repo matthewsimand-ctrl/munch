@@ -46,6 +46,7 @@ interface AppState {
   cookedRecipeIds: string[];
   totalXp: number;
   earnedBadges: string[];
+  archiveBehavior: 'ask' | 'always' | 'never';
 
   setUserProfile: (profile: Partial<UserProfile>) => void;
   completeOnboarding: () => void;
@@ -75,6 +76,7 @@ interface AppState {
   markRecipeCooked: (recipeId: string) => void;
   addXp: (amount: number) => void;
   earnBadge: (badgeId: string) => void;
+  setArchiveBehavior: (behavior: 'ask' | 'always' | 'never') => void;
   resetStore: () => void;
 }
 
@@ -107,6 +109,7 @@ export const useStore = create<AppState>()(
       cookedRecipeIds: [],
       totalXp: 0,
       earnedBadges: [],
+      archiveBehavior: 'ask' as const,
 
       setShowTutorial: (show) => set({ showTutorial: show }),
 
@@ -301,6 +304,8 @@ export const useStore = create<AppState>()(
             : [...state.earnedBadges, badgeId],
         })),
 
+      setArchiveBehavior: (behavior) => set({ archiveBehavior: behavior }),
+
       resetStore: () =>
         set({
           userProfile: initialProfile,
@@ -321,6 +326,7 @@ export const useStore = create<AppState>()(
           cookedRecipeIds: [],
           totalXp: 0,
           earnedBadges: [],
+          archiveBehavior: 'ask' as const,
         }),
     }),
     { name: 'chefstack-storage' }

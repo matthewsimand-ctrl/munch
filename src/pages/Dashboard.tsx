@@ -78,7 +78,7 @@ export default function Dashboard() {
     { label: "Cooking Streak", value: `${cookingStreak}🔥`, icon: Flame, color: "text-orange-500", bg: "bg-orange-50" },
     { label: "Meals Cooked", value: String(totalMealsCooked), icon: ChefHat, color: "text-emerald-500", bg: "bg-emerald-50" },
     { label: "Recipes Saved", value: String(likedRecipes.length), icon: Heart, color: "text-rose-500", bg: "bg-rose-50" },
-    { label: "Unique Recipes", value: String(cookedRecipeIds.length), icon: Trophy, color: "text-amber-500", bg: "bg-amber-50" },
+    { label: "Recipes Curated", value: String(cookedRecipeIds.length), icon: Trophy, color: "text-amber-500", bg: "bg-amber-50" },
   ], [likedRecipes.length, cookingStreak, totalMealsCooked, cookedRecipeIds.length]);
 
   useEffect(() => {
@@ -185,11 +185,17 @@ export default function Dashboard() {
               {BADGES.map(b => (
                 <div
                   key={b.id}
-                  className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${
+                  className={`relative flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${
                     b.unlocked ? 'bg-amber-50' : 'bg-gray-50 opacity-40 grayscale'
                   }`}
-                  title={b.desc}
                 >
+                  {/* Info icon */}
+                  <div className="absolute top-1 right-1 group cursor-help">
+                    <div className="w-3.5 h-3.5 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center text-[8px] font-bold leading-none">i</div>
+                    <div className="absolute z-20 bottom-full right-0 mb-1 hidden group-hover:block w-32 p-1.5 bg-foreground text-background text-[10px] rounded-lg shadow-lg leading-snug">
+                      {b.desc}
+                    </div>
+                  </div>
                   <span className="text-xl">{b.emoji}</span>
                   <span className="text-[10px] font-semibold text-gray-700 text-center leading-tight">{b.label}</span>
                 </div>

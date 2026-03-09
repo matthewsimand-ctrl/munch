@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, LogOut, User, Users, Utensils, Trash2, Flame } from 'lucide-react';
+import { ArrowLeft, LogOut, User, Users, Utensils, Trash2, Flame, FolderArchive } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import BottomNav from '@/components/BottomNav';
 
@@ -217,6 +217,23 @@ export default function Settings() {
                     />
                   ))}
                 </div>
+              </div>
+
+              {/* Archive Behavior */}
+              <div>
+                <Label>After Cooking</Label>
+                <p className="text-xs text-muted-foreground mb-2">What to do with a recipe after you finish cooking it</p>
+                <Select value={useStore.getState().archiveBehavior} onValueChange={(v) => useStore.getState().setArchiveBehavior(v as any)}>
+                  <SelectTrigger className="w-56">
+                    <FolderArchive className="h-4 w-4 mr-2" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ask">Ask me every time</SelectItem>
+                    <SelectItem value="always">Always archive</SelectItem>
+                    <SelectItem value="never">Never archive</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </section>
