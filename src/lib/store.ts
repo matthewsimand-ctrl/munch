@@ -76,6 +76,7 @@ interface AppState {
   markRecipeCooked: (recipeId: string) => void;
   addXp: (amount: number) => void;
   earnBadge: (badgeId: string) => void;
+  setArchiveBehavior: (behavior: 'ask' | 'always' | 'never') => void;
   resetStore: () => void;
 }
 
