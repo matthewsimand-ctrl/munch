@@ -353,7 +353,7 @@ export default function CreateRecipeForm({ onClose }: Props) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 px-1 pb-1">
       {/* Paste & Auto-Parse */}
       {showPaste ? (
         <div className="space-y-3 p-4 rounded-xl bg-muted/50 border border-border">
