@@ -40,6 +40,10 @@ interface AppState {
   onboardingComplete: boolean;
   tutorialComplete: boolean;
   showTutorial: boolean;
+  cookingStreak: number;
+  lastCookedDate: string | null; // ISO date string
+  totalMealsCooked: number;
+  cookedRecipeIds: string[];
 
   setUserProfile: (profile: Partial<UserProfile>) => void;
   completeOnboarding: () => void;
