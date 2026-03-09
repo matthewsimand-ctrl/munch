@@ -65,7 +65,7 @@ export default function SavedRecipes() {
   const { data: dbRecipes = [] } = useDbRecipes();
 
   const [search, setSearch] = useState("");
-  const [activeTag, setActiveTag] = useState("All");
+  const [activeTags, setActiveTags] = useState<string[]>([]);
   const [sort, setSort] = useState<SortOption>("newest");
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("all");
