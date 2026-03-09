@@ -90,15 +90,15 @@ function dietaryCompatibility(recipe: Recipe, dietaryRestrictions: string[]): nu
   return 1;
 }
 
-/** Score a single recipe against taste profile + onboarding preferences (0-100) */
-export function scoreRecipe(recipe: Recipe, profile: UserTasteProfile, userPrefs?: UserProfile): number {
+/** Score a single recipe against taste profile + onboarding preferences + pantry (0-100) */
+export function scoreRecipe(recipe: Recipe, profile: UserTasteProfile, userPrefs?: UserProfile, pantryItems?: string[]): number {
   const hasLikes = profile.totalLiked > 0;
   let score = 0;
   let maxScore = 0;
 
-  // === Liked-recipe-based scoring (60 points when likes exist) ===
+  // === Liked-recipe-based scoring (50 points when likes exist) ===
   if (hasLikes) {
-    // Tag similarity (weight: 20)
+    // Tag similarity (weight: 15)
     const recipeTags = (recipe.tags || []).map(normalize);
     if (recipeTags.length > 0) {
       let tagScore = 0;
@@ -106,11 +106,11 @@ export function scoreRecipe(recipe: Recipe, profile: UserTasteProfile, userPrefs
         tagScore += (profile.tagFrequency[tag] || 0);
       }
       const tagMax = profile.totalLiked * recipeTags.length;
-      score += (tagScore / Math.max(tagMax, 1)) * 20;
+      score += (tagScore / Math.max(tagMax, 1)) * 15;
     }
-    maxScore += 20;
+    maxScore += 15;
 
-    // Ingredient overlap (weight: 20)
+    // Ingredient overlap (weight: 15)
     const recipeIngs = (recipe.ingredients || []).map(normalize);
     if (recipeIngs.length > 0) {
       let ingScore = 0;
@@ -128,9 +128,9 @@ export function scoreRecipe(recipe: Recipe, profile: UserTasteProfile, userPrefs
         }
       }
       const ingMax = profile.totalLiked * recipeIngs.length;
-      score += (ingScore / Math.max(ingMax, 1)) * 20;
+      score += (ingScore / Math.max(ingMax, 1)) * 15;
     }
-    maxScore += 20;
+    maxScore += 15;
 
     // Cuisine match from likes (weight: 10)
     if (recipe.cuisine) {
@@ -149,9 +149,29 @@ export function scoreRecipe(recipe: Recipe, profile: UserTasteProfile, userPrefs
     maxScore += 10;
   }
 
-  // === Onboarding preference scoring (40 points, or 100 if no likes) ===
-  const prefWeight = hasLikes ? 40 : 100;
-  const prefScale = prefWeight / 40; // 1x when likes exist, 2.5x when no likes
+  // === Pantry match scoring (15 points, or 20 if no likes) ===
+  const pantryWeight = hasLikes ? 15 : 20;
+  if (pantryItems && pantryItems.length > 0) {
+    const recipeIngs = (recipe.ingredients || []).map(normalize);
+    if (recipeIngs.length > 0) {
+      const pantryNorm = pantryItems.map(normalize);
+      let matched = 0;
+      for (const ing of recipeIngs) {
+        if (pantryNorm.some(p => p.includes(ing) || ing.includes(p))) {
+          matched++;
+        }
+      }
+      score += (matched / recipeIngs.length) * pantryWeight;
+    }
+    maxScore += pantryWeight;
+  } else {
+    maxScore += pantryWeight;
+    score += pantryWeight * 0.3; // neutral score when no pantry
+  }
+
+  // === Onboarding preference scoring (35 points, or 80 if no likes) ===
+  const prefWeight = hasLikes ? 35 : 80;
+  const prefScale = prefWeight / 40;
 
   if (userPrefs) {
     // Cuisine preference match (weight: 15 * scale)
@@ -169,7 +189,6 @@ export function scoreRecipe(recipe: Recipe, profile: UserTasteProfile, userPrefs
       if (recipeDiff === userSkill) {
         score += 10 * prefScale;
       } else {
-        // Partial credit for adjacent levels
         const levels = ['beginner', 'intermediate', 'advanced'];
         const ri = levels.indexOf(recipeDiff);
         const ui = levels.indexOf(userSkill);
@@ -205,12 +224,11 @@ export function scoreRecipe(recipe: Recipe, profile: UserTasteProfile, userPrefs
     }
     maxScore += 10 * prefScale;
 
-    // Dietary compatibility (weight: 5 * scale — acts as a penalty multiplier)
+    // Dietary compatibility (weight: 5 * scale)
     const compat = dietaryCompatibility(recipe, userPrefs.dietaryRestrictions);
     score += compat * 5 * prefScale;
     maxScore += 5 * prefScale;
   } else {
-    // No preferences at all, add neutral points
     maxScore += prefWeight;
     score += prefWeight * 0.5;
   }
@@ -219,7 +237,7 @@ export function scoreRecipe(recipe: Recipe, profile: UserTasteProfile, userPrefs
   if (userPrefs && userPrefs.dietaryRestrictions.length > 0 && !userPrefs.dietaryRestrictions.includes('None')) {
     const compat = dietaryCompatibility(recipe, userPrefs.dietaryRestrictions);
     if (compat < 1) {
-      score *= compat; // Heavily penalize incompatible recipes
+      score *= compat;
     }
   }
 
