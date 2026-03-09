@@ -5,8 +5,8 @@ import { cn } from '@/lib/utils';
 const TUTORIAL_MAP: Record<string, string> = {
   Home: 'nav-home',
   Pantry: 'nav-pantry',
-  Browse: 'nav-browse',
-  Recipes: 'nav-recipes',
+  Recipes: 'nav-browse',
+  Saved: 'nav-recipes',
   Plan: 'nav-plan',
   Grocery: 'nav-grocery',
 };
@@ -14,8 +14,8 @@ const TUTORIAL_MAP: Record<string, string> = {
 const NAV_ITEMS = [
   { path: '/dashboard', label: 'Home', icon: Home },
   { path: '/pantry', label: 'Pantry', icon: UtensilsCrossed },
-  { path: '/swipe', label: 'Browse', icon: BookOpen },
-  { path: '/saved', label: 'Recipes', icon: Heart },
+  { path: '/swipe', label: 'Recipes', icon: BookOpen },
+  { path: '/saved', label: 'Saved', icon: Heart },
   { path: '/meal-prep', label: 'Plan', icon: CalendarDays },
   { path: '/grocery', label: 'Grocery', icon: ShoppingCart },
 ];
