@@ -17,6 +17,7 @@ import Settings from "./pages/Settings";
 import Dashboard from "./pages/Dashboard";
 import Auth from "./pages/Auth";
 import ChefProfile from "./pages/ChefProfile";
+import Dictionary from "./pages/Dictionary";
 import NotFound from "./pages/NotFound";
 import SpotlightTutorial from "./components/SpotlightTutorial";
 
