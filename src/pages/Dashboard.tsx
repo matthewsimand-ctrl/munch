@@ -141,7 +141,7 @@ export default function Dashboard() {
     const maxOffset = Math.max(0, availableSuggestions.length - 3);
     const nextOffset = Math.min(maxOffset, suggestionOffset + 3);
     if (nextOffset === suggestionOffset) {
-      toast.info('You're already viewing the freshest set');
+      toast.info("You're already viewing the freshest set");
       return;
     }
     setSuggestionOffset(nextOffset);
