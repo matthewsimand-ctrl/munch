@@ -578,7 +578,7 @@ export default function Browse() {
                 <NutritionCard
                   recipeId={selectedRecipe.id}
                   recipeName={selectedRecipe.name}
-                  ingredients={selectedRecipe.ingredients || []}
+                  ingredients={selectedIngredients}
                   servings={4}
                 />
 
