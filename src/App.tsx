@@ -49,6 +49,7 @@ function AppRoutes() {
           <Route path="/grocery" element={<GroceryList />} />
           <Route path="/meal-prep" element={<MealPrep />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/dictionary" element={<Dictionary />} />
           <Route path="/chef/:userId" element={<ChefProfile />} />
         </Route>
 
