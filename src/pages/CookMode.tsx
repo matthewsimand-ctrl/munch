@@ -2,11 +2,12 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDbRecipes } from '@/hooks/useDbRecipes';
 import { useStore } from '@/lib/store';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis';
 import { useVoiceCommands } from '@/hooks/useVoiceCommands';
 import { Button } from '@/components/ui/button';
 import { ChefPath, CookingXpBar } from '@/components/ChefCompanion';
-import { ArrowLeft, ChevronLeft, ChevronRight, Play, Pause, RotateCcw, Timer, Volume2, VolumeX, Mic, MicOff } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Play, Pause, RotateCcw, Timer, Volume2, VolumeX, Mic, MicOff, FolderPlus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -41,9 +42,10 @@ export default function CookMode() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: dbRecipes = [] } = useDbRecipes();
-  const { savedApiRecipes, markRecipeCooked } = useStore();
+  const { savedApiRecipes, markRecipeCooked, recipeFolders, createFolder, addRecipeToFolder } = useStore();
   const recipe = dbRecipes.find(r => r.id === id) || savedApiRecipes[id || ''];
   const [isDone, setIsDone] = useState(false);
+  const [showArchivePrompt, setShowArchivePrompt] = useState(false);
 
   const [currentStep, setCurrentStep] = useState(0);
   const [timerRunning, setTimerRunning] = useState(false);
@@ -312,7 +314,7 @@ export default function CookMode() {
               if (id) markRecipeCooked(id);
               setIsDone(true);
               toast.success('🎉 Recipe completed! Great cooking!');
-              setTimeout(() => navigate('/saved'), 1500);
+              setTimeout(() => setShowArchivePrompt(true), 800);
             }}>
               🎉 Done!
             </Button>
@@ -323,6 +325,47 @@ export default function CookMode() {
           )}
         </div>
       </div>
+
+      {/* Archive prompt dialog */}
+      <Dialog open={showArchivePrompt} onOpenChange={setShowArchivePrompt}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FolderPlus className="h-5 w-5 text-primary" />
+              Archive this recipe?
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Move <span className="font-semibold text-foreground">{recipe?.name}</span> to your "Archive" folder to keep your cooked recipes organized?
+          </p>
+          <div className="flex gap-2 pt-2">
+            <Button variant="outline" className="flex-1" onClick={() => {
+              setShowArchivePrompt(false);
+              navigate('/saved');
+            }}>
+              Skip
+            </Button>
+            <Button className="flex-1" onClick={() => {
+              if (!id) return;
+              let archiveFolder = recipeFolders.find(f => f.name.toLowerCase() === 'archive');
+              if (!archiveFolder) {
+                createFolder('Archive');
+                // Get the newly created folder (it's the last one)
+                const folders = useStore.getState().recipeFolders;
+                archiveFolder = folders.find(f => f.name === 'Archive');
+              }
+              if (archiveFolder) {
+                addRecipeToFolder(archiveFolder.id, id);
+                toast.success('Moved to Archive folder');
+              }
+              setShowArchivePrompt(false);
+              navigate('/saved');
+            }}>
+              Archive it
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
