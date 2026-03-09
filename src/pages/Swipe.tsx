@@ -5,14 +5,24 @@ import {
   Clock,
   Users,
   Star,
-  Flame,
-  Leaf,
   ChefHat,
   Filter,
   Loader2,
+  Check,
+  ShoppingCart,
 } from "lucide-react";
 import { useBrowseFeed } from "@/hooks/useBrowseFeed";
 import { useNavigate } from "react-router-dom";
+import { useStore } from "@/lib/store";
+import { calculateMatch } from "@/lib/matchLogic";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Recipe {
   id: string;
@@ -23,7 +33,6 @@ interface Recipe {
   ingredients: string[];
   tags: string[];
   instructions: string[];
-  source: string;
   cuisine?: string;
 }
 
@@ -31,78 +40,18 @@ const DIFFICULTY_FILTERS = ["All", "Beginner", "Intermediate", "Advanced"];
 const TIME_FILTERS = ["All", "< 30 min", "30-60 min", "> 60 min"];
 const CUISINE_FILTERS = ["All", "Italian", "Asian", "Mexican", "Mediterranean", "American"];
 
-function SwipeCard({
-  recipe,
-  offset,
-  scale,
-  opacity,
-}: {
-  recipe: Recipe;
-  offset: number;
-  scale: number;
-  opacity: number;
-}) {
-  const gradient = recipe.cuisine 
-    ? `from-${recipe.cuisine === "Italian" ? "green" : recipe.cuisine === "Mexican" ? "orange" : "blue"}-400 to-${recipe.cuisine === "Italian" ? "red" : recipe.cuisine === "Mexican" ? "red" : "purple"}-400`
-    : "from-orange-400 to-pink-400";
-
-  return (
-    <div
-      className="absolute inset-0 rounded-3xl overflow-hidden shadow-2xl"
-      style={{
-        transform: `translateY(${offset}px) scale(${scale})`,
-        opacity,
-        transition: "transform 0.35s cubic-bezier(.34,1.56,.64,1), opacity 0.3s ease",
-        zIndex: Math.round(opacity * 10),
-      }}
-    >
-      {/* Image or gradient */}
-      {recipe.image ? (
-        <img src={recipe.image} alt={recipe.name} className="absolute inset-0 w-full h-full object-cover" />
-      ) : (
-        <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-90`} />
-      )}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
-
-      {/* Content */}
-      <div className="relative h-full flex flex-col justify-between p-6 text-white">
-        {/* Top row */}
-        <div className="flex items-start justify-between">
-          <div className="flex flex-wrap gap-1.5">
-            {recipe.tags.slice(0, 2).map((t) => (
-              <span key={t} className="text-xs bg-white/20 backdrop-blur-sm px-2.5 py-0.5 rounded-full font-medium">
-                {t}
-              </span>
-            ))}
-          </div>
-          <div className="flex items-center gap-1 bg-white/20 backdrop-blur-sm px-2.5 py-0.5 rounded-full text-xs font-semibold">
-            <Star size={11} className="fill-white" /> {recipe.difficulty}
-          </div>
-        </div>
-
-        {/* Bottom info */}
-        <div>
-          <h2 className="text-2xl font-bold leading-tight mb-2">{recipe.name}</h2>
-          <div className="flex items-center gap-4 text-sm text-white/80">
-            <span className="flex items-center gap-1"><Clock size={13} /> {recipe.cook_time}</span>
-            {recipe.cuisine && <span className="flex items-center gap-1">🌍 {recipe.cuisine}</span>}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function Browse() {
   const navigate = useNavigate();
   const { recipes, loading, loaded, loadFeed } = useBrowseFeed();
+  const { pantryList, likeRecipe, likedRecipes } = useStore();
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [savedIds, setSavedIds] = useState<string[]>([]);
   const [animating, setAnimating] = useState<"left" | "right" | null>(null);
   const [difficultyFilter, setDifficultyFilter] = useState("All");
   const [timeFilter, setTimeFilter] = useState("All");
   const [cuisineFilter, setCuisineFilter] = useState("All");
   const [showFilters, setShowFilters] = useState(false);
+  const [swipeIndicator, setSwipeIndicator] = useState<"saved" | "passed" | null>(null);
+  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const constraintsRef = useRef(null);
 
   useEffect(() => {
@@ -120,32 +69,42 @@ export default function Browse() {
       if (timeFilter === "> 60 min" && time < 60) return false;
     }
     return true;
-  });
+  }) as Recipe[];
 
   const currentRecipe = filteredRecipes[currentIndex];
-  const nextRecipe = filteredRecipes[(currentIndex + 1) % filteredRecipes.length];
-  const nextNextRecipe = filteredRecipes[(currentIndex + 2) % filteredRecipes.length];
+  const nextRecipe = filteredRecipes[currentIndex + 1];
+
+  // Calculate match for current recipe
+  const pantryNames = pantryList.map((p) => p.name);
+  const currentMatch = currentRecipe ? calculateMatch(pantryNames, currentRecipe.ingredients) : null;
+  const nextMatch = nextRecipe ? calculateMatch(pantryNames, nextRecipe.ingredients) : null;
+  const selectedMatch = selectedRecipe ? calculateMatch(pantryNames, selectedRecipe.ingredients) : null;
+
+  // Count saved recipes
+  const savedCount = likedRecipes.length;
 
   const handlePass = useCallback(() => {
     if (animating || !filteredRecipes.length) return;
     setAnimating("left");
+    setSwipeIndicator("passed");
     setTimeout(() => {
-      setCurrentIndex((i) => (i + 1) % filteredRecipes.length);
+      setCurrentIndex((i) => Math.min(i + 1, filteredRecipes.length - 1));
       setAnimating(null);
-    }, 350);
+      setSwipeIndicator(null);
+    }, 500);
   }, [animating, filteredRecipes.length]);
 
   const handleSave = useCallback(() => {
     if (animating || !currentRecipe) return;
-    setSavedIds((ids) =>
-      ids.includes(currentRecipe.id) ? ids : [...ids, currentRecipe.id]
-    );
+    likeRecipe(currentRecipe.id, currentRecipe);
     setAnimating("right");
+    setSwipeIndicator("saved");
     setTimeout(() => {
-      setCurrentIndex((i) => (i + 1) % filteredRecipes.length);
+      setCurrentIndex((i) => Math.min(i + 1, filteredRecipes.length - 1));
       setAnimating(null);
-    }, 350);
-  }, [animating, currentRecipe, filteredRecipes.length]);
+      setSwipeIndicator(null);
+    }, 500);
+  }, [animating, currentRecipe, filteredRecipes.length, likeRecipe]);
 
   // Keyboard support
   useEffect(() => {
@@ -157,7 +116,7 @@ export default function Browse() {
     return () => window.removeEventListener("keydown", onKey);
   }, [handlePass, handleSave]);
 
-  const isSaved = currentRecipe ? savedIds.includes(currentRecipe.id) : false;
+  const isSaved = currentRecipe ? likedRecipes.includes(currentRecipe.id) : false;
 
   if (loading || !loaded) {
     return (
@@ -191,6 +150,12 @@ export default function Browse() {
     );
   }
 
+  const matchBadgeColor = (percentage: number) => {
+    if (percentage >= 80) return "bg-green-500";
+    if (percentage >= 50) return "bg-yellow-500";
+    return "bg-orange-500";
+  };
+
   return (
     <div className="min-h-full bg-gray-50">
       {/* Header */}
@@ -216,7 +181,7 @@ export default function Browse() {
             </button>
             <div className="flex items-center gap-2 text-sm text-gray-500">
               <Heart size={14} className="text-rose-400 fill-rose-400" />
-              <span className="font-semibold text-gray-700">{savedIds.length}</span> saved
+              <span className="font-semibold text-gray-700">{savedCount}</span> saved
             </div>
           </div>
         </div>
@@ -294,14 +259,62 @@ export default function Browse() {
               className="relative w-full max-w-sm"
               style={{ height: 420 }}
             >
-              {/* Stack: next-next */}
-              {nextNextRecipe && <SwipeCard recipe={nextNextRecipe} offset={16} scale={0.88} opacity={0.5} />}
-              {/* Stack: next */}
-              {nextRecipe && <SwipeCard recipe={nextRecipe} offset={8} scale={0.94} opacity={0.75} />}
+              {/* Swipe Indicator Overlay */}
+              <AnimatePresence>
+                {swipeIndicator && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.5 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none"
+                  >
+                    {swipeIndicator === "saved" ? (
+                      <div className="bg-green-500 text-white px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-3 text-2xl font-bold">
+                        <Heart className="fill-white" size={32} />
+                        SAVED
+                      </div>
+                    ) : (
+                      <div className="bg-red-500 text-white px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-3 text-2xl font-bold">
+                        <X size={32} strokeWidth={3} />
+                        PASS
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Stack: next card (static, no animation) */}
+              {nextRecipe && !animating && (
+                <div
+                  className="absolute inset-0 rounded-3xl overflow-hidden shadow-lg pointer-events-none"
+                  style={{
+                    transform: "scale(0.95) translateY(12px)",
+                    opacity: 0.5,
+                    zIndex: 0,
+                  }}
+                >
+                  {nextRecipe.image ? (
+                    <img src={nextRecipe.image} alt={nextRecipe.name} className="absolute inset-0 w-full h-full object-cover" />
+                  ) : (
+                    <div className="absolute inset-0 bg-gradient-to-br from-orange-400 to-pink-400 opacity-90" />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+                  <div className="absolute bottom-4 left-4 right-4 text-white">
+                    <h3 className="text-lg font-bold">{nextRecipe.name}</h3>
+                  </div>
+                  {nextMatch && (
+                    <div className={`absolute bottom-4 right-4 ${matchBadgeColor(nextMatch.percentage)} text-white px-3 py-1 rounded-full text-sm font-bold shadow-md`}>
+                      {nextMatch.percentage}% Match
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Top card */}
               {currentRecipe && (
                 <div
-                  className="absolute inset-0 rounded-3xl overflow-hidden shadow-2xl cursor-grab active:cursor-grabbing"
+                  onClick={() => setSelectedRecipe(currentRecipe)}
+                  className="absolute inset-0 rounded-3xl overflow-hidden shadow-2xl cursor-pointer"
                   style={{
                     transform: `
                       translateX(${animating === "left" ? -300 : animating === "right" ? 300 : 0}px)
@@ -309,7 +322,7 @@ export default function Browse() {
                       scale(1)
                     `,
                     opacity: animating ? 0 : 1,
-                    transition: "transform 0.35s cubic-bezier(.34,1.56,.64,1), opacity 0.3s ease",
+                    transition: "transform 0.4s cubic-bezier(.34,1.56,.64,1), opacity 0.3s ease",
                     zIndex: 10,
                   }}
                 >
@@ -333,6 +346,12 @@ export default function Browse() {
                       </div>
                     </div>
                     <div>
+                      {/* Match Badge */}
+                      {currentMatch && (
+                        <div className={`inline-flex items-center gap-1.5 ${matchBadgeColor(currentMatch.percentage)} text-white px-3 py-1.5 rounded-full text-sm font-bold shadow-md mb-3`}>
+                          <Check size={14} /> {currentMatch.percentage}% Match
+                        </div>
+                      )}
                       <h2 className="text-2xl font-bold leading-tight mb-2">{currentRecipe.name}</h2>
                       <div className="flex items-center gap-4 text-sm text-white/80">
                         <span className="flex items-center gap-1"><Clock size={13} /> {currentRecipe.cook_time}</span>
@@ -385,7 +404,7 @@ export default function Browse() {
           </div>
 
           {/* ── Info panel (desktop only) ─────────────────────────────────── */}
-          {currentRecipe && (
+          {currentRecipe && currentMatch && (
             <div className="hidden lg:flex flex-col gap-4 w-80 xl:w-96 shrink-0">
 
               {/* Recipe detail card */}
@@ -393,6 +412,9 @@ export default function Browse() {
                 <div className="p-5">
                   <div className="flex items-start justify-between mb-3">
                     <h2 className="text-lg font-bold text-gray-900 leading-tight">{currentRecipe.name}</h2>
+                    <div className={`${matchBadgeColor(currentMatch.percentage)} text-white px-2.5 py-1 rounded-full text-xs font-bold`}>
+                      {currentMatch.percentage}%
+                    </div>
                   </div>
 
                   <div className="flex flex-wrap gap-1.5 mb-4">
@@ -413,24 +435,26 @@ export default function Browse() {
                     <div className="bg-gray-50 rounded-xl p-2.5 text-center">
                       <Star size={14} className="mx-auto text-gray-400 mb-1" />
                       <div className="text-sm font-bold text-gray-800">{currentRecipe.difficulty}</div>
-                      <div className="text-xs text-gray-400">Difficulty</div>
+                      <div className="text-xs text-gray-400">Level</div>
                     </div>
                   </div>
 
                   {/* Ingredients */}
-                  <div className="border-t border-gray-100 pt-4">
-                    <div className="flex items-center gap-1.5 mb-2.5">
-                      <Leaf size={13} className="text-green-500" />
-                      <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Ingredients ({currentRecipe.ingredients.length})</span>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
-                      {currentRecipe.ingredients.slice(0, 10).map((ing, i) => (
-                        <span key={i} className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full">
-                          {ing}
+                  <div>
+                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Ingredients</h3>
+                    <div className="flex flex-wrap gap-1.5">
+                      {currentMatch.matched.slice(0, 6).map((ing) => (
+                        <span key={ing} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 font-medium">
+                          <Check size={10} /> {ing}
                         </span>
                       ))}
-                      {currentRecipe.ingredients.length > 10 && (
-                        <span className="text-xs text-gray-400 px-2 py-0.5">
+                      {currentMatch.missing.slice(0, 4).map((ing) => (
+                        <span key={ing} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-red-50 text-red-600 font-medium">
+                          <ShoppingCart size={10} /> {ing}
+                        </span>
+                      ))}
+                      {(currentMatch.matched.length + currentMatch.missing.length) > 10 && (
+                        <span className="text-xs text-gray-400 px-2 py-1">
                           +{currentRecipe.ingredients.length - 10} more
                         </span>
                       )}
@@ -439,17 +463,88 @@ export default function Browse() {
                 </div>
               </div>
 
-              {/* Source info */}
-              {currentRecipe.source && (
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-                  <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-2">Recipe Source</p>
-                  <p className="text-sm text-gray-700">{currentRecipe.source}</p>
-                </div>
-              )}
+              {/* Click hint */}
+              <p className="text-xs text-gray-400 text-center">
+                Click the card to see full recipe details
+              </p>
             </div>
           )}
         </div>
       </div>
+
+      {/* Recipe Detail Dialog */}
+      <Dialog open={!!selectedRecipe} onOpenChange={() => setSelectedRecipe(null)}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">{selectedRecipe?.name}</DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="flex-1 -mx-6 px-6">
+            {selectedRecipe && selectedMatch && (
+              <div className="space-y-6 pb-4">
+                {/* Image */}
+                {selectedRecipe.image && (
+                  <div className="relative rounded-xl overflow-hidden aspect-video">
+                    <img src={selectedRecipe.image} alt={selectedRecipe.name} className="w-full h-full object-cover" />
+                    <div className={`absolute bottom-3 right-3 ${matchBadgeColor(selectedMatch.percentage)} text-white px-3 py-1.5 rounded-full text-sm font-bold shadow-md`}>
+                      {selectedMatch.percentage}% Match
+                    </div>
+                  </div>
+                )}
+
+                {/* Meta */}
+                <div className="flex flex-wrap gap-4 text-sm text-gray-600">
+                  <span className="flex items-center gap-1.5"><Clock size={16} /> {selectedRecipe.cook_time}</span>
+                  <span className="flex items-center gap-1.5"><Star size={16} /> {selectedRecipe.difficulty}</span>
+                  {selectedRecipe.cuisine && <span className="flex items-center gap-1.5">🌍 {selectedRecipe.cuisine}</span>}
+                </div>
+
+                {/* Tags */}
+                <div className="flex flex-wrap gap-2">
+                  {selectedRecipe.tags.map((t) => (
+                    <span key={t} className="text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full font-medium">
+                      {t}
+                    </span>
+                  ))}
+                </div>
+
+                {/* Ingredients */}
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900 mb-3">Ingredients</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedMatch.matched.map((ing) => (
+                      <span key={ing} className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full bg-green-100 text-green-700 font-medium">
+                        <Check size={14} /> {ing}
+                      </span>
+                    ))}
+                    {selectedMatch.missing.map((ing) => (
+                      <span key={ing} className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full bg-red-50 text-red-600 font-medium">
+                        <ShoppingCart size={14} /> {ing}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Instructions */}
+                {selectedRecipe.instructions.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3">Instructions</h3>
+                    <ol className="space-y-3">
+                      {selectedRecipe.instructions.map((step, i) => (
+                        <li key={i} className="flex gap-3 text-sm text-gray-700">
+                          <span className="flex-shrink-0 w-6 h-6 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center text-xs font-bold">
+                            {i + 1}
+                          </span>
+                          <span>{step}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
+              </div>
+            )}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

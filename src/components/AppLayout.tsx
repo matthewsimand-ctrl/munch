@@ -3,7 +3,7 @@ import { Outlet } from "react-router-dom";
 import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard,
-  Shuffle,
+  BookOpen,
   Heart,
   ShoppingCart,
   Package,
@@ -15,7 +15,7 @@ import {
 
 const NAV_ITEMS = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { to: "/swipe", icon: Shuffle, label: "Recipes" },
+  { to: "/swipe", icon: BookOpen, label: "Recipes" },
   { to: "/saved", icon: Heart, label: "Saved" },
   { to: "/pantry", icon: Package, label: "Pantry" },
   { to: "/grocery", icon: ShoppingCart, label: "Grocery" },
@@ -48,25 +48,13 @@ export default function AppLayout() {
             )}
           </div>
 
-          {!collapsed && (
-            <button
-              onClick={() => setCollapsed(!collapsed)}
-              className="text-gray-400 hover:text-gray-600 transition-colors mr-2"
-              title="Collapse sidebar"
-            >
-              <ChevronLeft size={18} />
-            </button>
-          )}
-          
-          {collapsed && (
-            <button
-              onClick={() => setCollapsed(!collapsed)}
-              className="absolute right-2 top-5 text-gray-400 hover:text-gray-600 transition-colors"
-              title="Expand sidebar"
-            >
-              <ChevronRight size={18} />
-            </button>
-          )}
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className="absolute -right-3 top-5 text-gray-400 hover:text-gray-600 transition-colors bg-white border border-gray-200 rounded-full p-1 shadow-sm z-10"
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+          </button>
         </div>
 
         {/* Nav links */}
@@ -123,7 +111,7 @@ export default function AppLayout() {
             {!collapsed && (
               <div className="min-w-0">
                 <div className="text-xs font-semibold text-gray-800 truncate">My Kitchen</div>
-                <div className="text-xs text-gray-400 truncate">Settings</div>
+                <div className="text-xs text-gray-400 truncate">Free Plan</div>
               </div>
             )}
           </NavLink>

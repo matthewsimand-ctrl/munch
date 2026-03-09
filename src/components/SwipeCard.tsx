@@ -61,12 +61,12 @@ export default function SwipeCard({ recipe, match, onSwipe, onImageTap, isTop, c
   };
 
   if (!isTop) {
-    // Background card: static, no animation, slightly scaled down
+    // Background card: static, no animation
     return (
-      <div className="absolute inset-0" style={{ zIndex: 0 }}>
+      <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }}>
         <div
           className={`h-full rounded-2xl border-2 ${borderColor} bg-card shadow-md overflow-hidden flex flex-col`}
-          style={{ transform: 'scale(0.97)', transformOrigin: 'center bottom', opacity: 0.7 }}
+          style={{ transform: 'scale(0.96) translateY(8px)', transformOrigin: 'center bottom', opacity: 0.5 }}
         >
           <div className="relative h-56 bg-muted overflow-hidden flex-shrink-0">
             <img
