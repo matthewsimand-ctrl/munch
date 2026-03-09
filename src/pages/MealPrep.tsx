@@ -42,6 +42,7 @@ export default function MealPrep() {
   const [dragItem, setDragItem] = useState<MealItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [aiGenerating, setAiGenerating] = useState(false);
+  const [exportDialog, setExportDialog] = useState(false);
 
   // Get saved recipes list
   const savedRecipes = useMemo(() => {
