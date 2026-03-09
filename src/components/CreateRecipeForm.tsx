@@ -409,11 +409,21 @@ export default function CreateRecipeForm({ onClose }: Props) {
             size="sm"
             onClick={() => photoInputRef.current?.click()}
             disabled={uploadingPhoto}
+            title="Upload photo"
           >
             {uploadingPhoto ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
           </Button>
-          <Button type="button" variant="outline" size="sm" onClick={fetchRandomPhoto} disabled={fetchingPhoto}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={fetchRandomPhoto}
+            disabled={fetchingPhoto}
+            title="Use random Foodish photo"
+            className="gap-1.5"
+          >
             {fetchingPhoto ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+            <span className="hidden sm:inline">Foodish</span>
           </Button>
         </div>
         {image && (
