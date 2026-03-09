@@ -39,6 +39,17 @@ interface Recipe {
   cuisine?: string;
 }
 
+function normalizeStringArray(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map((v) => String(v).trim()).filter(Boolean);
+  if (typeof value === "string") {
+    return value
+      .split(/\r?\n/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
 const DIFFICULTY_FILTERS = ["All", "Beginner", "Intermediate", "Advanced"];
 const TIME_FILTERS = ["All", "< 30 min", "30-60 min", "> 60 min"];
 const CUISINE_FILTERS = ["All", "Italian", "Asian", "Mexican", "Mediterranean", "American"];
@@ -82,6 +93,7 @@ export default function Browse() {
   const currentMatch = currentRecipe ? calculateMatch(pantryNames, currentRecipe.ingredients) : null;
   const nextMatch = nextRecipe ? calculateMatch(pantryNames, nextRecipe.ingredients) : null;
   const selectedMatch = selectedRecipe ? calculateMatch(pantryNames, selectedRecipe.ingredients) : null;
+  const selectedInstructions = selectedRecipe ? normalizeStringArray((selectedRecipe as any).instructions) : [];
 
   // Count saved recipes
   const savedCount = likedRecipes.length;
@@ -542,11 +554,11 @@ export default function Browse() {
                 </div>
 
                 {/* Instructions */}
-                {selectedRecipe.instructions && selectedRecipe.instructions.length > 0 ? (
+                {selectedInstructions.length > 0 ? (
                   <div>
                     <h3 className="text-sm font-semibold text-foreground mb-3">Instructions</h3>
                     <ol className="space-y-3">
-                      {selectedRecipe.instructions.map((step, i) => (
+                      {selectedInstructions.map((step, i) => (
                         <li key={i} className="flex gap-3 text-sm text-muted-foreground">
                           <span className="flex-shrink-0 w-6 h-6 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center text-xs font-bold">
                             {i + 1}

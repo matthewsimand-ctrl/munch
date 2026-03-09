@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import NutritionCard from "@/components/NutritionCard";
 import ImportRecipeDialog from "@/components/ImportRecipeDialog";
+import CreateRecipeForm from "@/components/CreateRecipeForm";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
@@ -22,6 +23,17 @@ import type { Recipe } from "@/data/recipes";
 
 type SortOption = "newest" | "time" | "name";
 type ViewMode = "all" | "folder";
+
+function normalizeStringArray(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map((v) => String(v).trim()).filter(Boolean);
+  if (typeof value === "string") {
+    return value
+      .split(/\r?\n/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
 
 export default function SavedRecipes() {
   const navigate = useNavigate();
@@ -40,6 +52,7 @@ export default function SavedRecipes() {
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("all");
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
+  const [showCreateRecipe, setShowCreateRecipe] = useState(false);
 
   // Tag editing
   const [editingTagsFor, setEditingTagsFor] = useState<string | null>(null);
@@ -109,6 +122,7 @@ export default function SavedRecipes() {
   }, [allSavedRecipes, viewMode, activeFolderId, recipeFolders, activeTag, recipeTags, search, sort]);
 
   const pantryNames = pantryList.map((p) => p.name);
+  const selectedInstructions = selectedRecipe ? normalizeStringArray((selectedRecipe as any).instructions) : [];
 
   const handleRemove = (id: string) => {
     unlikeRecipe(id);
@@ -175,6 +189,13 @@ export default function SavedRecipes() {
                   Import
                 </button>
               </ImportRecipeDialog>
+              <button
+                onClick={() => setShowCreateRecipe(true)}
+                className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-sm"
+              >
+                <Plus size={15} />
+                Add Recipe
+              </button>
               <Link
                 to="/swipe"
                 className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-sm"
@@ -511,6 +532,18 @@ export default function SavedRecipes() {
         </DialogContent>
       </Dialog>
 
+      {/* Add Recipe Dialog */}
+      <Dialog open={showCreateRecipe} onOpenChange={setShowCreateRecipe}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Add a Recipe</DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="flex-1 -mx-6 px-6">
+            <CreateRecipeForm onClose={() => setShowCreateRecipe(false)} />
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
       {/* Recipe Detail Dialog */}
       <Dialog open={!!selectedRecipe} onOpenChange={() => setSelectedRecipe(null)}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
@@ -581,11 +614,11 @@ export default function SavedRecipes() {
                   })()}
 
                   {/* Instructions */}
-                  {selectedRecipe.instructions && selectedRecipe.instructions.length > 0 ? (
+                  {selectedInstructions.length > 0 ? (
                     <div>
                       <h3 className="text-sm font-semibold text-foreground mb-3">Instructions</h3>
                       <ol className="space-y-3">
-                        {selectedRecipe.instructions.map((step, i) => (
+                        {selectedInstructions.map((step, i) => (
                           <li key={i} className="flex gap-3 text-sm text-muted-foreground">
                             <span className="flex-shrink-0 w-6 h-6 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center text-xs font-bold">
                               {i + 1}

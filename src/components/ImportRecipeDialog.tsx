@@ -48,7 +48,8 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
   // Review mode state
   const [reviewMode, setReviewMode] = useState(false);
   const [reviewData, setReviewData] = useState<ReviewData | null>(null);
-  const [isDiscoverable, setIsDiscoverable] = useState(false);
+  // Discoverable should be ON by default (user can toggle off)
+  const [isDiscoverable, setIsDiscoverable] = useState(true);
   const [newIngredient, setNewIngredient] = useState('');
   const [newInstruction, setNewInstruction] = useState('');
   const [newTag, setNewTag] = useState('');
@@ -63,7 +64,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
     setLastImportError('');
     setReviewMode(false);
     setReviewData(null);
-    setIsDiscoverable(false);
+    setIsDiscoverable(true);
     setNewIngredient('');
     setNewInstruction('');
     setNewTag('');
@@ -93,17 +94,32 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
       }
 
       const recipe = data.recipe;
-      // Enter review mode with extracted data
+
+      const normalizeList = (value: unknown): string[] => {
+        if (Array.isArray(value)) {
+          return value.map((v) => String(v).trim()).filter(Boolean);
+        }
+        if (typeof value === 'string') {
+          return value
+            .split(/\r?\n/)
+            .map((s) => s.trim())
+            .filter(Boolean);
+        }
+        return [];
+      };
+
+      // Enter review mode with extracted data (discoverable ON by default)
       setReviewData({
-        name: recipe.name || '',
-        ingredients: recipe.ingredients || [],
-        instructions: recipe.instructions || [],
+        name: String(recipe.name || ''),
+        ingredients: normalizeList(recipe.ingredients),
+        instructions: normalizeList(recipe.instructions),
         cook_time: recipe.cook_time || '30 min',
         difficulty: recipe.difficulty || 'Intermediate',
         cuisine: recipe.cuisine || '',
-        tags: recipe.tags || [],
+        tags: normalizeList(recipe.tags),
         image: recipe.image || '/placeholder.svg',
       });
+      setIsDiscoverable(true);
       setReviewMode(true);
       toast.success('Recipe extracted! Review and edit before saving.');
     } catch (err) {
@@ -138,35 +154,35 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
     try {
       if (isDiscoverable) {
         // Save to Supabase for public discovery
-        const { data: { user } } = await supabase.auth.getUser();
-        
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
         if (!user) {
-          toast.error('You must be logged in to make recipes discoverable');
-          setSaving(false);
-          return;
-        }
-
-        const { error } = await supabase.from('recipes').insert({
-          id,
-          name: reviewData.name,
-          ingredients: reviewData.ingredients,
-          instructions: reviewData.instructions,
-          cook_time: reviewData.cook_time,
-          difficulty: reviewData.difficulty,
-          cuisine: reviewData.cuisine || null,
-          tags: reviewData.tags,
-          image: reviewData.image,
-          source: 'imported',
-          created_by: user.id,
-          is_public: true,
-          servings: 4,
-        });
-
-        if (error) {
-          console.error('Failed to save to database:', error);
-          toast.error('Failed to make recipe discoverable. Saving locally instead.');
+          toast.info('Not logged in — saved privately. Log in to make it discoverable.');
         } else {
-          toast.success(`"${reviewData.name}" is now discoverable by others!`);
+          const { error } = await supabase.from('recipes').insert({
+            id,
+            name: reviewData.name,
+            ingredients: reviewData.ingredients,
+            instructions: reviewData.instructions,
+            cook_time: reviewData.cook_time,
+            difficulty: reviewData.difficulty,
+            cuisine: reviewData.cuisine || null,
+            tags: reviewData.tags,
+            image: reviewData.image,
+            source: 'imported',
+            created_by: user.id,
+            is_public: true,
+            servings: 4,
+          });
+
+          if (error) {
+            console.error('Failed to save to database:', error);
+            toast.error('Failed to make recipe discoverable. Saved locally instead.');
+          } else {
+            toast.success(`"${reviewData.name}" is now discoverable by others!`);
+          }
         }
       }
 
