@@ -760,19 +760,36 @@ export default function SavedRecipes() {
                     servings={selectedRecipe.servings}
                   />
 
-                  {/* Start cooking */}
-                  <button
-                    onClick={() => { setSelectedRecipe(null); navigate(`/cook/${selectedRecipe.id}`); }}
-                    className="w-full flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-xl transition-colors"
-                  >
-                    <Play size={18} /> Start Cooking
-                  </button>
+                  {/* Action buttons */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { setSelectedRecipe(null); setTweakingRecipe(selectedRecipe); }}
+                      className="flex-1 flex items-center justify-center gap-2 bg-muted hover:bg-muted/80 text-foreground font-bold py-3 rounded-xl transition-colors border border-border"
+                    >
+                      <Wand2 size={16} /> AI Tweak
+                    </button>
+                    <button
+                      onClick={() => { setSelectedRecipe(null); navigate(`/cook/${selectedRecipe.id}`); }}
+                      className="flex-1 flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-xl transition-colors"
+                    >
+                      <Play size={18} /> Start Cooking
+                    </button>
+                  </div>
                 </div>
               </div>
             </>
           )}
         </DialogContent>
       </Dialog>
+
+      {/* AI Tweak Dialog */}
+      {tweakingRecipe && (
+        <RecipeTweakDialog
+          recipe={tweakingRecipe}
+          open={!!tweakingRecipe}
+          onOpenChange={(v) => { if (!v) setTweakingRecipe(null); }}
+        />
+      )}
     </div>
   );
 }
