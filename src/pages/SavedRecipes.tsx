@@ -189,6 +189,13 @@ export default function SavedRecipes() {
                   Import
                 </button>
               </ImportRecipeDialog>
+              <button
+                onClick={() => setShowCreateRecipe(true)}
+                className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-sm"
+              >
+                <Plus size={15} />
+                Add Recipe
+              </button>
               <Link
                 to="/swipe"
                 className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-sm"
