@@ -492,7 +492,7 @@ export default function MealPrep() {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-background pb-8">
       {/* Header */}
       <div className="px-4 pt-6 pb-2 max-w-6xl mx-auto w-full">
         <div className="flex items-center gap-3 mb-4 flex-wrap">
