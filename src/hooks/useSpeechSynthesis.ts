@@ -1,34 +1,57 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 
-function getQualityScore(voice: SpeechSynthesisVoice): number {
-  const name = voice.name.toLowerCase();
-  // Premium / neural voices (highest quality)
-  if (name.includes('premium') || name.includes('enhanced') || name.includes('natural')) return 100;
-  // Apple high-quality voices
-  if (name.includes('samantha') || name.includes('karen') || name.includes('daniel') || name.includes('moira')) return 90;
-  // Google voices (good quality)
-  if (name.includes('google')) return 80;
-  // Microsoft Online / Neural voices
-  if (name.includes('online') || name.includes('neural')) return 75;
-  // Microsoft desktop voices
-  if (name.includes('microsoft')) return 60;
-  // Anything with "compact" or "espeak" is robotic
-  if (name.includes('compact') || name.includes('espeak') || name.includes('mbrola')) return 10;
-  // Generic english fallback
-  if (voice.lang.startsWith('en')) return 40;
-  return 20;
-}
-
+/**
+ * Picks the highest-quality English voice available.
+ * The browser exposes many voices — some are high-quality neural/premium voices
+ * and others are robotic system voices. We score each voice and pick the best.
+ */
 function getBestVoice(): SpeechSynthesisVoice | null {
   const voices = window.speechSynthesis.getVoices();
   if (!voices.length) return null;
 
-  // Filter to English voices, then sort by quality
   const english = voices.filter(v => v.lang.startsWith('en'));
-  if (english.length === 0) return voices[0];
+  if (!english.length) return voices[0];
 
-  english.sort((a, b) => getQualityScore(b) - getQualityScore(a));
-  return english[0];
+  // Score each voice — higher = better quality
+  const scored = english.map(v => {
+    const n = v.name.toLowerCase();
+    let score = 0;
+
+    // ---- BLOCKLIST: robotic / low-quality voices ----
+    if (n.includes('espeak') || n.includes('mbrola') || n.includes('compact') || n.includes('festival')) {
+      return { voice: v, score: -100 };
+    }
+
+    // ---- BOOST: known high-quality voices ----
+    // Apple premium (macOS / iOS)
+    if (/samantha|karen|daniel|moira|tessa|fiona|alex/.test(n)) score += 95;
+    // Apple "enhanced" or "premium" variants
+    if (n.includes('premium') || n.includes('enhanced') || n.includes('natural')) score += 100;
+    // Google voices (Chrome)
+    if (n.includes('google uk english female')) score += 92;
+    if (n.includes('google us english')) score += 90;
+    if (n.includes('google')) score += 85;
+    // Microsoft Online / Neural (Edge)
+    if (n.includes('online') && n.includes('natural')) score += 88;
+    if (n.includes('neural')) score += 86;
+    if (n.includes('online')) score += 78;
+    // Microsoft desktop voices (okay but not great)
+    if (n.includes('microsoft') && score === 0) score += 55;
+
+    // Prefer non-local voices when we have no other signal — they're often higher quality
+    if (!v.localService && score === 0) score += 45;
+    // Generic English fallback
+    if (score === 0) score = 30;
+
+    return { voice: v, score };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+
+  // Debug: uncomment to see voice selection
+  // console.log('Voice scores:', scored.map(s => `${s.voice.name} (${s.score})`));
+
+  return scored[0]?.voice ?? english[0];
 }
 
 export function useSpeechSynthesis() {
@@ -37,15 +60,20 @@ export function useSpeechSynthesis() {
   const voiceRef = useRef<SpeechSynthesisVoice | null>(null);
 
   useEffect(() => {
-    const loadVoice = () => { voiceRef.current = getBestVoice(); };
+    const loadVoice = () => {
+      voiceRef.current = getBestVoice();
+    };
     loadVoice();
-    // Voices load async in Chrome
     window.speechSynthesis.addEventListener('voiceschanged', loadVoice);
     return () => window.speechSynthesis.removeEventListener('voiceschanged', loadVoice);
   }, []);
 
   const speak = useCallback((text: string) => {
     synthRef.current.cancel();
+
+    // Re-check voice in case voices loaded after initial mount
+    if (!voiceRef.current) voiceRef.current = getBestVoice();
+
     const utter = new SpeechSynthesisUtterance(text);
     if (voiceRef.current) utter.voice = voiceRef.current;
     utter.rate = 0.95;
