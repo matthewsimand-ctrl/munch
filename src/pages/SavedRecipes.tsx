@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   Heart, Clock, Users, Search, Filter, Trash2, ChevronDown,
   Plus, FolderOpen, X, Tag, Edit2, Check, ChefHat, Play,
@@ -57,7 +57,7 @@ export default function SavedRecipes() {
   const navigate = useNavigate();
   const {
     likedRecipes, savedApiRecipes, unlikeRecipe, pantryList,
-    recipeTags, addRecipeTag, removeRecipeTag,
+    recipeTags, addRecipeTag, removeRecipeTag, setRecipeIngredients, recipeIngredientOverrides,
     recipeFolders, createFolder, renameFolder, updateFolderCover, deleteFolder,
     addRecipeToFolder, removeRecipeFromFolder,
     addCustomGroceryItem, cachedNutrition, cacheNutrition,
@@ -84,21 +84,30 @@ export default function SavedRecipes() {
   const [renamingFolder, setRenamingFolder] = useState<string | null>(null);
   const [analyzingNutrition, setAnalyzingNutrition] = useState<string | null>(null);
   const [renameInput, setRenameInput] = useState("");
+  const [editingIngredients, setEditingIngredients] = useState<string[]>([]);
+  const [ingredientInput, setIngredientInput] = useState("");
+  const [isEditingIngredients, setIsEditingIngredients] = useState(false);
 
   // Resolve all saved recipes from DB + saved API cache
   const allSavedRecipes: Recipe[] = useMemo(() => {
     return likedRecipes
       .map((id) => {
         const dbRecipe = dbRecipes.find((r) => r.id === id);
-        if (dbRecipe) return normalizeRecipeData(dbRecipe, id);
+        if (dbRecipe) {
+          const normalized = normalizeRecipeData(dbRecipe, id);
+          return recipeIngredientOverrides[id] ? { ...normalized, ingredients: recipeIngredientOverrides[id] } : normalized;
+        }
 
         const apiRecipe = savedApiRecipes[id];
-        if (apiRecipe) return normalizeRecipeData(apiRecipe, id);
+        if (apiRecipe) {
+          const normalized = normalizeRecipeData(apiRecipe, id);
+          return recipeIngredientOverrides[id] ? { ...normalized, ingredients: recipeIngredientOverrides[id] } : normalized;
+        }
 
         return null;
       })
       .filter(Boolean) as Recipe[];
-  }, [likedRecipes, dbRecipes, savedApiRecipes]);
+  }, [likedRecipes, dbRecipes, savedApiRecipes, recipeIngredientOverrides]);
 
   // Fetch chef profiles for recipes with created_by
   const chefIds = useMemo(() => allSavedRecipes.map(r => r.created_by).filter(Boolean), [allSavedRecipes]);
@@ -198,6 +207,33 @@ export default function SavedRecipes() {
       setRenamingFolder(null);
       setRenameInput("");
     }
+  };
+
+  useEffect(() => {
+    if (!selectedRecipe) return;
+    setEditingIngredients(normalizeStringArray((selectedRecipe as any).ingredients));
+    setIngredientInput("");
+    setIsEditingIngredients(false);
+  }, [selectedRecipe?.id]);
+
+  const addEditingIngredient = () => {
+    const value = ingredientInput.trim().toLowerCase();
+    if (!value || editingIngredients.includes(value)) return;
+    setEditingIngredients((prev) => [...prev, value]);
+    setIngredientInput("");
+  };
+
+  const saveEditedIngredients = () => {
+    if (!selectedRecipe) return;
+    if (editingIngredients.length === 0) {
+      toast.error("Add at least one ingredient");
+      return;
+    }
+
+    setRecipeIngredients(selectedRecipe.id, editingIngredients);
+    setSelectedRecipe((prev) => (prev ? { ...prev, ingredients: editingIngredients } : prev));
+    setIsEditingIngredients(false);
+    toast.success("Ingredients updated");
   };
 
   const handleAddMissingToGrocery = (recipe: Recipe) => {
@@ -346,15 +382,6 @@ export default function SavedRecipes() {
                 <DropdownMenuItem onClick={() => { setRenamingFolder(activeFolder.id); setRenameInput(activeFolder.name); }}>
                   <Edit2 size={12} className="mr-2" /> Rename
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => {
-                  const cover = window.prompt("Enter a cover image URL", activeFolder.coverImage || "");
-                  if (cover !== null) {
-                    updateFolderCover(activeFolder.id, cover.trim());
-                    toast.success("Cookbook cover updated");
-                  }
-                }}>
-                  <Image size={12} className="mr-2" /> Update Cover
-                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="text-destructive" onClick={() => { deleteFolder(activeFolder.id); setActiveFolderId(null); toast.success("Cookbook deleted"); }}>
                   <Trash2 size={12} className="mr-2" /> Delete Cookbook
@@ -441,12 +468,26 @@ export default function SavedRecipes() {
                 const previewRecipe = allSavedRecipes.find((recipe) => folder.recipeIds.includes(recipe.id));
 
                 return (
-                  <button
+                  <div
                     key={folder.id}
-                    onClick={() => setActiveFolderId(folder.id)}
                     className="group text-left rounded-2xl overflow-hidden border border-border bg-background shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all"
                   >
+                    <div onClick={() => setActiveFolderId(folder.id)} className="w-full text-left cursor-pointer">
                     <div className="relative h-48">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const cover = window.prompt("Enter a cover image URL", folder.coverImage || "");
+                          if (cover !== null) {
+                            updateFolderCover(folder.id, cover.trim());
+                            toast.success("Cookbook cover updated");
+                          }
+                        }}
+                        className="absolute top-3 right-3 z-10 inline-flex items-center gap-1 rounded-full bg-black/40 backdrop-blur px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-black/55 transition-colors"
+                        title="Update cookbook cover"
+                      >
+                        <Image size={12} /> Cover
+                      </button>
                       {folder.coverImage || previewRecipe?.image ? (
                         <img
                           src={folder.coverImage || previewRecipe?.image}
@@ -462,7 +503,8 @@ export default function SavedRecipes() {
                         <p className="text-white/80 text-xs mt-1">{recipeCount} {recipeCount === 1 ? "recipe" : "recipes"}</p>
                       </div>
                     </div>
-                  </button>
+                    </div>
+                  </div>
                 );
               })}
             </div>
@@ -832,41 +874,107 @@ export default function SavedRecipes() {
                   </div>
 
                   {/* Ingredients with match */}
-                  {selectedIngredients.length > 0 && (() => {
-                    const m = calculateMatch(pantryNames, selectedIngredients);
-                    return (
-                      <div>
-                        <h3 className="text-sm font-semibold text-foreground mb-3">
-                          Ingredients
-                          <span className={`ml-2 text-xs font-bold px-2 py-0.5 rounded-full text-white ${
-                            m.percentage >= 80 ? "bg-green-500" : m.percentage >= 50 ? "bg-yellow-500" : "bg-orange-500"
-                          }`}>
-                            {m.percentage}% match
-                          </span>
-                        </h3>
-                        <div className="flex flex-wrap gap-2">
-                          {m.matched.map((ing) => (
-                            <span key={ing} className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full bg-green-100 text-green-700 font-medium">
-                              <Check size={14} /> {ing}
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-sm font-semibold text-foreground">
+                        Ingredients
+                        {editingIngredients.length > 0 && (() => {
+                          const m = calculateMatch(pantryNames, editingIngredients);
+                          return (
+                            <span className={`ml-2 text-xs font-bold px-2 py-0.5 rounded-full text-white ${
+                              m.percentage >= 80 ? "bg-green-500" : m.percentage >= 50 ? "bg-yellow-500" : "bg-orange-500"
+                            }`}>
+                              {m.percentage}% match
                             </span>
-                          ))}
-                          {m.missing.map((ing) => (
-                            <span key={ing} className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full bg-red-50 text-red-600 font-medium">
-                              <ShoppingCart size={14} /> {ing}
+                          );
+                        })()}
+                      </h3>
+                      {!isEditingIngredients ? (
+                        <button
+                          onClick={() => setIsEditingIngredients(true)}
+                          className="text-xs font-semibold text-orange-500 hover:text-orange-600"
+                        >
+                          Edit ingredients
+                        </button>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setEditingIngredients(selectedIngredients);
+                              setIsEditingIngredients(false);
+                              setIngredientInput("");
+                            }}
+                            className="text-xs font-semibold text-muted-foreground hover:text-foreground"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={saveEditedIngredients}
+                            className="text-xs font-semibold text-orange-500 hover:text-orange-600"
+                          >
+                            Save
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {isEditingIngredients ? (
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap gap-2">
+                          {editingIngredients.map((ing) => (
+                            <span key={ing} className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full bg-muted text-foreground font-medium">
+                              {ing}
+                              <button onClick={() => setEditingIngredients((prev) => prev.filter((i) => i !== ing))} className="text-muted-foreground hover:text-destructive">
+                                <X size={12} />
+                              </button>
                             </span>
                           ))}
                         </div>
-                        {m.missing.length > 0 && (
+                        <div className="flex gap-2">
+                          <Input
+                            value={ingredientInput}
+                            onChange={(e) => setIngredientInput(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === "Enter") addEditingIngredient(); }}
+                            placeholder="Add ingredient…"
+                          />
                           <button
-                            onClick={() => handleAddMissingToGrocery(selectedRecipe)}
-                            className="mt-3 flex items-center gap-2 text-sm text-orange-500 hover:text-orange-600 font-semibold transition-colors"
+                            onClick={addEditingIngredient}
+                            className="px-3 py-2 rounded-lg bg-orange-500 text-white hover:bg-orange-600"
                           >
-                            <ShoppingCart size={14} /> Add {m.missing.length} missing items to grocery list
+                            <Plus size={14} />
                           </button>
-                        )}
+                        </div>
                       </div>
-                    );
-                  })()}
+                    ) : editingIngredients.length > 0 ? (() => {
+                      const m = calculateMatch(pantryNames, editingIngredients);
+                      return (
+                        <>
+                          <div className="flex flex-wrap gap-2">
+                            {m.matched.map((ing) => (
+                              <span key={ing} className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full bg-green-100 text-green-700 font-medium">
+                                <Check size={14} /> {ing}
+                              </span>
+                            ))}
+                            {m.missing.map((ing) => (
+                              <span key={ing} className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full bg-red-50 text-red-600 font-medium">
+                                <ShoppingCart size={14} /> {ing}
+                              </span>
+                            ))}
+                          </div>
+                          {m.missing.length > 0 && (
+                            <button
+                              onClick={() => handleAddMissingToGrocery({ ...selectedRecipe, ingredients: editingIngredients } as Recipe)}
+                              className="mt-3 flex items-center gap-2 text-sm text-orange-500 hover:text-orange-600 font-semibold transition-colors"
+                            >
+                              <ShoppingCart size={14} /> Add {m.missing.length} missing items to grocery list
+                            </button>
+                          )}
+                        </>
+                      );
+                    })() : (
+                      <p className="text-sm text-muted-foreground italic">No ingredients added yet.</p>
+                    )}
+                  </div>
 
                   {/* Instructions */}
                   {selectedInstructions.length > 0 ? (

@@ -37,6 +37,7 @@ interface AppState {
   customGroceryItems: CustomGroceryItem[];
   recipeMealTags: Record<string, string>; // recipeId -> meal type
   recipeTags: Record<string, string[]>; // recipeId -> custom user tags
+  recipeIngredientOverrides: Record<string, string[]>; // recipeId -> user-edited ingredient list
   recipeFolders: RecipeFolder[];
   onboardingComplete: boolean;
   tutorialComplete: boolean;
@@ -69,6 +70,7 @@ interface AppState {
   setRecipeTags: (recipeId: string, tags: string[]) => void;
   addRecipeTag: (recipeId: string, tag: string) => void;
   removeRecipeTag: (recipeId: string, tag: string) => void;
+  setRecipeIngredients: (recipeId: string, ingredients: string[]) => void;
   createFolder: (name: string, coverImage?: string) => void;
   renameFolder: (folderId: string, name: string) => void;
   updateFolderCover: (folderId: string, coverImage: string) => void;
@@ -103,6 +105,7 @@ export const useStore = create<AppState>()(
       customGroceryItems: [],
       recipeMealTags: {},
       recipeTags: {},
+      recipeIngredientOverrides: {},
       recipeFolders: [],
       onboardingComplete: false,
       tutorialComplete: false,
@@ -237,6 +240,14 @@ export const useStore = create<AppState>()(
           recipeTags: { ...state.recipeTags, [recipeId]: (state.recipeTags[recipeId] || []).filter(t => t !== tag) },
         })),
 
+      setRecipeIngredients: (recipeId, ingredients) =>
+        set((state) => ({
+          recipeIngredientOverrides: {
+            ...state.recipeIngredientOverrides,
+            [recipeId]: ingredients.map((ing) => ing.trim()).filter(Boolean),
+          },
+        })),
+
       createFolder: (name, coverImage) =>
         set((state) => ({
           recipeFolders: [
@@ -330,6 +341,7 @@ export const useStore = create<AppState>()(
           groceryRecipes: [],
           customGroceryItems: [],
           recipeMealTags: {},
+          recipeIngredientOverrides: {},
           recipeFolders: [],
           onboardingComplete: false,
           tutorialComplete: false,
