@@ -589,8 +589,8 @@ export default function SavedRecipes() {
                     {recipeFolders.length > 0 && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <button className="text-xs text-muted-foreground hover:text-orange-500 flex items-center gap-1 mb-2">
-                            <FolderPlus size={10} /> Add to folder
+                          <button className="text-muted-foreground hover:text-orange-500 mb-2 transition-colors" title="Add to folder">
+                            <FolderPlus size={14} />
                           </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start">
