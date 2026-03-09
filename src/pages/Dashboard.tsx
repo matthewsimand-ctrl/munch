@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   Flame, Clock, Heart, ShoppingCart, TrendingUp, ChevronRight,
-  Sparkles, Calendar, Star, Plus, Check, Users, BarChart3, MapPin,
-  Trophy, ChefHat, Zap,
+  Sparkles, Calendar, Star, Plus, Check, Users, MapPin,
+  Trophy, ChefHat, Zap, Award,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,6 +13,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { motion } from "framer-motion";
+import { getLevel } from "@/components/ChefCompanion";
 import type { Recipe } from "@/data/recipes";
 
 const ACTIVITY = [
@@ -42,8 +44,31 @@ export default function Dashboard() {
   });
 
   const { recipes: browseRecipes, loading: browseLoading, loadFeed } = useBrowseFeed();
-  const { likedRecipes, likeRecipe, savedApiRecipes, pantryList, addCustomGroceryItem, cookingStreak, totalMealsCooked, cookedRecipeIds } = useStore();
+  const { likedRecipes, likeRecipe, savedApiRecipes, pantryList, addCustomGroceryItem, cookingStreak, totalMealsCooked, cookedRecipeIds, totalXp, earnedBadges, earnBadge } = useStore();
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+
+  const BADGES = useMemo(() => [
+    { id: 'first_cook', label: 'First Cook', emoji: '👨‍🍳', desc: 'Cook your first recipe', unlocked: totalMealsCooked >= 1 },
+    { id: 'streak_3', label: '3-Day Streak', emoji: '🔥', desc: '3 consecutive days cooking', unlocked: cookingStreak >= 3 },
+    { id: 'streak_7', label: 'Week Warrior', emoji: '⚡', desc: '7-day cooking streak', unlocked: cookingStreak >= 7 },
+    { id: '5_recipes', label: '5 Recipes', emoji: '📖', desc: 'Cook 5 different recipes', unlocked: cookedRecipeIds.length >= 5 },
+    { id: '10_meals', label: 'Meal Master', emoji: '🏆', desc: 'Cook 10 total meals', unlocked: totalMealsCooked >= 10 },
+    { id: 'level_5', label: 'Level 5', emoji: '⭐', desc: 'Reach cooking level 5', unlocked: getLevel(totalXp).level >= 5 },
+    { id: 'saver_10', label: 'Collector', emoji: '💎', desc: 'Save 10 recipes', unlocked: likedRecipes.length >= 10 },
+    { id: 'level_10', label: 'Chef Pro', emoji: '👑', desc: 'Reach cooking level 10', unlocked: getLevel(totalXp).level >= 10 },
+  ], [totalMealsCooked, cookingStreak, cookedRecipeIds.length, totalXp, likedRecipes.length]);
+
+  // Auto-earn badges
+  useEffect(() => {
+    BADGES.forEach(b => {
+      if (b.unlocked && !earnedBadges.includes(b.id)) {
+        earnBadge(b.id);
+        toast.success(`🏅 Badge unlocked: ${b.label}!`);
+      }
+    });
+  }, [BADGES, earnedBadges, earnBadge]);
+
+  const levelInfo = getLevel(totalXp);
 
   const likedSet = useMemo(() => new Set(likedRecipes), [likedRecipes]);
   const pantryNames = useMemo(() => pantryList.map(p => p.name), [pantryList]);
@@ -125,6 +150,52 @@ export default function Dashboard() {
               </div>
             </div>
           ))}
+        </div>
+
+        {/* XP & Badges */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <Star size={17} className="text-amber-500 fill-amber-500" />
+              <h2 className="text-base font-bold text-gray-900">Cooking XP</h2>
+              <span className="ml-auto text-sm font-bold text-amber-600">Level {levelInfo.level}</span>
+            </div>
+            <div className="relative h-3 bg-gray-100 rounded-full overflow-hidden mb-2">
+              <motion.div
+                className="absolute inset-y-0 left-0 bg-gradient-to-r from-amber-400 to-amber-500 rounded-full"
+                initial={{ width: 0 }}
+                animate={{ width: `${(levelInfo.current / levelInfo.needed) * 100}%` }}
+                transition={{ type: 'spring', stiffness: 80 }}
+              />
+            </div>
+            <div className="flex justify-between text-xs text-gray-500">
+              <span>{totalXp} total XP</span>
+              <span>{levelInfo.current}/{levelInfo.needed} to next level</span>
+            </div>
+          </div>
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <Award size={17} className="text-violet-500" />
+              <h2 className="text-base font-bold text-gray-900">Badges</h2>
+              <span className="ml-auto text-xs text-gray-400 font-semibold">
+                {BADGES.filter(b => b.unlocked).length}/{BADGES.length}
+              </span>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              {BADGES.map(b => (
+                <div
+                  key={b.id}
+                  className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${
+                    b.unlocked ? 'bg-amber-50' : 'bg-gray-50 opacity-40 grayscale'
+                  }`}
+                  title={b.desc}
+                >
+                  <span className="text-xl">{b.emoji}</span>
+                  <span className="text-[10px] font-semibold text-gray-700 text-center leading-tight">{b.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

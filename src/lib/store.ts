@@ -41,9 +41,11 @@ interface AppState {
   tutorialComplete: boolean;
   showTutorial: boolean;
   cookingStreak: number;
-  lastCookedDate: string | null; // ISO date string
+  lastCookedDate: string | null;
   totalMealsCooked: number;
   cookedRecipeIds: string[];
+  totalXp: number;
+  earnedBadges: string[];
 
   setUserProfile: (profile: Partial<UserProfile>) => void;
   completeOnboarding: () => void;
@@ -71,6 +73,8 @@ interface AppState {
   removeRecipeFromFolder: (folderId: string, recipeId: string) => void;
   completeTutorial: () => void;
   markRecipeCooked: (recipeId: string) => void;
+  addXp: (amount: number) => void;
+  earnBadge: (badgeId: string) => void;
   resetStore: () => void;
 }
 
@@ -101,6 +105,8 @@ export const useStore = create<AppState>()(
       lastCookedDate: null,
       totalMealsCooked: 0,
       cookedRecipeIds: [],
+      totalXp: 0,
+      earnedBadges: [],
 
       setShowTutorial: (show) => set({ showTutorial: show }),
 
@@ -285,6 +291,16 @@ export const useStore = create<AppState>()(
           };
         }),
 
+      addXp: (amount) =>
+        set((state) => ({ totalXp: state.totalXp + amount })),
+
+      earnBadge: (badgeId) =>
+        set((state) => ({
+          earnedBadges: state.earnedBadges.includes(badgeId)
+            ? state.earnedBadges
+            : [...state.earnedBadges, badgeId],
+        })),
+
       resetStore: () =>
         set({
           userProfile: initialProfile,
@@ -303,6 +319,8 @@ export const useStore = create<AppState>()(
           lastCookedDate: null,
           totalMealsCooked: 0,
           cookedRecipeIds: [],
+          totalXp: 0,
+          earnedBadges: [],
         }),
     }),
     { name: 'chefstack-storage' }

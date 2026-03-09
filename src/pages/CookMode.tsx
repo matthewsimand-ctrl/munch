@@ -5,7 +5,7 @@ import { useStore } from '@/lib/store';
 import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis';
 import { useVoiceCommands } from '@/hooks/useVoiceCommands';
 import { Button } from '@/components/ui/button';
-import ChefCompanion from '@/components/ChefCompanion';
+import { ChefPath, CookingXpBar } from '@/components/ChefCompanion';
 import { ArrowLeft, ChevronLeft, ChevronRight, Play, Pause, RotateCcw, Timer, Volume2, VolumeX, Mic, MicOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -216,6 +216,16 @@ export default function CookMode() {
             🎤 Say "next", "back", "repeat", "start timer", "pause", or "stop timer"
           </p>
         )}
+
+        {/* Chef path at top */}
+        <div className="mt-3">
+          <ChefPath
+            currentStep={currentStep}
+            totalSteps={totalSteps}
+            timerRunning={timerRunning}
+            isDone={isDone}
+          />
+        </div>
       </div>
 
       {/* Step Content */}
@@ -281,14 +291,9 @@ export default function CookMode() {
         </AnimatePresence>
       </div>
 
-      {/* Chef Companion XP Path — between content and nav */}
-      <div className="px-4 max-w-md mx-auto w-full">
-        <ChefCompanion
-          currentStep={currentStep}
-          totalSteps={totalSteps}
-          timerRunning={timerRunning}
-          isDone={isDone}
-        />
+      {/* XP bar at bottom */}
+      <div className="px-4 pb-2 max-w-md mx-auto w-full">
+        <CookingXpBar currentStep={currentStep} isDone={isDone} />
       </div>
 
       {/* Navigation */}
