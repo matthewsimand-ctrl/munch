@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useStore } from '@/lib/store';
 import type { Recipe } from '@/data/recipes';
 import { rankByRecommendation } from '@/lib/recommendations';
+import { normalizeIngredients } from '@/lib/normalizeIngredients';
 
 interface BrowseRecipe extends Recipe {
   source: string;
@@ -22,7 +23,7 @@ function normalizeStringArray(value: unknown): string[] {
 
 function normalizeRecipe(raw: any): BrowseRecipe | null {
   const name = String(raw?.name || '').trim();
-  const ingredients = normalizeStringArray(raw?.ingredients);
+  const ingredients = normalizeIngredients(raw?.ingredients, raw?.raw_api_payload);
   const instructions = normalizeStringArray(raw?.instructions);
 
   if (!name || ingredients.length === 0 || instructions.length === 0) return null;

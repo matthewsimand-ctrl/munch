@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Recipe } from '@/data/recipes';
 import { useToast } from '@/hooks/use-toast';
 import { useStore } from '@/lib/store';
+import { normalizeIngredients } from '@/lib/normalizeIngredients';
 
 interface APIRecipe extends Recipe {
   source: string;
@@ -47,7 +48,7 @@ export function useRecipeSearch() {
         const recipeData: APIRecipe = {
           id,
           name: recipe.name,
-          ingredients: recipe.ingredients || [],
+          ingredients: normalizeIngredients(recipe.ingredients, recipe.raw_api_payload),
           instructions: recipe.instructions || [],
           cook_time: recipe.cook_time || '30 min',
           difficulty: recipe.difficulty || 'Intermediate',
@@ -67,9 +68,12 @@ export function useRecipeSearch() {
         body: { query },
       });
       if (error) throw error;
-      const recipes: APIRecipe[] = (data?.recipes || []).filter(
-        (r: APIRecipe) => r.name && r.ingredients.length > 0 && r.instructions.length > 0
-      );
+      const recipes: APIRecipe[] = (data?.recipes || [])
+        .map((recipe: APIRecipe) => ({
+          ...recipe,
+          ingredients: normalizeIngredients((recipe as any).ingredients, (recipe as any).raw_api_payload),
+        }))
+        .filter((r: APIRecipe) => r.name && r.ingredients.length > 0 && r.instructions.length > 0);
       setApiRecipes(recipes);
       if (recipes.length === 0) {
         toast({ title: 'No results', description: `No recipes found for "${query}"` });

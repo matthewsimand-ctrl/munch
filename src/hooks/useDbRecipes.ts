@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { Recipe } from '@/data/recipes';
+import { normalizeIngredients } from '@/lib/normalizeIngredients';
 
 async function fetchRecipes(): Promise<Recipe[]> {
   const { data, error } = await supabase
@@ -17,7 +18,7 @@ async function fetchRecipes(): Promise<Recipe[]> {
     image: r.image,
     cook_time: r.cook_time,
     difficulty: r.difficulty,
-    ingredients: r.ingredients || [],
+    ingredients: normalizeIngredients(r.ingredients, r.raw_api_payload),
     tags: r.tags || [],
     instructions: r.instructions || [],
     cuisine: r.cuisine || null,
