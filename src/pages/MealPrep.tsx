@@ -551,7 +551,7 @@ export default function MealPrep() {
           </div>
         </div>
 
-        {/* Week Navigation */}
+        {/* Week Navigation + View Toggle */}
         <div className="flex items-center justify-center gap-4 mb-4">
           <Tooltip>
             <TooltipTrigger asChild>
@@ -573,7 +573,26 @@ export default function MealPrep() {
             <TooltipContent>Next week</TooltipContent>
           </Tooltip>
         </div>
-      </div>
+
+        {/* View mode toggle */}
+        <div className="flex items-center justify-center gap-1 mb-4">
+          <Button
+            variant={viewMode === 'daily' ? 'default' : 'outline'}
+            size="sm"
+            className="gap-1.5 text-xs"
+            onClick={() => setViewMode('daily')}
+          >
+            <Calendar className="h-3.5 w-3.5" /> Daily
+          </Button>
+          <Button
+            variant={viewMode === 'weekly' ? 'default' : 'outline'}
+            size="sm"
+            className="gap-1.5 text-xs"
+            onClick={() => setViewMode('weekly')}
+          >
+            <CalendarDays className="h-3.5 w-3.5" /> Weekly
+          </Button>
+        </div>
 
       {/* Kanban Board */}
       <div className="px-4 max-w-6xl mx-auto w-full overflow-x-auto">
