@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import {
   Flame, Clock, Heart, ShoppingCart, TrendingUp, ChevronRight,
   Sparkles, Calendar, Star, Plus, Check, Users, BarChart3, MapPin,
+  Trophy, ChefHat, Zap,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
