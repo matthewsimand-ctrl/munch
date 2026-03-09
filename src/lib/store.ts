@@ -41,9 +41,11 @@ interface AppState {
   tutorialComplete: boolean;
   showTutorial: boolean;
   cookingStreak: number;
-  lastCookedDate: string | null; // ISO date string
+  lastCookedDate: string | null;
   totalMealsCooked: number;
   cookedRecipeIds: string[];
+  totalXp: number;
+  earnedBadges: string[];
 
   setUserProfile: (profile: Partial<UserProfile>) => void;
   completeOnboarding: () => void;
