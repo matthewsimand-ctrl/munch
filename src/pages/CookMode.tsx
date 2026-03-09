@@ -40,6 +40,47 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
+const dictRegex = buildDictionaryRegex();
+
+function HighlightedStep({ text }: { text: string }) {
+  const parts = useMemo(() => {
+    const result: { text: string; isTerm: boolean }[] = [];
+    let lastIndex = 0;
+    const regex = new RegExp(dictRegex.source, dictRegex.flags);
+    let m: RegExpExecArray | null;
+    while ((m = regex.exec(text)) !== null) {
+      if (m.index > lastIndex) result.push({ text: text.slice(lastIndex, m.index), isTerm: false });
+      result.push({ text: m[0], isTerm: true });
+      lastIndex = regex.lastIndex;
+    }
+    if (lastIndex < text.length) result.push({ text: text.slice(lastIndex), isTerm: false });
+    return result;
+  }, [text]);
+
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (!part.isTerm) return <span key={i}>{part.text}</span>;
+        const entry = lookupTerm(part.text);
+        if (!entry) return <span key={i}>{part.text}</span>;
+        return (
+          <Popover key={i}>
+            <PopoverTrigger asChild>
+              <span className="underline decoration-dotted decoration-primary underline-offset-4 cursor-help text-primary font-semibold hover:decoration-solid transition-all">
+                {part.text}
+              </span>
+            </PopoverTrigger>
+            <PopoverContent className="w-72 p-3 text-left">
+              <p className="text-xs font-bold text-foreground capitalize mb-1">{entry.term}</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">{entry.definition}</p>
+            </PopoverContent>
+          </Popover>
+        );
+      })}
+    </>
+  );
+}
+
 export default function CookMode() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
