@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,11 +9,13 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Progress } from '@/components/ui/progress';
 import { Link2, FileText, Loader2, Import, ClipboardPaste, X, Plus, Globe, Lock, Camera, Upload, Brain } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useStore } from '@/lib/store';
 import { composeIngredientLine, parseIngredientLine } from '@/lib/ingredientText';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 
 interface ImportRecipeDialogProps {
   children?: React.ReactNode;
@@ -42,6 +44,7 @@ const DIFFICULTY_OPTIONS = ['Beginner', 'Intermediate', 'Advanced'];
 const CUISINE_OPTIONS = ['Italian', 'Asian', 'Mexican', 'Mediterranean', 'American', 'French', 'Indian', 'Other'];
 
 export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps) {
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
@@ -65,6 +68,79 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
   const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [fetchingPhoto, setFetchingPhoto] = useState(false);
+  const [magicProgress, setMagicProgress] = useState(0);
+  const [magicMessage, setMagicMessage] = useState('Summoning recipe magic...');
+
+  const MAGIC_MESSAGES = [
+    'Summoning recipe magic... ✨',
+    'Whisking through the webpage... 🥣',
+    'Sifting out ads and navigation crumbs... 🧹',
+    'Decoding ingredients and steps... 🧠',
+    'Plating your recipe card... 🍽️',
+  ];
+
+  useEffect(() => {
+    if (!loading) {
+      setMagicProgress(0);
+      setMagicMessage(MAGIC_MESSAGES[0]);
+      return;
+    }
+
+    setMagicProgress(8);
+    let ticks = 0;
+    const timer = window.setInterval(() => {
+      ticks += 1;
+      setMagicProgress((prev) => Math.min(prev + (prev < 70 ? 11 : 4), 92));
+      setMagicMessage(MAGIC_MESSAGES[Math.min(ticks, MAGIC_MESSAGES.length - 1)]);
+    }, 850);
+
+    return () => window.clearInterval(timer);
+  }, [loading]);
+
+  const persistRecipeAndRedirect = async (recipe: Record<string, any>) => {
+    const id = crypto.randomUUID();
+    const normalizedIngredients = Array.isArray(recipe.ingredients)
+      ? recipe.ingredients.map((item: unknown) => String(item).trim()).filter(Boolean)
+      : [];
+    const normalizedInstructions = Array.isArray(recipe.instructions)
+      ? recipe.instructions.map((item: unknown) => String(item).trim()).filter(Boolean)
+      : [];
+
+    const payload = {
+      id,
+      name: String(recipe.name || 'Imported Recipe').trim(),
+      ingredients: normalizedIngredients,
+      instructions: normalizedInstructions,
+      cook_time: String(recipe.cook_time || '30 min'),
+      difficulty: String(recipe.difficulty || 'Intermediate'),
+      cuisine: recipe.cuisine ? String(recipe.cuisine) : null,
+      tags: Array.isArray(recipe.tags) ? recipe.tags.map((tag: unknown) => String(tag).trim()).filter(Boolean) : [],
+      image: String(recipe.image || '/placeholder.svg'),
+      source: 'imported',
+      servings: parseInt(String(recipe.servings || 4), 10) || 4,
+    };
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (user) {
+      const { error } = await supabase.from('recipes').insert({
+        ...payload,
+        created_by: user.id,
+        is_public: true,
+      });
+
+      if (error) throw error;
+    }
+
+    likeRecipe(id, payload);
+    setMagicProgress(100);
+    toast.success(`Imported "${payload.name}"!`);
+    setOpen(false);
+    resetState();
+    navigate(`/cook/${id}`);
+  };
 
   const resetState = () => {
     setUrl('');
@@ -108,6 +184,11 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
       }
 
       const recipe = data.recipe;
+
+      if (payload.url) {
+        await persistRecipeAndRedirect(recipe);
+        return;
+      }
 
       const normalizeList = (value: unknown): string[] => {
         if (Array.isArray(value)) {
@@ -728,6 +809,16 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
                     )}
                   </Button>
                 </form>
+
+                {loading && (
+                  <div className="rounded-lg border bg-primary/5 p-3 space-y-2">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>{magicMessage}</span>
+                      <span>{magicProgress}%</span>
+                    </div>
+                    <Progress value={magicProgress} className="h-2" />
+                  </div>
+                )}
 
                 {(lastImportError || showManualPaste) && (
                   <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-3">

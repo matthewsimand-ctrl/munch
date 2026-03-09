@@ -11,6 +11,9 @@ const PROXY_FETCHERS: Array<{ label: string; buildUrl: (url: string) => string }
   { label: 'r.jina.ai encoded', buildUrl: (url) => `${R_JINA_PROXY_PREFIX}http://${encodeURIComponent(url)}` },
 ];
 
+const NON_CONTENT_TAGS = ['script', 'style', 'noscript', 'svg', 'canvas', 'iframe'];
+const NON_ESSENTIAL_SECTIONS = ['header', 'footer', 'nav', 'aside', 'form'];
+
 const TEXT_EXTRACT_PROMPT = `You are a recipe extraction assistant. Extract the recipe from the provided content and return ONLY a valid JSON object with these fields:
 {
   "name": "Recipe name",
@@ -150,6 +153,28 @@ function normalizeRecipePayload(recipe: Record<string, unknown>): Record<string,
   };
 }
 
+function cleanHtmlForAi(html: string): string {
+  let cleaned = html;
+
+  for (const tag of NON_CONTENT_TAGS) {
+    cleaned = cleaned.replace(new RegExp(`<${tag}[^>]*>[\\s\\S]*?<\\/${tag}>`, 'gi'), ' ');
+  }
+
+  for (const tag of NON_ESSENTIAL_SECTIONS) {
+    cleaned = cleaned.replace(new RegExp(`<${tag}[^>]*>[\\s\\S]*?<\\/${tag}>`, 'gi'), ' ');
+  }
+
+  cleaned = cleaned
+    .replace(/<!--([\s\S]*?)-->/g, ' ')
+    .replace(/<(?:button|input|select|option|label)[^>]*>[\s\S]*?<\/(?:button|select|option|label)>/gi, ' ')
+    .replace(/<(?:button|input|select|option|label)[^>]*\/?>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return cleaned.slice(0, 20000);
+}
+
 function extractRecipeFromJsonLd(html: string): Record<string, unknown> | null {
   const scripts = [...html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)]
     .map((m) => m[1]?.trim())
@@ -264,7 +289,7 @@ async function callAiExtraction(params: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'google/gemini-2.5-flash',
+      model: 'google/gemini-1.5-flash',
       messages,
       temperature: 0.1,
     }),
@@ -322,8 +347,8 @@ Deno.serve(async (req) => {
 
       if (pageRes.ok) {
         html = await pageRes.text();
-      } else {
-        console.warn(`Direct fetch failed (${pageRes.status}) for ${url}, trying proxy fallback`);
+      } else if (pageRes.status === 403) {
+        console.warn(`Direct fetch blocked with 403 for ${url}, trying proxy fallback`);
 
         for (const proxy of PROXY_FETCHERS) {
           const proxyRes = await fetch(proxy.buildUrl(url));
@@ -338,23 +363,25 @@ Deno.serve(async (req) => {
           return new Response(
             JSON.stringify({
               success: false,
-              error: `Unable to fetch this URL (often blocked by site protections). Attempts: ${attemptedStatuses.join(', ')}`,
+              error: `Unable to fetch this URL (blocked by site protections). Attempts: ${attemptedStatuses.join(', ')}`,
             }),
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
           );
         }
+      } else {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: `Unable to fetch this URL. Attempts: ${attemptedStatuses.join(', ')}`,
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
       }
 
       recipe = extractRecipeFromJsonLd(html);
 
       if (!recipe) {
-        content = html
-          .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-          .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-          .replace(/<[^>]+>/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim()
-          .slice(0, 20000);
+        content = cleanHtmlForAi(html);
       }
     }
 
