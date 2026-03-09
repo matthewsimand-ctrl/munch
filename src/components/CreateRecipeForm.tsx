@@ -157,7 +157,7 @@ function parseRecipeText(raw: string): {
 
     if (currentSection === 'ingredients') {
       // Clean up bullet points, numbers, dashes
-      const cleaned = stripped.replace(/^[-•*·▪◦]\s*/, '').replace(/^\d+[.)]\s*/, '').trim();
+      const cleaned = stripped.replace(/^[-•*·▪◦▢]\s*/, '').replace(/^\d+[.)]\s*/, '').trim();
       if (cleaned.length > 1) {
         // Extract just the ingredient name (strip quantities)
         const ingName = stripQuantity(cleaned);
