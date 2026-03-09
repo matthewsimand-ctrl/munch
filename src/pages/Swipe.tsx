@@ -368,10 +368,23 @@ export default function Browse() {
                         </div>
                       )}
                       <h2 className="text-2xl font-bold leading-tight mb-2">{currentRecipe.name}</h2>
-                      <div className="flex items-center gap-4 text-sm text-white/80">
+                      <div className="flex items-center gap-4 text-sm text-white/80 mb-2">
                         <span className="flex items-center gap-1"><Clock size={13} /> {currentRecipe.cook_time}</span>
                         {currentRecipe.cuisine && <span className="flex items-center gap-1">🌍 {currentRecipe.cuisine}</span>}
                       </div>
+                      {/* Ingredient preview */}
+                      {currentRecipe.ingredients.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {currentRecipe.ingredients.slice(0, 3).map((ing) => (
+                            <span key={ing} className="text-[10px] bg-white/20 backdrop-blur-sm px-2 py-0.5 rounded-full font-medium">
+                              {ing}
+                            </span>
+                          ))}
+                          {currentRecipe.ingredients.length > 3 && (
+                            <span className="text-[10px] text-white/60 py-0.5">+{currentRecipe.ingredients.length - 3}</span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
