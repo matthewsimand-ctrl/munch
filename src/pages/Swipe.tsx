@@ -595,15 +595,18 @@ export default function Browse() {
                   servings={4}
                 />
 
-                {/* Start cooking */}
+                {/* Save button */}
                 <Button
                   onClick={() => {
-                    setSelectedRecipe(null);
-                    navigate(`/cook/${selectedRecipe.id}`);
+                    if (selectedRecipe) {
+                      likeRecipe(selectedRecipe.id, selectedRecipe as any);
+                      toast.success(`${selectedRecipe.name} saved!`);
+                      setSelectedRecipe(null);
+                    }
                   }}
                   className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3 rounded-xl"
                 >
-                  <Play size={18} /> Start Cooking
+                  <Heart size={18} /> Save Recipe
                 </Button>
               </div>
             )}
