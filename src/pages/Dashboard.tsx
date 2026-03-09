@@ -101,11 +101,13 @@ export default function Dashboard() {
       <div className="bg-white border-b border-gray-100 px-6 py-5">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">{greeting} 👋</h1>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {greeting}{displayName ? `, ${displayName}` : ''} 👋
+            </h1>
             <p className="text-sm text-gray-500 mt-0.5">Here's what's cooking this week</p>
           </div>
           <Link
-            to="/browse"
+            to="/swipe"
             className="hidden sm:flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-sm"
           >
             <Sparkles size={15} />
