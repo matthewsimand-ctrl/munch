@@ -123,6 +123,14 @@ function parseJsonObjectFromText(raw: string): Record<string, unknown> {
   }
 }
 
+function normalizeInputUrl(rawUrl: string): string {
+  const trimmed = rawUrl.trim();
+  if (!trimmed) return '';
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (/^www\./i.test(trimmed)) return `https://${trimmed}`;
+  return trimmed.includes('.') ? `https://${trimmed}` : trimmed;
+}
+
 function ingredientFromObject(value: Record<string, unknown>): string {
   const quantity = String(value.quantity ?? value.amount ?? value.qty ?? '').trim();
   const unit = String(value.unit ?? value.measure ?? '').trim();
@@ -313,8 +321,9 @@ Deno.serve(async (req) => {
 
   try {
     const { url, textContent, imageBase64, imageMimeType } = await req.json();
+    const normalizedUrl = typeof url === 'string' ? normalizeInputUrl(url) : '';
 
-    if (!url && !textContent && !imageBase64) {
+    if (!normalizedUrl && !textContent && !imageBase64) {
       return new Response(
         JSON.stringify({ success: false, error: 'Provide a URL, text content, or image' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
@@ -332,43 +341,44 @@ Deno.serve(async (req) => {
     let content = textContent || '';
     let recipe: Record<string, unknown> | null = null;
 
-    if (url) {
+    if (normalizedUrl) {
       let html = '';
       const attemptedStatuses: string[] = [];
-      const pageRes = await fetch(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
-          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.9',
-        },
-      });
+      try {
+        const pageRes = await fetch(normalizedUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+            Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+          },
+        });
 
-      attemptedStatuses.push(`direct:${pageRes.status}`);
+        attemptedStatuses.push(`direct:${pageRes.status}`);
 
-      if (pageRes.ok) {
-        html = await pageRes.text();
-      } else if (pageRes.status === 403) {
-        console.warn(`Direct fetch blocked with 403 for ${url}, trying proxy fallback`);
+        if (pageRes.ok) {
+          html = await pageRes.text();
+        }
+      } catch (fetchError) {
+        console.warn(`Direct fetch failed for ${normalizedUrl}:`, fetchError);
+        attemptedStatuses.push('direct:network_error');
+      }
 
+      if (!html) {
         for (const proxy of PROXY_FETCHERS) {
-          const proxyRes = await fetch(proxy.buildUrl(url));
-          attemptedStatuses.push(`${proxy.label}:${proxyRes.status}`);
-          if (proxyRes.ok) {
-            html = await proxyRes.text();
-            break;
+          try {
+            const proxyRes = await fetch(proxy.buildUrl(normalizedUrl));
+            attemptedStatuses.push(`${proxy.label}:${proxyRes.status}`);
+            if (proxyRes.ok) {
+              html = await proxyRes.text();
+              break;
+            }
+          } catch {
+            attemptedStatuses.push(`${proxy.label}:network_error`);
           }
         }
+      }
 
-        if (!html) {
-          return new Response(
-            JSON.stringify({
-              success: false,
-              error: `Unable to fetch this URL (blocked by site protections). Attempts: ${attemptedStatuses.join(', ')}`,
-            }),
-            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-          );
-        }
-      } else {
+      if (!html) {
         return new Response(
           JSON.stringify({
             success: false,
