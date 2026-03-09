@@ -251,6 +251,7 @@ export function rankByRecommendation(
   likedRecipes: Recipe[],
   likedIds: Set<string>,
   userPrefs?: UserProfile,
+  pantryItems?: string[],
 ): { recipe: Recipe; recScore: number }[] {
   const profile = buildTasteProfile(likedRecipes);
 
@@ -258,7 +259,7 @@ export function rankByRecommendation(
     .filter(r => !likedIds.has(r.id)) // exclude already-liked
     .map(r => ({
       recipe: r,
-      recScore: scoreRecipe(r, profile, userPrefs),
+      recScore: scoreRecipe(r, profile, userPrefs, pantryItems),
     }))
     // Add time-of-day boost + small random factor for discovery
     .map(item => ({
