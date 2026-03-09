@@ -105,6 +105,8 @@ export const useStore = create<AppState>()(
       lastCookedDate: null,
       totalMealsCooked: 0,
       cookedRecipeIds: [],
+      totalXp: 0,
+      earnedBadges: [],
 
       setShowTutorial: (show) => set({ showTutorial: show }),
 
