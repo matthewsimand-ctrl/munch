@@ -385,67 +385,69 @@ export default function Browse() {
           </div>
 
           {/* ── Info panel (desktop only) ─────────────────────────────────── */}
-          <div className="hidden lg:flex flex-col gap-4 w-80 xl:w-96 shrink-0">
+          {currentRecipe && (
+            <div className="hidden lg:flex flex-col gap-4 w-80 xl:w-96 shrink-0">
 
-            {/* Recipe detail card */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-              <div className="p-5">
-                <div className="flex items-start justify-between mb-3">
-                  <h2 className="text-lg font-bold text-gray-900 leading-tight">{currentRecipe.name}</h2>
-                </div>
-
-                <div className="flex flex-wrap gap-1.5 mb-4">
-                  {currentRecipe.tags.map((t) => (
-                    <span key={t} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium">
-                      {t}
-                    </span>
-                  ))}
-                </div>
-
-                {/* Stats */}
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                  <div className="bg-gray-50 rounded-xl p-2.5 text-center">
-                    <Clock size={14} className="mx-auto text-gray-400 mb-1" />
-                    <div className="text-sm font-bold text-gray-800">{currentRecipe.cook_time}</div>
-                    <div className="text-xs text-gray-400">Time</div>
+              {/* Recipe detail card */}
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="p-5">
+                  <div className="flex items-start justify-between mb-3">
+                    <h2 className="text-lg font-bold text-gray-900 leading-tight">{currentRecipe.name}</h2>
                   </div>
-                  <div className="bg-gray-50 rounded-xl p-2.5 text-center">
-                    <Star size={14} className="mx-auto text-gray-400 mb-1" />
-                    <div className="text-sm font-bold text-gray-800">{currentRecipe.difficulty}</div>
-                    <div className="text-xs text-gray-400">Difficulty</div>
-                  </div>
-                </div>
 
-                {/* Ingredients */}
-                <div className="border-t border-gray-100 pt-4">
-                  <div className="flex items-center gap-1.5 mb-2.5">
-                    <Leaf size={13} className="text-green-500" />
-                    <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Ingredients ({currentRecipe.ingredients.length})</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
-                    {currentRecipe.ingredients.slice(0, 10).map((ing, i) => (
-                      <span key={i} className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full">
-                        {ing}
+                  <div className="flex flex-wrap gap-1.5 mb-4">
+                    {currentRecipe.tags.map((t) => (
+                      <span key={t} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium">
+                        {t}
                       </span>
                     ))}
-                    {currentRecipe.ingredients.length > 10 && (
-                      <span className="text-xs text-gray-400 px-2 py-0.5">
-                        +{currentRecipe.ingredients.length - 10} more
-                      </span>
-                    )}
+                  </div>
+
+                  {/* Stats */}
+                  <div className="grid grid-cols-2 gap-3 mb-4">
+                    <div className="bg-gray-50 rounded-xl p-2.5 text-center">
+                      <Clock size={14} className="mx-auto text-gray-400 mb-1" />
+                      <div className="text-sm font-bold text-gray-800">{currentRecipe.cook_time}</div>
+                      <div className="text-xs text-gray-400">Time</div>
+                    </div>
+                    <div className="bg-gray-50 rounded-xl p-2.5 text-center">
+                      <Star size={14} className="mx-auto text-gray-400 mb-1" />
+                      <div className="text-sm font-bold text-gray-800">{currentRecipe.difficulty}</div>
+                      <div className="text-xs text-gray-400">Difficulty</div>
+                    </div>
+                  </div>
+
+                  {/* Ingredients */}
+                  <div className="border-t border-gray-100 pt-4">
+                    <div className="flex items-center gap-1.5 mb-2.5">
+                      <Leaf size={13} className="text-green-500" />
+                      <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Ingredients ({currentRecipe.ingredients.length})</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                      {currentRecipe.ingredients.slice(0, 10).map((ing, i) => (
+                        <span key={i} className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full">
+                          {ing}
+                        </span>
+                      ))}
+                      {currentRecipe.ingredients.length > 10 && (
+                        <span className="text-xs text-gray-400 px-2 py-0.5">
+                          +{currentRecipe.ingredients.length - 10} more
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* Source info */}
-            {currentRecipe.source && (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-                <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-2">Recipe Source</p>
-                <p className="text-sm text-gray-700">{currentRecipe.source}</p>
-              </div>
-            )}
-          </div>
+              {/* Source info */}
+              {currentRecipe.source && (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+                  <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-2">Recipe Source</p>
+                  <p className="text-sm text-gray-700">{currentRecipe.source}</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
