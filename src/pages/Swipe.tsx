@@ -188,8 +188,8 @@ export default function Browse() {
   return (
     <div className="min-h-full bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-6 py-5">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+      <div className="bg-white border-b border-gray-100 px-6 py-4">
+        <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button onClick={() => navigate('/dashboard')} className="flex items-center gap-2 shrink-0">
               <div className="w-7 h-7 bg-orange-500 rounded-lg flex items-center justify-center">
@@ -197,18 +197,18 @@ export default function Browse() {
               </div>
             </button>
             <div>
-              <h1 className="text-2xl font-bold text-orange-500">Recipes</h1>
-              <p className="text-sm text-gray-500 mt-0.5">{filteredRecipes.length} recipes · Use ← → keys</p>
+              <h1 className="text-xl font-bold text-orange-500">Explore</h1>
+              <p className="text-xs text-gray-500 mt-0.5">{filteredRecipes.length} to browse</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <button
               onClick={() => setShowFilters(!showFilters)}
               className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <Filter size={14} /> Filters
             </button>
-            <div className="flex items-center gap-2 text-sm text-gray-500">
+            <div className="flex items-center gap-2 text-sm text-gray-500 bg-gray-50 rounded-lg px-3 py-2">
               <Heart size={14} className="text-rose-400 fill-rose-400" />
               <span className="font-semibold text-gray-700">{savedCount}</span> saved
             </div>
@@ -217,7 +217,7 @@ export default function Browse() {
 
         {/* Filters panel */}
         {showFilters && (
-          <div className="max-w-7xl mx-auto mt-4 p-4 bg-gray-50 rounded-xl space-y-3">
+          <div className="max-w-5xl mx-auto mt-4 p-4 bg-gray-50 rounded-xl space-y-3">
             <div>
               <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5 block">Difficulty</label>
               <div className="flex gap-2 flex-wrap">
@@ -277,16 +277,16 @@ export default function Browse() {
       </div>
 
       {/* Body */}
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="flex flex-col lg:flex-row gap-8 items-start justify-center">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+        <div className="flex flex-col items-center justify-center">
 
           {/* ── Card stack (centered) ─────────────────────────────────────── */}
-          <div className="w-full lg:w-auto flex flex-col items-center gap-6">
+          <div className="w-full flex flex-col items-center gap-5">
             {/* Card area */}
             <div
               ref={constraintsRef}
-              className="relative w-full max-w-sm"
-              style={{ height: 420 }}
+              className="relative w-full max-w-md"
+              style={{ height: 560 }}
             >
               {/* Swipe Indicator Overlay */}
               <AnimatePresence>
@@ -329,7 +329,7 @@ export default function Browse() {
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
                   <div className="absolute bottom-4 left-4 right-4 text-white">
-                    <h3 className="text-lg font-bold">{nextRecipe.name}</h3>
+                    <h3 className="text-xl font-bold">{nextRecipe.name}</h3>
                   </div>
                   {nextMatch && (
                     <div className={`absolute bottom-4 right-4 ${matchBadgeColor(nextMatch.percentage)} text-white px-3 py-1 rounded-full text-sm font-bold shadow-md`}>
@@ -374,19 +374,19 @@ export default function Browse() {
                         <Star size={11} className="fill-white" /> {currentRecipe.difficulty}
                       </div>
                     </div>
-                    <div>
+                      <div className="max-w-[80%]">
                       {/* Match Badge */}
                       {currentMatch && (
                         <div className={`inline-flex items-center gap-1.5 ${matchBadgeColor(currentMatch.percentage)} text-white px-3 py-1.5 rounded-full text-sm font-bold shadow-md mb-3`}>
                           <Check size={14} /> {currentMatch.percentage}% Match
                         </div>
                       )}
-                      <h2 className="text-2xl font-bold leading-tight mb-2">{currentRecipe.name}</h2>
-                      <div className="flex items-center gap-4 text-sm text-white/80 mb-2">
+                      <h2 className="text-3xl font-bold leading-tight mb-2">{currentRecipe.name}</h2>
+                      <div className="flex items-center gap-4 text-sm text-white/90 mb-2">
                         <span className="flex items-center gap-1"><Clock size={13} /> {currentRecipe.cook_time}</span>
                         {currentRecipe.cuisine && <span className="flex items-center gap-1">🌍 {currentRecipe.cuisine}</span>}
                       </div>
-                      <p className="text-xs text-white/80">Tap card for ingredients, steps, and grocery actions</p>
+                      <p className="text-xs text-white/90">Tap photo to open full recipe details</p>
                     </div>
                   </div>
                 </div>
@@ -394,22 +394,24 @@ export default function Browse() {
             </div>
 
             {/* Action buttons */}
-            <div className="flex items-center gap-6">
+            <div className="w-full max-w-md bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3">
+              <div className="flex items-center justify-between gap-4">
               <button
                 onClick={handlePass}
-                className="w-14 h-14 rounded-full bg-white border-2 border-gray-200 shadow-md flex items-center justify-center text-gray-400 hover:border-red-300 hover:text-red-400 hover:scale-110 transition-all"
+                className="w-16 h-16 rounded-full bg-white border-2 border-gray-200 shadow-md flex items-center justify-center text-gray-400 hover:border-red-300 hover:text-red-400 hover:scale-110 transition-all"
                 title="Pass (←)"
               >
                 <X size={22} strokeWidth={2.5} />
               </button>
 
-              <div className="text-xs text-gray-400 font-medium text-center leading-tight">
-                {currentIndex + 1} / {filteredRecipes.length}
+              <div className="text-center">
+                <p className="text-xs uppercase tracking-wide text-gray-400">Recipe</p>
+                <p className="text-sm font-semibold text-gray-700">{currentIndex + 1} / {filteredRecipes.length}</p>
               </div>
 
               <button
                 onClick={handleSave}
-                className={`w-14 h-14 rounded-full shadow-md flex items-center justify-center transition-all hover:scale-110 ${
+                className={`w-16 h-16 rounded-full shadow-md flex items-center justify-center transition-all hover:scale-110 ${
                   isSaved
                     ? "bg-rose-500 border-2 border-rose-500 text-white"
                     : "bg-white border-2 border-gray-200 text-gray-400 hover:border-rose-300 hover:text-rose-400"
@@ -418,6 +420,7 @@ export default function Browse() {
               >
                 <Heart size={22} strokeWidth={2.5} className={isSaved ? "fill-white" : ""} />
               </button>
+              </div>
             </div>
 
             {/* Keyboard hint */}
@@ -433,59 +436,6 @@ export default function Browse() {
             </div>
           </div>
 
-          {/* ── Info panel (desktop only) ─────────────────────────────────── */}
-          {currentRecipe && currentMatch && (
-            <div className="hidden lg:flex flex-col gap-4 w-80 xl:w-96 shrink-0">
-
-              {/* Recipe detail card */}
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="p-5">
-                  <div className="flex items-start justify-between mb-3">
-                    <h2 className="text-lg font-bold text-gray-900 leading-tight">{currentRecipe.name}</h2>
-                    <div className={`${matchBadgeColor(currentMatch.percentage)} text-white px-2.5 py-1 rounded-full text-xs font-bold`}>
-                      {currentMatch.percentage}%
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap gap-1.5 mb-4">
-                    {currentRecipe.tags.map((t) => (
-                      <span key={t} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium">
-                        {t}
-                      </span>
-                    ))}
-                  </div>
-
-                  {/* Stats */}
-                  <div className="grid grid-cols-2 gap-3 mb-4">
-                    <div className="bg-gray-50 rounded-xl p-2.5 text-center">
-                      <Clock size={14} className="mx-auto text-gray-400 mb-1" />
-                      <div className="text-sm font-bold text-gray-800">{currentRecipe.cook_time}</div>
-                      <div className="text-xs text-gray-400">Time</div>
-                    </div>
-                    <div className="bg-gray-50 rounded-xl p-2.5 text-center">
-                      <Star size={14} className="mx-auto text-gray-400 mb-1" />
-                      <div className="text-sm font-bold text-gray-800">{currentRecipe.difficulty}</div>
-                      <div className="text-xs text-gray-400">Level</div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
-                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Pantry Match</h3>
-                    <p className="text-sm text-gray-700">
-                      <span className="font-semibold text-green-700">{currentMatch.matched.length}</span> on hand · {" "}
-                      <span className="font-semibold text-red-600">{currentMatch.missing.length}</span> missing
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">Open the card for full ingredient details and one-tap grocery add.</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Click hint */}
-              <p className="text-xs text-gray-400 text-center">
-                Click the card to see full recipe details
-              </p>
-            </div>
-          )}
         </div>
       </div>
 
