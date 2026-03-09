@@ -266,8 +266,16 @@ export default function MealPrep() {
     
     let y = 20;
     const pageHeight = doc.internal.pageSize.height;
+    const pageWidth = doc.internal.pageSize.width;
     const margin = 14;
-    const lineHeight = 5;
+    
+    // Color palette for meal types
+    const mealColors: Record<MealType, [number, number, number]> = {
+      breakfast: [255, 237, 213], // amber
+      lunch: [220, 252, 231],     // green
+      dinner: [224, 231, 255],    // indigo
+      snack: [252, 231, 243],     // pink
+    };
     
     // Helper to add new page if needed
     const checkAddPage = (requiredSpace: number) => {
@@ -278,14 +286,20 @@ export default function MealPrep() {
     };
     
     // Title
+    doc.setFillColor(99, 102, 241); // Primary color
+    doc.rect(0, 0, pageWidth, 35, 'F');
+    doc.setTextColor(255, 255, 255);
     doc.setFontSize(20);
     doc.setFont('helvetica', 'bold');
     if (exportType === 'week') {
-      doc.text(`Meal Plan — Week of ${format(weekStart, 'MMM d, yyyy')}`, margin, y);
+      doc.text(`Meal Plan — Week of ${format(weekStart, 'MMM d, yyyy')}`, margin, 22);
     } else {
-      doc.text(`Meal Plan — ${DAYS[exportType]}, ${format(addDays(weekStart, exportType), 'MMM d, yyyy')}`, margin, y);
+      doc.text(`Meal Plan — ${DAYS[exportType]}, ${format(addDays(weekStart, exportType), 'MMM d, yyyy')}`, margin, 22);
     }
-    y += 12;
+    y = 45;
+    
+    // Reset text color
+    doc.setTextColor(0, 0, 0);
     
     // Determine days to export
     const daysToExport = exportType === 'week' ? [0, 1, 2, 3, 4, 5, 6] : [exportType];
@@ -294,54 +308,67 @@ export default function MealPrep() {
     daysToExport.forEach((dayIndex) => {
       const dayDate = addDays(weekStart, dayIndex);
       
-      checkAddPage(20);
+      checkAddPage(25);
+      
+      // Day header with background
+      doc.setFillColor(243, 244, 246);
+      doc.rect(margin - 2, y - 6, pageWidth - 2 * margin + 4, 12, 'F');
       doc.setFontSize(14);
       doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0);
       doc.text(`${DAYS[dayIndex]} — ${format(dayDate, 'MMM d')}`, margin, y);
-      y += 8;
+      y += 14;
       
       // Loop through meal types
       MEAL_TYPES.forEach((mealType) => {
         const dayMeals = items.filter(i => i.day_of_week === dayIndex && i.meal_type === mealType);
         
         if (dayMeals.length > 0) {
-          checkAddPage(15);
+          checkAddPage(20);
+          
+          // Meal type header with colored background
+          const bgColor = mealColors[mealType];
+          doc.setFillColor(...bgColor);
+          doc.rect(margin + 3, y - 5, pageWidth - 2 * margin - 6, 8, 'F');
           doc.setFontSize(11);
           doc.setFont('helvetica', 'bold');
+          doc.setTextColor(0, 0, 0);
           doc.text(mealType.charAt(0).toUpperCase() + mealType.slice(1), margin + 5, y);
-          y += 6;
+          y += 10;
           
           dayMeals.forEach((meal) => {
             const recipe = recipeMap.get(meal.recipe_id);
             
-            checkAddPage(10);
+            checkAddPage(15);
             doc.setFontSize(10);
             doc.setFont('helvetica', 'bold');
-            doc.text(`• ${meal.recipe_name} (${meal.servings} servings)`, margin + 10, y);
-            y += 5;
+            doc.setTextColor(0, 0, 0);
+            doc.text(`• ${meal.recipe_name} (${meal.servings} servings)`, margin + 8, y);
+            y += 6;
             
             if (recipe?.ingredients && recipe.ingredients.length > 0) {
               doc.setFont('helvetica', 'normal');
               doc.setFontSize(9);
-              doc.text('Ingredients:', margin + 15, y);
-              y += 4;
+              doc.setTextColor(60, 60, 60);
+              doc.text('Ingredients:', margin + 12, y);
+              y += 5;
               
               recipe.ingredients.forEach((ingredient: string) => {
                 checkAddPage(5);
-                const lines = doc.splitTextToSize(`- ${ingredient}`, 160);
+                const lines = doc.splitTextToSize(`- ${ingredient}`, pageWidth - margin - 25);
                 lines.forEach((line: string) => {
-                  doc.text(line, margin + 20, y);
+                  doc.text(line, margin + 15, y);
                   y += 4;
                 });
               });
-              y += 2;
+              y += 3;
             }
           });
-          y += 3;
+          y += 4;
         }
       });
       
-      y += 5;
+      y += 6;
     });
     
     doc.save(`meal-plan-${exportType === 'week' ? format(weekStart, 'yyyy-MM-dd') : format(addDays(weekStart, exportType), 'yyyy-MM-dd')}.pdf`);
@@ -371,21 +398,60 @@ export default function MealPrep() {
     toast({ title: 'CSV exported! 📊' });
   };
 
-  const exportICS = () => {
-    let ics = 'BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Munch//Meal Plan//EN\n';
+  const exportICS = async () => {
+    // Fetch full recipe data for ingredients and instructions
+    const recipeIds = [...new Set(items.map(i => i.recipe_id))];
+    const { data: fullRecipes } = await supabase
+      .from('recipes')
+      .select('*')
+      .in('id', recipeIds);
+    
+    const recipeMap = new Map(fullRecipes?.map(r => [r.id, r]) || []);
+    
+    let ics = 'BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Munch//Meal Plan//EN\nCALSCALE:GREGORIAN\nMETHOD:PUBLISH\n';
+    
     DAYS.forEach((_, di) => {
       const date = addDays(weekStart, di);
       const dateStr = format(date, 'yyyyMMdd');
+      
       MEAL_TYPES.forEach((meal) => {
         const dayItems = items.filter(i => i.day_of_week === di && i.meal_type === meal);
+        
         dayItems.forEach((item) => {
+          const recipe = recipeMap.get(item.recipe_id);
           const hour = meal === 'breakfast' ? '08' : meal === 'lunch' ? '12' : meal === 'dinner' ? '18' : '15';
-          ics += `BEGIN:VEVENT\nDTSTART:${dateStr}T${hour}0000\nDTEND:${dateStr}T${String(Number(hour) + 1).padStart(2, '0')}0000\nSUMMARY:${meal.charAt(0).toUpperCase() + meal.slice(1)}: ${item.recipe_name}\nDESCRIPTION:Servings: ${item.servings}\nEND:VEVENT\n`;
+          
+          // Build description with ingredients and instructions
+          let description = `Servings: ${item.servings}\\n\\n`;
+          
+          if (recipe?.ingredients && recipe.ingredients.length > 0) {
+            description += 'INGREDIENTS:\\n';
+            recipe.ingredients.forEach((ing: string) => {
+              description += `- ${ing}\\n`;
+            });
+            description += '\\n';
+          }
+          
+          if (recipe?.instructions && recipe.instructions.length > 0) {
+            description += 'INSTRUCTIONS:\\n';
+            recipe.instructions.forEach((step: string, idx: number) => {
+              description += `${idx + 1}. ${step}\\n`;
+            });
+          }
+          
+          ics += `BEGIN:VEVENT\n`;
+          ics += `DTSTART:${dateStr}T${hour}0000\n`;
+          ics += `DTEND:${dateStr}T${String(Number(hour) + 1).padStart(2, '0')}0000\n`;
+          ics += `SUMMARY:${meal.charAt(0).toUpperCase() + meal.slice(1)}: ${item.recipe_name}\n`;
+          ics += `DESCRIPTION:${description}\n`;
+          ics += `END:VEVENT\n`;
         });
       });
     });
+    
     ics += 'END:VCALENDAR';
-    const blob = new Blob([ics], { type: 'text/calendar' });
+    
+    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
