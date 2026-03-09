@@ -23,6 +23,7 @@ export interface CustomGroceryItem {
 export interface RecipeFolder {
   id: string;
   name: string;
+  coverImage?: string;
   recipeIds: string[];
 }
 
@@ -68,8 +69,9 @@ interface AppState {
   setRecipeTags: (recipeId: string, tags: string[]) => void;
   addRecipeTag: (recipeId: string, tag: string) => void;
   removeRecipeTag: (recipeId: string, tag: string) => void;
-  createFolder: (name: string) => void;
+  createFolder: (name: string, coverImage?: string) => void;
   renameFolder: (folderId: string, name: string) => void;
+  updateFolderCover: (folderId: string, coverImage: string) => void;
   deleteFolder: (folderId: string) => void;
   addRecipeToFolder: (folderId: string, recipeId: string) => void;
   removeRecipeFromFolder: (folderId: string, recipeId: string) => void;
@@ -235,11 +237,11 @@ export const useStore = create<AppState>()(
           recipeTags: { ...state.recipeTags, [recipeId]: (state.recipeTags[recipeId] || []).filter(t => t !== tag) },
         })),
 
-      createFolder: (name) =>
+      createFolder: (name, coverImage) =>
         set((state) => ({
           recipeFolders: [
             ...state.recipeFolders,
-            { id: crypto.randomUUID(), name, recipeIds: [] },
+            { id: crypto.randomUUID(), name, coverImage, recipeIds: [] },
           ],
         })),
 
@@ -247,6 +249,13 @@ export const useStore = create<AppState>()(
         set((state) => ({
           recipeFolders: state.recipeFolders.map(f =>
             f.id === folderId ? { ...f, name } : f
+          ),
+        })),
+
+      updateFolderCover: (folderId, coverImage) =>
+        set((state) => ({
+          recipeFolders: state.recipeFolders.map(f =>
+            f.id === folderId ? { ...f, coverImage } : f
           ),
         })),
 

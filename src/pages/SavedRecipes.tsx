@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import {
   Heart, Clock, Users, Search, Filter, Trash2, ChevronDown,
   Plus, FolderOpen, X, Tag, Edit2, Check, ChefHat, Play,
-  FolderPlus, MoreHorizontal, ShoppingCart, Import, Flame, Beef, Wheat, Droplets, Sparkles, Loader2, Wand2,
+  FolderPlus, MoreHorizontal, ShoppingCart, Import, Flame, Beef, Wheat, Droplets, Sparkles, Loader2, Wand2, Image,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useStore } from "@/lib/store";
@@ -25,7 +25,7 @@ import { toast } from "sonner";
 import type { Recipe } from "@/data/recipes";
 
 type SortOption = "newest" | "time" | "name";
-type ViewMode = "all" | "folder";
+type ViewMode = "all" | "cookbook";
 
 function normalizeStringArray(value: unknown): string[] {
   if (Array.isArray(value)) return value.map((v) => String(v).trim()).filter(Boolean);
@@ -58,7 +58,7 @@ export default function SavedRecipes() {
   const {
     likedRecipes, savedApiRecipes, unlikeRecipe, pantryList,
     recipeTags, addRecipeTag, removeRecipeTag,
-    recipeFolders, createFolder, renameFolder, deleteFolder,
+    recipeFolders, createFolder, renameFolder, updateFolderCover, deleteFolder,
     addRecipeToFolder, removeRecipeFromFolder,
     addCustomGroceryItem, cachedNutrition, cacheNutrition,
   } = useStore();
@@ -77,9 +77,10 @@ export default function SavedRecipes() {
   const [editingTagsFor, setEditingTagsFor] = useState<string | null>(null);
   const [newTagInput, setNewTagInput] = useState("");
 
-  // Folder creation
-  const [showNewFolder, setShowNewFolder] = useState(false);
-  const [newFolderName, setNewFolderName] = useState("");
+  // Cookbook creation
+  const [showNewCookbook, setShowNewCookbook] = useState(false);
+  const [newCookbookName, setNewCookbookName] = useState("");
+  const [newCookbookCover, setNewCookbookCover] = useState("");
   const [renamingFolder, setRenamingFolder] = useState<string | null>(null);
   const [analyzingNutrition, setAnalyzingNutrition] = useState<string | null>(null);
   const [renameInput, setRenameInput] = useState("");
@@ -118,7 +119,7 @@ export default function SavedRecipes() {
     let list = allSavedRecipes;
 
     // Filter by folder
-    if (viewMode === "folder" && activeFolderId) {
+    if (viewMode === "cookbook" && activeFolderId) {
       const folder = recipeFolders.find((f) => f.id === activeFolderId);
       if (folder) {
         list = list.filter((r) => folder.recipeIds.includes(r.id));
@@ -175,12 +176,13 @@ export default function SavedRecipes() {
     }
   };
 
-  const handleCreateFolder = () => {
-    if (newFolderName.trim()) {
-      createFolder(newFolderName.trim());
-      setNewFolderName("");
-      setShowNewFolder(false);
-      toast.success("Folder created");
+  const handleCreateCookbook = () => {
+    if (newCookbookName.trim()) {
+      createFolder(newCookbookName.trim(), newCookbookCover.trim() || undefined);
+      setNewCookbookName("");
+      setNewCookbookCover("");
+      setShowNewCookbook(false);
+      toast.success("Cookbook created");
     }
   };
 
@@ -227,6 +229,7 @@ export default function SavedRecipes() {
   };
 
   const activeFolder = recipeFolders.find((f) => f.id === activeFolderId);
+  const activeCookbookName = activeFolder?.name || "Cookbook";
 
   return (
     <div className="min-h-full bg-muted/30">
@@ -237,7 +240,7 @@ export default function SavedRecipes() {
             <div>
               <h1 className="text-2xl font-bold text-orange-500">Saved Recipes</h1>
               <p className="text-sm text-muted-foreground mt-0.5">
-                {allSavedRecipes.length} recipes in your collection
+                {allSavedRecipes.length} recipes across your cookbooks
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -292,7 +295,7 @@ export default function SavedRecipes() {
         </div>
       </div>
 
-      {/* Tabs: All / Folders */}
+      {/* Tabs: All / Cookbooks */}
       <div className="bg-background border-b border-border px-6 py-3">
         <div className="max-w-7xl mx-auto flex items-center gap-4">
           <div className="flex gap-2 flex-wrap">
@@ -309,27 +312,32 @@ export default function SavedRecipes() {
             {recipeFolders.map((folder) => (
               <button
                 key={folder.id}
-                onClick={() => { setViewMode("folder"); setActiveFolderId(folder.id); }}
+                onClick={() => { setViewMode("cookbook"); setActiveFolderId(folder.id); }}
                 className={`text-xs font-semibold px-3.5 py-1.5 rounded-full border transition-all flex items-center gap-1 ${
-                  viewMode === "folder" && activeFolderId === folder.id
+                  viewMode === "cookbook" && activeFolderId === folder.id
                     ? "bg-orange-500 text-white border-orange-500"
                     : "bg-background text-muted-foreground border-border hover:border-foreground/30"
                 }`}
               >
-                <FolderOpen size={11} /> {folder.name}
+                {folder.coverImage ? (
+                  <img src={folder.coverImage} alt={folder.name} className="h-4 w-4 rounded-sm object-cover" />
+                ) : (
+                  <FolderOpen size={11} />
+                )}
+                {folder.name}
                 <span className="text-[10px] opacity-70">({folder.recipeIds.length})</span>
               </button>
             ))}
             <button
-              onClick={() => setShowNewFolder(true)}
+              onClick={() => setShowNewCookbook(true)}
               className="text-xs font-semibold px-3 py-1.5 rounded-full border border-dashed border-border text-muted-foreground hover:border-orange-300 hover:text-orange-500 transition-all flex items-center gap-1"
             >
-              <FolderPlus size={11} /> New Folder
+              <FolderPlus size={11} /> New Cookbook
             </button>
           </div>
 
-          {/* Folder actions */}
-          {viewMode === "folder" && activeFolder && (
+          {/* Cookbook actions */}
+          {viewMode === "cookbook" && activeFolder && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="text-muted-foreground hover:text-foreground transition-colors">
@@ -340,15 +348,37 @@ export default function SavedRecipes() {
                 <DropdownMenuItem onClick={() => { setRenamingFolder(activeFolder.id); setRenameInput(activeFolder.name); }}>
                   <Edit2 size={12} className="mr-2" /> Rename
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => {
+                  const cover = window.prompt("Enter a cover image URL", activeFolder.coverImage || "");
+                  if (cover !== null) {
+                    updateFolderCover(activeFolder.id, cover.trim());
+                    toast.success("Cookbook cover updated");
+                  }
+                }}>
+                  <Image size={12} className="mr-2" /> Update Cover
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-destructive" onClick={() => { deleteFolder(activeFolder.id); setViewMode("all"); setActiveFolderId(null); toast.success("Folder deleted"); }}>
-                  <Trash2 size={12} className="mr-2" /> Delete Folder
+                <DropdownMenuItem className="text-destructive" onClick={() => { deleteFolder(activeFolder.id); setViewMode("all"); setActiveFolderId(null); toast.success("Cookbook deleted"); }}>
+                  <Trash2 size={12} className="mr-2" /> Delete Cookbook
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}
         </div>
       </div>
+
+      {viewMode === "cookbook" && activeFolder && (
+        <div className="bg-orange-50/70 border-b border-orange-100 px-6 py-2.5">
+          <div className="max-w-7xl mx-auto text-xs font-medium text-orange-700 flex items-center gap-2">
+            {activeFolder.coverImage ? (
+              <img src={activeFolder.coverImage} alt={activeCookbookName} className="h-5 w-5 rounded object-cover" />
+            ) : (
+              <FolderOpen size={12} />
+            )}
+            Viewing cookbook: {activeCookbookName}
+          </div>
+        </div>
+      )}
 
       {/* Tag filters (multi-select) */}
       <div className="bg-background border-b border-border px-6 py-2.5">
@@ -520,7 +550,7 @@ export default function SavedRecipes() {
                       </button>
                     )}
 
-                    {/* Folders with remove X + add icon inline */}
+                    {/* Cookbooks with remove X + add icon inline */}
                     {recipeFolders.length > 0 && (
                       <div className="flex flex-wrap gap-1 mb-2 items-center">
                         {recipeFolders.filter(f => f.recipeIds.includes(recipe.id)).map((folder) => (
@@ -536,7 +566,7 @@ export default function SavedRecipes() {
                         ))}
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <button className="text-muted-foreground hover:text-orange-500 transition-colors" title="Add to folder">
+                            <button className="text-muted-foreground hover:text-orange-500 transition-colors" title="Add to cookbook">
                               <FolderPlus size={12} />
                             </button>
                           </DropdownMenuTrigger>
@@ -650,33 +680,38 @@ export default function SavedRecipes() {
         )}
       </div>
 
-      {/* New Folder Dialog */}
-      <Dialog open={showNewFolder} onOpenChange={setShowNewFolder}>
+      {/* New Cookbook Dialog */}
+      <Dialog open={showNewCookbook} onOpenChange={setShowNewCookbook}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Create Folder</DialogTitle>
+            <DialogTitle>Create Cookbook</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <Input
-              value={newFolderName}
-              onChange={(e) => setNewFolderName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") handleCreateFolder(); }}
-              placeholder="Folder name…"
+              value={newCookbookName}
+              onChange={(e) => setNewCookbookName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleCreateCookbook(); }}
+              placeholder="Cookbook title…"
               autoFocus
             />
+            <Input
+              value={newCookbookCover}
+              onChange={(e) => setNewCookbookCover(e.target.value)}
+              placeholder="Cover image URL (optional)"
+            />
             <div className="flex justify-end gap-2">
-              <button onClick={() => setShowNewFolder(false)} className="text-sm text-muted-foreground hover:text-foreground px-3 py-1.5">Cancel</button>
-              <button onClick={handleCreateFolder} className="text-sm bg-orange-500 hover:bg-orange-600 text-white font-semibold px-4 py-1.5 rounded-lg">Create</button>
+              <button onClick={() => setShowNewCookbook(false)} className="text-sm text-muted-foreground hover:text-foreground px-3 py-1.5">Cancel</button>
+              <button onClick={handleCreateCookbook} className="text-sm bg-orange-500 hover:bg-orange-600 text-white font-semibold px-4 py-1.5 rounded-lg">Create</button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Rename Folder Dialog */}
+      {/* Rename Cookbook Dialog */}
       <Dialog open={!!renamingFolder} onOpenChange={() => setRenamingFolder(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Rename Folder</DialogTitle>
+            <DialogTitle>Rename Cookbook</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <Input
