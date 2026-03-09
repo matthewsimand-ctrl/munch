@@ -112,6 +112,7 @@ export const useStore = create<AppState>()(
       totalXp: 0,
       earnedBadges: [],
       archiveBehavior: 'ask' as const,
+      chefAvatarUrl: null,
 
       setShowTutorial: (show) => set({ showTutorial: show }),
 
