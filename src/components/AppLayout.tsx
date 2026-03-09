@@ -51,8 +51,9 @@ export default function AppLayout() {
             <NavLink
               key={to}
               to={to}
+              title={collapsed ? label : undefined}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group
+                `flex items-center ${collapsed ? 'justify-center' : 'gap-3'} px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group
                 ${
                   isActive
                     ? "bg-orange-50 text-orange-600"
@@ -68,9 +69,13 @@ export default function AppLayout() {
                       isActive ? "text-orange-500" : "text-gray-400 group-hover:text-gray-600"
                     }`}
                   />
-                  <span>{label}</span>
-                  {isActive && (
-                    <div className="ml-auto w-1.5 h-1.5 rounded-full bg-orange-400" />
+                  {!collapsed && (
+                    <>
+                      <span>{label}</span>
+                      {isActive && (
+                        <div className="ml-auto w-1.5 h-1.5 rounded-full bg-orange-400" />
+                      )}
+                    </>
                   )}
                 </>
               )}
