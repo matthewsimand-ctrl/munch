@@ -13,7 +13,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useStore } from "@/lib/store";
 import { toast } from "sonner";
-import { categorizeIngredient } from "@/lib/ingredientCategories";
+import { getCategory } from "@/lib/ingredientCategories";
 
 // ── Types & data ──────────────────────────────────────────────────────────────
 interface GroceryItem {
