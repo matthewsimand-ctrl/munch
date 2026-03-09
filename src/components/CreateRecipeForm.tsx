@@ -12,10 +12,61 @@ import { useQueryClient } from '@tanstack/react-query';
 
 const FOODISH_API = 'https://foodish-api.com/api/';
 
-async function getRandomFoodishImage(): Promise<string | null> {
+// Keyword → Foodish category mapping (no AI)
+const FOODISH_CATEGORIES = [
+  'biryani', 'burger', 'butter-chicken', 'dessert', 'dosa',
+  'idly', 'pasta', 'pizza', 'rice', 'samosa',
+];
+
+const KEYWORD_TO_CATEGORY: Record<string, string> = {
+  // Biryani / rice dishes
+  biryani: 'biryani', rice: 'biryani', pilaf: 'biryani', fried: 'biryani',
+  // Burger / sandwiches
+  burger: 'burger', sandwich: 'burger', wrap: 'burger', hot: 'burger',
+  // Chicken / curries
+  chicken: 'butter-chicken', curry: 'butter-chicken', tikka: 'butter-chicken',
+  masala: 'butter-chicken', korma: 'butter-chicken', gravy: 'butter-chicken',
+  // Desserts
+  cake: 'dessert', cookie: 'dessert', brownie: 'dessert', dessert: 'dessert',
+  sweet: 'dessert', pudding: 'dessert', pie: 'dessert', tart: 'dessert',
+  chocolate: 'dessert', ice: 'dessert', muffin: 'dessert', cupcake: 'dessert',
+  // Dosa
+  dosa: 'dosa', crepe: 'dosa', pancake: 'dosa',
+  // Idly
+  idly: 'idly', idli: 'idly', steamed: 'idly',
+  // Pasta
+  pasta: 'pasta', spaghetti: 'pasta', noodle: 'pasta', lasagna: 'pasta',
+  penne: 'pasta', fettuccine: 'pasta', mac: 'pasta', macaroni: 'pasta',
+  // Pizza
+  pizza: 'pizza', flatbread: 'pizza', calzone: 'pizza',
+  // Samosa
+  samosa: 'samosa', dumpling: 'samosa', spring: 'samosa', empanada: 'samosa',
+};
+
+function getCategoryFromName(recipeName: string): string {
+  const words = recipeName.toLowerCase().replace(/[^a-z\s]/g, '').split(/\s+/);
+  for (const word of words) {
+    if (KEYWORD_TO_CATEGORY[word]) return KEYWORD_TO_CATEGORY[word];
+    // Partial match
+    for (const key of Object.keys(KEYWORD_TO_CATEGORY)) {
+      if (word.includes(key) || key.includes(word)) return KEYWORD_TO_CATEGORY[key];
+    }
+  }
+  // Random fallback
+  return FOODISH_CATEGORIES[Math.floor(Math.random() * FOODISH_CATEGORIES.length)];
+}
+
+async function getRandomFoodishImage(recipeName = ''): Promise<string | null> {
   try {
-    const res = await fetch(FOODISH_API);
-    if (!res.ok) return null;
+    const category = getCategoryFromName(recipeName);
+    const res = await fetch(`${FOODISH_API}images/${category}`);
+    if (!res.ok) {
+      // Fallback to generic random
+      const fallback = await fetch(FOODISH_API);
+      if (!fallback.ok) return null;
+      const fd = await fallback.json();
+      return typeof fd?.image === 'string' ? fd.image : null;
+    }
     const data = await res.json();
     return typeof data?.image === 'string' ? data.image : null;
   } catch {
