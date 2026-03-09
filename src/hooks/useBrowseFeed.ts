@@ -45,7 +45,7 @@ export function useBrowseFeed() {
   const [recipes, setRecipes] = useState<BrowseRecipe[]>([]);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  const { likedRecipes, savedApiRecipes } = useStore();
+  const { likedRecipes, savedApiRecipes, userProfile } = useStore();
 
   const loadFeed = useCallback(async () => {
     if (loaded || loading) return;
@@ -64,9 +64,9 @@ export function useBrowseFeed() {
         .map((id) => savedApiRecipes[id])
         .filter(Boolean);
 
-      if (likedRecipesList.length > 0) {
+      if (likedRecipesList.length > 0 || userProfile.cuisinePreferences.length > 0 || userProfile.skillLevel) {
         const likedIds = new Set(likedRecipes);
-        const ranked = rankByRecommendation(fetched, likedRecipesList, likedIds);
+        const ranked = rankByRecommendation(fetched, likedRecipesList, likedIds, userProfile);
         setRecipes(ranked.map((item) => item.recipe as BrowseRecipe));
       } else {
         const shuffled = [...fetched].sort(() => Math.random() - 0.5);
@@ -79,7 +79,7 @@ export function useBrowseFeed() {
     } finally {
       setLoading(false);
     }
-  }, [loaded, loading, likedRecipes, savedApiRecipes]);
+  }, [loaded, loading, likedRecipes, savedApiRecipes, userProfile]);
 
   return { recipes, loading, loaded, loadFeed };
 }
