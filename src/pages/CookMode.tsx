@@ -216,6 +216,16 @@ export default function CookMode() {
             🎤 Say "next", "back", "repeat", "start timer", "pause", or "stop timer"
           </p>
         )}
+
+        {/* Chef path at top */}
+        <div className="mt-3">
+          <ChefPath
+            currentStep={currentStep}
+            totalSteps={totalSteps}
+            timerRunning={timerRunning}
+            isDone={isDone}
+          />
+        </div>
       </div>
 
       {/* Step Content */}
