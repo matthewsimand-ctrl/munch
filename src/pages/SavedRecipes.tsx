@@ -623,38 +623,6 @@ export default function SavedRecipes() {
                       </div>
                     )}
 
-                    {/* Folder assignment */}
-                    {recipeFolders.length > 0 && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <button className="text-muted-foreground hover:text-orange-500 mb-2 transition-colors" title="Add to folder">
-                            <FolderPlus size={14} />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start">
-                          {recipeFolders.map((folder) => {
-                            const inFolder = folder.recipeIds.includes(recipe.id);
-                            return (
-                              <DropdownMenuItem
-                                key={folder.id}
-                                onClick={() => {
-                                  if (inFolder) {
-                                    removeRecipeFromFolder(folder.id, recipe.id);
-                                    toast.success(`Removed from ${folder.name}`);
-                                  } else {
-                                    addRecipeToFolder(folder.id, recipe.id);
-                                    toast.success(`Added to ${folder.name}`);
-                                  }
-                                }}
-                              >
-                                {inFolder ? <Check size={12} className="mr-2 text-green-500" /> : <FolderOpen size={12} className="mr-2" />}
-                                {folder.name}
-                              </DropdownMenuItem>
-                            );
-                          })}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
 
                     <div className="flex items-center justify-between pt-2.5 border-t border-border">
                       <span className="text-xs text-muted-foreground">{recipe.difficulty}</span>
