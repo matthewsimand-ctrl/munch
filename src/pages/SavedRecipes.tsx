@@ -686,7 +686,7 @@ export default function SavedRecipes() {
                     <Play size={18} /> Start Cooking
                   </button>
                 </div>
-              </ScrollArea>
+              </div>
             </>
           )}
         </DialogContent>
