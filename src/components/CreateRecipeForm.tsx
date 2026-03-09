@@ -170,7 +170,7 @@ function parseRecipeText(raw: string): {
       }
     } else if (currentSection === 'unknown') {
       // Try to auto-detect: short lines with common ingredient patterns
-      const cleaned = stripped.replace(/^[-•*·▪◦]\s*/, '').replace(/^\d+[.)]\s*/, '').trim();
+      const cleaned = stripped.replace(/^[-•*·▪◦▢]\s*/, '').replace(/^\d+[.)]\s*/, '').trim();
       if (looksLikeIngredient(cleaned)) {
         currentSection = 'ingredients';
         const ingName = stripQuantity(cleaned);
