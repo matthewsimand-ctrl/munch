@@ -276,6 +276,18 @@ export default function CreateRecipeForm({ onClose }: Props) {
     }
   };
 
+  const addInstruction = () => {
+    const val = instructionInput.trim();
+    if (val) {
+      setInstructions((prev) => [...prev, val]);
+      setInstructionInput('');
+    }
+  };
+
+  const removeInstruction = (index: number) => {
+    setInstructions((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const addTag = () => {
     const val = tagInput.trim().toLowerCase();
     if (val && !tags.includes(val)) {
