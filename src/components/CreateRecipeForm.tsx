@@ -374,7 +374,7 @@ export default function CreateRecipeForm({ onClose }: Props) {
     setLoading(true);
     try {
       const stepList = instructions.map((s) => s.trim()).filter(Boolean);
-      const finalImage = image || (await getRandomFoodishImage()) || '/placeholder.svg';
+      const finalImage = image || (await getRandomFoodishImage(name)) || '/placeholder.svg';
 
       const { error } = await supabase.from('recipes').insert({
         name: name.trim(),
