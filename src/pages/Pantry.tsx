@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Package, Plus, Search, AlertTriangle, CheckCircle, X, Trash2, ChevronDown } from "lucide-react";
+import { Package, Plus, Search, AlertTriangle, CheckCircle, X, Trash2, ChevronDown, Camera, ChefHat } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 // ── Types & mock data ─────────────────────────────────────────────────────────
 type Status = "good" | "low" | "expired";
