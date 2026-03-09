@@ -8,6 +8,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useStore } from "@/lib/store";
 import { useBrowseFeed } from "@/hooks/useBrowseFeed";
+import chefAvatar from "@/assets/chef-avatar.png";
 import { calculateMatch } from "@/lib/matchLogic";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -299,10 +300,15 @@ export default function Dashboard() {
         {/* XP & Badges — at bottom */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-8">
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-            <div className="flex items-center gap-2 mb-3">
-              <Star size={17} className="text-amber-500 fill-amber-500" />
-              <h2 className="text-base font-bold text-gray-900">Cooking XP</h2>
-              <span className="ml-auto text-sm font-bold text-amber-600">Level {levelInfo.level}</span>
+            <div className="flex items-center gap-3 mb-3">
+              <img src={chefAvatar} alt="Chef" className="w-10 h-10 rounded-full bg-amber-50 object-cover" />
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <Star size={15} className="text-amber-500 fill-amber-500" />
+                  <h2 className="text-base font-bold text-gray-900">Cooking XP</h2>
+                  <span className="ml-auto text-sm font-bold text-amber-600">Level {levelInfo.level}</span>
+                </div>
+              </div>
             </div>
             <div className="relative h-3 bg-gray-100 rounded-full overflow-hidden mb-2">
               <motion.div
