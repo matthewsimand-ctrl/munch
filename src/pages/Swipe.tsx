@@ -46,7 +46,7 @@ const CUISINE_FILTERS = ["All", "Italian", "Asian", "Mexican", "Mediterranean", 
 export default function Browse() {
   const navigate = useNavigate();
   const { recipes, loading, loaded, loadFeed } = useBrowseFeed();
-  const { pantryList, likeRecipe, likedRecipes } = useStore();
+  const { pantryList, likeRecipe, likedRecipes, addCustomGroceryItem } = useStore();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [animating, setAnimating] = useState<"left" | "right" | null>(null);
   const [difficultyFilter, setDifficultyFilter] = useState("All");
