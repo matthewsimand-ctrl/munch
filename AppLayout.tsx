@@ -1,0 +1,118 @@
+import { ReactNode } from "react";
+import { NavLink, useLocation } from "react-router-dom";
+import {
+  LayoutDashboard,
+  Shuffle,
+  Heart,
+  ShoppingCart,
+  Package,
+  CalendarDays,
+  ChefHat,
+} from "lucide-react";
+
+const NAV_ITEMS = [
+  { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+  { to: "/browse", icon: Shuffle, label: "Browse" },
+  { to: "/saved", icon: Heart, label: "Saved" },
+  { to: "/pantry", icon: Package, label: "Pantry" },
+  { to: "/grocery", icon: ShoppingCart, label: "Grocery" },
+  { to: "/mealprep", icon: CalendarDays, label: "Meal Prep" },
+];
+
+interface AppLayoutProps {
+  children: ReactNode;
+}
+
+export default function AppLayout({ children }: AppLayoutProps) {
+  const location = useLocation();
+
+  return (
+    <div className="flex h-screen bg-gray-50 overflow-hidden">
+      {/* ── Desktop Sidebar ── */}
+      <aside className="hidden md:flex flex-col w-56 lg:w-64 bg-white border-r border-gray-100 shrink-0 z-20">
+        {/* Logo */}
+        <div className="flex items-center gap-2.5 px-5 py-5 border-b border-gray-100">
+          <div className="w-8 h-8 bg-orange-500 rounded-xl flex items-center justify-center shadow-sm">
+            <ChefHat className="w-4.5 h-4.5 text-white" size={18} />
+          </div>
+          <span className="text-lg font-bold text-gray-900 tracking-tight">munch</span>
+        </div>
+
+        {/* Nav links */}
+        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+          {NAV_ITEMS.map(({ to, icon: Icon, label }) => (
+            <NavLink
+              key={to}
+              to={to}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group
+                ${
+                  isActive
+                    ? "bg-orange-50 text-orange-600"
+                    : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+                }`
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <Icon
+                    size={18}
+                    className={`shrink-0 transition-colors ${
+                      isActive ? "text-orange-500" : "text-gray-400 group-hover:text-gray-600"
+                    }`}
+                  />
+                  <span>{label}</span>
+                  {isActive && (
+                    <div className="ml-auto w-1.5 h-1.5 rounded-full bg-orange-400" />
+                  )}
+                </>
+              )}
+            </NavLink>
+          ))}
+        </nav>
+
+        {/* Footer */}
+        <div className="px-4 py-4 border-t border-gray-100">
+          <div className="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors">
+            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-400 to-pink-500 flex items-center justify-center text-white text-xs font-bold shrink-0">
+              M
+            </div>
+            <div className="min-w-0">
+              <div className="text-xs font-semibold text-gray-800 truncate">My Kitchen</div>
+              <div className="text-xs text-gray-400 truncate">Free plan</div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      {/* ── Main content ── */}
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Page content scrollable area */}
+        <div className="flex-1 overflow-y-auto pb-20 md:pb-0">
+          {children}
+        </div>
+
+        {/* ── Mobile Bottom Nav ── */}
+        <nav className="md:hidden fixed bottom-0 inset-x-0 bg-white border-t border-gray-100 flex z-50 safe-area-pb">
+          {NAV_ITEMS.map(({ to, icon: Icon, label }) => (
+            <NavLink
+              key={to}
+              to={to}
+              className={({ isActive }) =>
+                `flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-xs font-medium transition-colors
+                ${isActive ? "text-orange-500" : "text-gray-400"}`
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <Icon size={20} strokeWidth={isActive ? 2.5 : 1.8} />
+                  <span className="text-[10px] leading-tight">{label}</span>
+                </>
+              )}
+            </NavLink>
+          ))}
+        </nav>
+      </main>
+    </div>
+  );
+}
