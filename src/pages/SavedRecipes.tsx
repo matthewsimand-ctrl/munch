@@ -21,7 +21,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { calculateMatch } from "@/lib/matchLogic";
-import { parseIngredientLine, scaleIngredientQuantity } from "@/lib/ingredientText";
+import { composeIngredientLine, parseIngredientLine, scaleIngredientQuantity } from "@/lib/ingredientText";
 import { toast } from "sonner";
 import type { Recipe } from "@/data/recipes";
 
@@ -87,6 +87,7 @@ export default function SavedRecipes() {
   const [renameInput, setRenameInput] = useState("");
   const [editingIngredients, setEditingIngredients] = useState<string[]>([]);
   const [ingredientInput, setIngredientInput] = useState("");
+  const [ingredientQuantityInput, setIngredientQuantityInput] = useState("");
   const [isEditingIngredients, setIsEditingIngredients] = useState(false);
   const [servingMultiplier, setServingMultiplier] = useState(1);
   const [groceryAddedRecipeIds, setGroceryAddedRecipeIds] = useState<string[]>([]);
@@ -217,15 +218,22 @@ export default function SavedRecipes() {
     if (!selectedRecipe) return;
     setEditingIngredients(normalizeStringArray((selectedRecipe as any).ingredients));
     setIngredientInput("");
+    setIngredientQuantityInput("");
     setIsEditingIngredients(false);
     setServingMultiplier(1);
   }, [selectedRecipe?.id]);
 
   const addEditingIngredient = () => {
-    const value = ingredientInput.trim().toLowerCase();
-    if (!value || editingIngredients.includes(value)) return;
-    setEditingIngredients((prev) => [...prev, value]);
+    const name = ingredientInput.trim().toLowerCase();
+    const quantity = ingredientQuantityInput.trim();
+    if (!name) return;
+
+    const line = composeIngredientLine({ name, quantity });
+    if (editingIngredients.includes(line)) return;
+
+    setEditingIngredients((prev) => [...prev, line]);
     setIngredientInput("");
+    setIngredientQuantityInput("");
   };
 
   const saveEditedIngredients = () => {
@@ -927,6 +935,7 @@ export default function SavedRecipes() {
                               setEditingIngredients(selectedIngredients);
                               setIsEditingIngredients(false);
                               setIngredientInput("");
+                              setIngredientQuantityInput("");
                             }}
                             className="text-xs font-semibold text-muted-foreground hover:text-foreground"
                           >
@@ -945,21 +954,32 @@ export default function SavedRecipes() {
                     {isEditingIngredients ? (
                       <div className="space-y-2">
                         <div className="flex flex-wrap gap-2">
-                          {editingIngredients.map((ing) => (
-                            <span key={ing} className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full bg-muted text-foreground font-medium">
-                              {ing}
-                              <button onClick={() => setEditingIngredients((prev) => prev.filter((i) => i !== ing))} className="text-muted-foreground hover:text-destructive">
-                                <X size={12} />
-                              </button>
-                            </span>
-                          ))}
+                          {editingIngredients.map((ing) => {
+                            const parsed = parseIngredientLine(ing);
+                            return (
+                              <span key={ing} className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full bg-muted text-foreground font-medium">
+                                {parsed.name}
+                                {parsed.quantity && <span className="text-xs text-muted-foreground">({parsed.quantity})</span>}
+                                <button onClick={() => setEditingIngredients((prev) => prev.filter((i) => i !== ing))} className="text-muted-foreground hover:text-destructive">
+                                  <X size={12} />
+                                </button>
+                              </span>
+                            );
+                          })}
                         </div>
                         <div className="flex gap-2">
                           <Input
                             value={ingredientInput}
                             onChange={(e) => setIngredientInput(e.target.value)}
                             onKeyDown={(e) => { if (e.key === "Enter") addEditingIngredient(); }}
-                            placeholder="Add ingredient…"
+                            placeholder="Ingredient"
+                          />
+                          <Input
+                            value={ingredientQuantityInput}
+                            onChange={(e) => setIngredientQuantityInput(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === "Enter") addEditingIngredient(); }}
+                            placeholder="Quantity (e.g. 2 cups)"
+                            className="max-w-[180px]"
                           />
                           <button
                             onClick={addEditingIngredient}
