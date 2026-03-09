@@ -554,11 +554,11 @@ export default function Browse() {
                 </div>
 
                 {/* Instructions */}
-                {selectedRecipe.instructions && selectedRecipe.instructions.length > 0 ? (
+                {selectedInstructions.length > 0 ? (
                   <div>
                     <h3 className="text-sm font-semibold text-foreground mb-3">Instructions</h3>
                     <ol className="space-y-3">
-                      {selectedRecipe.instructions.map((step, i) => (
+                      {selectedInstructions.map((step, i) => (
                         <li key={i} className="flex gap-3 text-sm text-muted-foreground">
                           <span className="flex-shrink-0 w-6 h-6 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center text-xs font-bold">
                             {i + 1}
