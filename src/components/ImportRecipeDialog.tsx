@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Link2, FileText, Loader2, Import, ClipboardPaste, X, Plus, Globe, Lock } from 'lucide-react';
+import { Link2, FileText, Loader2, Import, ClipboardPaste, X, Plus, Globe, Lock, Camera, Upload, Brain } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useStore } from '@/lib/store';
 import { toast } from 'sonner';
@@ -29,6 +29,7 @@ interface ReviewData {
   cuisine: string;
   tags: string[];
   image: string;
+  servings: string;
 }
 
 const DIFFICULTY_OPTIONS = ['Beginner', 'Intermediate', 'Advanced'];
@@ -43,17 +44,19 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
   const [manualText, setManualText] = useState('');
   const [lastImportError, setLastImportError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const { likeRecipe } = useStore();
 
   // Review mode state
   const [reviewMode, setReviewMode] = useState(false);
   const [reviewData, setReviewData] = useState<ReviewData | null>(null);
-  // Discoverable should be ON by default (user can toggle off)
   const [isDiscoverable, setIsDiscoverable] = useState(true);
   const [newIngredient, setNewIngredient] = useState('');
   const [newInstruction, setNewInstruction] = useState('');
   const [newTag, setNewTag] = useState('');
   const [saving, setSaving] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [fetchingPhoto, setFetchingPhoto] = useState(false);
 
   const resetState = () => {
     setUrl('');
@@ -69,6 +72,8 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
     setNewInstruction('');
     setNewTag('');
     setSaving(false);
+    setUploadingPhoto(false);
+    setFetchingPhoto(false);
   };
 
   const handleExtract = async (payload: { url?: string; textContent?: string }) => {
@@ -97,18 +102,17 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
 
       const normalizeList = (value: unknown): string[] => {
         if (Array.isArray(value)) {
-          return value.map((v) => String(v).trim()).filter(Boolean);
+          return value.map((v) => String(v).replace(/^▢\s*/, '').trim()).filter(Boolean);
         }
         if (typeof value === 'string') {
           return value
             .split(/\r?\n/)
-            .map((s) => s.trim())
+            .map((s) => s.replace(/^▢\s*/, '').trim())
             .filter(Boolean);
         }
         return [];
       };
 
-      // Enter review mode with extracted data (discoverable ON by default)
       setReviewData({
         name: String(recipe.name || ''),
         ingredients: normalizeList(recipe.ingredients),
@@ -118,6 +122,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
         cuisine: recipe.cuisine || '',
         tags: normalizeList(recipe.tags),
         image: recipe.image || '/placeholder.svg',
+        servings: String(recipe.servings || 4),
       });
       setIsDiscoverable(true);
       setReviewMode(true);
@@ -153,7 +158,6 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
 
     try {
       if (isDiscoverable) {
-        // Save to Supabase for public discovery
         const {
           data: { user },
         } = await supabase.auth.getUser();
@@ -174,7 +178,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
             source: 'imported',
             created_by: user.id,
             is_public: true,
-            servings: 4,
+            servings: parseInt(reviewData.servings) || 4,
           });
 
           if (error) {
@@ -198,6 +202,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
         tags: reviewData.tags,
         image: reviewData.image,
         source: 'imported',
+        servings: parseInt(reviewData.servings) || 4,
       };
 
       likeRecipe(id, recipeData);
@@ -286,6 +291,64 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
     });
   };
 
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !reviewData) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image too large (max 5MB)');
+      return;
+    }
+
+    setUploadingPhoto(true);
+    try {
+      const session = (await supabase.auth.getSession()).data.session;
+      const userId = session?.user?.id || 'anonymous';
+      const ext = file.name.split('.').pop() || 'jpg';
+      const filePath = `${userId}/${Date.now()}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('recipe-photos')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('recipe-photos')
+        .getPublicUrl(filePath);
+
+      setReviewData({ ...reviewData, image: publicUrl });
+      toast.success('Photo uploaded!');
+    } catch (err: any) {
+      console.error('Photo upload error:', err);
+      toast.error('Upload failed: ' + (err.message || 'Unknown error'));
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const fetchRandomPhoto = async () => {
+    if (!reviewData) return;
+    setFetchingPhoto(true);
+    try {
+      const res = await fetch('https://foodish-api.com/api/');
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.image) {
+          setReviewData({ ...reviewData, image: data.image });
+        }
+      }
+    } catch {
+      toast.error('Could not fetch photo');
+    } finally {
+      setFetchingPhoto(false);
+    }
+  };
+
   // Review mode helpers
   const addIngredient = () => {
     if (!newIngredient.trim() || !reviewData) return;
@@ -337,56 +400,100 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-lg max-h-[90vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle>{reviewMode ? 'Review & Edit Recipe' : 'Import Recipe'}</DialogTitle>
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-hidden flex flex-col p-0">
+        <DialogHeader className="px-6 pt-6 pb-2">
+          <DialogTitle className="flex items-center gap-2">
+            {reviewMode ? 'Review & Edit Recipe' : <><Brain className="h-4 w-4 text-violet-500" /> Import Recipe (AI)</>}
+          </DialogTitle>
         </DialogHeader>
 
         {reviewMode && reviewData ? (
-          // Review/Edit Mode
-          <ScrollArea className="flex-1 -mx-6 px-6">
-            <div className="space-y-4 pb-4">
+          <ScrollArea className="flex-1 min-h-0 px-6 pb-6">
+            <div className="space-y-4 pr-2">
               {/* Recipe Name */}
-              <div className="space-y-2">
-                <Label htmlFor="recipe-name">Recipe Name *</Label>
+              <div>
+                <label className="text-sm font-medium text-foreground">Recipe Name *</label>
                 <Input
-                  id="recipe-name"
                   value={reviewData.name}
                   onChange={(e) => setReviewData({ ...reviewData, name: e.target.value })}
                   placeholder="Enter recipe name"
                 />
               </div>
 
-              {/* Image URL */}
-              <div className="space-y-2">
-                <Label htmlFor="recipe-image">Image URL</Label>
-                <Input
-                  id="recipe-image"
-                  value={reviewData.image}
-                  onChange={(e) => setReviewData({ ...reviewData, image: e.target.value })}
-                  placeholder="https://..."
-                />
+              {/* Photo */}
+              <div>
+                <label className="text-sm font-medium text-foreground">Photo</label>
+                <div className="flex gap-2 mt-1">
+                  <Input
+                    value={reviewData.image === '/placeholder.svg' ? '' : reviewData.image}
+                    onChange={(e) => setReviewData({ ...reviewData, image: e.target.value || '/placeholder.svg' })}
+                    placeholder="Image URL (optional)"
+                    className="flex-1"
+                  />
+                  <input
+                    ref={photoInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePhotoUpload}
+                    className="hidden"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => photoInputRef.current?.click()}
+                    disabled={uploadingPhoto}
+                    title="Upload photo"
+                  >
+                    {uploadingPhoto ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={fetchRandomPhoto}
+                    disabled={fetchingPhoto}
+                    title="Use random photo"
+                  >
+                    {fetchingPhoto ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+                  </Button>
+                </div>
+                {reviewData.image && reviewData.image !== '/placeholder.svg' && (
+                  <img src={reviewData.image} alt="Preview" className="mt-2 h-24 w-full object-cover rounded-lg" />
+                )}
               </div>
 
-              {/* Cook time, Difficulty, Cuisine row */}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-2">
-                  <Label>Cook Time</Label>
+              {/* Cook time, Servings, Difficulty, Cuisine row */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm font-medium text-foreground">Cook Time</label>
                   <Input
                     value={reviewData.cook_time}
                     onChange={(e) => setReviewData({ ...reviewData, cook_time: e.target.value })}
                     placeholder="30 min"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label>Difficulty</Label>
+                <div>
+                  <label className="text-sm font-medium text-foreground">Servings</label>
+                  <Select
+                    value={reviewData.servings}
+                    onValueChange={(v) => setReviewData({ ...reviewData, servings: v })}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {[1, 2, 3, 4, 5, 6, 8, 10, 12].map(n => (
+                        <SelectItem key={n} value={String(n)}>{n} {n === 1 ? 'serving' : 'servings'}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground">Difficulty</label>
                   <Select
                     value={reviewData.difficulty}
                     onValueChange={(v) => setReviewData({ ...reviewData, difficulty: v })}
                   >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {DIFFICULTY_OPTIONS.map((d) => (
                         <SelectItem key={d} value={d}>{d}</SelectItem>
@@ -394,30 +501,59 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label>Cuisine</Label>
-                  <Select
-                    value={reviewData.cuisine || 'Other'}
-                    onValueChange={(v) => setReviewData({ ...reviewData, cuisine: v === 'Other' ? '' : v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CUISINE_OPTIONS.map((c) => (
-                        <SelectItem key={c} value={c}>{c}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div>
+                  <label className="text-sm font-medium text-foreground">Cuisine</label>
+                  <Input
+                    value={reviewData.cuisine}
+                    onChange={(e) => setReviewData({ ...reviewData, cuisine: e.target.value })}
+                    placeholder="Italian"
+                  />
+                </div>
+              </div>
+
+              {/* Ingredients */}
+              <div>
+                <label className="text-sm font-medium text-foreground">Ingredients *</label>
+                <div className="flex gap-2 mt-1">
+                  <Input
+                    value={newIngredient}
+                    onChange={(e) => setNewIngredient(e.target.value)}
+                    placeholder="Add ingredient..."
+                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addIngredient())}
+                  />
+                  <Button type="button" variant="outline" size="icon" onClick={addIngredient}>
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {reviewData.ingredients.map((ing, idx) => (
+                    <Badge key={idx} variant="secondary" className="gap-1">
+                      {ing}
+                      <button onClick={() => removeIngredient(idx)} className="ml-1 hover:text-destructive">
+                        <X size={12} />
+                      </button>
+                    </Badge>
+                  ))}
                 </div>
               </div>
 
               {/* Tags */}
-              <div className="space-y-2">
-                <Label>Tags</Label>
-                <div className="flex flex-wrap gap-2 mb-2">
+              <div>
+                <label className="text-sm font-medium text-foreground">Tags</label>
+                <div className="flex gap-2 mt-1">
+                  <Input
+                    value={newTag}
+                    onChange={(e) => setNewTag(e.target.value)}
+                    placeholder="e.g. spicy, vegan"
+                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
+                  />
+                  <Button type="button" variant="outline" size="icon" onClick={addTag}>
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-1.5 mt-2">
                   {reviewData.tags.map((tag) => (
-                    <Badge key={tag} variant="secondary" className="flex items-center gap-1">
+                    <Badge key={tag} variant="outline" className="gap-1">
                       {tag}
                       <button onClick={() => removeTag(tag)} className="ml-1 hover:text-destructive">
                         <X size={12} />
@@ -425,69 +561,32 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
                     </Badge>
                   ))}
                 </div>
-                <div className="flex gap-2">
-                  <Input
-                    value={newTag}
-                    onChange={(e) => setNewTag(e.target.value)}
-                    placeholder="Add tag..."
-                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
-                  />
-                  <Button type="button" size="sm" variant="outline" onClick={addTag}>
-                    <Plus size={14} />
-                  </Button>
-                </div>
-              </div>
-
-              {/* Ingredients */}
-              <div className="space-y-2">
-                <Label>Ingredients *</Label>
-                <div className="space-y-1 max-h-40 overflow-y-auto">
-                  {reviewData.ingredients.map((ing, idx) => (
-                    <div key={idx} className="flex items-center gap-2 text-sm bg-muted/50 rounded px-2 py-1">
-                      <span className="flex-1">{ing}</span>
-                      <button onClick={() => removeIngredient(idx)} className="text-muted-foreground hover:text-destructive">
-                        <X size={14} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <Input
-                    value={newIngredient}
-                    onChange={(e) => setNewIngredient(e.target.value)}
-                    placeholder="Add ingredient..."
-                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addIngredient())}
-                  />
-                  <Button type="button" size="sm" variant="outline" onClick={addIngredient}>
-                    <Plus size={14} />
-                  </Button>
-                </div>
               </div>
 
               {/* Instructions */}
-              <div className="space-y-2">
-                <Label>Instructions</Label>
-                <div className="space-y-1 max-h-40 overflow-y-auto">
-                  {reviewData.instructions.map((step, idx) => (
-                    <div key={idx} className="flex items-start gap-2 text-sm bg-muted/50 rounded px-2 py-1">
-                      <span className="font-medium text-primary">{idx + 1}.</span>
-                      <span className="flex-1">{step}</span>
-                      <button onClick={() => removeInstruction(idx)} className="text-muted-foreground hover:text-destructive">
-                        <X size={14} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex gap-2">
+              <div>
+                <label className="text-sm font-medium text-foreground">Steps / Instructions</label>
+                <div className="flex gap-2 mt-1">
                   <Input
                     value={newInstruction}
                     onChange={(e) => setNewInstruction(e.target.value)}
-                    placeholder="Add instruction step..."
+                    placeholder="Add a cooking step..."
                     onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addInstruction())}
                   />
-                  <Button type="button" size="sm" variant="outline" onClick={addInstruction}>
-                    <Plus size={14} />
+                  <Button type="button" variant="outline" size="icon" onClick={addInstruction}>
+                    <Plus className="h-4 w-4" />
                   </Button>
+                </div>
+                <div className="space-y-1.5 mt-2">
+                  {reviewData.instructions.map((step, idx) => (
+                    <div key={idx} className="flex items-start gap-2 rounded-md border border-border bg-muted/40 px-2 py-1.5 text-sm">
+                      <span className="text-xs font-semibold text-muted-foreground pt-0.5">{idx + 1}.</span>
+                      <span className="flex-1 text-foreground">{step}</span>
+                      <button onClick={() => removeInstruction(idx)} className="text-muted-foreground hover:text-destructive">
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -528,130 +627,132 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
           </ScrollArea>
         ) : (
           // Import Mode (URL/PDF/Paste)
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ImportTab)} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="url" className="flex items-center gap-1.5">
-                <Link2 className="h-3.5 w-3.5" /> From URL
-              </TabsTrigger>
-              <TabsTrigger value="pdf" className="flex items-center gap-1.5">
-                <FileText className="h-3.5 w-3.5" /> From PDF
-              </TabsTrigger>
-            </TabsList>
+          <div className="px-6 pb-6">
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ImportTab)} className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="url" className="flex items-center gap-1.5">
+                  <Link2 className="h-3.5 w-3.5" /> From URL
+                </TabsTrigger>
+                <TabsTrigger value="pdf" className="flex items-center gap-1.5">
+                  <FileText className="h-3.5 w-3.5" /> From PDF
+                </TabsTrigger>
+              </TabsList>
 
-            <TabsContent value="url" className="space-y-4 pt-4">
-              <p className="text-sm text-muted-foreground">
-                Paste a recipe page URL. If it fails, you can paste recipe text directly or upload a PDF.
-              </p>
+              <TabsContent value="url" className="space-y-4 pt-4">
+                <p className="text-sm text-muted-foreground">
+                  🧠 Paste a recipe page URL and AI will extract the details. If it fails, paste text directly or upload a PDF.
+                </p>
 
-              <form onSubmit={handleUrlSubmit} noValidate className="space-y-3">
-                <Input
-                  type="text"
-                  placeholder="https://example.com/recipe/..."
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  disabled={loading}
-                />
-                <Button type="submit" className="w-full" disabled={loading || !url.trim()}>
-                  {loading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Extracting...
-                    </>
-                  ) : (
-                    'Import Recipe'
-                  )}
-                </Button>
-              </form>
+                <form onSubmit={handleUrlSubmit} noValidate className="space-y-3">
+                  <Input
+                    type="text"
+                    placeholder="https://example.com/recipe/..."
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                    disabled={loading}
+                  />
+                  <Button type="submit" className="w-full" disabled={loading || !url.trim()}>
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Extracting...
+                      </>
+                    ) : (
+                      'Import Recipe'
+                    )}
+                  </Button>
+                </form>
 
-              {(lastImportError || showManualPaste) && (
-                <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-3">
-                  <p className="text-xs text-destructive font-medium">
-                    URL import didn't work. You can paste the recipe text below or switch to PDF upload.
-                  </p>
-                  {lastImportError && (
-                    <p className="text-xs text-muted-foreground break-words">{lastImportError}</p>
-                  )}
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => setShowManualPaste((prev) => !prev)}
-                    >
-                      <ClipboardPaste className="h-3.5 w-3.5 mr-1" />
-                      {showManualPaste ? 'Hide Paste Box' : 'Paste Text Instead'}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => setActiveTab('pdf')}
-                    >
-                      <FileText className="h-3.5 w-3.5 mr-1" /> Upload PDF
-                    </Button>
-                  </div>
-
-                  {showManualPaste && (
-                    <div className="space-y-2">
-                      <Textarea
-                        rows={6}
-                        value={manualText}
-                        onChange={(e) => setManualText(e.target.value)}
-                        placeholder="Copy and paste the recipe title, ingredients, and instructions here..."
-                        disabled={loading}
-                      />
+                {(lastImportError || showManualPaste) && (
+                  <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-3">
+                    <p className="text-xs text-destructive font-medium">
+                      URL import didn't work. You can paste the recipe text below or switch to PDF upload.
+                    </p>
+                    {lastImportError && (
+                      <p className="text-xs text-muted-foreground break-words">{lastImportError}</p>
+                    )}
+                    <div className="flex gap-2">
                       <Button
                         type="button"
-                        onClick={handleManualImport}
-                        className="w-full"
-                        disabled={loading || !manualText.trim()}
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => setShowManualPaste((prev) => !prev)}
                       >
-                        {loading ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Importing...
-                          </>
-                        ) : (
-                          'Import Pasted Text'
-                        )}
+                        <ClipboardPaste className="h-3.5 w-3.5 mr-1" />
+                        {showManualPaste ? 'Hide Paste Box' : 'Paste Text Instead'}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => setActiveTab('pdf')}
+                      >
+                        <FileText className="h-3.5 w-3.5 mr-1" /> Upload PDF
                       </Button>
                     </div>
-                  )}
-                </div>
-              )}
-            </TabsContent>
 
-            <TabsContent value="pdf" className="space-y-4 pt-4">
-              <p className="text-sm text-muted-foreground">
-                Upload a PDF with a recipe and we'll extract the details.
-              </p>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".pdf"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
-              <Button
-                variant="outline"
-                className="w-full h-24 border-dashed border-2 flex flex-col gap-2"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={loading}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="h-6 w-6 animate-spin" />
-                    <span className="text-sm">Extracting recipe...</span>
-                  </>
-                ) : (
-                  <>
-                    <FileText className="h-6 w-6 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">Click to upload PDF (max 20MB)</span>
-                  </>
+                    {showManualPaste && (
+                      <div className="space-y-2">
+                        <Textarea
+                          rows={6}
+                          value={manualText}
+                          onChange={(e) => setManualText(e.target.value)}
+                          placeholder="Copy and paste the recipe title, ingredients, and instructions here..."
+                          disabled={loading}
+                        />
+                        <Button
+                          type="button"
+                          onClick={handleManualImport}
+                          className="w-full"
+                          disabled={loading || !manualText.trim()}
+                        >
+                          {loading ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Importing...
+                            </>
+                          ) : (
+                            '🧠 Import Pasted Text'
+                          )}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 )}
-              </Button>
-            </TabsContent>
-          </Tabs>
+              </TabsContent>
+
+              <TabsContent value="pdf" className="space-y-4 pt-4">
+                <p className="text-sm text-muted-foreground">
+                  🧠 Upload a PDF with a recipe and AI will extract the details.
+                </p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+                <Button
+                  variant="outline"
+                  className="w-full h-24 border-dashed border-2 flex flex-col gap-2"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                      <span className="text-sm">Extracting recipe...</span>
+                    </>
+                  ) : (
+                    <>
+                      <FileText className="h-6 w-6 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">Click to upload PDF (max 20MB)</span>
+                    </>
+                  )}
+                </Button>
+              </TabsContent>
+            </Tabs>
+          </div>
         )}
       </DialogContent>
     </Dialog>

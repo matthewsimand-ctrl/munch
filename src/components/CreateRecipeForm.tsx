@@ -185,7 +185,7 @@ function parseRecipeText(raw: string): {
   // If we found nothing in sections, try splitting: short lines = ingredients, long = instructions
   if (ingredients.length === 0 && instructions.length === 0) {
     for (const line of lines) {
-      const stripped = line.replace(/^[-•*·▪◦]\s*/, '').replace(/^\d+[.)]\s*/, '').replace(/^#+\s*/, '').trim();
+      const stripped = line.replace(/^[-•*·▪◦▢]\s*/, '').replace(/^\d+[.)]\s*/, '').replace(/^#+\s*/, '').trim();
       if (stripped === name || stripped.length < 2) continue;
       if (stripped.length < 50 && !stripped.includes('.')) {
         const ingName = stripQuantity(stripped);
