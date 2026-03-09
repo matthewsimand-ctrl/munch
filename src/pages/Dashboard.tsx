@@ -8,6 +8,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useStore } from "@/lib/store";
 import { useBrowseFeed } from "@/hooks/useBrowseFeed";
+import chefAvatar from "@/assets/chef-avatar.png";
 import { calculateMatch } from "@/lib/matchLogic";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
