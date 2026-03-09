@@ -42,8 +42,9 @@ export default function CookMode() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: dbRecipes = [] } = useDbRecipes();
-  const { savedApiRecipes } = useStore();
+  const { savedApiRecipes, markRecipeCooked } = useStore();
   const recipe = dbRecipes.find(r => r.id === id) || savedApiRecipes[id || ''];
+  const [isDone, setIsDone] = useState(false);
 
   const [currentStep, setCurrentStep] = useState(0);
   const [timerSeconds, setTimerSeconds] = useState<number | null>(null);
