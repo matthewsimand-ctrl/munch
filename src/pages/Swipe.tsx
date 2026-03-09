@@ -350,7 +350,7 @@ export default function Browse() {
               </button>
 
               <div className="text-xs text-gray-400 font-medium text-center leading-tight">
-                {currentIndex + 1} / {RECIPES.length}
+                {currentIndex + 1} / {filteredRecipes.length}
               </div>
 
               <button
