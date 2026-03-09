@@ -8,7 +8,6 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, LogOut, User, Users, Utensils, Trash2, Flame, FolderArchive, Camera, ChefHat } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import BottomNav from '@/components/BottomNav';
 import { Switch } from '@/components/ui/switch';
 
 const DIETARY_OPTIONS = ['Vegetarian', 'Vegan', 'Gluten-Free', 'Dairy-Free', 'Nut-Free', 'None'];
@@ -328,7 +327,6 @@ export default function Settings() {
           </section>
         </div>
       </div>
-      <BottomNav />
     </div>
   );
 }

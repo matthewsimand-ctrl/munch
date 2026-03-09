@@ -103,7 +103,7 @@ export default function Browse() {
   const selectedInstructions = selectedRecipe ? normalizeStringArray((selectedRecipe as any).instructions) : [];
   const selectedSource = selectedRecipe ? String((selectedRecipe as any).source || "Unknown source") : null;
   const selectedSourceUrl = selectedRecipe ? String((selectedRecipe as any).source_url || "").trim() : "";
-  const selectedRawPayload = selectedRecipe ? (selectedRecipe as any).raw_api_payload : null;
+  const selectedRawPayload = selectedRecipe ? ((selectedRecipe as any).raw_api_payload ?? selectedRecipe) : null;
   const isSelectedRecipeAddedToGrocery = useMemo(() => (
     selectedRecipe ? groceryAddedRecipeIds.includes(selectedRecipe.id) : false
   ), [groceryAddedRecipeIds, selectedRecipe]);
@@ -589,12 +589,11 @@ export default function Browse() {
 
                 <details className="rounded-lg border border-gray-200 bg-gray-50 p-3" open>
                   <summary className="cursor-pointer text-sm font-semibold text-gray-800">View raw API JSON</summary>
-                  {selectedRawPayload ? (
-                    <pre className="mt-3 max-h-64 overflow-auto rounded bg-white p-3 text-xs text-gray-700">
+                  <pre className="mt-3 max-h-64 overflow-auto rounded bg-white p-3 text-xs text-gray-700">
 {JSON.stringify(selectedRawPayload, null, 2)}
                     </pre>
-                  ) : (
-                    <p className="mt-3 text-xs text-gray-600">Raw API payload is not available for this recipe source yet.</p>
+                  {(selectedRecipe as any)?.raw_api_payload == null && (
+                    <p className="mt-2 text-xs text-gray-500">Showing normalized recipe object because the source did not provide raw payload.</p>
                   )}
                 </details>
 
