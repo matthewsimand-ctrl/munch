@@ -852,7 +852,7 @@ export default function MealPrep() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <BottomNav />
+      
     </div>
   );
 }
