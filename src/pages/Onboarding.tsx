@@ -265,10 +265,10 @@ export default function Onboarding() {
                   <h1 className="font-display text-3xl font-bold text-foreground mb-2">
                     What cuisines excite you?
                   </h1>
-                  <p className="text-muted-foreground mb-8">
+                  <p className="text-muted-foreground mb-4">
                     Pick your favorites — we'll prioritize these in your feed.
                   </p>
-                  <div className="flex flex-wrap gap-3">
+                  <div className="flex flex-wrap gap-3 mb-6">
                     {CUISINE_OPTIONS.map((opt) => (
                       <Chip
                         key={opt}
@@ -277,6 +277,12 @@ export default function Onboarding() {
                         onClick={() => toggleCuisine(opt)}
                       />
                     ))}
+                  </div>
+                  <div className="p-3 rounded-xl bg-muted/50 border border-border">
+                    <p className="text-xs font-semibold text-foreground mb-1">💡 What is match %?</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Each recipe shows a <span className="font-semibold text-primary">match %</span> based on how many of the required ingredients you already have in your pantry. 100% means you're ready to cook — no shopping needed!
+                    </p>
                   </div>
                 </div>
               )}

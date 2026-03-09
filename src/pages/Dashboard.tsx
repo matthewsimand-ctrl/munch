@@ -1,26 +1,18 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
-  Flame,
-  Clock,
-  Heart,
-  ShoppingCart,
-  TrendingUp,
-  ChevronRight,
-  Sparkles,
-  Calendar,
-  Star,
-  Plus,
+  Flame, Clock, Heart, ShoppingCart, TrendingUp, ChevronRight,
+  Sparkles, Calendar, Star, Plus, Check, Users, BarChart3, MapPin,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-
-// ── Mock data (replace with your real data / hooks) ──────────────────────────
-const STATS = [
-  { label: "Recipes Saved", value: "42", icon: Heart, color: "text-rose-500", bg: "bg-rose-50" },
-  { label: "Meals This Week", value: "14", icon: Flame, color: "text-orange-500", bg: "bg-orange-50" },
-  { label: "Avg Cook Time", value: "28m", icon: Clock, color: "text-blue-500", bg: "bg-blue-50" },
-  { label: "Items to Buy", value: "9", icon: ShoppingCart, color: "text-violet-500", bg: "bg-violet-50" },
-];
+import { useStore } from "@/lib/store";
+import { useBrowseFeed } from "@/hooks/useBrowseFeed";
+import { calculateMatch } from "@/lib/matchLogic";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
+import type { Recipe } from "@/data/recipes";
 
 const ACTIVITY = [
   { type: "saved", text: "Saved Shakshuka with Feta", time: "2h ago", emoji: "🍳" },
@@ -28,37 +20,6 @@ const ACTIVITY = [
   { type: "added", text: "Added 6 items to grocery list", time: "Yesterday", emoji: "🛒" },
   { type: "planned", text: "Planned meals for the week", time: "2 days ago", emoji: "📅" },
   { type: "saved", text: "Saved Thai Green Curry", time: "3 days ago", emoji: "🍛" },
-  { type: "cooked", text: "Marked Avocado Toast as cooked", time: "4 days ago", emoji: "✅" },
-];
-
-const SUGGESTED = [
-  {
-    id: 1,
-    title: "Lemon Herb Salmon",
-    time: "25 min",
-    rating: 4.8,
-    tag: "High Protein",
-    emoji: "🐟",
-    color: "from-blue-50 to-cyan-50",
-  },
-  {
-    id: 2,
-    title: "Mushroom Risotto",
-    time: "40 min",
-    rating: 4.6,
-    tag: "Vegetarian",
-    emoji: "🍄",
-    color: "from-amber-50 to-orange-50",
-  },
-  {
-    id: 3,
-    title: "BBQ Chicken Bowl",
-    time: "30 min",
-    rating: 4.7,
-    tag: "Popular",
-    emoji: "🍗",
-    color: "from-rose-50 to-pink-50",
-  },
 ];
 
 const MEAL_PLAN = [
@@ -70,6 +31,7 @@ const MEAL_PLAN = [
 ];
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [greeting] = useState(() => {
     const h = new Date().getHours();
@@ -77,6 +39,25 @@ export default function Dashboard() {
     if (h < 17) return "Good afternoon";
     return "Good evening";
   });
+
+  const { recipes: browseRecipes, loading: browseLoading, loadFeed } = useBrowseFeed();
+  const { likedRecipes, likeRecipe, savedApiRecipes, pantryList, addCustomGroceryItem } = useStore();
+  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+
+  const likedSet = useMemo(() => new Set(likedRecipes), [likedRecipes]);
+  const pantryNames = useMemo(() => pantryList.map(p => p.name), [pantryList]);
+  const suggestedRecipes = browseRecipes.slice(0, 3);
+
+  const stats = useMemo(() => [
+    { label: "Recipes Saved", value: String(likedRecipes.length), icon: Heart, color: "text-rose-500", bg: "bg-rose-50" },
+    { label: "Meals This Week", value: "14", icon: Flame, color: "text-orange-500", bg: "bg-orange-50" },
+    { label: "Avg Cook Time", value: "28m", icon: Clock, color: "text-blue-500", bg: "bg-blue-50" },
+    { label: "Items to Buy", value: "9", icon: ShoppingCart, color: "text-violet-500", bg: "bg-violet-50" },
+  ], [likedRecipes.length]);
+
+  useEffect(() => {
+    loadFeed();
+  }, [loadFeed]);
 
   useEffect(() => {
     async function loadProfile() {
@@ -87,17 +68,29 @@ export default function Dashboard() {
           .select('display_name')
           .eq('user_id', session.user.id)
           .single();
-        if (data?.display_name) {
-          setDisplayName(data.display_name);
-        }
+        if (data?.display_name) setDisplayName(data.display_name);
       }
     }
     loadProfile();
   }, []);
 
+  const handleSave = (recipe: Recipe) => {
+    likeRecipe(recipe.id, recipe);
+    toast.success(`Saved ${recipe.name}`);
+  };
+
+  const handleAddMissing = (recipe: Recipe) => {
+    const match = calculateMatch(pantryNames, recipe.ingredients || []);
+    if (match.missing.length === 0) { toast.info("You have all the ingredients!"); return; }
+    match.missing.forEach(ing => addCustomGroceryItem(ing));
+    toast.success(`Added ${match.missing.length} items to grocery list`);
+  };
+
+  const selectedMatch = selectedRecipe ? calculateMatch(pantryNames, selectedRecipe.ingredients || []) : null;
+
   return (
     <div className="min-h-full bg-gray-50">
-      {/* ── Header ────────────────────────────────────────────────────────── */}
+      {/* Header */}
       <div className="bg-white border-b border-gray-100 px-6 py-5">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div>
@@ -116,12 +109,11 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ── Body ──────────────────────────────────────────────────────────── */}
+      {/* Body */}
       <div className="max-w-7xl mx-auto px-6 py-6">
-
         {/* Stats row */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {STATS.map(({ label, value, icon: Icon, color, bg }) => (
+          {stats.map(({ label, value, icon: Icon, color, bg }) => (
             <div key={label} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center gap-4">
               <div className={`w-11 h-11 rounded-xl ${bg} flex items-center justify-center shrink-0`}>
                 <Icon size={20} className={color} />
@@ -134,12 +126,8 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {/* ── Two-column grid on desktop ─────────────────────────────────── */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-          {/* LEFT: main content (2/3 width) */}
           <div className="lg:col-span-2 space-y-6">
-
             {/* Suggested for you */}
             <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
               <div className="flex items-center justify-between px-5 pt-5 pb-4">
@@ -152,27 +140,68 @@ export default function Dashboard() {
                 </Link>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-gray-100">
-                {SUGGESTED.map((recipe) => (
-                  <div key={recipe.id} className={`p-4 bg-gradient-to-br ${recipe.color} hover:brightness-95 cursor-pointer transition-all group`}>
-                    <div className="text-4xl mb-3">{recipe.emoji}</div>
-                    <div className="text-sm font-semibold text-gray-900 mb-1 group-hover:text-orange-600 transition-colors">
-                      {recipe.title}
-                    </div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xs text-gray-500 flex items-center gap-1">
-                        <Clock size={11} /> {recipe.time}
-                      </span>
-                      <span className="text-xs text-gray-500 flex items-center gap-1">
-                        <Star size={11} className="fill-amber-400 text-amber-400" /> {recipe.rating}
-                      </span>
-                    </div>
-                    <span className="inline-block text-xs bg-white/60 text-gray-600 px-2 py-0.5 rounded-full font-medium">
-                      {recipe.tag}
-                    </span>
-                  </div>
-                ))}
-              </div>
+              {browseLoading ? (
+                <div className="p-8 text-center text-sm text-gray-400">Loading suggestions...</div>
+              ) : suggestedRecipes.length === 0 ? (
+                <div className="p-8 text-center text-sm text-gray-400">
+                  <Link to="/swipe" className="text-orange-500 hover:underline">Browse recipes</Link> to get personalized suggestions
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-gray-100">
+                  {suggestedRecipes.map((recipe) => {
+                    const match = calculateMatch(pantryNames, recipe.ingredients || []);
+                    const isSaved = likedSet.has(recipe.id);
+                    return (
+                      <div
+                        key={recipe.id}
+                        className="p-4 hover:bg-gray-50 cursor-pointer transition-all group relative"
+                        onClick={() => setSelectedRecipe(recipe)}
+                      >
+                        {/* Save button */}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); if (!isSaved) handleSave(recipe); }}
+                          className={`absolute top-3 right-3 w-7 h-7 rounded-full flex items-center justify-center transition-all z-10 ${
+                            isSaved
+                              ? 'bg-green-100 text-green-600'
+                              : 'bg-gray-100 text-gray-400 hover:bg-orange-100 hover:text-orange-500'
+                          }`}
+                          title={isSaved ? 'Saved' : 'Save recipe'}
+                        >
+                          {isSaved ? <Check size={14} /> : <Plus size={14} />}
+                        </button>
+
+                        {/* Image */}
+                        {recipe.image && recipe.image !== '/placeholder.svg' ? (
+                          <img src={recipe.image} alt={recipe.name} className="w-full h-24 object-cover rounded-lg mb-3" />
+                        ) : (
+                          <div className="w-full h-24 bg-gradient-to-br from-orange-100 to-pink-100 rounded-lg mb-3 flex items-center justify-center text-3xl">
+                            🍽️
+                          </div>
+                        )}
+
+                        <div className="text-sm font-semibold text-gray-900 mb-1 group-hover:text-orange-600 transition-colors line-clamp-2">
+                          {recipe.name}
+                        </div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-xs text-gray-500 flex items-center gap-1">
+                            <Clock size={11} /> {recipe.cook_time}
+                          </span>
+                          <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
+                            match.percentage >= 80 ? 'bg-green-100 text-green-700' : match.percentage >= 50 ? 'bg-yellow-100 text-yellow-700' : 'bg-orange-100 text-orange-700'
+                          }`}>
+                            {match.percentage}%
+                          </span>
+                        </div>
+                        {recipe.cuisine && (
+                          <span className="inline-block text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium">
+                            {recipe.cuisine}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </section>
 
             {/* This week's meal plan */}
@@ -186,21 +215,11 @@ export default function Dashboard() {
                   Meal Prep <ChevronRight size={13} />
                 </Link>
               </div>
-
               <div className="space-y-2">
                 {MEAL_PLAN.map(({ day, meal, done }) => (
-                  <div
-                    key={day}
-                    className={`flex items-center gap-4 px-3 py-2.5 rounded-xl transition-colors ${
-                      done ? "bg-green-50" : "bg-gray-50 hover:bg-gray-100"
-                    }`}
-                  >
-                    <div className={`text-xs font-bold w-8 shrink-0 ${done ? "text-green-600" : "text-gray-500"}`}>
-                      {day}
-                    </div>
-                    <div className={`text-sm flex-1 ${done ? "text-gray-400 line-through" : "text-gray-800 font-medium"}`}>
-                      {meal}
-                    </div>
+                  <div key={day} className={`flex items-center gap-4 px-3 py-2.5 rounded-xl transition-colors ${done ? "bg-green-50" : "bg-gray-50 hover:bg-gray-100"}`}>
+                    <div className={`text-xs font-bold w-8 shrink-0 ${done ? "text-green-600" : "text-gray-500"}`}>{day}</div>
+                    <div className={`text-sm flex-1 ${done ? "text-gray-400 line-through" : "text-gray-800 font-medium"}`}>{meal}</div>
                     {!done && meal === "—" && (
                       <button className="text-xs text-orange-500 font-semibold hover:text-orange-600 flex items-center gap-1">
                         <Plus size={12} /> Add
@@ -213,10 +232,8 @@ export default function Dashboard() {
             </section>
           </div>
 
-          {/* RIGHT: activity feed (1/3 width) */}
+          {/* Right column */}
           <div className="space-y-6">
-
-            {/* Quick actions */}
             <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <h2 className="text-base font-bold text-gray-900 mb-3">Quick actions</h2>
               <div className="grid grid-cols-2 gap-2">
@@ -226,29 +243,20 @@ export default function Dashboard() {
                   { label: "Grocery List", to: "/grocery", emoji: "🛒" },
                   { label: "Plan Meals", to: "/meal-prep", emoji: "📅" },
                 ].map(({ label, to, emoji }) => (
-                  <Link
-                    key={label}
-                    to={to}
-                    className="flex flex-col items-center gap-1.5 p-3 bg-gray-50 hover:bg-orange-50 rounded-xl transition-colors text-center group"
-                  >
+                  <Link key={label} to={to} className="flex flex-col items-center gap-1.5 p-3 bg-gray-50 hover:bg-orange-50 rounded-xl transition-colors text-center group">
                     <span className="text-2xl">{emoji}</span>
-                    <span className="text-xs font-semibold text-gray-600 group-hover:text-orange-600 transition-colors leading-tight">
-                      {label}
-                    </span>
+                    <span className="text-xs font-semibold text-gray-600 group-hover:text-orange-600 transition-colors leading-tight">{label}</span>
                   </Link>
                 ))}
               </div>
             </section>
 
-            {/* Activity feed */}
             <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <h2 className="text-base font-bold text-gray-900 mb-4">Recent activity</h2>
               <div className="space-y-3">
                 {ACTIVITY.map((item, i) => (
                   <div key={i} className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-gray-50 flex items-center justify-center text-base shrink-0">
-                      {item.emoji}
-                    </div>
+                    <div className="w-8 h-8 rounded-xl bg-gray-50 flex items-center justify-center text-base shrink-0">{item.emoji}</div>
                     <div className="min-w-0 flex-1">
                       <p className="text-xs text-gray-800 font-medium leading-snug">{item.text}</p>
                       <p className="text-xs text-gray-400 mt-0.5">{item.time}</p>
@@ -260,6 +268,84 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Recipe Detail Dialog */}
+      <Dialog open={!!selectedRecipe} onOpenChange={() => setSelectedRecipe(null)}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
+          {selectedRecipe && selectedMatch && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-lg font-bold">{selectedRecipe.name}</DialogTitle>
+              </DialogHeader>
+              <ScrollArea className="flex-1 min-h-0">
+                <div className="space-y-4 pr-2">
+                  {selectedRecipe.image && selectedRecipe.image !== '/placeholder.svg' && (
+                    <img src={selectedRecipe.image} alt={selectedRecipe.name} className="w-full h-40 object-cover rounded-xl" />
+                  )}
+
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="secondary" className="gap-1"><Clock className="h-3 w-3" /> {selectedRecipe.cook_time}</Badge>
+                    <Badge variant="secondary">{selectedRecipe.difficulty}</Badge>
+                    <Badge variant="outline" className="font-bold">{selectedMatch.percentage}% match</Badge>
+                    {selectedRecipe.cuisine && <Badge variant="outline" className="gap-1"><MapPin className="h-3 w-3" /> {selectedRecipe.cuisine}</Badge>}
+                    {selectedRecipe.servings && <Badge variant="secondary" className="gap-1"><Users className="h-3 w-3" /> Serves {selectedRecipe.servings}</Badge>}
+                  </div>
+
+                  {/* Ingredients */}
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Ingredients</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedMatch.matched.map(ing => (
+                        <span key={ing} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 font-medium">
+                          <Check className="h-3 w-3" />{ing}
+                        </span>
+                      ))}
+                      {selectedMatch.missing.map(ing => (
+                        <span key={ing} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-red-50 text-red-600 font-medium">
+                          <ShoppingCart className="h-3 w-3" />{ing}
+                        </span>
+                      ))}
+                    </div>
+                    {selectedMatch.missing.length > 0 && (
+                      <button
+                        onClick={() => handleAddMissing(selectedRecipe)}
+                        className="mt-2 text-xs text-orange-500 hover:text-orange-600 font-semibold flex items-center gap-1"
+                      >
+                        <ShoppingCart size={12} /> Add {selectedMatch.missing.length} to grocery list
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Instructions */}
+                  {(selectedRecipe.instructions || []).length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Instructions</p>
+                      <ol className="space-y-2">
+                        {selectedRecipe.instructions.map((step, i) => (
+                          <li key={i} className="flex gap-2 text-sm text-foreground">
+                            <span className="flex-shrink-0 h-5 w-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold">{i + 1}</span>
+                            {step}
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                  )}
+
+                  {/* Save button */}
+                  {!likedSet.has(selectedRecipe.id) && (
+                    <button
+                      onClick={() => { handleSave(selectedRecipe); setSelectedRecipe(null); }}
+                      className="w-full flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-xl transition-colors"
+                    >
+                      <Heart size={18} /> Save Recipe
+                    </button>
+                  )}
+                </div>
+              </ScrollArea>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
