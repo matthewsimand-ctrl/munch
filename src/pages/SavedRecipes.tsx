@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import {
   Heart, Clock, Users, Search, Filter, Trash2, ChevronDown,
   Plus, FolderOpen, X, Tag, Edit2, Check, ChefHat, Play,
-  FolderPlus, MoreHorizontal, ShoppingCart, Import, Flame, Beef, Wheat, Droplets, Sparkles, Loader2,
+  FolderPlus, MoreHorizontal, ShoppingCart, Import, Flame, Beef, Wheat, Droplets, Sparkles, Loader2, Wand2,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useStore } from "@/lib/store";
