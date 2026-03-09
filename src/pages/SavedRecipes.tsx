@@ -122,13 +122,12 @@ export default function SavedRecipes() {
               </div>
             </DialogContent>
           </Dialog>
-          <Button variant="outline" size="sm" onClick={() => navigate('/grocery')}>
-            <ShoppingCart className="h-4 w-4 mr-1" /> Grocery
-          </Button>
         </div>
+      </div>
 
-        {/* Folders bar */}
-        <div className="flex items-center gap-2 mt-4 overflow-x-auto pb-1">
+      {/* Folders bar - separate container so it doesn't clip under action row */}
+      <div className="px-4 max-w-2xl mx-auto w-full">
+        <div className="flex items-center gap-2 mt-3 overflow-x-auto pb-1 relative z-0">
           <button
             onClick={() => setActiveFolder(null)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
