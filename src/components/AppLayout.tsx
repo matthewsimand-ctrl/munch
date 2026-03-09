@@ -9,6 +9,8 @@ import {
   Package,
   CalendarDays,
   ChefHat,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -22,27 +24,36 @@ const NAV_ITEMS = [
 
 export default function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
-  
+
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
       {/* ── Desktop Sidebar ── */}
-      <aside className={`hidden md:flex flex-col bg-white border-r border-gray-100 shrink-0 z-20 transition-all duration-300 ${collapsed ? 'w-16' : 'w-56 lg:w-64'}`}>
+      <aside
+        className={`hidden md:flex flex-col bg-white border-r border-gray-100 shrink-0 z-20 transition-all duration-300 ${
+          collapsed ? "w-16" : "w-56 lg:w-64"
+        }`}
+      >
         {/* Logo */}
-        <div className="flex items-center justify-between px-5 py-5 border-b border-gray-100">
-          <div className="flex items-center gap-2.5">
+        <div className="relative flex items-center justify-between px-5 py-5 border-b border-gray-100">
+          <div
+            className={`flex items-center gap-2.5 ${
+              collapsed ? "justify-center w-full" : ""
+            }`}
+          >
             <div className="w-8 h-8 bg-orange-500 rounded-xl flex items-center justify-center shadow-sm">
               <ChefHat className="text-white" size={18} />
             </div>
-            {!collapsed && <span className="text-lg font-bold text-gray-900 tracking-tight">munch</span>}
+            {!collapsed && (
+              <span className="text-lg font-bold text-gray-900 tracking-tight">munch</span>
+            )}
           </div>
+
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
             title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="rotate-0">
-              <path d="M5 2L11 8L5 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+            {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
           </button>
         </div>
 
@@ -54,7 +65,7 @@ export default function AppLayout() {
               to={to}
               title={collapsed ? label : undefined}
               className={({ isActive }) =>
-                `flex items-center ${collapsed ? 'justify-center' : 'gap-3'} px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group
+                `flex items-center ${collapsed ? "justify-center" : "gap-3"} px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group
                 ${
                   isActive
                     ? "bg-orange-50 text-orange-600"
@@ -67,7 +78,9 @@ export default function AppLayout() {
                   <Icon
                     size={18}
                     className={`shrink-0 transition-colors ${
-                      isActive ? "text-orange-500" : "text-gray-400 group-hover:text-gray-600"
+                      isActive
+                        ? "text-orange-500"
+                        : "text-gray-400 group-hover:text-gray-600"
                     }`}
                   />
                   {!collapsed && (
@@ -88,7 +101,9 @@ export default function AppLayout() {
         <div className="px-4 py-4 border-t border-gray-100">
           <NavLink
             to="/settings"
-            className="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors"
+            className={`flex items-center rounded-xl hover:bg-gray-50 cursor-pointer transition-colors py-2 ${
+              collapsed ? "justify-center px-2" : "gap-3 px-2"
+            }`}
           >
             <div className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-400 to-pink-500 flex items-center justify-center text-white text-xs font-bold shrink-0">
               M
