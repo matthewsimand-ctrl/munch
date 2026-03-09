@@ -15,6 +15,8 @@ interface NormalizedRecipe {
   tags: string[];
   instructions: string[];
   source: string;
+  source_url?: string;
+  raw_api_payload?: unknown;
   cuisine?: string;
 }
 
@@ -78,6 +80,8 @@ async function searchMealDB(query: string): Promise<NormalizedRecipe[]> {
         tags: m.strTags ? m.strTags.split(',').map((t: string) => t.trim().toLowerCase()) : [],
         instructions: instructions.slice(0, 10),
         source: 'TheMealDB',
+        source_url: m.strSource || m.strYoutube || undefined,
+        raw_api_payload: m,
         cuisine: m.strArea || undefined,
       };
     });
@@ -113,6 +117,8 @@ async function browseMealDBByLetter(letter: string): Promise<NormalizedRecipe[]>
         tags: m.strTags ? m.strTags.split(',').map((t: string) => t.trim().toLowerCase()) : [],
         instructions: instructions.slice(0, 10),
         source: 'TheMealDB',
+        source_url: m.strSource || m.strYoutube || undefined,
+        raw_api_payload: m,
         cuisine: m.strArea || undefined,
       };
     });
@@ -232,6 +238,8 @@ async function searchTasty(query: string, apiKey: string, size = 5): Promise<Nor
         tags,
         instructions: instructions.slice(0, 10),
         source: 'Tasty',
+        source_url: r.original_video_url || r.video_url || undefined,
+        raw_api_payload: r,
         cuisine: inferCuisine(r.name, tags, ingredients),
       };
     });
@@ -273,6 +281,8 @@ async function searchSpoonacular(query: string, apiKey: string, number = 5): Pro
         tags: (r.dishTypes || []).slice(0, 5).map((t: string) => t.toLowerCase()),
         instructions: instructions.slice(0, 10),
         source: 'Spoonacular',
+        source_url: r.sourceUrl || undefined,
+        raw_api_payload: r,
         cuisine: (r.cuisines || [])[0] || undefined,
       };
     });
@@ -313,6 +323,8 @@ async function browseSpoonacularRandom(apiKey: string, number = 20): Promise<Nor
         tags: (r.dishTypes || []).slice(0, 5).map((t: string) => t.toLowerCase()),
         instructions: instructions.slice(0, 10),
         source: 'Spoonacular',
+        source_url: r.sourceUrl || undefined,
+        raw_api_payload: r,
         cuisine: (r.cuisines || [])[0] || undefined,
       };
     });

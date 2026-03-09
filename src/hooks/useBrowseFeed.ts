@@ -37,6 +37,8 @@ function normalizeRecipe(raw: any): BrowseRecipe | null {
     tags: normalizeStringArray(raw.tags),
     instructions,
     source: String(raw.source || 'TheMealDB'),
+    source_url: raw.source_url ? String(raw.source_url) : undefined,
+    raw_api_payload: raw.raw_api_payload ?? undefined,
     cuisine: raw.cuisine ? String(raw.cuisine) : undefined,
   };
 }
