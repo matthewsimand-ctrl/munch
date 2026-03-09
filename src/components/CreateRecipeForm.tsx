@@ -203,7 +203,7 @@ export default function CreateRecipeForm({ onClose }: Props) {
     const parsed = parseRecipeText(pasteText);
     if (parsed.name) setName(parsed.name);
     if (parsed.ingredients.length > 0) setIngredients(parsed.ingredients);
-    if (parsed.instructions.length > 0) setInstructions(parsed.instructions.join('\n'));
+    if (parsed.instructions.length > 0) setInstructions(parsed.instructions);
     if (parsed.cookTime) setCookTime(parsed.cookTime);
     if (parsed.cuisine) setCuisine(parsed.cuisine);
     if (parsed.difficulty) setDifficulty(parsed.difficulty);
