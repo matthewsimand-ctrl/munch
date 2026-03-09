@@ -218,7 +218,6 @@ export default function Settings() {
                   ))}
                 </div>
               </div>
-            </div>
 
               {/* Archive Behavior */}
               <div>
