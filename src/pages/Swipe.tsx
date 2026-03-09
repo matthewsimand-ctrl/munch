@@ -127,25 +127,25 @@ export default function Browse() {
   const nextNextRecipe = filteredRecipes[(currentIndex + 2) % filteredRecipes.length];
 
   const handlePass = useCallback(() => {
-    if (animating) return;
+    if (animating || !filteredRecipes.length) return;
     setAnimating("left");
     setTimeout(() => {
-      setCurrentIndex((i) => (i + 1) % RECIPES.length);
+      setCurrentIndex((i) => (i + 1) % filteredRecipes.length);
       setAnimating(null);
     }, 350);
-  }, [animating]);
+  }, [animating, filteredRecipes.length]);
 
   const handleSave = useCallback(() => {
-    if (animating) return;
+    if (animating || !currentRecipe) return;
     setSavedIds((ids) =>
       ids.includes(currentRecipe.id) ? ids : [...ids, currentRecipe.id]
     );
     setAnimating("right");
     setTimeout(() => {
-      setCurrentIndex((i) => (i + 1) % RECIPES.length);
+      setCurrentIndex((i) => (i + 1) % filteredRecipes.length);
       setAnimating(null);
     }, 350);
-  }, [animating, currentRecipe.id]);
+  }, [animating, currentRecipe, filteredRecipes.length]);
 
   // Keyboard support
   useEffect(() => {
