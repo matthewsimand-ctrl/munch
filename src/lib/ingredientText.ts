@@ -1,6 +1,13 @@
 const LEADING_BULLET = /^▢\s*/;
 
-const QUANTITY_PREFIX = /^\s*([\d\s./¼½¾⅓⅔⅛⅜⅝⅞-]+\s*(?:to\s+[\d\s./¼½¾⅓⅔⅛⅜⅝⅞-]+)?\s*(?:x\s*)?)(.*)$/i;
+const QUANTITY_PREFIX = /^\s*((?:\d+\s+\d\/\d|\d+\/\d|\d+(?:[.,]\d+)?|[¼½¾⅓⅔⅛⅜⅝⅞]|a|an)\b(?:\s*-\s*(?:\d+\s+\d\/\d|\d+\/\d|\d+(?:[.,]\d+)?|[¼½¾⅓⅔⅛⅜⅝⅞]))?)(.*)$/i;
+const UNIT_WORDS = new Set([
+  'cup', 'cups', 'tbsp', 'tablespoon', 'tablespoons', 'tsp', 'teaspoon', 'teaspoons',
+  'oz', 'ounce', 'ounces', 'lb', 'lbs', 'pound', 'pounds', 'g', 'gram', 'grams',
+  'kg', 'ml', 'l', 'liter', 'liters', 'clove', 'cloves', 'can', 'cans', 'jar', 'jars',
+  'slice', 'slices', 'pinch', 'dash', 'sprig', 'sprigs', 'package', 'packages',
+  'stick', 'sticks', 'bunch', 'bunches',
+]);
 
 const DECIMAL_FRACTIONS: Record<string, number> = {
   '¼': 0.25,
@@ -26,8 +33,31 @@ export function parseIngredientLine(line: string): IngredientParts {
   const match = cleaned.match(QUANTITY_PREFIX);
   if (!match) return { quantity: '', name: cleaned };
 
-  const quantity = match[1]?.trim() || '';
-  const name = match[2]?.trim() || cleaned;
+  let quantity = match[1]?.trim() || '';
+  let remainder = match[2]?.trim() || '';
+
+  if (remainder.startsWith('(')) {
+    const end = remainder.indexOf(')');
+    if (end > 0) {
+      quantity = `${quantity} ${remainder.slice(0, end + 1).trim()}`.trim();
+      remainder = remainder.slice(end + 1).trim();
+    }
+  }
+
+  const tokens = remainder.split(/\s+/).filter(Boolean);
+  const quantityTokens: string[] = [];
+  while (tokens.length > 0) {
+    const token = tokens[0].toLowerCase().replace(/[.,]/g, '');
+    if (!UNIT_WORDS.has(token)) break;
+    quantityTokens.push(tokens.shift() as string);
+  }
+
+  if (quantityTokens.length > 0) {
+    quantity = `${quantity} ${quantityTokens.join(' ')}`.trim();
+    remainder = tokens.join(' ').trim();
+  }
+
+  const name = remainder || cleaned;
 
   if (!quantity || name.length === cleaned.length) {
     return { quantity: '', name: cleaned };
