@@ -47,8 +47,20 @@ function cleanIngredientPart(value: unknown): string {
   return String(value || '').trim().replace(/\s+/g, ' ');
 }
 
+function normalizeMeasurePart(value: unknown): string {
+  const measure = cleanIngredientPart(value);
+  if (!measure) return '';
+
+  // TheMealDB sometimes provides compact values like "500g" or "1kg".
+  // Add spacing so downstream quantity parsing/scaling works consistently.
+  return measure
+    .replace(/(\d)([a-zA-Z])/g, '$1 $2')
+    .replace(/([a-zA-Z])(\d)/g, '$1 $2')
+    .trim();
+}
+
 function joinIngredient(measure: unknown, ingredient: unknown): string | null {
-  const measureText = cleanIngredientPart(measure);
+  const measureText = normalizeMeasurePart(measure);
   const ingredientText = cleanIngredientPart(ingredient).toLowerCase();
   if (!ingredientText) return null;
   return measureText ? `${measureText} ${ingredientText}`.trim() : ingredientText;
