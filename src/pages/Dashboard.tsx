@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import {
   Flame, Clock, Heart, ShoppingCart, TrendingUp, ChevronRight,
-  Sparkles, Calendar, Star, Plus, Check, Users, MapPin,
+  Sparkles, Calendar, Star, Plus, Check, Users, MapPin, X, RotateCw,
   Trophy, ChefHat, Zap, Award, Camera,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
@@ -10,6 +10,7 @@ import { useStore } from "@/lib/store";
 import { useBrowseFeed } from "@/hooks/useBrowseFeed";
 import defaultChefAvatar from "@/assets/chef-avatar.png";
 import { calculateMatch } from "@/lib/matchLogic";
+import { parseIngredientLine } from "@/lib/ingredientText";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -47,6 +48,7 @@ export default function Dashboard() {
   const { recipes: browseRecipes, loading: browseLoading, loadFeed } = useBrowseFeed();
   const { likedRecipes, likeRecipe, savedApiRecipes, pantryList, addCustomGroceryItem, cookingStreak, totalMealsCooked, cookedRecipeIds, totalXp, earnedBadges, earnBadge, chefAvatarUrl, setChefAvatarUrl } = useStore();
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  const [suggestionOffset, setSuggestionOffset] = useState(0);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
@@ -94,7 +96,8 @@ export default function Dashboard() {
 
   const likedSet = useMemo(() => new Set(likedRecipes), [likedRecipes]);
   const pantryNames = useMemo(() => pantryList.map(p => p.name), [pantryList]);
-  const suggestedRecipes = browseRecipes.slice(0, 3);
+  const availableSuggestions = useMemo(() => browseRecipes.filter((recipe) => !likedSet.has(recipe.id)), [browseRecipes, likedSet]);
+  const suggestedRecipes = useMemo(() => availableSuggestions.slice(suggestionOffset, suggestionOffset + 3), [availableSuggestions, suggestionOffset]);
 
   const stats = useMemo(() => [
     { label: "Cooking Streak", value: `${cookingStreak}🔥`, icon: Flame, color: "text-orange-500", bg: "bg-orange-50" },
@@ -106,6 +109,43 @@ export default function Dashboard() {
   useEffect(() => {
     loadFeed();
   }, [loadFeed]);
+
+
+  useEffect(() => {
+    if (availableSuggestions.length === 0) {
+      if (suggestionOffset !== 0) setSuggestionOffset(0);
+      return;
+    }
+    if (suggestionOffset >= availableSuggestions.length) {
+      setSuggestionOffset(Math.max(0, availableSuggestions.length - 3));
+    }
+  }, [availableSuggestions.length, suggestionOffset]);
+
+  const handleDismissSuggestion = (recipeId: string) => {
+    const idx = availableSuggestions.findIndex((recipe) => recipe.id === recipeId);
+    if (idx === -1) return;
+    const replacement = availableSuggestions[idx + 3];
+    setSuggestionOffset((prev) => prev + 1);
+    if (replacement) {
+      toast.success(`Showing ${replacement.name} instead`);
+    } else {
+      toast.info('No more suggestions right now');
+    }
+  };
+
+  const handleRefreshSuggestions = () => {
+    if (availableSuggestions.length <= 3) {
+      toast.info('No additional suggestions available yet');
+      return;
+    }
+    const maxOffset = Math.max(0, availableSuggestions.length - 3);
+    const nextOffset = Math.min(maxOffset, suggestionOffset + 3);
+    if (nextOffset === suggestionOffset) {
+      toast.info('You're already viewing the freshest set');
+      return;
+    }
+    setSuggestionOffset(nextOffset);
+  };
 
   useEffect(() => {
     async function loadProfile() {
@@ -135,6 +175,11 @@ export default function Dashboard() {
   };
 
   const selectedMatch = selectedRecipe ? calculateMatch(pantryNames, selectedRecipe.ingredients || []) : null;
+
+  const formatIngredientWithQuantity = (ingredient: string) => {
+    const parsed = parseIngredientLine(ingredient);
+    return parsed.quantity ? `${parsed.name} (${parsed.quantity})` : parsed.name;
+  };
 
   return (
     <div className="min-h-full bg-gray-50">
@@ -185,9 +230,19 @@ export default function Dashboard() {
                   <TrendingUp size={17} className="text-orange-500" />
                   <h2 className="text-base font-bold text-gray-900">Suggested for you</h2>
                 </div>
-                <Link to="/swipe" className="text-xs text-orange-500 font-semibold hover:text-orange-600 flex items-center gap-1">
-                  See all <ChevronRight size={13} />
-                </Link>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleRefreshSuggestions}
+                    className="inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 font-semibold px-2.5 py-1 rounded-md hover:bg-gray-100"
+                    title="Show a fresh set of suggestions"
+                  >
+                    <RotateCw size={12} /> Fresh
+                  </button>
+                  <Link to="/swipe" className="text-xs text-orange-500 font-semibold hover:text-orange-600 flex items-center gap-1">
+                    See all <ChevronRight size={13} />
+                  </Link>
+                </div>
               </div>
 
               {browseLoading ? (
@@ -207,6 +262,15 @@ export default function Dashboard() {
                         className="p-4 hover:bg-gray-50 cursor-pointer transition-all group relative"
                         onClick={() => setSelectedRecipe(recipe)}
                       >
+                        {/* Dismiss button */}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDismissSuggestion(recipe.id); }}
+                          className="absolute top-3 left-3 w-7 h-7 rounded-full flex items-center justify-center transition-all z-10 bg-gray-100 text-gray-500 hover:bg-gray-200"
+                          title="Show a different recipe"
+                        >
+                          <X size={14} />
+                        </button>
+
                         {/* Save button */}
                         <button
                           onClick={(e) => { e.stopPropagation(); if (!isSaved) handleSave(recipe); }}
@@ -245,6 +309,11 @@ export default function Dashboard() {
                         {recipe.cuisine && (
                           <span className="inline-block text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium">
                             {recipe.cuisine}
+                          </span>
+                        )}
+                        {recipe.source && (
+                          <span className="inline-block text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium mt-1">
+                            Source: {recipe.source}
                           </span>
                         )}
                       </div>
@@ -406,6 +475,7 @@ export default function Dashboard() {
                     <Badge variant="outline" className="font-bold">{selectedMatch.percentage}% match</Badge>
                     {selectedRecipe.cuisine && <Badge variant="outline" className="gap-1"><MapPin className="h-3 w-3" /> {selectedRecipe.cuisine}</Badge>}
                     {selectedRecipe.servings && <Badge variant="secondary" className="gap-1"><Users className="h-3 w-3" /> Serves {selectedRecipe.servings}</Badge>}
+                    {selectedRecipe.source && <Badge variant="outline">Source: {selectedRecipe.source}</Badge>}
                   </div>
 
                   {/* Ingredients */}
@@ -414,12 +484,12 @@ export default function Dashboard() {
                     <div className="flex flex-wrap gap-1.5">
                       {selectedMatch.matched.map(ing => (
                         <span key={ing} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 font-medium">
-                          <Check className="h-3 w-3" />{ing}
+                          <Check className="h-3 w-3" />{formatIngredientWithQuantity(ing)}
                         </span>
                       ))}
                       {selectedMatch.missing.map(ing => (
                         <span key={ing} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-red-50 text-red-600 font-medium">
-                          <ShoppingCart className="h-3 w-3" />{ing}
+                          <ShoppingCart className="h-3 w-3" />{formatIngredientWithQuantity(ing)}
                         </span>
                       ))}
                     </div>
@@ -438,12 +508,15 @@ export default function Dashboard() {
                     <div>
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Instructions</p>
                       <ol className="space-y-2">
-                        {selectedRecipe.instructions.map((step, i) => (
-                          <li key={i} className="flex gap-2 text-sm text-foreground">
-                            <span className="flex-shrink-0 h-5 w-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold">{i + 1}</span>
-                            {step}
-                          </li>
-                        ))}
+                        {selectedRecipe.instructions
+                          .map((step) => String(step || "").replace(/^step\s*\d+\s*[:.)-]?\s*/i, "").replace(/^\d+\s*[:.)-]\s*/, "").trim())
+                          .filter((step) => step.length > 0)
+                          .map((step, i) => (
+                            <li key={i} className="flex gap-2 text-sm text-foreground">
+                              <span className="flex-shrink-0 h-5 w-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold">{i + 1}</span>
+                              {step}
+                            </li>
+                          ))}
                       </ol>
                     </div>
                   )}
