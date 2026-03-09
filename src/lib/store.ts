@@ -309,6 +309,8 @@ export const useStore = create<AppState>()(
 
       setArchiveBehavior: (behavior) => set({ archiveBehavior: behavior }),
 
+      setChefAvatarUrl: (url) => set({ chefAvatarUrl: url }),
+
       resetStore: () =>
         set({
           userProfile: initialProfile,
