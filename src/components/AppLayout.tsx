@@ -20,10 +20,12 @@ const NAV_ITEMS = [
 ];
 
 export default function AppLayout() {
+  const [collapsed, setCollapsed] = useState(false);
+  
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
       {/* ── Desktop Sidebar ── */}
-      <aside className="hidden md:flex flex-col w-56 lg:w-64 bg-white border-r border-gray-100 shrink-0 z-20">
+      <aside className={`hidden md:flex flex-col bg-white border-r border-gray-100 shrink-0 z-20 transition-all duration-300 ${collapsed ? 'w-16' : 'w-56 lg:w-64'}`}>
         {/* Logo */}
         <div className="flex items-center gap-2.5 px-5 py-5 border-b border-gray-100">
           <div className="w-8 h-8 bg-orange-500 rounded-xl flex items-center justify-center shadow-sm">
