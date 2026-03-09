@@ -5,7 +5,6 @@ import { useStore } from '@/lib/store';
 import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis';
 import { useVoiceCommands } from '@/hooks/useVoiceCommands';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import ChefCompanion from '@/components/ChefCompanion';
 import { ArrowLeft, ChevronLeft, ChevronRight, Play, Pause, RotateCcw, Timer, Volume2, VolumeX, Mic, MicOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -47,7 +46,6 @@ export default function CookMode() {
   const [isDone, setIsDone] = useState(false);
 
   const [currentStep, setCurrentStep] = useState(0);
-  const [timerSeconds, setTimerSeconds] = useState<number | null>(null);
   const [timerRunning, setTimerRunning] = useState(false);
   const [timerRemaining, setTimerRemaining] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -56,7 +54,6 @@ export default function CookMode() {
 
   const steps = recipe?.instructions ?? [];
   const totalSteps = steps.length;
-  const progress = totalSteps > 0 ? ((currentStep + 1) / totalSteps) * 100 : 0;
   const stepTimer = steps[currentStep] ? parseTimerFromStep(steps[currentStep]) : null;
 
   // Timer logic
@@ -66,7 +63,6 @@ export default function CookMode() {
         setTimerRemaining(prev => {
           if (prev <= 1) {
             setTimerRunning(false);
-            // Play alarm
             try {
               const ctx = new AudioContext();
               const osc = ctx.createOscillator();
@@ -93,8 +89,7 @@ export default function CookMode() {
   useEffect(() => {
     setTimerRunning(false);
     setTimerRemaining(0);
-    setTimerSeconds(stepTimer);
-  }, [currentStep, stepTimer]);
+  }, [currentStep]);
 
   // Auto-read on step change
   useEffect(() => {
@@ -118,17 +113,33 @@ export default function CookMode() {
     }
   }, [currentStep, steps, speak]);
 
-  // Voice commands for hands-free control
-  const { isListening, isSupported: voiceSupported, lastCommand, error: voiceError, toggleListening } = useVoiceCommands({
+  const handleStartTimer = useCallback(() => {
+    if (stepTimer && timerRemaining === 0) {
+      setTimerRemaining(stepTimer);
+      setTimerRunning(true);
+    } else if (timerRemaining > 0 && !timerRunning) {
+      setTimerRunning(true);
+    }
+  }, [stepTimer, timerRemaining, timerRunning]);
+
+  const handlePauseTimer = useCallback(() => {
+    if (timerRunning) setTimerRunning(false);
+  }, [timerRunning]);
+
+  const handleStopTimer = useCallback(() => {
+    setTimerRunning(false);
+    setTimerRemaining(0);
+  }, []);
+
+  // Voice commands
+  const { isListening, isSupported: voiceSupported, lastCommand, commandStatus, error: voiceError, toggleListening } = useVoiceCommands({
     onNext: goNext,
     onPrevious: goPrev,
     onRepeat: repeatStep,
+    onStartTimer: stepTimer ? handleStartTimer : undefined,
+    onPauseTimer: timerRunning ? handlePauseTimer : undefined,
+    onStopTimer: timerRemaining > 0 ? handleStopTimer : undefined,
   });
-
-  const startTimer = (secs: number) => {
-    setTimerRemaining(secs);
-    setTimerRunning(true);
-  };
 
   if (!recipe) {
     return (
@@ -145,7 +156,7 @@ export default function CookMode() {
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
       <div className="px-4 pt-6 pb-2 max-w-md mx-auto w-full">
-        <div className="flex items-center gap-3 mb-3">
+        <div className="flex items-center gap-3 mb-2">
           <Button variant="ghost" size="icon" onClick={() => navigate('/saved')}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -178,39 +189,33 @@ export default function CookMode() {
             </Button>
           </div>
         </div>
-        {/* Voice command indicator */}
+
+        {/* Voice feedback */}
         <AnimatePresence>
           {lastCommand && (
             <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="text-xs text-center text-primary font-medium mt-1"
+              initial={{ opacity: 0, y: -8, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.95 }}
+              className={cn(
+                "text-xs text-center font-semibold py-1.5 px-3 rounded-lg mx-auto w-fit",
+                commandStatus === 'success'
+                  ? "bg-primary/10 text-primary"
+                  : "bg-destructive/10 text-destructive"
+              )}
             >
-              🎤 Heard: "{lastCommand}"
+              🎤 {lastCommand}
             </motion.div>
           )}
         </AnimatePresence>
         {voiceError && (
-          <p className="text-[11px] text-center text-destructive mt-1 px-2">
-            {voiceError}
-          </p>
+          <p className="text-[11px] text-center text-destructive mt-1 px-2">{voiceError}</p>
         )}
         {isListening && !lastCommand && !voiceError && (
           <p className="text-[10px] text-center text-muted-foreground mt-1">
-            🎤 Listening — say "next", "back", or "repeat"
+            🎤 Say "next", "back", "repeat", "start timer", "pause", or "stop timer"
           </p>
         )}
-        <Progress value={progress} className="h-1.5 mt-2" />
-        {/* Animated chef companion */}
-        <div className="mt-3">
-          <ChefCompanion
-            currentStep={currentStep}
-            totalSteps={totalSteps}
-            timerRunning={timerRunning}
-            isDone={isDone}
-          />
-        </div>
       </div>
 
       {/* Step Content */}
@@ -222,7 +227,7 @@ export default function CookMode() {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -40 }}
             transition={{ duration: 0.25 }}
-            className="w-full text-center space-y-6"
+            className="w-full text-center space-y-5"
           >
             <div className="h-14 w-14 rounded-full bg-primary text-primary-foreground text-2xl font-bold flex items-center justify-center mx-auto">
               {currentStep + 1}
@@ -236,7 +241,7 @@ export default function CookMode() {
               <div className="bg-card border border-border rounded-xl p-4 space-y-3">
                 <div className="flex items-center justify-center gap-2 text-muted-foreground text-sm">
                   <Timer className="h-4 w-4" />
-                  <span>Timer detected: {formatTime(stepTimer)}</span>
+                  <span>Timer: {formatTime(stepTimer)}</span>
                 </div>
 
                 {timerRemaining > 0 ? (
@@ -266,7 +271,7 @@ export default function CookMode() {
                     </div>
                   </div>
                 ) : (
-                  <Button onClick={() => startTimer(stepTimer)}>
+                  <Button onClick={() => { setTimerRemaining(stepTimer); setTimerRunning(true); }}>
                     <Play className="h-4 w-4 mr-1" /> Start Timer
                   </Button>
                 )}
@@ -276,8 +281,18 @@ export default function CookMode() {
         </AnimatePresence>
       </div>
 
+      {/* Chef Companion XP Path — between content and nav */}
+      <div className="px-4 max-w-md mx-auto w-full">
+        <ChefCompanion
+          currentStep={currentStep}
+          totalSteps={totalSteps}
+          timerRunning={timerRunning}
+          isDone={isDone}
+        />
+      </div>
+
       {/* Navigation */}
-      <div className="px-6 pb-8 pt-4 max-w-md mx-auto w-full">
+      <div className="px-6 pb-8 pt-3 max-w-md mx-auto w-full">
         <div className="flex items-center gap-3">
           <Button
             variant="outline"
