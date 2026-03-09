@@ -77,16 +77,33 @@ export default function Pantry() {
       {/* Header */}
       <div className="bg-white border-b border-gray-100 px-6 py-5">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Pantry</h1>
-            <p className="text-sm text-gray-500 mt-0.5">{items.length} items tracked</p>
+          <div className="flex items-center gap-3">
+            <button onClick={() => navigate('/dashboard')} className="flex items-center gap-2 shrink-0">
+              <div className="w-7 h-7 bg-orange-500 rounded-lg flex items-center justify-center">
+                <ChefHat className="text-white" size={14} />
+              </div>
+            </button>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Pantry</h1>
+              <p className="text-sm text-gray-500 mt-0.5">{items.length} items tracked</p>
+            </div>
           </div>
-          <button
-            onClick={() => setShowAddForm((v) => !v)}
-            className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-sm"
-          >
-            <Plus size={16} /> Add Item
-          </button>
+          <div className="flex gap-2">
+            {isPremium && (
+              <button
+                onClick={() => {/* TODO: Implement scan fridge */}}
+                className="flex items-center gap-2 bg-white hover:bg-gray-50 text-gray-700 text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-sm border border-gray-200"
+              >
+                <Camera size={16} /> Scan Fridge
+              </button>
+            )}
+            <button
+              onClick={() => setShowAddForm((v) => !v)}
+              className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-sm"
+            >
+              <Plus size={16} /> Add Item
+            </button>
+          </div>
         </div>
       </div>
 

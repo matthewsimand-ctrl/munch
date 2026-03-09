@@ -221,10 +221,10 @@ export default function Dashboard() {
               <h2 className="text-base font-bold text-gray-900 mb-3">Quick actions</h2>
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { label: "Find Recipe", to: "/browse", emoji: "🔍" },
+                  { label: "Find Recipe", to: "/swipe", emoji: "🔍" },
                   { label: "Add to Pantry", to: "/pantry", emoji: "📦" },
                   { label: "Grocery List", to: "/grocery", emoji: "🛒" },
-                  { label: "Plan Meals", to: "/mealprep", emoji: "📅" },
+                  { label: "Plan Meals", to: "/meal-prep", emoji: "📅" },
                 ].map(({ label, to, emoji }) => (
                   <Link
                     key={label}

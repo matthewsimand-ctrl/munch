@@ -384,13 +384,9 @@ export default function Browse() {
 
             {/* Recipe detail card */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-              {/* Gradient strip */}
-              <div className={`h-2 bg-gradient-to-r ${currentRecipe.gradient}`} />
-
               <div className="p-5">
                 <div className="flex items-start justify-between mb-3">
-                  <h2 className="text-lg font-bold text-gray-900 leading-tight">{currentRecipe.title}</h2>
-                  <span className="text-2xl ml-2 shrink-0">{currentRecipe.emoji}</span>
+                  <h2 className="text-lg font-bold text-gray-900 leading-tight">{currentRecipe.name}</h2>
                 </div>
 
                 <div className="flex flex-wrap gap-1.5 mb-4">
@@ -401,57 +397,49 @@ export default function Browse() {
                   ))}
                 </div>
 
-                <p className="text-sm text-gray-600 leading-relaxed mb-4">{currentRecipe.description}</p>
-
                 {/* Stats */}
-                <div className="grid grid-cols-3 gap-3 mb-4">
-                  {[
-                    { label: "Time", value: currentRecipe.time, icon: Clock },
-                    { label: "Servings", value: `${currentRecipe.servings}`, icon: Users },
-                    { label: "Calories", value: `${currentRecipe.calories}`, icon: Flame },
-                  ].map(({ label, value, icon: Icon }) => (
-                    <div key={label} className="bg-gray-50 rounded-xl p-2.5 text-center">
-                      <Icon size={14} className="mx-auto text-gray-400 mb-1" />
-                      <div className="text-sm font-bold text-gray-800">{value}</div>
-                      <div className="text-xs text-gray-400">{label}</div>
-                    </div>
-                  ))}
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div className="bg-gray-50 rounded-xl p-2.5 text-center">
+                    <Clock size={14} className="mx-auto text-gray-400 mb-1" />
+                    <div className="text-sm font-bold text-gray-800">{currentRecipe.cook_time}</div>
+                    <div className="text-xs text-gray-400">Time</div>
+                  </div>
+                  <div className="bg-gray-50 rounded-xl p-2.5 text-center">
+                    <Star size={14} className="mx-auto text-gray-400 mb-1" />
+                    <div className="text-sm font-bold text-gray-800">{currentRecipe.difficulty}</div>
+                    <div className="text-xs text-gray-400">Difficulty</div>
+                  </div>
                 </div>
 
                 {/* Ingredients */}
                 <div className="border-t border-gray-100 pt-4">
                   <div className="flex items-center gap-1.5 mb-2.5">
                     <Leaf size={13} className="text-green-500" />
-                    <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Ingredients</span>
+                    <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Ingredients ({currentRecipe.ingredients.length})</span>
                   </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {currentRecipe.ingredients.map((ing) => (
-                      <span key={ing} className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full">
+                  <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                    {currentRecipe.ingredients.slice(0, 10).map((ing, i) => (
+                      <span key={i} className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full">
                         {ing}
                       </span>
                     ))}
+                    {currentRecipe.ingredients.length > 10 && (
+                      <span className="text-xs text-gray-400 px-2 py-0.5">
+                        +{currentRecipe.ingredients.length - 10} more
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Navigation between recipes */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-              <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-3">Up next</p>
-              <div className="flex flex-col gap-2">
-                {[nextRecipe, nextNextRecipe].map((r, i) => (
-                  <div key={r.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer">
-                    <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${r.gradient} flex items-center justify-center text-lg shrink-0 opacity-${i === 0 ? "100" : "60"}`}>
-                      {r.emoji}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium text-gray-800 truncate">{r.title}</div>
-                      <div className="text-xs text-gray-400">{r.time} · {r.calories} cal</div>
-                    </div>
-                  </div>
-                ))}
+            {/* Source info */}
+            {currentRecipe.source && (
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+                <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-2">Recipe Source</p>
+                <p className="text-sm text-gray-700">{currentRecipe.source}</p>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
