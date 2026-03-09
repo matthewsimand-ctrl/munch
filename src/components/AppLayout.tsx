@@ -27,11 +27,22 @@ export default function AppLayout() {
       {/* ── Desktop Sidebar ── */}
       <aside className={`hidden md:flex flex-col bg-white border-r border-gray-100 shrink-0 z-20 transition-all duration-300 ${collapsed ? 'w-16' : 'w-56 lg:w-64'}`}>
         {/* Logo */}
-        <div className="flex items-center gap-2.5 px-5 py-5 border-b border-gray-100">
-          <div className="w-8 h-8 bg-orange-500 rounded-xl flex items-center justify-center shadow-sm">
-            <ChefHat className="text-white" size={18} />
+        <div className="flex items-center justify-between px-5 py-5 border-b border-gray-100">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 bg-orange-500 rounded-xl flex items-center justify-center shadow-sm">
+              <ChefHat className="text-white" size={18} />
+            </div>
+            {!collapsed && <span className="text-lg font-bold text-gray-900 tracking-tight">munch</span>}
           </div>
-          <span className="text-lg font-bold text-gray-900 tracking-tight">munch</span>
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="rotate-0">
+              <path d="M5 2L11 8L5 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
         </div>
 
         {/* Nav links */}
