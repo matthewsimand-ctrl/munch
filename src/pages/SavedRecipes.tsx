@@ -15,6 +15,8 @@ import { Input } from "@/components/ui/input";
 import NutritionCard from "@/components/NutritionCard";
 import ImportRecipeDialog from "@/components/ImportRecipeDialog";
 import CreateRecipeForm from "@/components/CreateRecipeForm";
+import RecipeTweakDialog from "@/components/RecipeTweakDialog";
+import { useChefProfiles } from "@/hooks/useChefProfiles";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
