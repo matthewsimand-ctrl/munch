@@ -92,9 +92,9 @@ export default function Browse() {
   const pantryNames = pantryList.map((p) => p.name);
   const currentMatch = currentRecipe ? calculateMatch(pantryNames, currentRecipe.ingredients) : null;
   const nextMatch = nextRecipe ? calculateMatch(pantryNames, nextRecipe.ingredients) : null;
-  const selectedMatch = selectedRecipe ? calculateMatch(pantryNames, selectedRecipe.ingredients) : null;
+  const selectedIngredients = selectedRecipe ? normalizeStringArray((selectedRecipe as any).ingredients) : [];
+  const selectedMatch = selectedRecipe ? calculateMatch(pantryNames, selectedIngredients) : null;
   const selectedInstructions = selectedRecipe ? normalizeStringArray((selectedRecipe as any).instructions) : [];
-
   // Count saved recipes
   const savedCount = likedRecipes.length;
 
@@ -578,7 +578,7 @@ export default function Browse() {
                 <NutritionCard
                   recipeId={selectedRecipe.id}
                   recipeName={selectedRecipe.name}
-                  ingredients={selectedRecipe.ingredients || []}
+                  ingredients={selectedIngredients}
                   servings={4}
                 />
 

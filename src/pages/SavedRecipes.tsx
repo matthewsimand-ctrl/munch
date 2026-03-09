@@ -35,6 +35,21 @@ function normalizeStringArray(value: unknown): string[] {
   return [];
 }
 
+function normalizeRecipeData(recipe: any, idFallback: string): Recipe {
+  return {
+    ...recipe,
+    id: String(recipe?.id || idFallback),
+    name: String(recipe?.name || 'Untitled Recipe'),
+    image: String(recipe?.image || '/placeholder.svg'),
+    cook_time: String(recipe?.cook_time || '30 min'),
+    difficulty: String(recipe?.difficulty || 'Intermediate'),
+    ingredients: normalizeStringArray(recipe?.ingredients),
+    instructions: normalizeStringArray(recipe?.instructions),
+    tags: normalizeStringArray(recipe?.tags),
+    cuisine: recipe?.cuisine || null,
+    servings: Number(recipe?.servings || 4),
+  };
+}
 export default function SavedRecipes() {
   const navigate = useNavigate();
   const {
@@ -66,13 +81,17 @@ export default function SavedRecipes() {
 
   // Resolve all saved recipes from DB + saved API cache
   const allSavedRecipes: Recipe[] = useMemo(() => {
-    return likedRecipes.map((id) => {
-      const dbRecipe = dbRecipes.find((r) => r.id === id);
-      if (dbRecipe) return dbRecipe;
-      const apiRecipe = savedApiRecipes[id];
-      if (apiRecipe) return { ...apiRecipe, id } as Recipe;
-      return null;
-    }).filter(Boolean) as Recipe[];
+    return likedRecipes
+      .map((id) => {
+        const dbRecipe = dbRecipes.find((r) => r.id === id);
+        if (dbRecipe) return normalizeRecipeData(dbRecipe, id);
+
+        const apiRecipe = savedApiRecipes[id];
+        if (apiRecipe) return normalizeRecipeData(apiRecipe, id);
+
+        return null;
+      })
+      .filter(Boolean) as Recipe[];
   }, [likedRecipes, dbRecipes, savedApiRecipes]);
 
   // Collect all unique user tags
@@ -122,8 +141,8 @@ export default function SavedRecipes() {
   }, [allSavedRecipes, viewMode, activeFolderId, recipeFolders, activeTag, recipeTags, search, sort]);
 
   const pantryNames = pantryList.map((p) => p.name);
+  const selectedIngredients = selectedRecipe ? normalizeStringArray((selectedRecipe as any).ingredients) : [];
   const selectedInstructions = selectedRecipe ? normalizeStringArray((selectedRecipe as any).instructions) : [];
-
   const handleRemove = (id: string) => {
     unlikeRecipe(id);
     toast.success("Recipe removed from saved");
@@ -154,7 +173,8 @@ export default function SavedRecipes() {
   };
 
   const handleAddMissingToGrocery = (recipe: Recipe) => {
-    const match = calculateMatch(pantryNames, recipe.ingredients || []);
+    const ingredients = normalizeStringArray((recipe as any).ingredients);
+    const match = calculateMatch(pantryNames, ingredients);
     if (match.missing.length === 0) {
       toast.info("You already have all the ingredients!");
       return;
@@ -534,12 +554,14 @@ export default function SavedRecipes() {
 
       {/* Add Recipe Dialog */}
       <Dialog open={showCreateRecipe} onOpenChange={setShowCreateRecipe}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Add a Recipe</DialogTitle>
           </DialogHeader>
-          <ScrollArea className="flex-1 -mx-6 px-6">
-            <CreateRecipeForm onClose={() => setShowCreateRecipe(false)} />
+          <ScrollArea className="flex-1 pr-1">
+            <div className="px-1 pb-1">
+              <CreateRecipeForm onClose={() => setShowCreateRecipe(false)} />
+            </div>
           </ScrollArea>
         </DialogContent>
       </Dialog>
@@ -577,8 +599,8 @@ export default function SavedRecipes() {
                   </div>
 
                   {/* Ingredients with match */}
-                  {selectedRecipe.ingredients && selectedRecipe.ingredients.length > 0 && (() => {
-                    const m = calculateMatch(pantryNames, selectedRecipe.ingredients);
+                  {selectedIngredients.length > 0 && (() => {
+                    const m = calculateMatch(pantryNames, selectedIngredients);
                     return (
                       <div>
                         <h3 className="text-sm font-semibold text-foreground mb-3">
@@ -638,7 +660,7 @@ export default function SavedRecipes() {
                   <NutritionCard
                     recipeId={selectedRecipe.id}
                     recipeName={selectedRecipe.name}
-                    ingredients={selectedRecipe.ingredients || []}
+                    ingredients={selectedIngredients}
                     servings={selectedRecipe.servings}
                   />
 

@@ -12,6 +12,17 @@ import { useQueryClient } from '@tanstack/react-query';
 
 const FOODISH_API = 'https://foodish-api.com/api/';
 
+async function getRandomFoodishImage(): Promise<string | null> {
+  try {
+    const res = await fetch(FOODISH_API);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return typeof data?.image === 'string' ? data.image : null;
+  } catch {
+    return null;
+  }
+}
+
 interface Props {
   onClose: () => void;
 }
@@ -181,9 +192,10 @@ export default function CreateRecipeForm({ onClose }: Props) {
   const [servings, setServings] = useState('4');
   const [ingredientInput, setIngredientInput] = useState('');
   const [ingredients, setIngredients] = useState<string[]>([]);
+  const [instructionInput, setInstructionInput] = useState('');
+  const [instructions, setInstructions] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
   const [tags, setTags] = useState<string[]>([]);
-  const [instructions, setInstructions] = useState('');
   const [isPublic, setIsPublic] = useState(false);
 
   const handleParsePaste = () => {
@@ -191,7 +203,7 @@ export default function CreateRecipeForm({ onClose }: Props) {
     const parsed = parseRecipeText(pasteText);
     if (parsed.name) setName(parsed.name);
     if (parsed.ingredients.length > 0) setIngredients(parsed.ingredients);
-    if (parsed.instructions.length > 0) setInstructions(parsed.instructions.join('\n'));
+    if (parsed.instructions.length > 0) setInstructions(parsed.instructions);
     if (parsed.cookTime) setCookTime(parsed.cookTime);
     if (parsed.cuisine) setCuisine(parsed.cuisine);
     if (parsed.difficulty) setDifficulty(parsed.difficulty);
@@ -203,9 +215,12 @@ export default function CreateRecipeForm({ onClose }: Props) {
   const fetchRandomPhoto = async () => {
     setFetchingPhoto(true);
     try {
-      const res = await fetch(FOODISH_API);
-      const data = await res.json();
-      if (data.image) setImage(data.image);
+      const randomImage = await getRandomFoodishImage();
+      if (randomImage) {
+        setImage(randomImage);
+      } else {
+        toast({ title: 'Could not fetch photo', variant: 'destructive' });
+      }
     } catch {
       toast({ title: 'Could not fetch photo', variant: 'destructive' });
     } finally {
@@ -261,6 +276,18 @@ export default function CreateRecipeForm({ onClose }: Props) {
     }
   };
 
+  const addInstruction = () => {
+    const val = instructionInput.trim();
+    if (val) {
+      setInstructions((prev) => [...prev, val]);
+      setInstructionInput('');
+    }
+  };
+
+  const removeInstruction = (index: number) => {
+    setInstructions((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const addTag = () => {
     const val = tagInput.trim().toLowerCase();
     if (val && !tags.includes(val)) {
@@ -295,8 +322,8 @@ export default function CreateRecipeForm({ onClose }: Props) {
 
     setLoading(true);
     try {
-      const stepList = instructions.split('\n').map(s => s.trim()).filter(Boolean);
-      const finalImage = image || `https://foodish-api.com/images/burger/burger${Math.floor(Math.random() * 50) + 1}.jpg`;
+      const stepList = instructions.map((s) => s.trim()).filter(Boolean);
+      const finalImage = image || (await getRandomFoodishImage()) || '/placeholder.svg';
 
       const { error } = await supabase.from('recipes').insert({
         name: name.trim(),
@@ -326,7 +353,7 @@ export default function CreateRecipeForm({ onClose }: Props) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 px-1 pb-1">
       {/* Paste & Auto-Parse */}
       {showPaste ? (
         <div className="space-y-3 p-4 rounded-xl bg-muted/50 border border-border">
@@ -382,11 +409,21 @@ export default function CreateRecipeForm({ onClose }: Props) {
             size="sm"
             onClick={() => photoInputRef.current?.click()}
             disabled={uploadingPhoto}
+            title="Upload photo"
           >
             {uploadingPhoto ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
           </Button>
-          <Button type="button" variant="outline" size="sm" onClick={fetchRandomPhoto} disabled={fetchingPhoto}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={fetchRandomPhoto}
+            disabled={fetchingPhoto}
+            title="Use random Foodish photo"
+            className="gap-1.5"
+          >
             {fetchingPhoto ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+            <span className="hidden sm:inline">Foodish</span>
           </Button>
         </div>
         {image && (
@@ -478,14 +515,30 @@ export default function CreateRecipeForm({ onClose }: Props) {
       </div>
 
       <div>
-        <label className="text-sm font-medium text-foreground">Instructions</label>
-        <Textarea
-          value={instructions}
-          onChange={e => setInstructions(e.target.value)}
-          placeholder="One step per line..."
-          rows={5}
-        />
-        <p className="text-xs text-muted-foreground mt-1">Put each step on a new line.</p>
+        <label className="text-sm font-medium text-foreground">Steps / Instructions</label>
+        <div className="flex gap-2 mt-1">
+          <Input
+            value={instructionInput}
+            onChange={(e) => setInstructionInput(e.target.value)}
+            placeholder="Add a cooking step"
+            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addInstruction())}
+          />
+          <Button type="button" variant="outline" size="icon" onClick={addInstruction}>
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
+        <div className="space-y-1.5 mt-2">
+          {instructions.map((step, index) => (
+            <div key={`${step}-${index}`} className="flex items-start gap-2 rounded-md border border-border bg-muted/40 px-2 py-1.5 text-sm">
+              <span className="text-xs font-semibold text-muted-foreground pt-0.5">{index + 1}.</span>
+              <span className="flex-1 text-foreground">{step}</span>
+              <button type="button" onClick={() => removeInstruction(index)} className="text-muted-foreground hover:text-destructive">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">Add one step at a time.</p>
       </div>
 
       <div className="flex items-start space-x-3 rounded-lg border border-border p-3 bg-muted/30">
