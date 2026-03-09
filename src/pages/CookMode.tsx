@@ -287,7 +287,12 @@ export default function CookMode() {
             <ChevronLeft className="h-4 w-4 mr-1" /> Previous
           </Button>
           {currentStep === totalSteps - 1 ? (
-            <Button className="flex-1" onClick={() => navigate('/saved')}>
+            <Button className="flex-1" onClick={() => {
+              if (id) markRecipeCooked(id);
+              setIsDone(true);
+              toast.success('🎉 Recipe completed! Great cooking!');
+              setTimeout(() => navigate('/saved'), 1500);
+            }}>
               🎉 Done!
             </Button>
           ) : (
