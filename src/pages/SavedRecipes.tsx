@@ -599,8 +599,8 @@ export default function SavedRecipes() {
                   </div>
 
                   {/* Ingredients with match */}
-                  {selectedRecipe.ingredients && selectedRecipe.ingredients.length > 0 && (() => {
-                    const m = calculateMatch(pantryNames, selectedRecipe.ingredients);
+                  {selectedIngredients.length > 0 && (() => {
+                    const m = calculateMatch(pantryNames, selectedIngredients);
                     return (
                       <div>
                         <h3 className="text-sm font-semibold text-foreground mb-3">
@@ -660,7 +660,7 @@ export default function SavedRecipes() {
                   <NutritionCard
                     recipeId={selectedRecipe.id}
                     recipeName={selectedRecipe.name}
-                    ingredients={selectedRecipe.ingredients || []}
+                    ingredients={selectedIngredients}
                     servings={selectedRecipe.servings}
                   />
 
