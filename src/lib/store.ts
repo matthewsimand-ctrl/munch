@@ -47,6 +47,7 @@ interface AppState {
   totalXp: number;
   earnedBadges: string[];
   archiveBehavior: 'ask' | 'always' | 'never';
+  chefAvatarUrl: string | null;
 
   setUserProfile: (profile: Partial<UserProfile>) => void;
   completeOnboarding: () => void;
