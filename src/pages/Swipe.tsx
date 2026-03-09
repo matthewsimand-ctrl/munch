@@ -607,7 +607,7 @@ export default function Browse() {
                 </Button>
               </div>
             )}
-          </ScrollArea>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
