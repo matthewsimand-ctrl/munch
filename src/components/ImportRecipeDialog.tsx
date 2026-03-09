@@ -154,35 +154,35 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
     try {
       if (isDiscoverable) {
         // Save to Supabase for public discovery
-        const { data: { user } } = await supabase.auth.getUser();
-        
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
         if (!user) {
-          toast.error('You must be logged in to make recipes discoverable');
-          setSaving(false);
-          return;
-        }
-
-        const { error } = await supabase.from('recipes').insert({
-          id,
-          name: reviewData.name,
-          ingredients: reviewData.ingredients,
-          instructions: reviewData.instructions,
-          cook_time: reviewData.cook_time,
-          difficulty: reviewData.difficulty,
-          cuisine: reviewData.cuisine || null,
-          tags: reviewData.tags,
-          image: reviewData.image,
-          source: 'imported',
-          created_by: user.id,
-          is_public: true,
-          servings: 4,
-        });
-
-        if (error) {
-          console.error('Failed to save to database:', error);
-          toast.error('Failed to make recipe discoverable. Saving locally instead.');
+          toast.info('Not logged in — saved privately. Log in to make it discoverable.');
         } else {
-          toast.success(`"${reviewData.name}" is now discoverable by others!`);
+          const { error } = await supabase.from('recipes').insert({
+            id,
+            name: reviewData.name,
+            ingredients: reviewData.ingredients,
+            instructions: reviewData.instructions,
+            cook_time: reviewData.cook_time,
+            difficulty: reviewData.difficulty,
+            cuisine: reviewData.cuisine || null,
+            tags: reviewData.tags,
+            image: reviewData.image,
+            source: 'imported',
+            created_by: user.id,
+            is_public: true,
+            servings: 4,
+          });
+
+          if (error) {
+            console.error('Failed to save to database:', error);
+            toast.error('Failed to make recipe discoverable. Saved locally instead.');
+          } else {
+            toast.success(`"${reviewData.name}" is now discoverable by others!`);
+          }
         }
       }
 
