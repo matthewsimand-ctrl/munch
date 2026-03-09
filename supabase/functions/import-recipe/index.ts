@@ -4,6 +4,7 @@ const corsHeaders = {
 };
 
 const AI_GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
+const R_JINA_PROXY_PREFIX = 'https://r.jina.ai/';
 
 const TEXT_EXTRACT_PROMPT = `You are a recipe extraction assistant. Extract the recipe from the provided content and return ONLY a valid JSON object with these fields:
 {
@@ -272,16 +273,28 @@ Deno.serve(async (req) => {
     let recipe: Record<string, unknown> | null = null;
 
     if (url) {
+      let html = '';
       const pageRes = await fetch(url, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; RecipeBot/1.0)' },
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9',
+        },
       });
-      if (!pageRes.ok) {
-        return new Response(
-          JSON.stringify({ success: false, error: `Failed to fetch URL (${pageRes.status})` }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-        );
+
+      if (pageRes.ok) {
+        html = await pageRes.text();
+      } else {
+        console.warn(`Direct fetch failed (${pageRes.status}) for ${url}, trying proxy fallback`);
+        const proxyRes = await fetch(`${R_JINA_PROXY_PREFIX}${url}`);
+        if (!proxyRes.ok) {
+          return new Response(
+            JSON.stringify({ success: false, error: `Failed to fetch URL (${pageRes.status})` }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+          );
+        }
+        html = await proxyRes.text();
       }
-      const html = await pageRes.text();
 
       recipe = extractRecipeFromJsonLd(html);
 

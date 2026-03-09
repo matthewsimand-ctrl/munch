@@ -18,6 +18,17 @@ interface NormalizedRecipe {
   cuisine?: string;
 }
 
+function cleanIngredientPart(value: unknown): string {
+  return String(value || '').trim().replace(/\s+/g, ' ');
+}
+
+function joinIngredient(measure: unknown, ingredient: unknown): string | null {
+  const measureText = cleanIngredientPart(measure);
+  const ingredientText = cleanIngredientPart(ingredient).toLowerCase();
+  if (!ingredientText) return null;
+  return measureText ? `${measureText} ${ingredientText}`.trim() : ingredientText;
+}
+
 // --- TheMealDB ---
 async function searchMealDB(query: string): Promise<NormalizedRecipe[]> {
   try {
@@ -28,7 +39,9 @@ async function searchMealDB(query: string): Promise<NormalizedRecipe[]> {
       const ingredients: string[] = [];
       for (let i = 1; i <= 20; i++) {
         const ing = m[`strIngredient${i}`];
-        if (ing && ing.trim()) ingredients.push(ing.trim().toLowerCase());
+        const measure = m[`strMeasure${i}`];
+        const normalized = joinIngredient(measure, ing);
+        if (normalized) ingredients.push(normalized);
       }
       const instructions = m.strInstructions
         ? m.strInstructions.split(/\r?\n/).filter((s: string) => s.trim().length > 5)
@@ -61,7 +74,9 @@ async function browseMealDBByLetter(letter: string): Promise<NormalizedRecipe[]>
       const ingredients: string[] = [];
       for (let i = 1; i <= 20; i++) {
         const ing = m[`strIngredient${i}`];
-        if (ing && ing.trim()) ingredients.push(ing.trim().toLowerCase());
+        const measure = m[`strMeasure${i}`];
+        const normalized = joinIngredient(measure, ing);
+        if (normalized) ingredients.push(normalized);
       }
       const instructions = m.strInstructions
         ? m.strInstructions.split(/\r?\n/).filter((s: string) => s.trim().length > 5)
@@ -107,7 +122,9 @@ async function browseMealDBByCategory(category: string): Promise<NormalizedRecip
         const ingredients: string[] = [];
         for (let i = 1; i <= 20; i++) {
           const ing = m[`strIngredient${i}`];
-          if (ing && ing.trim()) ingredients.push(ing.trim().toLowerCase());
+          const measure = m[`strMeasure${i}`];
+          const normalized = joinIngredient(measure, ing);
+          if (normalized) ingredients.push(normalized);
         }
         const instructions = m.strInstructions
           ? m.strInstructions.split(/\r?\n/).filter((s: string) => s.trim().length > 5)
@@ -169,7 +186,12 @@ async function searchTasty(query: string, apiKey: string, size = 5): Promise<Nor
     if (!data.results) return [];
     return data.results.map((r: any) => {
       const ingredients = (r.sections?.[0]?.components || [])
-        .map((c: any) => c.ingredient?.name?.toLowerCase())
+        .map((c: any) => {
+          const m = c?.measurements?.[0];
+          const quantity = cleanIngredientPart(m?.quantity || '');
+          const unit = cleanIngredientPart(m?.unit?.display_singular || m?.unit?.display_plural || '');
+          return joinIngredient(`${quantity} ${unit}`.trim(), c.ingredient?.name);
+        })
         .filter(Boolean);
       const instructions = (r.instructions || [])
         .sort((a: any, b: any) => a.position - b.position)
@@ -206,7 +228,7 @@ async function searchSpoonacular(query: string, apiKey: string, number = 5): Pro
     if (!data.results) return [];
     return data.results.map((r: any) => {
       const ingredients = (r.extendedIngredients || [])
-        .map((i: any) => i.name?.toLowerCase())
+        .map((i: any) => joinIngredient(i.amount ? `${i.amount}${i.unit ? ` ${i.unit}` : ''}` : '', i.name))
         .filter(Boolean);
       const instructions = r.analyzedInstructions?.[0]?.steps
         ?.sort((a: any, b: any) => a.number - b.number)
@@ -242,7 +264,7 @@ async function browseSpoonacularRandom(apiKey: string, number = 20): Promise<Nor
     if (!data.recipes) return [];
     return data.recipes.map((r: any) => {
       const ingredients = (r.extendedIngredients || [])
-        .map((i: any) => i.name?.toLowerCase())
+        .map((i: any) => joinIngredient(i.amount ? `${i.amount}${i.unit ? ` ${i.unit}` : ''}` : '', i.name))
         .filter(Boolean);
       const instructions = r.analyzedInstructions?.[0]?.steps
         ?.sort((a: any, b: any) => a.number - b.number)
