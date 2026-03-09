@@ -4,10 +4,11 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useStore } from "@/lib/store";
+import AppLayout from "@/components/AppLayout";
 import Index from "./pages/Index";
 import Onboarding from "./pages/Onboarding";
 import Pantry from "./pages/Pantry";
-import Swipe from "./pages/Swipe";
+import Browse from "./pages/Browse";         // ← new, replaces Swipe (or keep both)
 import SavedRecipes from "./pages/SavedRecipes";
 import CookMode from "./pages/CookMode";
 import GroceryList from "./pages/GroceryList";
@@ -22,7 +23,7 @@ import SpotlightTutorial from "./components/SpotlightTutorial";
 const queryClient = new QueryClient();
 
 function AppRoutes() {
-  const { tutorialComplete, completeTutorial, showTutorial, setShowTutorial } = useStore();
+  const { completeTutorial, showTutorial, setShowTutorial } = useStore();
 
   const handleTutorialComplete = () => {
     setShowTutorial(false);
@@ -32,18 +33,24 @@ function AppRoutes() {
   return (
     <>
       <Routes>
+        {/* Full-screen flows — no sidebar */}
         <Route path="/" element={<Index />} />
-        <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/auth" element={<Auth />} />
         <Route path="/onboarding" element={<Onboarding />} />
-        <Route path="/pantry" element={<Pantry />} />
-        <Route path="/swipe" element={<Swipe />} />
-        <Route path="/saved" element={<SavedRecipes />} />
         <Route path="/cook/:id" element={<CookMode />} />
-        <Route path="/grocery" element={<GroceryList />} />
-        <Route path="/meal-prep" element={<MealPrep />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/chef/:userId" element={<ChefProfile />} />
+
+        {/* Main app — sidebar on desktop, bottom nav on mobile */}
+        <Route element={<AppLayout />}>
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/browse" element={<Browse />} />  {/* or /swipe if you keep the old route */}
+          <Route path="/saved" element={<SavedRecipes />} />
+          <Route path="/pantry" element={<Pantry />} />
+          <Route path="/grocery" element={<GroceryList />} />
+          <Route path="/meal-prep" element={<MealPrep />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/chef/:userId" element={<ChefProfile />} />
+        </Route>
+
         <Route path="*" element={<NotFound />} />
       </Routes>
       {showTutorial && (
