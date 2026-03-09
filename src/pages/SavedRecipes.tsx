@@ -416,7 +416,21 @@ export default function SavedRecipes() {
                       </div>
                     )}
 
-                    {/* Folder indicators */}
+                    {/* Nutrition preview (if cached) */}
+                    {cachedNutrition[recipe.id] && (() => {
+                      const n = cachedNutrition[recipe.id];
+                      return (
+                        <div className="flex items-center gap-2 mb-2 px-2 py-1.5 rounded-lg bg-muted/50 border border-border">
+                          <Flame size={12} className="text-primary shrink-0" />
+                          <span className="text-[11px] font-bold text-foreground">{Math.round(n.calories)} kcal</span>
+                          <span className="text-[10px] text-muted-foreground">·</span>
+                          <span className="text-[10px] text-muted-foreground flex items-center gap-0.5"><Beef size={9} /> {Math.round(n.protein)}g</span>
+                          <span className="text-[10px] text-muted-foreground flex items-center gap-0.5"><Wheat size={9} /> {Math.round(n.carbs)}g</span>
+                          <span className="text-[10px] text-muted-foreground flex items-center gap-0.5"><Droplets size={9} /> {Math.round(n.fat)}g</span>
+                        </div>
+                      );
+                    })()}
+
                     {folderNames.length > 0 && (
                       <div className="flex flex-wrap gap-1 mb-2">
                         {folderNames.map((name) => (
