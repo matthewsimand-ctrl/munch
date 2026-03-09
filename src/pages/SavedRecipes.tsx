@@ -134,10 +134,19 @@ export default function SavedRecipes() {
       });
     }
 
-    // Search
+    // Search (name, ingredients, cuisine, tags)
     if (search) {
       const q = search.toLowerCase();
-      list = list.filter((r) => r.name.toLowerCase().includes(q));
+      list = list.filter((r) => {
+        const userTags = recipeTags[r.id] || [];
+        const allTags = [...(r.tags || []), ...userTags];
+        return (
+          r.name.toLowerCase().includes(q) ||
+          (r.cuisine && r.cuisine.toLowerCase().includes(q)) ||
+          r.ingredients.some(ing => ing.toLowerCase().includes(q)) ||
+          allTags.some(tag => tag.toLowerCase().includes(q))
+        );
+      });
     }
 
     // Sort
