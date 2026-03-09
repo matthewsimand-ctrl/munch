@@ -73,6 +73,8 @@ interface AppState {
   removeRecipeFromFolder: (folderId: string, recipeId: string) => void;
   completeTutorial: () => void;
   markRecipeCooked: (recipeId: string) => void;
+  addXp: (amount: number) => void;
+  earnBadge: (badgeId: string) => void;
   resetStore: () => void;
 }
 
