@@ -15,8 +15,8 @@ import {
 
 const NAV_ITEMS = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { to: "/swipe", icon: BookOpen, label: "Recipes" },
-  { to: "/saved", icon: Heart, label: "Saved" },
+  { to: "/swipe", icon: BookOpen, label: "Explore" },
+  { to: "/saved", icon: Heart, label: "My Recipes" },
   { to: "/pantry", icon: Package, label: "Pantry" },
   { to: "/grocery", icon: ShoppingCart, label: "Grocery" },
   { to: "/meal-prep", icon: CalendarDays, label: "Meal Prep" },
