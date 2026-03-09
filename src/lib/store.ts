@@ -70,6 +70,7 @@ interface AppState {
   addRecipeToFolder: (folderId: string, recipeId: string) => void;
   removeRecipeFromFolder: (folderId: string, recipeId: string) => void;
   completeTutorial: () => void;
+  markRecipeCooked: (recipeId: string) => void;
   resetStore: () => void;
 }
 
