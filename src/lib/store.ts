@@ -57,6 +57,9 @@ interface AppState {
   removeCustomGroceryItem: (name: string) => void;
   updateCustomGroceryQuantity: (name: string, quantity: string) => void;
   setRecipeMealTag: (recipeId: string, tag: string) => void;
+  setRecipeTags: (recipeId: string, tags: string[]) => void;
+  addRecipeTag: (recipeId: string, tag: string) => void;
+  removeRecipeTag: (recipeId: string, tag: string) => void;
   createFolder: (name: string) => void;
   renameFolder: (folderId: string, name: string) => void;
   deleteFolder: (folderId: string) => void;
