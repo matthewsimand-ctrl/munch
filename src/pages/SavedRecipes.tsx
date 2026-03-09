@@ -35,6 +35,21 @@ function normalizeStringArray(value: unknown): string[] {
   return [];
 }
 
+function normalizeRecipeData(recipe: any, idFallback: string): Recipe {
+  return {
+    ...recipe,
+    id: String(recipe?.id || idFallback),
+    name: String(recipe?.name || 'Untitled Recipe'),
+    image: String(recipe?.image || '/placeholder.svg'),
+    cook_time: String(recipe?.cook_time || '30 min'),
+    difficulty: String(recipe?.difficulty || 'Intermediate'),
+    ingredients: normalizeStringArray(recipe?.ingredients),
+    instructions: normalizeStringArray(recipe?.instructions),
+    tags: normalizeStringArray(recipe?.tags),
+    cuisine: recipe?.cuisine || null,
+    servings: Number(recipe?.servings || 4),
+  };
+}
 export default function SavedRecipes() {
   const navigate = useNavigate();
   const {
