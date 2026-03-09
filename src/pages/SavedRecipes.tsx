@@ -125,11 +125,12 @@ export default function SavedRecipes() {
       }
     }
 
-    // Filter by tag
-    if (activeTag !== "All") {
+    // Filter by tags (multi-select)
+    if (activeTags.length > 0) {
       list = list.filter((r) => {
         const userTags = recipeTags[r.id] || [];
-        return (r.tags || []).includes(activeTag) || userTags.includes(activeTag);
+        const allTags = [...(r.tags || []), ...userTags];
+        return activeTags.some(t => allTags.includes(t));
       });
     }
 
