@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Flame,
   Clock,
@@ -12,6 +12,7 @@ import {
   Plus,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 // ── Mock data (replace with your real data / hooks) ──────────────────────────
 const STATS = [
@@ -69,6 +70,7 @@ const MEAL_PLAN = [
 ];
 
 export default function Dashboard() {
+  const [displayName, setDisplayName] = useState<string | null>(null);
   const [greeting] = useState(() => {
     const h = new Date().getHours();
     if (h < 12) return "Good morning";
@@ -76,17 +78,36 @@ export default function Dashboard() {
     return "Good evening";
   });
 
+  useEffect(() => {
+    async function loadProfile() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const { data } = await supabase
+          .from('profiles')
+          .select('display_name')
+          .eq('user_id', session.user.id)
+          .single();
+        if (data?.display_name) {
+          setDisplayName(data.display_name);
+        }
+      }
+    }
+    loadProfile();
+  }, []);
+
   return (
     <div className="min-h-full bg-gray-50">
       {/* ── Header ────────────────────────────────────────────────────────── */}
       <div className="bg-white border-b border-gray-100 px-6 py-5">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">{greeting} 👋</h1>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {greeting}{displayName ? `, ${displayName}` : ''} 👋
+            </h1>
             <p className="text-sm text-gray-500 mt-0.5">Here's what's cooking this week</p>
           </div>
           <Link
-            to="/browse"
+            to="/swipe"
             className="hidden sm:flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-sm"
           >
             <Sparkles size={15} />
@@ -126,7 +147,7 @@ export default function Dashboard() {
                   <TrendingUp size={17} className="text-orange-500" />
                   <h2 className="text-base font-bold text-gray-900">Suggested for you</h2>
                 </div>
-                <Link to="/browse" className="text-xs text-orange-500 font-semibold hover:text-orange-600 flex items-center gap-1">
+                <Link to="/swipe" className="text-xs text-orange-500 font-semibold hover:text-orange-600 flex items-center gap-1">
                   See all <ChevronRight size={13} />
                 </Link>
               </div>
@@ -200,10 +221,10 @@ export default function Dashboard() {
               <h2 className="text-base font-bold text-gray-900 mb-3">Quick actions</h2>
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { label: "Find Recipe", to: "/browse", emoji: "🔍" },
+                  { label: "Find Recipe", to: "/swipe", emoji: "🔍" },
                   { label: "Add to Pantry", to: "/pantry", emoji: "📦" },
                   { label: "Grocery List", to: "/grocery", emoji: "🛒" },
-                  { label: "Plan Meals", to: "/mealprep", emoji: "📅" },
+                  { label: "Plan Meals", to: "/meal-prep", emoji: "📅" },
                 ].map(({ label, to, emoji }) => (
                   <Link
                     key={label}

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import { NavLink } from "react-router-dom";
 import {
@@ -12,7 +13,7 @@ import {
 
 const NAV_ITEMS = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { to: "/swipe", icon: Shuffle, label: "Browse" },
+  { to: "/swipe", icon: Shuffle, label: "Recipes" },
   { to: "/saved", icon: Heart, label: "Saved" },
   { to: "/pantry", icon: Package, label: "Pantry" },
   { to: "/grocery", icon: ShoppingCart, label: "Grocery" },
@@ -20,16 +21,29 @@ const NAV_ITEMS = [
 ];
 
 export default function AppLayout() {
+  const [collapsed, setCollapsed] = useState(false);
+  
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
       {/* ── Desktop Sidebar ── */}
-      <aside className="hidden md:flex flex-col w-56 lg:w-64 bg-white border-r border-gray-100 shrink-0 z-20">
+      <aside className={`hidden md:flex flex-col bg-white border-r border-gray-100 shrink-0 z-20 transition-all duration-300 ${collapsed ? 'w-16' : 'w-56 lg:w-64'}`}>
         {/* Logo */}
-        <div className="flex items-center gap-2.5 px-5 py-5 border-b border-gray-100">
-          <div className="w-8 h-8 bg-orange-500 rounded-xl flex items-center justify-center shadow-sm">
-            <ChefHat className="text-white" size={18} />
+        <div className="flex items-center justify-between px-5 py-5 border-b border-gray-100">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 bg-orange-500 rounded-xl flex items-center justify-center shadow-sm">
+              <ChefHat className="text-white" size={18} />
+            </div>
+            {!collapsed && <span className="text-lg font-bold text-gray-900 tracking-tight">munch</span>}
           </div>
-          <span className="text-lg font-bold text-gray-900 tracking-tight">munch</span>
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="rotate-0">
+              <path d="M5 2L11 8L5 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
         </div>
 
         {/* Nav links */}
@@ -38,8 +52,9 @@ export default function AppLayout() {
             <NavLink
               key={to}
               to={to}
+              title={collapsed ? label : undefined}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group
+                `flex items-center ${collapsed ? 'justify-center' : 'gap-3'} px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group
                 ${
                   isActive
                     ? "bg-orange-50 text-orange-600"
@@ -55,9 +70,13 @@ export default function AppLayout() {
                       isActive ? "text-orange-500" : "text-gray-400 group-hover:text-gray-600"
                     }`}
                   />
-                  <span>{label}</span>
-                  {isActive && (
-                    <div className="ml-auto w-1.5 h-1.5 rounded-full bg-orange-400" />
+                  {!collapsed && (
+                    <>
+                      <span>{label}</span>
+                      {isActive && (
+                        <div className="ml-auto w-1.5 h-1.5 rounded-full bg-orange-400" />
+                      )}
+                    </>
                   )}
                 </>
               )}
@@ -67,15 +86,20 @@ export default function AppLayout() {
 
         {/* Footer */}
         <div className="px-4 py-4 border-t border-gray-100">
-          <div className="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors">
+          <NavLink
+            to="/settings"
+            className="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors"
+          >
             <div className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-400 to-pink-500 flex items-center justify-center text-white text-xs font-bold shrink-0">
               M
             </div>
-            <div className="min-w-0">
-              <div className="text-xs font-semibold text-gray-800 truncate">My Kitchen</div>
-              <div className="text-xs text-gray-400 truncate">Free plan</div>
-            </div>
-          </div>
+            {!collapsed && (
+              <div className="min-w-0">
+                <div className="text-xs font-semibold text-gray-800 truncate">My Kitchen</div>
+                <div className="text-xs text-gray-400 truncate">Settings</div>
+              </div>
+            )}
+          </NavLink>
         </div>
       </aside>
 

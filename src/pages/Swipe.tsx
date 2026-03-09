@@ -5,94 +5,31 @@ import {
   Clock,
   Users,
   Star,
-  ChevronLeft,
-  ChevronRight,
   Flame,
   Leaf,
-  Info,
-  BookOpen,
+  ChefHat,
+  Filter,
+  Loader2,
 } from "lucide-react";
+import { useBrowseFeed } from "@/hooks/useBrowseFeed";
+import { useNavigate } from "react-router-dom";
 
-// ── Mock recipe data (replace with your real source) ─────────────────────────
-const RECIPES = [
-  {
-    id: 1,
-    title: "Shakshuka with Feta",
-    time: "25 min",
-    servings: 4,
-    rating: 4.8,
-    calories: 320,
-    tags: ["Vegetarian", "High Protein", "Mediterranean"],
-    description:
-      "Poached eggs nestled in a rich, spiced tomato sauce with crumbled feta, fresh herbs, and a side of crusty bread. A timeless one-pan wonder.",
-    ingredients: ["Eggs", "Canned tomatoes", "Bell peppers", "Feta", "Cumin", "Paprika", "Garlic", "Onion"],
-    emoji: "🍳",
-    gradient: "from-amber-400 via-orange-400 to-red-400",
-    difficulty: "Easy",
-  },
-  {
-    id: 2,
-    title: "Thai Green Curry",
-    time: "35 min",
-    servings: 4,
-    rating: 4.7,
-    calories: 480,
-    tags: ["Gluten-Free", "Spicy", "Asian"],
-    description:
-      "Fragrant green curry paste, creamy coconut milk, fresh vegetables and your choice of protein. A weeknight favourite that tastes like takeout — only better.",
-    ingredients: ["Green curry paste", "Coconut milk", "Thai basil", "Bamboo shoots", "Lime", "Fish sauce", "Zucchini"],
-    emoji: "🍛",
-    gradient: "from-green-400 via-emerald-400 to-teal-400",
-    difficulty: "Medium",
-  },
-  {
-    id: 3,
-    title: "Lemon Herb Salmon",
-    time: "20 min",
-    servings: 2,
-    rating: 4.9,
-    calories: 410,
-    tags: ["High Protein", "Omega-3", "Quick"],
-    description:
-      "Pan-seared salmon glazed with lemon butter, fresh dill, and capers. Ready in under 25 minutes and impressive enough for company.",
-    ingredients: ["Salmon fillets", "Lemon", "Dill", "Capers", "Butter", "Garlic", "Olive oil"],
-    emoji: "🐟",
-    gradient: "from-blue-400 via-cyan-400 to-sky-400",
-    difficulty: "Easy",
-  },
-  {
-    id: 4,
-    title: "Mushroom Risotto",
-    time: "45 min",
-    servings: 4,
-    rating: 4.6,
-    calories: 520,
-    tags: ["Vegetarian", "Italian", "Comfort"],
-    description:
-      "Creamy Arborio rice slow-cooked with a mix of wild mushrooms, white wine, parmesan, and thyme. The ultimate cosy dinner.",
-    ingredients: ["Arborio rice", "Mixed mushrooms", "Parmesan", "White wine", "Shallots", "Thyme", "Butter", "Stock"],
-    emoji: "🍄",
-    gradient: "from-amber-600 via-yellow-500 to-amber-400",
-    difficulty: "Medium",
-  },
-  {
-    id: 5,
-    title: "BBQ Chicken Bowl",
-    time: "30 min",
-    servings: 2,
-    rating: 4.7,
-    calories: 550,
-    tags: ["High Protein", "American", "Meal Prep"],
-    description:
-      "Smoky BBQ chicken over fluffy rice with corn, avocado, red onion and a chipotle lime drizzle. Meal-preppable and endlessly customisable.",
-    ingredients: ["Chicken thighs", "BBQ sauce", "Rice", "Corn", "Avocado", "Red onion", "Lime", "Cilantro"],
-    emoji: "🍗",
-    gradient: "from-rose-500 via-orange-400 to-yellow-400",
-    difficulty: "Easy",
-  },
-];
+interface Recipe {
+  id: string;
+  name: string;
+  image: string;
+  cook_time: string;
+  difficulty: string;
+  ingredients: string[];
+  tags: string[];
+  instructions: string[];
+  source: string;
+  cuisine?: string;
+}
 
-type Recipe = typeof RECIPES[0];
+const DIFFICULTY_FILTERS = ["All", "Beginner", "Intermediate", "Advanced"];
+const TIME_FILTERS = ["All", "< 30 min", "30-60 min", "> 60 min"];
+const CUISINE_FILTERS = ["All", "Italian", "Asian", "Mexican", "Mediterranean", "American"];
 
 function SwipeCard({
   recipe,
@@ -105,6 +42,10 @@ function SwipeCard({
   scale: number;
   opacity: number;
 }) {
+  const gradient = recipe.cuisine 
+    ? `from-${recipe.cuisine === "Italian" ? "green" : recipe.cuisine === "Mexican" ? "orange" : "blue"}-400 to-${recipe.cuisine === "Italian" ? "red" : recipe.cuisine === "Mexican" ? "red" : "purple"}-400`
+    : "from-orange-400 to-pink-400";
+
   return (
     <div
       className="absolute inset-0 rounded-3xl overflow-hidden shadow-2xl"
@@ -115,8 +56,13 @@ function SwipeCard({
         zIndex: Math.round(opacity * 10),
       }}
     >
-      {/* Gradient background */}
-      <div className={`absolute inset-0 bg-gradient-to-br ${recipe.gradient} opacity-90`} />
+      {/* Image or gradient */}
+      {recipe.image ? (
+        <img src={recipe.image} alt={recipe.name} className="absolute inset-0 w-full h-full object-cover" />
+      ) : (
+        <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-90`} />
+      )}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
 
       {/* Content */}
       <div className="relative h-full flex flex-col justify-between p-6 text-white">
@@ -130,20 +76,16 @@ function SwipeCard({
             ))}
           </div>
           <div className="flex items-center gap-1 bg-white/20 backdrop-blur-sm px-2.5 py-0.5 rounded-full text-xs font-semibold">
-            <Star size={11} className="fill-white" /> {recipe.rating}
+            <Star size={11} className="fill-white" /> {recipe.difficulty}
           </div>
         </div>
 
-        {/* Emoji */}
-        <div className="text-7xl text-center select-none">{recipe.emoji}</div>
-
         {/* Bottom info */}
         <div>
-          <h2 className="text-2xl font-bold leading-tight mb-2">{recipe.title}</h2>
+          <h2 className="text-2xl font-bold leading-tight mb-2">{recipe.name}</h2>
           <div className="flex items-center gap-4 text-sm text-white/80">
-            <span className="flex items-center gap-1"><Clock size={13} /> {recipe.time}</span>
-            <span className="flex items-center gap-1"><Users size={13} /> {recipe.servings} servings</span>
-            <span className="flex items-center gap-1"><Flame size={13} /> {recipe.calories} cal</span>
+            <span className="flex items-center gap-1"><Clock size={13} /> {recipe.cook_time}</span>
+            {recipe.cuisine && <span className="flex items-center gap-1">🌍 {recipe.cuisine}</span>}
           </div>
         </div>
       </div>
@@ -152,35 +94,58 @@ function SwipeCard({
 }
 
 export default function Browse() {
+  const navigate = useNavigate();
+  const { recipes, loading, loaded, loadFeed } = useBrowseFeed();
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [savedIds, setSavedIds] = useState<number[]>([]);
+  const [savedIds, setSavedIds] = useState<string[]>([]);
   const [animating, setAnimating] = useState<"left" | "right" | null>(null);
+  const [difficultyFilter, setDifficultyFilter] = useState("All");
+  const [timeFilter, setTimeFilter] = useState("All");
+  const [cuisineFilter, setCuisineFilter] = useState("All");
+  const [showFilters, setShowFilters] = useState(false);
   const constraintsRef = useRef(null);
 
-  const currentRecipe = RECIPES[currentIndex];
-  const nextRecipe = RECIPES[(currentIndex + 1) % RECIPES.length];
-  const nextNextRecipe = RECIPES[(currentIndex + 2) % RECIPES.length];
+  useEffect(() => {
+    loadFeed();
+  }, [loadFeed]);
+
+  // Apply filters
+  const filteredRecipes = recipes.filter((r) => {
+    if (difficultyFilter !== "All" && r.difficulty !== difficultyFilter) return false;
+    if (cuisineFilter !== "All" && r.cuisine !== cuisineFilter) return false;
+    if (timeFilter !== "All") {
+      const time = parseInt(r.cook_time);
+      if (timeFilter === "< 30 min" && time >= 30) return false;
+      if (timeFilter === "30-60 min" && (time < 30 || time >= 60)) return false;
+      if (timeFilter === "> 60 min" && time < 60) return false;
+    }
+    return true;
+  });
+
+  const currentRecipe = filteredRecipes[currentIndex];
+  const nextRecipe = filteredRecipes[(currentIndex + 1) % filteredRecipes.length];
+  const nextNextRecipe = filteredRecipes[(currentIndex + 2) % filteredRecipes.length];
 
   const handlePass = useCallback(() => {
-    if (animating) return;
+    if (animating || !filteredRecipes.length) return;
     setAnimating("left");
     setTimeout(() => {
-      setCurrentIndex((i) => (i + 1) % RECIPES.length);
+      setCurrentIndex((i) => (i + 1) % filteredRecipes.length);
       setAnimating(null);
     }, 350);
-  }, [animating]);
+  }, [animating, filteredRecipes.length]);
 
   const handleSave = useCallback(() => {
-    if (animating) return;
+    if (animating || !currentRecipe) return;
     setSavedIds((ids) =>
       ids.includes(currentRecipe.id) ? ids : [...ids, currentRecipe.id]
     );
     setAnimating("right");
     setTimeout(() => {
-      setCurrentIndex((i) => (i + 1) % RECIPES.length);
+      setCurrentIndex((i) => (i + 1) % filteredRecipes.length);
       setAnimating(null);
     }, 350);
-  }, [animating, currentRecipe.id]);
+  }, [animating, currentRecipe, filteredRecipes.length]);
 
   // Keyboard support
   useEffect(() => {
@@ -192,22 +157,129 @@ export default function Browse() {
     return () => window.removeEventListener("keydown", onKey);
   }, [handlePass, handleSave]);
 
-  const isSaved = savedIds.includes(currentRecipe.id);
+  const isSaved = currentRecipe ? savedIds.includes(currentRecipe.id) : false;
+
+  if (loading || !loaded) {
+    return (
+      <div className="min-h-full bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-orange-500 mx-auto mb-3" />
+          <p className="text-sm text-gray-500">Loading recipes...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!filteredRecipes.length) {
+    return (
+      <div className="min-h-full bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <ChefHat className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+          <p className="text-sm text-gray-500">No recipes match your filters</p>
+          <button
+            onClick={() => {
+              setDifficultyFilter("All");
+              setTimeFilter("All");
+              setCuisineFilter("All");
+            }}
+            className="mt-3 text-sm text-orange-500 hover:text-orange-600 font-semibold"
+          >
+            Clear filters
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-full bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-100 px-6 py-5">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Browse</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Swipe or use ← → arrow keys</p>
+          <div className="flex items-center gap-3">
+            <button onClick={() => navigate('/dashboard')} className="flex items-center gap-2 shrink-0">
+              <div className="w-7 h-7 bg-orange-500 rounded-lg flex items-center justify-center">
+                <ChefHat className="text-white" size={14} />
+              </div>
+            </button>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Recipes</h1>
+              <p className="text-sm text-gray-500 mt-0.5">{filteredRecipes.length} recipes · Use ← → keys</p>
+            </div>
           </div>
-          <div className="flex items-center gap-2 text-sm text-gray-500">
-            <Heart size={14} className="text-rose-400 fill-rose-400" />
-            <span className="font-semibold text-gray-700">{savedIds.length}</span> saved this session
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <Filter size={14} /> Filters
+            </button>
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <Heart size={14} className="text-rose-400 fill-rose-400" />
+              <span className="font-semibold text-gray-700">{savedIds.length}</span> saved
+            </div>
           </div>
         </div>
+
+        {/* Filters panel */}
+        {showFilters && (
+          <div className="max-w-7xl mx-auto mt-4 p-4 bg-gray-50 rounded-xl space-y-3">
+            <div>
+              <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5 block">Difficulty</label>
+              <div className="flex gap-2 flex-wrap">
+                {DIFFICULTY_FILTERS.map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setDifficultyFilter(f)}
+                    className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-all ${
+                      difficultyFilter === f
+                        ? "bg-orange-500 text-white border-orange-500"
+                        : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"
+                    }`}
+                  >
+                    {f}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5 block">Cook Time</label>
+              <div className="flex gap-2 flex-wrap">
+                {TIME_FILTERS.map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setTimeFilter(f)}
+                    className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-all ${
+                      timeFilter === f
+                        ? "bg-orange-500 text-white border-orange-500"
+                        : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"
+                    }`}
+                  >
+                    {f}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5 block">Cuisine</label>
+              <div className="flex gap-2 flex-wrap">
+                {CUISINE_FILTERS.map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setCuisineFilter(f)}
+                    className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-all ${
+                      cuisineFilter === f
+                        ? "bg-orange-500 text-white border-orange-500"
+                        : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"
+                    }`}
+                  >
+                    {f}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Body */}
@@ -223,48 +295,53 @@ export default function Browse() {
               style={{ height: 420 }}
             >
               {/* Stack: next-next */}
-              <SwipeCard recipe={nextNextRecipe} offset={16} scale={0.88} opacity={0.5} />
+              {nextNextRecipe && <SwipeCard recipe={nextNextRecipe} offset={16} scale={0.88} opacity={0.5} />}
               {/* Stack: next */}
-              <SwipeCard recipe={nextRecipe} offset={8} scale={0.94} opacity={0.75} />
+              {nextRecipe && <SwipeCard recipe={nextRecipe} offset={8} scale={0.94} opacity={0.75} />}
               {/* Top card */}
-              <div
-                className="absolute inset-0 rounded-3xl overflow-hidden shadow-2xl cursor-grab active:cursor-grabbing"
-                style={{
-                  transform: `
-                    translateX(${animating === "left" ? -300 : animating === "right" ? 300 : 0}px)
-                    rotate(${animating === "left" ? -15 : animating === "right" ? 15 : 0}deg)
-                    scale(1)
-                  `,
-                  opacity: animating ? 0 : 1,
-                  transition: "transform 0.35s cubic-bezier(.34,1.56,.64,1), opacity 0.3s ease",
-                  zIndex: 10,
-                }}
-              >
-                <div className={`absolute inset-0 bg-gradient-to-br ${currentRecipe.gradient} opacity-90`} />
-                <div className="relative h-full flex flex-col justify-between p-6 text-white">
-                  <div className="flex items-start justify-between">
-                    <div className="flex flex-wrap gap-1.5">
-                      {currentRecipe.tags.slice(0, 2).map((t) => (
-                        <span key={t} className="text-xs bg-white/20 backdrop-blur-sm px-2.5 py-0.5 rounded-full font-medium">
-                          {t}
-                        </span>
-                      ))}
+              {currentRecipe && (
+                <div
+                  className="absolute inset-0 rounded-3xl overflow-hidden shadow-2xl cursor-grab active:cursor-grabbing"
+                  style={{
+                    transform: `
+                      translateX(${animating === "left" ? -300 : animating === "right" ? 300 : 0}px)
+                      rotate(${animating === "left" ? -15 : animating === "right" ? 15 : 0}deg)
+                      scale(1)
+                    `,
+                    opacity: animating ? 0 : 1,
+                    transition: "transform 0.35s cubic-bezier(.34,1.56,.64,1), opacity 0.3s ease",
+                    zIndex: 10,
+                  }}
+                >
+                  {currentRecipe.image ? (
+                    <img src={currentRecipe.image} alt={currentRecipe.name} className="absolute inset-0 w-full h-full object-cover" />
+                  ) : (
+                    <div className="absolute inset-0 bg-gradient-to-br from-orange-400 to-pink-400 opacity-90" />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+                  <div className="relative h-full flex flex-col justify-between p-6 text-white">
+                    <div className="flex items-start justify-between">
+                      <div className="flex flex-wrap gap-1.5">
+                        {currentRecipe.tags.slice(0, 2).map((t) => (
+                          <span key={t} className="text-xs bg-white/20 backdrop-blur-sm px-2.5 py-0.5 rounded-full font-medium">
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-1 bg-white/20 backdrop-blur-sm px-2.5 py-0.5 rounded-full text-xs font-semibold">
+                        <Star size={11} className="fill-white" /> {currentRecipe.difficulty}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1 bg-white/20 backdrop-blur-sm px-2.5 py-0.5 rounded-full text-xs font-semibold">
-                      <Star size={11} className="fill-white" /> {currentRecipe.rating}
-                    </div>
-                  </div>
-                  <div className="text-7xl text-center select-none">{currentRecipe.emoji}</div>
-                  <div>
-                    <h2 className="text-2xl font-bold leading-tight mb-2">{currentRecipe.title}</h2>
-                    <div className="flex items-center gap-4 text-sm text-white/80">
-                      <span className="flex items-center gap-1"><Clock size={13} /> {currentRecipe.time}</span>
-                      <span className="flex items-center gap-1"><Users size={13} /> {currentRecipe.servings} serv.</span>
-                      <span className="flex items-center gap-1"><Flame size={13} /> {currentRecipe.calories} cal</span>
+                    <div>
+                      <h2 className="text-2xl font-bold leading-tight mb-2">{currentRecipe.name}</h2>
+                      <div className="flex items-center gap-4 text-sm text-white/80">
+                        <span className="flex items-center gap-1"><Clock size={13} /> {currentRecipe.cook_time}</span>
+                        {currentRecipe.cuisine && <span className="flex items-center gap-1">🌍 {currentRecipe.cuisine}</span>}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Action buttons */}
@@ -278,7 +355,7 @@ export default function Browse() {
               </button>
 
               <div className="text-xs text-gray-400 font-medium text-center leading-tight">
-                {currentIndex + 1} / {RECIPES.length}
+                {currentIndex + 1} / {filteredRecipes.length}
               </div>
 
               <button
@@ -308,79 +385,69 @@ export default function Browse() {
           </div>
 
           {/* ── Info panel (desktop only) ─────────────────────────────────── */}
-          <div className="hidden lg:flex flex-col gap-4 w-80 xl:w-96 shrink-0">
+          {currentRecipe && (
+            <div className="hidden lg:flex flex-col gap-4 w-80 xl:w-96 shrink-0">
 
-            {/* Recipe detail card */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-              {/* Gradient strip */}
-              <div className={`h-2 bg-gradient-to-r ${currentRecipe.gradient}`} />
-
-              <div className="p-5">
-                <div className="flex items-start justify-between mb-3">
-                  <h2 className="text-lg font-bold text-gray-900 leading-tight">{currentRecipe.title}</h2>
-                  <span className="text-2xl ml-2 shrink-0">{currentRecipe.emoji}</span>
-                </div>
-
-                <div className="flex flex-wrap gap-1.5 mb-4">
-                  {currentRecipe.tags.map((t) => (
-                    <span key={t} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium">
-                      {t}
-                    </span>
-                  ))}
-                </div>
-
-                <p className="text-sm text-gray-600 leading-relaxed mb-4">{currentRecipe.description}</p>
-
-                {/* Stats */}
-                <div className="grid grid-cols-3 gap-3 mb-4">
-                  {[
-                    { label: "Time", value: currentRecipe.time, icon: Clock },
-                    { label: "Servings", value: `${currentRecipe.servings}`, icon: Users },
-                    { label: "Calories", value: `${currentRecipe.calories}`, icon: Flame },
-                  ].map(({ label, value, icon: Icon }) => (
-                    <div key={label} className="bg-gray-50 rounded-xl p-2.5 text-center">
-                      <Icon size={14} className="mx-auto text-gray-400 mb-1" />
-                      <div className="text-sm font-bold text-gray-800">{value}</div>
-                      <div className="text-xs text-gray-400">{label}</div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Ingredients */}
-                <div className="border-t border-gray-100 pt-4">
-                  <div className="flex items-center gap-1.5 mb-2.5">
-                    <Leaf size={13} className="text-green-500" />
-                    <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Ingredients</span>
+              {/* Recipe detail card */}
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="p-5">
+                  <div className="flex items-start justify-between mb-3">
+                    <h2 className="text-lg font-bold text-gray-900 leading-tight">{currentRecipe.name}</h2>
                   </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {currentRecipe.ingredients.map((ing) => (
-                      <span key={ing} className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full">
-                        {ing}
+
+                  <div className="flex flex-wrap gap-1.5 mb-4">
+                    {currentRecipe.tags.map((t) => (
+                      <span key={t} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium">
+                        {t}
                       </span>
                     ))}
                   </div>
-                </div>
-              </div>
-            </div>
 
-            {/* Navigation between recipes */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-              <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-3">Up next</p>
-              <div className="flex flex-col gap-2">
-                {[nextRecipe, nextNextRecipe].map((r, i) => (
-                  <div key={r.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer">
-                    <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${r.gradient} flex items-center justify-center text-lg shrink-0 opacity-${i === 0 ? "100" : "60"}`}>
-                      {r.emoji}
+                  {/* Stats */}
+                  <div className="grid grid-cols-2 gap-3 mb-4">
+                    <div className="bg-gray-50 rounded-xl p-2.5 text-center">
+                      <Clock size={14} className="mx-auto text-gray-400 mb-1" />
+                      <div className="text-sm font-bold text-gray-800">{currentRecipe.cook_time}</div>
+                      <div className="text-xs text-gray-400">Time</div>
                     </div>
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium text-gray-800 truncate">{r.title}</div>
-                      <div className="text-xs text-gray-400">{r.time} · {r.calories} cal</div>
+                    <div className="bg-gray-50 rounded-xl p-2.5 text-center">
+                      <Star size={14} className="mx-auto text-gray-400 mb-1" />
+                      <div className="text-sm font-bold text-gray-800">{currentRecipe.difficulty}</div>
+                      <div className="text-xs text-gray-400">Difficulty</div>
                     </div>
                   </div>
-                ))}
+
+                  {/* Ingredients */}
+                  <div className="border-t border-gray-100 pt-4">
+                    <div className="flex items-center gap-1.5 mb-2.5">
+                      <Leaf size={13} className="text-green-500" />
+                      <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Ingredients ({currentRecipe.ingredients.length})</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                      {currentRecipe.ingredients.slice(0, 10).map((ing, i) => (
+                        <span key={i} className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full">
+                          {ing}
+                        </span>
+                      ))}
+                      {currentRecipe.ingredients.length > 10 && (
+                        <span className="text-xs text-gray-400 px-2 py-0.5">
+                          +{currentRecipe.ingredients.length - 10} more
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
+
+              {/* Source info */}
+              {currentRecipe.source && (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+                  <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-2">Recipe Source</p>
+                  <p className="text-sm text-gray-700">{currentRecipe.source}</p>
+                </div>
+              )}
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
