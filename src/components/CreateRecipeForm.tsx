@@ -12,6 +12,17 @@ import { useQueryClient } from '@tanstack/react-query';
 
 const FOODISH_API = 'https://foodish-api.com/api/';
 
+async function getRandomFoodishImage(): Promise<string | null> {
+  try {
+    const res = await fetch(FOODISH_API);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return typeof data?.image === 'string' ? data.image : null;
+  } catch {
+    return null;
+  }
+}
+
 interface Props {
   onClose: () => void;
 }
