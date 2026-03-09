@@ -10,6 +10,7 @@ import {
   Loader2,
   Check,
   ShoppingCart,
+  Play,
 } from "lucide-react";
 import { useBrowseFeed } from "@/hooks/useBrowseFeed";
 import { useNavigate } from "react-router-dom";
@@ -23,7 +24,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-
+import { Button } from "@/components/ui/button";
+import NutritionCard from "@/components/NutritionCard";
+import { toast } from "sonner";
 interface Recipe {
   id: string;
   name: string;
@@ -43,7 +46,7 @@ const CUISINE_FILTERS = ["All", "Italian", "Asian", "Mexican", "Mediterranean", 
 export default function Browse() {
   const navigate = useNavigate();
   const { recipes, loading, loaded, loadFeed } = useBrowseFeed();
-  const { pantryList, likeRecipe, likedRecipes } = useStore();
+  const { pantryList, likeRecipe, likedRecipes, addCustomGroceryItem } = useStore();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [animating, setAnimating] = useState<"left" | "right" | null>(null);
   const [difficultyFilter, setDifficultyFilter] = useState("All");
@@ -522,15 +525,29 @@ export default function Browse() {
                       </span>
                     ))}
                   </div>
+                  {/* Add missing to grocery */}
+                  {selectedMatch.missing.length > 0 && (
+                    <button
+                      onClick={() => {
+                        selectedMatch.missing.forEach((ing) => {
+                          addCustomGroceryItem(ing, "1");
+                        });
+                        toast.success(`Added ${selectedMatch.missing.length} items to grocery list`);
+                      }}
+                      className="mt-3 flex items-center gap-2 text-sm text-primary hover:text-primary/80 font-semibold transition-colors"
+                    >
+                      <ShoppingCart size={14} /> Add {selectedMatch.missing.length} missing items to grocery list
+                    </button>
+                  )}
                 </div>
 
                 {/* Instructions */}
-                {selectedRecipe.instructions.length > 0 && (
+                {selectedRecipe.instructions && selectedRecipe.instructions.length > 0 ? (
                   <div>
-                    <h3 className="text-sm font-semibold text-gray-900 mb-3">Instructions</h3>
+                    <h3 className="text-sm font-semibold text-foreground mb-3">Instructions</h3>
                     <ol className="space-y-3">
                       {selectedRecipe.instructions.map((step, i) => (
-                        <li key={i} className="flex gap-3 text-sm text-gray-700">
+                        <li key={i} className="flex gap-3 text-sm text-muted-foreground">
                           <span className="flex-shrink-0 w-6 h-6 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center text-xs font-bold">
                             {i + 1}
                           </span>
@@ -539,7 +556,30 @@ export default function Browse() {
                       ))}
                     </ol>
                   </div>
+                ) : (
+                  <div className="text-sm text-muted-foreground italic">
+                    No instructions available for this recipe.
+                  </div>
                 )}
+
+                {/* Nutrition */}
+                <NutritionCard
+                  recipeId={selectedRecipe.id}
+                  recipeName={selectedRecipe.name}
+                  ingredients={selectedRecipe.ingredients || []}
+                  servings={4}
+                />
+
+                {/* Start cooking */}
+                <Button
+                  onClick={() => {
+                    setSelectedRecipe(null);
+                    navigate(`/cook/${selectedRecipe.id}`);
+                  }}
+                  className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3 rounded-xl"
+                >
+                  <Play size={18} /> Start Cooking
+                </Button>
               </div>
             )}
           </ScrollArea>
