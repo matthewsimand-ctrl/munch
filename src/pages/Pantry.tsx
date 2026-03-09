@@ -38,11 +38,13 @@ const STATUS_CONFIG: Record<Status, { label: string; bg: string; text: string; i
 };
 
 export default function Pantry() {
+  const navigate = useNavigate();
   const [items, setItems] = useState<PantryItem[]>(INITIAL_ITEMS);
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
   const [showAddForm, setShowAddForm] = useState(false);
   const [newItem, setNewItem] = useState({ name: "", quantity: "", category: "Grains & Pasta" });
+  const [isPremium] = useState(true); // TODO: Replace with actual premium status
 
   const filtered = items
     .filter((i) => activeCategory === "All" || i.category === activeCategory)
