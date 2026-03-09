@@ -87,6 +87,7 @@ export const useStore = create<AppState>()(
       groceryRecipes: [],
       customGroceryItems: [],
       recipeMealTags: {},
+      recipeTags: {},
       recipeFolders: [],
       onboardingComplete: false,
       tutorialComplete: false,
