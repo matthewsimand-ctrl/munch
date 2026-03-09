@@ -511,23 +511,41 @@ export default function SavedRecipes() {
                       </button>
                     )}
 
+                    {/* Folders with remove X */}
                     {folderNames.length > 0 && (
                       <div className="flex flex-wrap gap-1 mb-2">
-                        {folderNames.map((name) => (
-                          <span key={name} className="inline-flex items-center gap-0.5 text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full font-medium">
-                            <FolderOpen size={8} /> {name}
+                        {recipeFolders.filter(f => f.recipeIds.includes(recipe.id)).map((folder) => (
+                          <span key={folder.id} className="inline-flex items-center gap-0.5 text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full font-medium">
+                            <FolderOpen size={8} /> {folder.name}
+                            <button
+                              onClick={(e) => { e.stopPropagation(); removeRecipeFromFolder(folder.id, recipe.id); toast.success(`Removed from ${folder.name}`); }}
+                              className="ml-0.5 hover:text-red-500 transition-colors"
+                            >
+                              <X size={8} />
+                            </button>
                           </span>
                         ))}
                       </div>
                     )}
 
-                    {/* Tags with edit */}
+                    {/* Tags with remove X */}
                     <div className="flex flex-wrap gap-1 mb-2">
-                      {allRecipeTags.slice(0, 3).map((t) => (
-                        <span key={t} className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
-                          {t}
-                        </span>
-                      ))}
+                      {allRecipeTags.slice(0, 3).map((t) => {
+                        const isUserTag = userTags.includes(t);
+                        return (
+                          <span key={t} className="inline-flex items-center gap-0.5 text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
+                            {t}
+                            {isUserTag && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); removeRecipeTag(recipe.id, t); }}
+                                className="ml-0.5 hover:text-red-500 transition-colors"
+                              >
+                                <X size={10} />
+                              </button>
+                            )}
+                          </span>
+                        );
+                      })}
                       {allRecipeTags.length > 3 && (
                         <span className="text-xs text-muted-foreground">+{allRecipeTags.length - 3}</span>
                       )}
