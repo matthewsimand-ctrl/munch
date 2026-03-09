@@ -5,94 +5,31 @@ import {
   Clock,
   Users,
   Star,
-  ChevronLeft,
-  ChevronRight,
   Flame,
   Leaf,
-  Info,
-  BookOpen,
+  ChefHat,
+  Filter,
+  Loader2,
 } from "lucide-react";
+import { useBrowseFeed } from "@/hooks/useBrowseFeed";
+import { useNavigate } from "react-router-dom";
 
-// ── Mock recipe data (replace with your real source) ─────────────────────────
-const RECIPES = [
-  {
-    id: 1,
-    title: "Shakshuka with Feta",
-    time: "25 min",
-    servings: 4,
-    rating: 4.8,
-    calories: 320,
-    tags: ["Vegetarian", "High Protein", "Mediterranean"],
-    description:
-      "Poached eggs nestled in a rich, spiced tomato sauce with crumbled feta, fresh herbs, and a side of crusty bread. A timeless one-pan wonder.",
-    ingredients: ["Eggs", "Canned tomatoes", "Bell peppers", "Feta", "Cumin", "Paprika", "Garlic", "Onion"],
-    emoji: "🍳",
-    gradient: "from-amber-400 via-orange-400 to-red-400",
-    difficulty: "Easy",
-  },
-  {
-    id: 2,
-    title: "Thai Green Curry",
-    time: "35 min",
-    servings: 4,
-    rating: 4.7,
-    calories: 480,
-    tags: ["Gluten-Free", "Spicy", "Asian"],
-    description:
-      "Fragrant green curry paste, creamy coconut milk, fresh vegetables and your choice of protein. A weeknight favourite that tastes like takeout — only better.",
-    ingredients: ["Green curry paste", "Coconut milk", "Thai basil", "Bamboo shoots", "Lime", "Fish sauce", "Zucchini"],
-    emoji: "🍛",
-    gradient: "from-green-400 via-emerald-400 to-teal-400",
-    difficulty: "Medium",
-  },
-  {
-    id: 3,
-    title: "Lemon Herb Salmon",
-    time: "20 min",
-    servings: 2,
-    rating: 4.9,
-    calories: 410,
-    tags: ["High Protein", "Omega-3", "Quick"],
-    description:
-      "Pan-seared salmon glazed with lemon butter, fresh dill, and capers. Ready in under 25 minutes and impressive enough for company.",
-    ingredients: ["Salmon fillets", "Lemon", "Dill", "Capers", "Butter", "Garlic", "Olive oil"],
-    emoji: "🐟",
-    gradient: "from-blue-400 via-cyan-400 to-sky-400",
-    difficulty: "Easy",
-  },
-  {
-    id: 4,
-    title: "Mushroom Risotto",
-    time: "45 min",
-    servings: 4,
-    rating: 4.6,
-    calories: 520,
-    tags: ["Vegetarian", "Italian", "Comfort"],
-    description:
-      "Creamy Arborio rice slow-cooked with a mix of wild mushrooms, white wine, parmesan, and thyme. The ultimate cosy dinner.",
-    ingredients: ["Arborio rice", "Mixed mushrooms", "Parmesan", "White wine", "Shallots", "Thyme", "Butter", "Stock"],
-    emoji: "🍄",
-    gradient: "from-amber-600 via-yellow-500 to-amber-400",
-    difficulty: "Medium",
-  },
-  {
-    id: 5,
-    title: "BBQ Chicken Bowl",
-    time: "30 min",
-    servings: 2,
-    rating: 4.7,
-    calories: 550,
-    tags: ["High Protein", "American", "Meal Prep"],
-    description:
-      "Smoky BBQ chicken over fluffy rice with corn, avocado, red onion and a chipotle lime drizzle. Meal-preppable and endlessly customisable.",
-    ingredients: ["Chicken thighs", "BBQ sauce", "Rice", "Corn", "Avocado", "Red onion", "Lime", "Cilantro"],
-    emoji: "🍗",
-    gradient: "from-rose-500 via-orange-400 to-yellow-400",
-    difficulty: "Easy",
-  },
-];
+interface Recipe {
+  id: string;
+  name: string;
+  image: string;
+  cook_time: string;
+  difficulty: string;
+  ingredients: string[];
+  tags: string[];
+  instructions: string[];
+  source: string;
+  cuisine?: string;
+}
 
-type Recipe = typeof RECIPES[0];
+const DIFFICULTY_FILTERS = ["All", "Beginner", "Intermediate", "Advanced"];
+const TIME_FILTERS = ["All", "< 30 min", "30-60 min", "> 60 min"];
+const CUISINE_FILTERS = ["All", "Italian", "Asian", "Mexican", "Mediterranean", "American"];
 
 function SwipeCard({
   recipe,
