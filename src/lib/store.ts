@@ -326,6 +326,7 @@ export const useStore = create<AppState>()(
           cookedRecipeIds: [],
           totalXp: 0,
           earnedBadges: [],
+          archiveBehavior: 'ask' as const,
         }),
     }),
     { name: 'chefstack-storage' }
