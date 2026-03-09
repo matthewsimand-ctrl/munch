@@ -8,7 +8,12 @@ import {
   ChevronDown,
   Sparkles,
   Share2,
+  Loader2,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useStore } from "@/lib/store";
+import { toast } from "sonner";
+import { getCategory } from "@/lib/ingredientCategories";
 
 // ── Types & data ──────────────────────────────────────────────────────────────
 interface GroceryItem {
@@ -20,18 +25,6 @@ interface GroceryItem {
   fromRecipe?: string;
 }
 
-const INITIAL_ITEMS: GroceryItem[] = [
-  { id: 1, name: "Arborio Rice", quantity: "500g", category: "Grains & Pasta", checked: false, fromRecipe: "Mushroom Risotto" },
-  { id: 2, name: "Mixed Mushrooms", quantity: "300g", category: "Fresh Produce", checked: false, fromRecipe: "Mushroom Risotto" },
-  { id: 3, name: "Parmesan", quantity: "100g", category: "Dairy", checked: true, fromRecipe: "Mushroom Risotto" },
-  { id: 4, name: "Green Curry Paste", quantity: "1 jar", category: "Sauces & Condiments", checked: false, fromRecipe: "Thai Green Curry" },
-  { id: 5, name: "Coconut Milk", quantity: "2 cans", category: "Canned Goods", checked: false, fromRecipe: "Thai Green Curry" },
-  { id: 6, name: "Salmon Fillets", quantity: "400g", category: "Meat & Fish", checked: false, fromRecipe: "Lemon Herb Salmon" },
-  { id: 7, name: "Fresh Dill", quantity: "1 bunch", category: "Fresh Produce", checked: true, fromRecipe: "Lemon Herb Salmon" },
-  { id: 8, name: "Eggs", quantity: "6", category: "Dairy", checked: false },
-  { id: 9, name: "Lemons", quantity: "3", category: "Fresh Produce", checked: false },
-];
-
 const CATEGORIES_ORDER = [
   "Fresh Produce",
   "Meat & Fish",
@@ -39,14 +32,29 @@ const CATEGORIES_ORDER = [
   "Grains & Pasta",
   "Canned Goods",
   "Sauces & Condiments",
+  "Other",
 ];
 
 export default function GroceryList() {
-  const [items, setItems] = useState<GroceryItem[]>(INITIAL_ITEMS);
+  const { customGroceryItems, removeCustomGroceryItem } = useStore();
+
+  // Merge store custom items into local state on first render
+  const [items, setItems] = useState<GroceryItem[]>(() => {
+    const storeItems: GroceryItem[] = customGroceryItems.map((item, i) => ({
+      id: Date.now() + i + 1000,
+      name: item.name,
+      quantity: item.quantity || "1",
+      category: getCategory(item.name) || "Other",
+      checked: false,
+    }));
+    return storeItems;
+  });
+
   const [newName, setNewName] = useState("");
   const [newQty, setNewQty] = useState("");
   const [newCat, setNewCat] = useState("Fresh Produce");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [fillingFromPlan, setFillingFromPlan] = useState(false);
 
   const toggle = (id: number) =>
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, checked: !i.checked } : i)));
@@ -69,6 +77,89 @@ export default function GroceryList() {
     setNewQty("");
   };
 
+  const handleAutoFill = async () => {
+    setFillingFromPlan(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Please sign in to use this feature");
+        return;
+      }
+
+      // Get the current week's meal plan
+      const today = new Date();
+      const dayOfWeek = today.getDay();
+      const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      const monday = new Date(today);
+      monday.setDate(today.getDate() + mondayOffset);
+      const weekStart = monday.toISOString().split("T")[0];
+
+      const { data: plans } = await supabase
+        .from("meal_plans")
+        .select("id")
+        .eq("user_id", session.user.id)
+        .eq("week_start", weekStart)
+        .limit(1);
+
+      if (!plans || plans.length === 0) {
+        toast.info("No meal plan found for this week. Create one in Meal Prep first!");
+        return;
+      }
+
+      const { data: planItems } = await supabase
+        .from("meal_plan_items")
+        .select("recipe_data, recipe_id")
+        .eq("meal_plan_id", plans[0].id);
+
+      if (!planItems || planItems.length === 0) {
+        toast.info("Your meal plan has no recipes yet.");
+        return;
+      }
+
+      const existingNames = new Set(items.map(i => i.name.toLowerCase()));
+      let addedCount = 0;
+      const newItems: GroceryItem[] = [];
+
+      for (const item of planItems) {
+        const recipeData = item.recipe_data as any;
+        if (!recipeData) continue;
+
+        const recipeName = recipeData.name || "Meal Plan Recipe";
+        const ingredients: string[] = Array.isArray(recipeData.ingredients)
+          ? recipeData.ingredients
+          : [];
+
+        for (const ing of ingredients) {
+          const ingName = ing.trim().toLowerCase();
+          if (!ingName || existingNames.has(ingName)) continue;
+          existingNames.add(ingName);
+
+          newItems.push({
+            id: Date.now() + addedCount + Math.random() * 10000,
+            name: ing.trim(),
+            quantity: "1",
+            category: getCategory(ing) || "Other",
+            checked: false,
+            fromRecipe: recipeName,
+          });
+          addedCount++;
+        }
+      }
+
+      if (addedCount === 0) {
+        toast.info("All meal plan ingredients are already in your list!");
+      } else {
+        setItems(prev => [...prev, ...newItems]);
+        toast.success(`Added ${addedCount} ingredients from your meal plan`);
+      }
+    } catch (e: any) {
+      console.error("Auto-fill error:", e);
+      toast.error("Failed to load meal plan");
+    } finally {
+      setFillingFromPlan(false);
+    }
+  };
+
   const displayItems = activeCategory
     ? items.filter((i) => i.category === activeCategory)
     : items;
@@ -81,6 +172,12 @@ export default function GroceryList() {
     if (catItems.length > 0) acc[cat] = catItems;
     return acc;
   }, {});
+
+  // Also group uncategorized items
+  const uncategorized = displayItems.filter(i => !CATEGORIES_ORDER.includes(i.category));
+  if (uncategorized.length > 0) {
+    groupedItems["Other"] = [...(groupedItems["Other"] || []), ...uncategorized];
+  }
 
   return (
     <div className="min-h-full bg-gray-50">
@@ -102,8 +199,13 @@ export default function GroceryList() {
                 Clear done
               </button>
             )}
-            <button className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-sm">
-              <Sparkles size={14} /> Auto-fill from Meal Plan
+            <button
+              onClick={handleAutoFill}
+              disabled={fillingFromPlan}
+              className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-sm disabled:opacity-50"
+            >
+              {fillingFromPlan ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+              Auto-fill from Meal Plan
             </button>
           </div>
         </div>
@@ -166,7 +268,6 @@ export default function GroceryList() {
                         item.checked ? "bg-gray-50" : "hover:bg-gray-50"
                       }`}
                     >
-                      {/* Checkbox */}
                       <button
                         onClick={() => toggle(item.id)}
                         className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
@@ -178,7 +279,6 @@ export default function GroceryList() {
                         {item.checked && <Check size={11} className="text-white" strokeWidth={3} />}
                       </button>
 
-                      {/* Name */}
                       <div className="flex-1 min-w-0">
                         <span className={`text-sm font-medium transition-colors ${item.checked ? "text-gray-400 line-through" : "text-gray-800"}`}>
                           {item.name}
@@ -188,12 +288,10 @@ export default function GroceryList() {
                         )}
                       </div>
 
-                      {/* Quantity */}
                       <span className={`text-sm shrink-0 ${item.checked ? "text-gray-400" : "text-gray-600 font-medium"}`}>
                         {item.quantity}
                       </span>
 
-                      {/* Remove */}
                       <button
                         onClick={() => remove(item.id)}
                         className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-300 hover:text-red-400 shrink-0"
@@ -210,6 +308,7 @@ export default function GroceryList() {
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm py-20 text-center">
                 <ShoppingCart size={32} className="mx-auto text-gray-300 mb-3" />
                 <p className="text-sm text-gray-500">Your grocery list is empty</p>
+                <p className="text-xs text-gray-400 mt-1">Add items manually or auto-fill from your meal plan</p>
               </div>
             )}
           </div>
@@ -274,20 +373,19 @@ export default function GroceryList() {
             </div>
 
             {/* Recipes sourced from */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-              <h2 className="text-sm font-bold text-gray-800 mb-3">From your meal plan</h2>
-              <div className="space-y-2">
-                {Array.from(new Set(items.map((i) => i.fromRecipe).filter(Boolean))).map((recipe) => (
-                  <div key={recipe} className="flex items-center gap-2.5 text-sm text-gray-600 px-2 py-1.5 rounded-xl bg-gray-50">
-                    <Package size={12} className="text-gray-400 shrink-0" />
-                    <span className="truncate">{recipe}</span>
-                  </div>
-                ))}
+            {items.some(i => i.fromRecipe) && (
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                <h2 className="text-sm font-bold text-gray-800 mb-3">From your meal plan</h2>
+                <div className="space-y-2">
+                  {Array.from(new Set(items.map((i) => i.fromRecipe).filter(Boolean))).map((recipe) => (
+                    <div key={recipe} className="flex items-center gap-2.5 text-sm text-gray-600 px-2 py-1.5 rounded-xl bg-gray-50">
+                      <Package size={12} className="text-gray-400 shrink-0" />
+                      <span className="truncate">{recipe}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <button className="w-full mt-3 text-xs font-semibold text-orange-500 hover:text-orange-600 py-2 border border-orange-200 rounded-xl hover:bg-orange-50 transition-colors flex items-center justify-center gap-1.5">
-                <Share2 size={12} /> Share list
-              </button>
-            </div>
+            )}
           </div>
         </div>
       </div>
