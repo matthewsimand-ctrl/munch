@@ -493,7 +493,7 @@ export default function Browse() {
           <DialogHeader>
             <DialogTitle className="text-xl font-bold">{selectedRecipe?.name}</DialogTitle>
           </DialogHeader>
-          <ScrollArea className="flex-1 -mx-6 px-6">
+          <ScrollArea className="flex-1 min-h-0 -mx-6 px-6">
             {selectedRecipe && selectedMatch && (
               <div className="space-y-6 pb-4">
                 {/* Image */}
