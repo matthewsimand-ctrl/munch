@@ -185,7 +185,25 @@ export default function SavedRecipes() {
     toast.success(`Added ${match.missing.length} items to grocery list`);
   };
 
-  // Get folder names for a recipe
+  const quickAnalyzeNutrition = async (recipe: Recipe) => {
+    setAnalyzingNutrition(recipe.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('analyze-nutrition', {
+        body: { recipeName: recipe.name, ingredients: recipe.ingredients, servings: recipe.servings || 4 },
+      });
+      if (error || !data?.success) {
+        toast.error('Failed to analyze nutrition');
+        return;
+      }
+      cacheNutrition(recipe.id, data.nutrition);
+      toast.success('Nutrition facts generated!');
+    } catch {
+      toast.error('Something went wrong');
+    } finally {
+      setAnalyzingNutrition(null);
+    }
+  };
+
   const getFolderNames = (recipeId: string) => {
     return recipeFolders.filter((f) => f.recipeIds.includes(recipeId)).map((f) => f.name);
   };
