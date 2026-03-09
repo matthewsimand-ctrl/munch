@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Play, ChefHat, Clock, Users } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { useDbRecipes } from "@/hooks/useDbRecipes";
+import { useCurrentMealPlan } from "@/hooks/useCurrentMealPlan";
 import { Button } from "@/components/ui/button";
 import type { Recipe } from "@/data/recipes";
 
@@ -31,6 +32,7 @@ export default function LetMeCook() {
   const navigate = useNavigate();
   const { likedRecipes, savedApiRecipes } = useStore();
   const { data: dbRecipes = [] } = useDbRecipes();
+  const { meal: currentPlannedMeal, loading: currentMealLoading } = useCurrentMealPlan();
 
   const recipes = useMemo(() => likedRecipes.map((id) => {
     const dbRecipe = dbRecipes.find((r) => r.id === id);
@@ -49,6 +51,26 @@ export default function LetMeCook() {
       </div>
 
       <div className="max-w-5xl mx-auto px-6 py-6">
+        <div className="bg-orange-50 border border-orange-100 rounded-2xl p-4 mb-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold text-orange-600 uppercase tracking-wide">From Meal Prep · Right now</p>
+              <h2 className="text-base font-bold text-gray-900 mt-1">
+                {currentMealLoading
+                  ? "Loading your planned meal..."
+                  : currentPlannedMeal
+                    ? currentPlannedMeal.recipe_name
+                    : "No meal is planned for this time slot"}
+              </h2>
+            </div>
+            {currentPlannedMeal && (
+              <Button size="sm" onClick={() => navigate(`/cook/${currentPlannedMeal.recipe_id}`)}>
+                <Play className="h-3.5 w-3.5 mr-1.5" /> Start Planned Meal
+              </Button>
+            )}
+          </div>
+        </div>
+
         {recipes.length === 0 ? (
           <div className="bg-white border border-gray-100 rounded-2xl p-10 text-center shadow-sm">
             <ChefHat className="h-10 w-10 mx-auto text-gray-300" />

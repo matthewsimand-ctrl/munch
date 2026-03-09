@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { getLevel } from "@/components/ChefCompanion";
 import type { Recipe } from "@/data/recipes";
+import { useCurrentMealPlan } from "@/hooks/useCurrentMealPlan";
 
 const ACTIVITY = [
   { type: "saved", text: "Saved Shakshuka with Feta", time: "2h ago", emoji: "🍳" },
@@ -51,6 +52,7 @@ export default function Dashboard() {
   const [suggestionOffset, setSuggestionOffset] = useState(0);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
+  const { meal: currentPlannedMeal, loading: currentMealLoading } = useCurrentMealPlan();
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -335,6 +337,24 @@ export default function Dashboard() {
                 </Link>
               </div>
               <div className="space-y-2">
+                <div className="flex items-center gap-4 px-3 py-3 rounded-xl bg-orange-50 border border-orange-100">
+                  <div className="text-xs font-bold w-14 shrink-0 text-orange-600">Now</div>
+                  <div className="text-sm flex-1 text-gray-800 font-medium">
+                    {currentMealLoading
+                      ? 'Loading your current meal...'
+                      : currentPlannedMeal
+                        ? currentPlannedMeal.recipe_name
+                        : 'No meal planned for this time slot'}
+                  </div>
+                  {currentPlannedMeal && (
+                    <button
+                      onClick={() => navigate(`/cook/${currentPlannedMeal.recipe_id}`)}
+                      className="text-xs text-orange-500 font-semibold hover:text-orange-600"
+                    >
+                      Cook
+                    </button>
+                  )}
+                </div>
                 {MEAL_PLAN.map(({ day, meal, done }) => (
                   <div key={day} className={`flex items-center gap-4 px-3 py-2.5 rounded-xl transition-colors ${done ? "bg-green-50" : "bg-gray-50 hover:bg-gray-100"}`}>
                     <div className={`text-xs font-bold w-8 shrink-0 ${done ? "text-green-600" : "text-gray-500"}`}>{day}</div>
