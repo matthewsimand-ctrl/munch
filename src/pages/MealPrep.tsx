@@ -604,6 +604,43 @@ export default function MealPrep() {
         </DialogContent>
       </Dialog>
 
+      {/* Export PDF Dialog */}
+      <AlertDialog open={exportDialog} onOpenChange={setExportDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Export Meal Plan to PDF</AlertDialogTitle>
+            <AlertDialogDescription>
+              Choose what you'd like to export. The PDF will include all meals and their ingredients.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2 py-4">
+            <Button
+              variant="outline"
+              className="w-full justify-start"
+              onClick={() => exportPDF('week')}
+            >
+              <CalendarDays className="h-4 w-4 mr-2" />
+              Export Full Week
+            </Button>
+            <div className="grid grid-cols-2 gap-2">
+              {DAYS.map((day, di) => (
+                <Button
+                  key={di}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => exportPDF(di)}
+                >
+                  {day}
+                </Button>
+              ))}
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <BottomNav />
     </div>
   );
