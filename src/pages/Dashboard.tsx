@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   Flame, Clock, Heart, ShoppingCart, TrendingUp, ChevronRight,
-  Sparkles, Calendar, Star, Plus, Check, Users, BarChart3, MapPin,
-  Trophy, ChefHat, Zap,
+  Sparkles, Calendar, Star, Plus, Check, Users, MapPin,
+  Trophy, ChefHat, Zap, Award,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,6 +13,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { motion } from "framer-motion";
+import { getLevel } from "@/components/ChefCompanion";
 import type { Recipe } from "@/data/recipes";
 
 const ACTIVITY = [
