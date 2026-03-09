@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import {
   Flame, Clock, Heart, ShoppingCart, TrendingUp, ChevronRight,
   Sparkles, Calendar, Star, Plus, Check, Users, BarChart3, MapPin,
+  Trophy, ChefHat, Zap,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -41,7 +42,7 @@ export default function Dashboard() {
   });
 
   const { recipes: browseRecipes, loading: browseLoading, loadFeed } = useBrowseFeed();
-  const { likedRecipes, likeRecipe, savedApiRecipes, pantryList, addCustomGroceryItem } = useStore();
+  const { likedRecipes, likeRecipe, savedApiRecipes, pantryList, addCustomGroceryItem, cookingStreak, totalMealsCooked, cookedRecipeIds } = useStore();
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
 
   const likedSet = useMemo(() => new Set(likedRecipes), [likedRecipes]);
@@ -49,11 +50,11 @@ export default function Dashboard() {
   const suggestedRecipes = browseRecipes.slice(0, 3);
 
   const stats = useMemo(() => [
+    { label: "Cooking Streak", value: `${cookingStreak}🔥`, icon: Flame, color: "text-orange-500", bg: "bg-orange-50" },
+    { label: "Meals Cooked", value: String(totalMealsCooked), icon: ChefHat, color: "text-emerald-500", bg: "bg-emerald-50" },
     { label: "Recipes Saved", value: String(likedRecipes.length), icon: Heart, color: "text-rose-500", bg: "bg-rose-50" },
-    { label: "Meals This Week", value: "14", icon: Flame, color: "text-orange-500", bg: "bg-orange-50" },
-    { label: "Avg Cook Time", value: "28m", icon: Clock, color: "text-blue-500", bg: "bg-blue-50" },
-    { label: "Items to Buy", value: "9", icon: ShoppingCart, color: "text-violet-500", bg: "bg-violet-50" },
-  ], [likedRecipes.length]);
+    { label: "Unique Recipes", value: String(cookedRecipeIds.length), icon: Trophy, color: "text-amber-500", bg: "bg-amber-50" },
+  ], [likedRecipes.length, cookingStreak, totalMealsCooked, cookedRecipeIds.length]);
 
   useEffect(() => {
     loadFeed();

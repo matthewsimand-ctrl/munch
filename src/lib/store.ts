@@ -40,6 +40,10 @@ interface AppState {
   onboardingComplete: boolean;
   tutorialComplete: boolean;
   showTutorial: boolean;
+  cookingStreak: number;
+  lastCookedDate: string | null; // ISO date string
+  totalMealsCooked: number;
+  cookedRecipeIds: string[];
 
   setUserProfile: (profile: Partial<UserProfile>) => void;
   completeOnboarding: () => void;
@@ -66,6 +70,7 @@ interface AppState {
   addRecipeToFolder: (folderId: string, recipeId: string) => void;
   removeRecipeFromFolder: (folderId: string, recipeId: string) => void;
   completeTutorial: () => void;
+  markRecipeCooked: (recipeId: string) => void;
   resetStore: () => void;
 }
 
@@ -92,6 +97,10 @@ export const useStore = create<AppState>()(
       onboardingComplete: false,
       tutorialComplete: false,
       showTutorial: false,
+      cookingStreak: 0,
+      lastCookedDate: null,
+      totalMealsCooked: 0,
+      cookedRecipeIds: [],
 
       setShowTutorial: (show) => set({ showTutorial: show }),
 
@@ -254,6 +263,28 @@ export const useStore = create<AppState>()(
 
       completeTutorial: () => set({ tutorialComplete: true }),
 
+      markRecipeCooked: (recipeId) =>
+        set((state) => {
+          const today = new Date().toISOString().slice(0, 10);
+          const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+          let newStreak = state.cookingStreak;
+          if (state.lastCookedDate === today) {
+            // Already cooked today, no streak change
+          } else if (state.lastCookedDate === yesterday) {
+            newStreak = state.cookingStreak + 1;
+          } else {
+            newStreak = 1;
+          }
+          return {
+            cookingStreak: newStreak,
+            lastCookedDate: today,
+            totalMealsCooked: state.totalMealsCooked + 1,
+            cookedRecipeIds: state.cookedRecipeIds.includes(recipeId)
+              ? state.cookedRecipeIds
+              : [...state.cookedRecipeIds, recipeId],
+          };
+        }),
+
       resetStore: () =>
         set({
           userProfile: initialProfile,
@@ -268,6 +299,10 @@ export const useStore = create<AppState>()(
           onboardingComplete: false,
           tutorialComplete: false,
           showTutorial: false,
+          cookingStreak: 0,
+          lastCookedDate: null,
+          totalMealsCooked: 0,
+          cookedRecipeIds: [],
         }),
     }),
     { name: 'chefstack-storage' }
