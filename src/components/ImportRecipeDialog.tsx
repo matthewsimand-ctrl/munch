@@ -166,8 +166,15 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
     setLastImportError('');
 
     try {
+      const normalizedPayload = payload.url
+        ? {
+            ...payload,
+            url: /^https?:\/\//i.test(payload.url.trim()) ? payload.url.trim() : `https://${payload.url.trim()}`,
+          }
+        : payload;
+
       const { data, error } = await supabase.functions.invoke('import-recipe', {
-        body: payload,
+        body: normalizedPayload,
       });
 
       if (error || !data?.success) {
