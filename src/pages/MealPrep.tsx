@@ -422,7 +422,7 @@ export default function MealPrep() {
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" onClick={exportPDF}>
+                <Button variant="ghost" size="icon" onClick={() => setExportDialog(true)}>
                   <FileText className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
