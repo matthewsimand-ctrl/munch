@@ -70,12 +70,30 @@ const MEAL_PLAN = [
 ];
 
 export default function Dashboard() {
+  const [displayName, setDisplayName] = useState<string | null>(null);
   const [greeting] = useState(() => {
     const h = new Date().getHours();
     if (h < 12) return "Good morning";
     if (h < 17) return "Good afternoon";
     return "Good evening";
   });
+
+  useEffect(() => {
+    async function loadProfile() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const { data } = await supabase
+          .from('profiles')
+          .select('display_name')
+          .eq('user_id', session.user.id)
+          .single();
+        if (data?.display_name) {
+          setDisplayName(data.display_name);
+        }
+      }
+    }
+    loadProfile();
+  }, []);
 
   return (
     <div className="min-h-full bg-gray-50">
