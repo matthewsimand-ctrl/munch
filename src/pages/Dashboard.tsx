@@ -152,57 +152,7 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {/* XP & Badges */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-            <div className="flex items-center gap-2 mb-3">
-              <Star size={17} className="text-amber-500 fill-amber-500" />
-              <h2 className="text-base font-bold text-gray-900">Cooking XP</h2>
-              <span className="ml-auto text-sm font-bold text-amber-600">Level {levelInfo.level}</span>
-            </div>
-            <div className="relative h-3 bg-gray-100 rounded-full overflow-hidden mb-2">
-              <motion.div
-                className="absolute inset-y-0 left-0 bg-gradient-to-r from-amber-400 to-amber-500 rounded-full"
-                initial={{ width: 0 }}
-                animate={{ width: `${(levelInfo.current / levelInfo.needed) * 100}%` }}
-                transition={{ type: 'spring', stiffness: 80 }}
-              />
-            </div>
-            <div className="flex justify-between text-xs text-gray-500">
-              <span>{totalXp} total XP</span>
-              <span>{levelInfo.current}/{levelInfo.needed} to next level</span>
-            </div>
-          </div>
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-            <div className="flex items-center gap-2 mb-3">
-              <Award size={17} className="text-violet-500" />
-              <h2 className="text-base font-bold text-gray-900">Badges</h2>
-              <span className="ml-auto text-xs text-gray-400 font-semibold">
-                {BADGES.filter(b => b.unlocked).length}/{BADGES.length}
-              </span>
-            </div>
-            <div className="grid grid-cols-4 gap-2">
-              {BADGES.map(b => (
-                <div
-                  key={b.id}
-                  className={`relative flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${
-                    b.unlocked ? 'bg-amber-50' : 'bg-gray-50 opacity-40 grayscale'
-                  }`}
-                >
-                  {/* Info icon */}
-                  <div className="absolute top-1 right-1 group cursor-help">
-                    <div className="w-3.5 h-3.5 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center text-[8px] font-bold leading-none">i</div>
-                    <div className="absolute z-20 bottom-full right-0 mb-1 hidden group-hover:block w-32 p-1.5 bg-foreground text-background text-[10px] rounded-lg shadow-lg leading-snug">
-                      {b.desc}
-                    </div>
-                  </div>
-                  <span className="text-xl">{b.emoji}</span>
-                  <span className="text-[10px] font-semibold text-gray-700 text-center leading-tight">{b.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
@@ -319,7 +269,7 @@ export default function Dashboard() {
                   { label: "Find Recipe", to: "/swipe", emoji: "🔍" },
                   { label: "Add to Pantry", to: "/pantry", emoji: "📦" },
                   { label: "Grocery List", to: "/grocery", emoji: "🛒" },
-                  { label: "Plan Meals", to: "/meal-prep", emoji: "📅" },
+                  { label: "Plan Meals 🧠", to: "/meal-prep", emoji: "📅" },
                 ].map(({ label, to, emoji }) => (
                   <Link key={label} to={to} className="flex flex-col items-center gap-1.5 p-3 bg-gray-50 hover:bg-orange-50 rounded-xl transition-colors text-center group">
                     <span className="text-2xl">{emoji}</span>
@@ -343,6 +293,57 @@ export default function Dashboard() {
                 ))}
               </div>
             </section>
+          </div>
+        </div>
+
+        {/* XP & Badges — at bottom */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-8">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <Star size={17} className="text-amber-500 fill-amber-500" />
+              <h2 className="text-base font-bold text-gray-900">Cooking XP</h2>
+              <span className="ml-auto text-sm font-bold text-amber-600">Level {levelInfo.level}</span>
+            </div>
+            <div className="relative h-3 bg-gray-100 rounded-full overflow-hidden mb-2">
+              <motion.div
+                className="absolute inset-y-0 left-0 bg-gradient-to-r from-amber-400 to-amber-500 rounded-full"
+                initial={{ width: 0 }}
+                animate={{ width: `${(levelInfo.current / levelInfo.needed) * 100}%` }}
+                transition={{ type: 'spring', stiffness: 80 }}
+              />
+            </div>
+            <div className="flex justify-between text-xs text-gray-500">
+              <span>{totalXp} total XP</span>
+              <span>{levelInfo.current}/{levelInfo.needed} to next level</span>
+            </div>
+          </div>
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <Award size={17} className="text-violet-500" />
+              <h2 className="text-base font-bold text-gray-900">Badges</h2>
+              <span className="ml-auto text-xs text-gray-400 font-semibold">
+                {BADGES.filter(b => b.unlocked).length}/{BADGES.length}
+              </span>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              {BADGES.map(b => (
+                <div
+                  key={b.id}
+                  className={`relative flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${
+                    b.unlocked ? 'bg-amber-50' : 'bg-gray-50 opacity-40 grayscale'
+                  }`}
+                >
+                  <div className="absolute top-1 right-1 group cursor-help z-30">
+                    <div className="w-3.5 h-3.5 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center text-[8px] font-bold leading-none">i</div>
+                    <div className="absolute z-50 bottom-full right-0 mb-1 hidden group-hover:block w-32 p-1.5 bg-gray-800 text-white text-[10px] rounded-lg shadow-lg leading-snug">
+                      {b.desc}
+                    </div>
+                  </div>
+                  <span className="text-xl">{b.emoji}</span>
+                  <span className="text-[10px] font-semibold text-gray-700 text-center leading-tight">{b.label}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>

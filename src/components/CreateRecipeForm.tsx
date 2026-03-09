@@ -9,6 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, X, Loader2, Camera, ClipboardPaste, Globe, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
+import { useStore } from '@/lib/store';
 
 const FOODISH_API = 'https://foodish-api.com/api/';
 
@@ -156,20 +157,20 @@ function parseRecipeText(raw: string): {
 
     if (currentSection === 'ingredients') {
       // Clean up bullet points, numbers, dashes
-      const cleaned = stripped.replace(/^[-•*·▪◦]\s*/, '').replace(/^\d+[.)]\s*/, '').trim();
+      const cleaned = stripped.replace(/^[-•*·▪◦▢]\s*/, '').replace(/^\d+[.)]\s*/, '').trim();
       if (cleaned.length > 1) {
         // Extract just the ingredient name (strip quantities)
         const ingName = stripQuantity(cleaned);
         if (ingName) ingredients.push(ingName);
       }
     } else if (currentSection === 'instructions') {
-      const cleaned = stripped.replace(/^[-•*·▪◦]\s*/, '').replace(/^\d+[.)]\s*/, '').trim();
+      const cleaned = stripped.replace(/^[-•*·▪◦▢]\s*/, '').replace(/^\d+[.)]\s*/, '').trim();
       if (cleaned.length > 5) {
         instructions.push(cleaned);
       }
     } else if (currentSection === 'unknown') {
       // Try to auto-detect: short lines with common ingredient patterns
-      const cleaned = stripped.replace(/^[-•*·▪◦]\s*/, '').replace(/^\d+[.)]\s*/, '').trim();
+      const cleaned = stripped.replace(/^[-•*·▪◦▢]\s*/, '').replace(/^\d+[.)]\s*/, '').trim();
       if (looksLikeIngredient(cleaned)) {
         currentSection = 'ingredients';
         const ingName = stripQuantity(cleaned);
@@ -184,7 +185,7 @@ function parseRecipeText(raw: string): {
   // If we found nothing in sections, try splitting: short lines = ingredients, long = instructions
   if (ingredients.length === 0 && instructions.length === 0) {
     for (const line of lines) {
-      const stripped = line.replace(/^[-•*·▪◦]\s*/, '').replace(/^\d+[.)]\s*/, '').replace(/^#+\s*/, '').trim();
+      const stripped = line.replace(/^[-•*·▪◦▢]\s*/, '').replace(/^\d+[.)]\s*/, '').replace(/^#+\s*/, '').trim();
       if (stripped === name || stripped.length < 2) continue;
       if (stripped.length < 50 && !stripped.includes('.')) {
         const ingName = stripQuantity(stripped);
@@ -228,6 +229,7 @@ function looksLikeInstruction(s: string): boolean {
 export default function CreateRecipeForm({ onClose }: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { likeRecipe } = useStore();
   const [loading, setLoading] = useState(false);
   const [fetchingPhoto, setFetchingPhoto] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -376,7 +378,9 @@ export default function CreateRecipeForm({ onClose }: Props) {
       const stepList = instructions.map((s) => s.trim()).filter(Boolean);
       const finalImage = image || (await getRandomFoodishImage(name)) || '/placeholder.svg';
 
+      const recipeId = crypto.randomUUID();
       const { error } = await supabase.from('recipes').insert({
+        id: recipeId,
         name: name.trim(),
         image: finalImage,
         cook_time: cookTime.trim() || '30 min',
@@ -392,6 +396,21 @@ export default function CreateRecipeForm({ onClose }: Props) {
       } as any);
 
       if (error) throw error;
+
+      // Also save to local liked recipes so it appears in All Recipes
+      likeRecipe(recipeId, {
+        id: recipeId,
+        name: name.trim(),
+        image: finalImage,
+        cook_time: cookTime.trim() || '30 min',
+        difficulty,
+        cuisine: cuisine.trim() || null,
+        ingredients,
+        tags,
+        instructions: stepList,
+        source: 'community',
+        servings: parseInt(servings) || 4,
+      });
 
       toast({ title: 'Recipe created! 🎉' });
       queryClient.invalidateQueries({ queryKey: ['recipes'] });

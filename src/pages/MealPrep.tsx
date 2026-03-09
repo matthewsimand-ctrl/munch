@@ -511,7 +511,7 @@ export default function MealPrep() {
                   onClick={() => generateAiPlan(7)}
                 >
                   {aiGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                  <span className="hidden sm:inline">{aiGenerating ? 'Generating...' : 'AI Plan'}</span>
+                  <span className="hidden sm:inline">{aiGenerating ? 'Generating...' : '🧠 AI Plan'}</span>
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Generate a full week meal plan with AI based on your saved recipes</TooltipContent>
@@ -701,13 +701,14 @@ export default function MealPrep() {
           ))}
 
           {/* Meal slots */}
-          {MEAL_TYPES.map((meal) => (
-            DAYS.map((_, di) => {
+          {MEAL_TYPES.map((meal) => {
+            const mealBg = meal === 'breakfast' ? 'bg-amber-50/40' : meal === 'lunch' ? 'bg-emerald-50/40' : meal === 'dinner' ? 'bg-indigo-50/40' : 'bg-pink-50/40';
+            return DAYS.map((_, di) => {
               const slotItems = items.filter(i => i.day_of_week === di && i.meal_type === meal);
               return (
                 <div
                   key={`${meal}-${di}`}
-                  className="min-h-[80px] bg-card border border-border rounded-lg p-1.5 transition-colors"
+                  className={`min-h-[80px] ${mealBg} border border-border rounded-lg p-1.5 transition-colors`}
                   onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('ring-2', 'ring-primary'); }}
                   onDragLeave={(e) => e.currentTarget.classList.remove('ring-2', 'ring-primary')}
                   onDrop={(e) => { e.preventDefault(); e.currentTarget.classList.remove('ring-2', 'ring-primary'); handleDrop(di, meal); }}
@@ -769,8 +770,8 @@ export default function MealPrep() {
                   </Tooltip>
                 </div>
               );
-            })
-          ))}
+            });
+          })}
         </div>
       </div>
       )}
