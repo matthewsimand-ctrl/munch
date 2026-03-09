@@ -18,6 +18,28 @@ interface NormalizedRecipe {
   cuisine?: string;
 }
 
+function normalizeInstructionLines(lines: string[]): string[] {
+  const normalized: string[] = [];
+  for (const rawLine of lines) {
+    const line = String(rawLine || '').replace(/\s+/g, ' ').trim();
+    if (!line) continue;
+
+    // Some APIs split "Step 1" and the actual sentence into separate lines.
+    if (/^step\s*\d+[:.-]?$/i.test(line)) {
+      continue;
+    }
+
+    // Strip leading numbering/"Step X" prefixes while keeping full text.
+    const cleaned = line
+      .replace(/^step\s*\d+\s*[:.)-]?\s*/i, '')
+      .replace(/^\d+\s*[:.)-]\s*/, '')
+      .trim();
+
+    if (cleaned.length > 3) normalized.push(cleaned);
+  }
+  return normalized;
+}
+
 function cleanIngredientPart(value: unknown): string {
   return String(value || '').trim().replace(/\s+/g, ' ');
 }
@@ -44,7 +66,7 @@ async function searchMealDB(query: string): Promise<NormalizedRecipe[]> {
         if (normalized) ingredients.push(normalized);
       }
       const instructions = m.strInstructions
-        ? m.strInstructions.split(/\r?\n/).filter((s: string) => s.trim().length > 5)
+        ? normalizeInstructionLines(m.strInstructions.split(/\r?\n/))
         : [];
       return {
         id: `mealdb-${m.idMeal}`,
@@ -79,7 +101,7 @@ async function browseMealDBByLetter(letter: string): Promise<NormalizedRecipe[]>
         if (normalized) ingredients.push(normalized);
       }
       const instructions = m.strInstructions
-        ? m.strInstructions.split(/\r?\n/).filter((s: string) => s.trim().length > 5)
+        ? normalizeInstructionLines(m.strInstructions.split(/\r?\n/))
         : [];
       return {
         id: `mealdb-${m.idMeal}`,
@@ -127,7 +149,7 @@ async function browseMealDBByCategory(category: string): Promise<NormalizedRecip
           if (normalized) ingredients.push(normalized);
         }
         const instructions = m.strInstructions
-          ? m.strInstructions.split(/\r?\n/).filter((s: string) => s.trim().length > 5)
+          ? normalizeInstructionLines(m.strInstructions.split(/\r?\n/))
           : [];
         return {
           id: `mealdb-${m.idMeal}`,
@@ -185,18 +207,19 @@ async function searchTasty(query: string, apiKey: string, size = 5): Promise<Nor
     const data = await res.json();
     if (!data.results) return [];
     return data.results.map((r: any) => {
-      const ingredients = (r.sections?.[0]?.components || [])
+      const ingredients = (r.sections || [])
+        .flatMap((section: any) => section?.components || [])
         .map((c: any) => {
-          const m = c?.measurements?.[0];
-          const quantity = cleanIngredientPart(m?.quantity || '');
-          const unit = cleanIngredientPart(m?.unit?.display_singular || m?.unit?.display_plural || '');
+          const measurement = (c?.measurements || []).find((m: any) => cleanIngredientPart(m?.quantity)) || c?.measurements?.[0];
+          const quantity = cleanIngredientPart(measurement?.quantity || '');
+          const unit = cleanIngredientPart(measurement?.unit?.abbreviation || measurement?.unit?.display_singular || measurement?.unit?.display_plural || '');
           return joinIngredient(`${quantity} ${unit}`.trim(), c.ingredient?.name);
         })
         .filter(Boolean);
-      const instructions = (r.instructions || [])
+      const instructions = normalizeInstructionLines((r.instructions || [])
         .sort((a: any, b: any) => a.position - b.position)
         .map((i: any) => i.display_text)
-        .filter(Boolean);
+        .filter(Boolean));
       const totalTime = r.total_time_minutes || r.cook_time_minutes || r.prep_time_minutes;
       const tags = (r.tags || []).slice(0, 5).map((t: any) => t.display_name?.toLowerCase()).filter(Boolean);
       return {
@@ -228,12 +251,16 @@ async function searchSpoonacular(query: string, apiKey: string, number = 5): Pro
     if (!data.results) return [];
     return data.results.map((r: any) => {
       const ingredients = (r.extendedIngredients || [])
-        .map((i: any) => joinIngredient(i.amount ? `${i.amount}${i.unit ? ` ${i.unit}` : ''}` : '', i.name))
+        .map((i: any) => {
+          const amount = i.measures?.us?.amount ?? i.amount;
+          const unit = i.measures?.us?.unitShort ?? i.unit;
+          return joinIngredient(amount ? `${amount}${unit ? ` ${unit}` : ''}` : '', i.name || i.originalName || i.original);
+        })
         .filter(Boolean);
-      const instructions = r.analyzedInstructions?.[0]?.steps
+      const instructions = normalizeInstructionLines((r.analyzedInstructions?.[0]?.steps
         ?.sort((a: any, b: any) => a.number - b.number)
         .map((s: any) => s.step)
-        .filter(Boolean) || [];
+        .filter(Boolean) || []);
       const difficulty = r.readyInMinutes > 60 ? 'Advanced' as const
         : r.readyInMinutes > 30 ? 'Intermediate' as const : 'Beginner' as const;
       return {
@@ -264,12 +291,16 @@ async function browseSpoonacularRandom(apiKey: string, number = 20): Promise<Nor
     if (!data.recipes) return [];
     return data.recipes.map((r: any) => {
       const ingredients = (r.extendedIngredients || [])
-        .map((i: any) => joinIngredient(i.amount ? `${i.amount}${i.unit ? ` ${i.unit}` : ''}` : '', i.name))
+        .map((i: any) => {
+          const amount = i.measures?.us?.amount ?? i.amount;
+          const unit = i.measures?.us?.unitShort ?? i.unit;
+          return joinIngredient(amount ? `${amount}${unit ? ` ${unit}` : ''}` : '', i.name || i.originalName || i.original);
+        })
         .filter(Boolean);
-      const instructions = r.analyzedInstructions?.[0]?.steps
+      const instructions = normalizeInstructionLines((r.analyzedInstructions?.[0]?.steps
         ?.sort((a: any, b: any) => a.number - b.number)
         .map((s: any) => s.step)
-        .filter(Boolean) || [];
+        .filter(Boolean) || []);
       const difficulty = r.readyInMinutes > 60 ? 'Advanced' as const
         : r.readyInMinutes > 30 ? 'Intermediate' as const : 'Beginner' as const;
       return {
