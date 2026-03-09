@@ -1,5 +1,5 @@
-import { ReactNode } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { Outlet } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard,
   Shuffle,
@@ -12,20 +12,14 @@ import {
 
 const NAV_ITEMS = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { to: "/browse", icon: Shuffle, label: "Browse" },
+  { to: "/swipe", icon: Shuffle, label: "Browse" },
   { to: "/saved", icon: Heart, label: "Saved" },
   { to: "/pantry", icon: Package, label: "Pantry" },
   { to: "/grocery", icon: ShoppingCart, label: "Grocery" },
-  { to: "/mealprep", icon: CalendarDays, label: "Meal Prep" },
+  { to: "/meal-prep", icon: CalendarDays, label: "Meal Prep" },
 ];
 
-interface AppLayoutProps {
-  children: ReactNode;
-}
-
-export default function AppLayout({ children }: AppLayoutProps) {
-  const location = useLocation();
-
+export default function AppLayout() {
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
       {/* ── Desktop Sidebar ── */}
@@ -33,7 +27,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
         {/* Logo */}
         <div className="flex items-center gap-2.5 px-5 py-5 border-b border-gray-100">
           <div className="w-8 h-8 bg-orange-500 rounded-xl flex items-center justify-center shadow-sm">
-            <ChefHat className="w-4.5 h-4.5 text-white" size={18} />
+            <ChefHat className="text-white" size={18} />
           </div>
           <span className="text-lg font-bold text-gray-900 tracking-tight">munch</span>
         </div>
@@ -89,11 +83,11 @@ export default function AppLayout({ children }: AppLayoutProps) {
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Page content scrollable area */}
         <div className="flex-1 overflow-y-auto pb-20 md:pb-0">
-          {children}
+          <Outlet />
         </div>
 
         {/* ── Mobile Bottom Nav ── */}
-        <nav className="md:hidden fixed bottom-0 inset-x-0 bg-white border-t border-gray-100 flex z-50 safe-area-pb">
+        <nav className="md:hidden fixed bottom-0 inset-x-0 bg-white border-t border-gray-100 flex z-50">
           {NAV_ITEMS.map(({ to, icon: Icon, label }) => (
             <NavLink
               key={to}
