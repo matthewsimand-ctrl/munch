@@ -173,7 +173,8 @@ export default function SavedRecipes() {
   };
 
   const handleAddMissingToGrocery = (recipe: Recipe) => {
-    const match = calculateMatch(pantryNames, recipe.ingredients || []);
+    const ingredients = normalizeStringArray((recipe as any).ingredients);
+    const match = calculateMatch(pantryNames, ingredients);
     if (match.missing.length === 0) {
       toast.info("You already have all the ingredients!");
       return;
