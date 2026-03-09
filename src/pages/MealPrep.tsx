@@ -593,8 +593,103 @@ export default function MealPrep() {
             <CalendarDays className="h-3.5 w-3.5" /> Weekly
           </Button>
         </div>
+      </div>
 
-      {/* Kanban Board */}
+      {/* Daily View */}
+      {viewMode === 'daily' && (
+        <div className="px-4 max-w-2xl mx-auto w-full">
+          {/* Day selector */}
+          <div className="flex items-center justify-center gap-2 mb-4">
+            <Button variant="ghost" size="icon" onClick={() => setSelectedDay(d => d === 0 ? 6 : d - 1)}>
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+            <div className="flex gap-1">
+              {DAYS.map((day, i) => (
+                <Button
+                  key={day}
+                  variant={selectedDay === i ? 'default' : 'ghost'}
+                  size="sm"
+                  className="text-xs px-2.5"
+                  onClick={() => setSelectedDay(i)}
+                >
+                  {day}
+                </Button>
+              ))}
+            </div>
+            <Button variant="ghost" size="icon" onClick={() => setSelectedDay(d => d === 6 ? 0 : d + 1)}>
+              <ChevronRight className="h-5 w-5" />
+            </Button>
+          </div>
+
+          <h2 className="text-lg font-bold text-foreground mb-4 text-center">
+            {DAYS[selectedDay]} — {format(addDays(weekStart, selectedDay), 'MMM d, yyyy')}
+          </h2>
+
+          <div className="space-y-4">
+            {MEAL_TYPES.map((meal) => {
+              const slotItems = items.filter(i => i.day_of_week === selectedDay && i.meal_type === meal);
+              return (
+                <div key={meal} className="bg-card border border-border rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-bold text-foreground capitalize">{meal}</h3>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1 text-xs"
+                      onClick={() => setAddDialog({ day: selectedDay, meal })}
+                    >
+                      <Plus className="h-3.5 w-3.5" /> Add
+                    </Button>
+                  </div>
+                  {slotItems.length === 0 ? (
+                    <p className="text-xs text-muted-foreground italic">No meals planned</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {slotItems.map((item) => (
+                        <div
+                          key={item.id}
+                          className="flex items-center gap-3 bg-background rounded-lg p-2.5 border border-border"
+                        >
+                          {item.recipe_image && (
+                            <img src={item.recipe_image} alt={item.recipe_name} className="h-10 w-10 rounded-md object-cover flex-shrink-0" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">{item.recipe_name}</p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <Select
+                                value={String(item.servings)}
+                                onValueChange={(v) => updateServings(item.id, parseInt(v))}
+                              >
+                                <SelectTrigger className="h-6 w-16 text-[10px] border-0 p-0 px-1">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {[1,2,3,4,5,6,8].map(n => (
+                                    <SelectItem key={n} value={String(n)} className="text-xs">{n} servings</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => removeItem(item.id)}
+                            className="text-muted-foreground hover:text-destructive"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Weekly Kanban Board */}
+      {viewMode === 'weekly' && (
       <div className="px-4 max-w-6xl mx-auto w-full overflow-x-auto">
         <div className="grid grid-cols-7 gap-2 min-w-[700px]">
           {/* Day headers */}
@@ -678,6 +773,7 @@ export default function MealPrep() {
           ))}
         </div>
       </div>
+      )}
 
       {/* Add Recipe Dialog */}
       <Dialog open={!!addDialog} onOpenChange={(open) => !open && setAddDialog(null)}>
