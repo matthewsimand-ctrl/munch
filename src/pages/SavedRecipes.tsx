@@ -149,7 +149,7 @@ export default function SavedRecipes() {
     });
 
     return list;
-  }, [allSavedRecipes, viewMode, activeFolderId, recipeFolders, activeTag, recipeTags, search, sort]);
+  }, [allSavedRecipes, viewMode, activeFolderId, recipeFolders, activeTags, recipeTags, search, sort]);
 
   const pantryNames = pantryList.map((p) => p.name);
   const selectedIngredients = selectedRecipe ? normalizeStringArray((selectedRecipe as any).ingredients) : [];
