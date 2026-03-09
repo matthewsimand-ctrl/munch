@@ -415,7 +415,7 @@ export default function SavedRecipes() {
                     ) : (
                       <div className="w-full h-full bg-gradient-to-br from-orange-400 to-pink-400" />
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
 
                     {/* Remove button */}
                     <button
@@ -425,6 +425,16 @@ export default function SavedRecipes() {
                     >
                       <Trash2 size={12} />
                     </button>
+
+                    {/* Chef name on image */}
+                    {recipe.created_by && chefProfiles[recipe.created_by] && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); navigate(`/chef/${recipe.created_by}`); }}
+                        className="absolute bottom-2.5 left-2.5 inline-flex items-center gap-1 text-[10px] text-white/90 hover:text-white font-medium bg-black/30 backdrop-blur-sm px-2 py-0.5 rounded-full transition-colors"
+                      >
+                        <ChefHat size={10} /> {chefProfiles[recipe.created_by].display_name || 'Chef'}
+                      </button>
+                    )}
 
                     {/* Match badge */}
                     <div className={`absolute bottom-2.5 right-2.5 px-2 py-0.5 rounded-full text-white text-xs font-bold ${
