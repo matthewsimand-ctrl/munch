@@ -1,11 +1,25 @@
 import { composeIngredientLine, parseIngredientLine } from '@/lib/ingredientText';
 
-type IngredientLike = string | { name?: unknown; ingredient?: unknown; quantity?: unknown; measure?: unknown };
+type IngredientLike = string | {
+  name?: unknown;
+  ingredient?: unknown;
+  item?: unknown;
+  original?: unknown;
+  originalName?: unknown;
+  text?: unknown;
+  quantity?: unknown;
+  amount?: unknown;
+  qty?: unknown;
+  measure?: unknown;
+  unit?: unknown;
+};
 
 function toLine(item: IngredientLike): string {
   if (typeof item === 'string') return item.trim();
-  const name = String(item?.name ?? item?.ingredient ?? '').trim();
-  const quantity = String(item?.quantity ?? item?.measure ?? '').trim();
+  const name = String(item?.name ?? item?.ingredient ?? item?.item ?? item?.originalName ?? item?.original ?? item?.text ?? '').trim();
+  const amount = String(item?.quantity ?? item?.amount ?? item?.qty ?? '').trim();
+  const unit = String(item?.measure ?? item?.unit ?? '').trim();
+  const quantity = [amount, unit].filter(Boolean).join(' ').trim();
   return composeIngredientLine({ name, quantity });
 }
 
