@@ -424,6 +424,16 @@ export default function SavedRecipes() {
                       {recipe.name}
                     </h3>
 
+                    {/* Chef attribution */}
+                    {recipe.created_by && chefProfiles[recipe.created_by] && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); navigate(`/chef/${recipe.created_by}`); }}
+                        className="inline-flex items-center gap-1 text-[10px] text-primary hover:underline mb-1"
+                      >
+                        <ChefHat size={10} /> by {chefProfiles[recipe.created_by].display_name || 'Chef'}
+                      </button>
+                    )}
+
                     <div className="flex items-center gap-3 text-xs text-muted-foreground mb-2.5">
                       <span className="flex items-center gap-1"><Clock size={11} /> {recipe.cook_time}</span>
                       {recipe.servings && <span className="flex items-center gap-1"><Users size={11} /> {recipe.servings}</span>}
