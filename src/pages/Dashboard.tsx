@@ -44,8 +44,31 @@ export default function Dashboard() {
   });
 
   const { recipes: browseRecipes, loading: browseLoading, loadFeed } = useBrowseFeed();
-  const { likedRecipes, likeRecipe, savedApiRecipes, pantryList, addCustomGroceryItem, cookingStreak, totalMealsCooked, cookedRecipeIds } = useStore();
+  const { likedRecipes, likeRecipe, savedApiRecipes, pantryList, addCustomGroceryItem, cookingStreak, totalMealsCooked, cookedRecipeIds, totalXp, earnedBadges, earnBadge } = useStore();
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+
+  const BADGES = useMemo(() => [
+    { id: 'first_cook', label: 'First Cook', emoji: '👨‍🍳', desc: 'Cook your first recipe', unlocked: totalMealsCooked >= 1 },
+    { id: 'streak_3', label: '3-Day Streak', emoji: '🔥', desc: '3 consecutive days cooking', unlocked: cookingStreak >= 3 },
+    { id: 'streak_7', label: 'Week Warrior', emoji: '⚡', desc: '7-day cooking streak', unlocked: cookingStreak >= 7 },
+    { id: '5_recipes', label: '5 Recipes', emoji: '📖', desc: 'Cook 5 different recipes', unlocked: cookedRecipeIds.length >= 5 },
+    { id: '10_meals', label: 'Meal Master', emoji: '🏆', desc: 'Cook 10 total meals', unlocked: totalMealsCooked >= 10 },
+    { id: 'level_5', label: 'Level 5', emoji: '⭐', desc: 'Reach cooking level 5', unlocked: getLevel(totalXp).level >= 5 },
+    { id: 'saver_10', label: 'Collector', emoji: '💎', desc: 'Save 10 recipes', unlocked: likedRecipes.length >= 10 },
+    { id: 'level_10', label: 'Chef Pro', emoji: '👑', desc: 'Reach cooking level 10', unlocked: getLevel(totalXp).level >= 10 },
+  ], [totalMealsCooked, cookingStreak, cookedRecipeIds.length, totalXp, likedRecipes.length]);
+
+  // Auto-earn badges
+  useEffect(() => {
+    BADGES.forEach(b => {
+      if (b.unlocked && !earnedBadges.includes(b.id)) {
+        earnBadge(b.id);
+        toast.success(`🏅 Badge unlocked: ${b.label}!`);
+      }
+    });
+  }, [BADGES, earnedBadges, earnBadge]);
+
+  const levelInfo = getLevel(totalXp);
 
   const likedSet = useMemo(() => new Set(likedRecipes), [likedRecipes]);
   const pantryNames = useMemo(() => pantryList.map(p => p.name), [pantryList]);
