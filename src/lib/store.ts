@@ -304,6 +304,8 @@ export const useStore = create<AppState>()(
             : [...state.earnedBadges, badgeId],
         })),
 
+      setArchiveBehavior: (behavior) => set({ archiveBehavior: behavior }),
+
       resetStore: () =>
         set({
           userProfile: initialProfile,
