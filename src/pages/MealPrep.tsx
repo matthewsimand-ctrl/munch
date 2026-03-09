@@ -770,8 +770,8 @@ export default function MealPrep() {
                   </Tooltip>
                 </div>
               );
-            })
-          ))}
+            });
+          })}
         </div>
       </div>
       )}
