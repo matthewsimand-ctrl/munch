@@ -3,7 +3,7 @@ import { Outlet } from "react-router-dom";
 import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard,
-  Shuffle,
+  BookOpen,
   Heart,
   ShoppingCart,
   Package,
