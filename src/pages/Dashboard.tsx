@@ -322,7 +322,18 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-8">
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <div className="flex items-center gap-3 mb-3">
-              <img src={chefAvatar} alt="Chef" className="w-10 h-10 rounded-full bg-amber-50 object-cover" />
+              <button
+                onClick={() => avatarInputRef.current?.click()}
+                className="relative w-10 h-10 rounded-full bg-amber-50 overflow-hidden group shrink-0"
+                title="Change avatar"
+                disabled={uploadingAvatar}
+              >
+                <img src={chefAvatarUrl || defaultChefAvatar} alt="Chef" className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <Camera size={14} className="text-white" />
+                </div>
+              </button>
+              <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <Star size={15} className="text-amber-500 fill-amber-500" />
