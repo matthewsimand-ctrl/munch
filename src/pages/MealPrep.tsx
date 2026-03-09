@@ -468,7 +468,7 @@ export default function MealPrep() {
         <div className="flex items-center gap-3 mb-4 flex-wrap">
           <button onClick={() => navigate('/dashboard')} className="flex items-center gap-2">
             <CalendarDays className="h-6 w-6 text-primary" />
-            <span className="font-display text-xl font-bold text-foreground">Meal Prep</span>
+            <span className="font-display text-xl font-bold text-orange-500">Meal Prep</span>
           </button>
           <div className="ml-auto flex items-center gap-1">
             <Tooltip>
