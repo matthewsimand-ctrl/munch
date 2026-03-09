@@ -65,7 +65,7 @@ export default function SavedRecipes() {
   const { data: dbRecipes = [] } = useDbRecipes();
 
   const [search, setSearch] = useState("");
-  const [activeTag, setActiveTag] = useState("All");
+  const [activeTags, setActiveTags] = useState<string[]>([]);
   const [sort, setSort] = useState<SortOption>("newest");
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("all");
@@ -125,11 +125,12 @@ export default function SavedRecipes() {
       }
     }
 
-    // Filter by tag
-    if (activeTag !== "All") {
+    // Filter by tags (multi-select)
+    if (activeTags.length > 0) {
       list = list.filter((r) => {
         const userTags = recipeTags[r.id] || [];
-        return (r.tags || []).includes(activeTag) || userTags.includes(activeTag);
+        const allTags = [...(r.tags || []), ...userTags];
+        return activeTags.some(t => allTags.includes(t));
       });
     }
 
@@ -143,11 +144,12 @@ export default function SavedRecipes() {
     list = [...list].sort((a, b) => {
       if (sort === "time") return parseInt(a.cook_time || "0") - parseInt(b.cook_time || "0");
       if (sort === "name") return a.name.localeCompare(b.name);
-      return 0;
+      // newest: reverse the natural (oldest-first) order
+      return -1;
     });
 
     return list;
-  }, [allSavedRecipes, viewMode, activeFolderId, recipeFolders, activeTag, recipeTags, search, sort]);
+  }, [allSavedRecipes, viewMode, activeFolderId, recipeFolders, activeTags, recipeTags, search, sort]);
 
   const pantryNames = pantryList.map((p) => p.name);
   const selectedIngredients = selectedRecipe ? normalizeStringArray((selectedRecipe as any).ingredients) : [];
@@ -286,7 +288,7 @@ export default function SavedRecipes() {
         <div className="max-w-7xl mx-auto flex items-center gap-4">
           <div className="flex gap-2 flex-wrap">
             <button
-              onClick={() => { setViewMode("all"); setActiveFolderId(null); setActiveTag("All"); }}
+              onClick={() => { setViewMode("all"); setActiveFolderId(null); setActiveTags([]); }}
               className={`text-xs font-semibold px-3.5 py-1.5 rounded-full border transition-all ${
                 viewMode === "all"
                   ? "bg-orange-500 text-white border-orange-500"
@@ -339,22 +341,39 @@ export default function SavedRecipes() {
         </div>
       </div>
 
-      {/* Tag filters */}
+      {/* Tag filters (multi-select) */}
       <div className="bg-background border-b border-border px-6 py-2.5">
         <div className="max-w-7xl mx-auto flex gap-2 overflow-x-auto scrollbar-hide pb-0.5">
-          {allTags.map((tag) => (
-            <button
-              key={tag}
-              onClick={() => setActiveTag(tag)}
-              className={`shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${
-                activeTag === tag
-                  ? "bg-orange-500 text-white border-orange-500"
-                  : "bg-background text-muted-foreground border-border hover:border-foreground/30"
-              }`}
-            >
-              {tag}
-            </button>
-          ))}
+          <button
+            onClick={() => setActiveTags([])}
+            className={`shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${
+              activeTags.length === 0
+                ? "bg-orange-500 text-white border-orange-500"
+                : "bg-background text-muted-foreground border-border hover:border-foreground/30"
+            }`}
+          >
+            All
+          </button>
+          {allTags.filter(t => t !== "All").map((tag) => {
+            const isActive = activeTags.includes(tag);
+            return (
+              <button
+                key={tag}
+                onClick={() => {
+                  setActiveTags(prev =>
+                    isActive ? prev.filter(t => t !== tag) : [...prev, tag]
+                  );
+                }}
+                className={`shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${
+                  isActive
+                    ? "bg-orange-500 text-white border-orange-500"
+                    : "bg-background text-muted-foreground border-border hover:border-foreground/30"
+                }`}
+              >
+                {tag}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -396,7 +415,7 @@ export default function SavedRecipes() {
                     ) : (
                       <div className="w-full h-full bg-gradient-to-br from-orange-400 to-pink-400" />
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
 
                     {/* Remove button */}
                     <button
@@ -406,6 +425,16 @@ export default function SavedRecipes() {
                     >
                       <Trash2 size={12} />
                     </button>
+
+                    {/* Chef name on image */}
+                    {recipe.created_by && chefProfiles[recipe.created_by] && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); navigate(`/chef/${recipe.created_by}`); }}
+                        className="absolute bottom-2.5 left-2.5 inline-flex items-center gap-1 text-[10px] text-white/90 hover:text-white font-medium bg-black/30 backdrop-blur-sm px-2 py-0.5 rounded-full transition-colors"
+                      >
+                        <ChefHat size={10} /> {chefProfiles[recipe.created_by].display_name || 'Chef'}
+                      </button>
+                    )}
 
                     {/* Match badge */}
                     <div className={`absolute bottom-2.5 right-2.5 px-2 py-0.5 rounded-full text-white text-xs font-bold ${

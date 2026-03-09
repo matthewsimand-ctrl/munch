@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDbRecipes } from '@/hooks/useDbRecipes';
 import { useStore } from '@/lib/store';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis';
 import { useVoiceCommands } from '@/hooks/useVoiceCommands';
 import { Button } from '@/components/ui/button';
@@ -11,6 +12,7 @@ import { ArrowLeft, ChevronLeft, ChevronRight, Play, Pause, RotateCcw, Timer, Vo
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { buildDictionaryRegex, lookupTerm } from '@/lib/cookingDictionary';
 
 function parseTimerFromStep(step: string): number | null {
   const patterns = [
@@ -36,6 +38,47 @@ function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+const dictRegex = buildDictionaryRegex();
+
+function HighlightedStep({ text }: { text: string }) {
+  const parts = useMemo(() => {
+    const result: { text: string; isTerm: boolean }[] = [];
+    let lastIndex = 0;
+    const regex = new RegExp(dictRegex.source, dictRegex.flags);
+    let m: RegExpExecArray | null;
+    while ((m = regex.exec(text)) !== null) {
+      if (m.index > lastIndex) result.push({ text: text.slice(lastIndex, m.index), isTerm: false });
+      result.push({ text: m[0], isTerm: true });
+      lastIndex = regex.lastIndex;
+    }
+    if (lastIndex < text.length) result.push({ text: text.slice(lastIndex), isTerm: false });
+    return result;
+  }, [text]);
+
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (!part.isTerm) return <span key={i}>{part.text}</span>;
+        const entry = lookupTerm(part.text);
+        if (!entry) return <span key={i}>{part.text}</span>;
+        return (
+          <Popover key={i}>
+            <PopoverTrigger asChild>
+              <span className="underline decoration-dotted decoration-primary underline-offset-4 cursor-help text-primary font-semibold hover:decoration-solid transition-all">
+                {part.text}
+              </span>
+            </PopoverTrigger>
+            <PopoverContent className="w-72 p-3 text-left">
+              <p className="text-xs font-bold text-foreground capitalize mb-1">{entry.term}</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">{entry.definition}</p>
+            </PopoverContent>
+          </Popover>
+        );
+      })}
+    </>
+  );
 }
 
 export default function CookMode() {
@@ -259,7 +302,7 @@ export default function CookMode() {
               {currentStep + 1}
             </div>
             <p className="text-xl leading-relaxed text-foreground font-medium">
-              {steps[currentStep]}
+              <HighlightedStep text={steps[currentStep]} />
             </p>
 
             {/* Timer section */}

@@ -11,6 +11,7 @@ import {
   ChefHat,
   ChevronLeft,
   ChevronRight,
+  BookMarked,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -20,6 +21,7 @@ const NAV_ITEMS = [
   { to: "/pantry", icon: Package, label: "Pantry" },
   { to: "/grocery", icon: ShoppingCart, label: "Grocery" },
   { to: "/meal-prep", icon: CalendarDays, label: "Meal Prep" },
+  { to: "/dictionary", icon: BookMarked, label: "Dictionary" },
 ];
 
 export default function AppLayout() {
