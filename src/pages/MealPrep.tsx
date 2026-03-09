@@ -43,6 +43,12 @@ export default function MealPrep() {
   const [loading, setLoading] = useState(true);
   const [aiGenerating, setAiGenerating] = useState(false);
   const [exportDialog, setExportDialog] = useState(false);
+  const [viewMode, setViewMode] = useState<'weekly' | 'daily'>('weekly');
+  const [selectedDay, setSelectedDay] = useState(() => {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    return dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Mon=0, Sun=6
+  });
 
   // Get saved recipes list - check both DB recipes and locally cached API recipes
   const savedRecipes = useMemo(() => {
