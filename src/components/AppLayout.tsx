@@ -111,7 +111,7 @@ export default function AppLayout() {
             {!collapsed && (
               <div className="min-w-0">
                 <div className="text-xs font-semibold text-gray-800 truncate">My Kitchen</div>
-                <div className="text-xs text-gray-400 truncate">Settings</div>
+                <div className="text-xs text-gray-400 truncate">Free Plan</div>
               </div>
             )}
           </NavLink>
