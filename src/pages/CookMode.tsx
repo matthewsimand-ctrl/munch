@@ -211,6 +211,7 @@ export default function CookMode() {
             isDone={isDone}
           />
         </div>
+      </div>
 
       {/* Step Content */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 max-w-md mx-auto w-full">
