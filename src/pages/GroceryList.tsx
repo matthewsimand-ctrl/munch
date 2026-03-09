@@ -36,7 +36,7 @@ const CATEGORIES_ORDER = [
 ];
 
 export default function GroceryList() {
-  const { customGroceryList, removeCustomGroceryItem } = useStore();
+  const { customGroceryItems, removeCustomGroceryItem } = useStore();
 
   // Merge store custom items into local state on first render
   const [items, setItems] = useState<GroceryItem[]>(() => {
