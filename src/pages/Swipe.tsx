@@ -28,6 +28,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import NutritionCard from "@/components/NutritionCard";
 import { toast } from "sonner";
+
 interface Recipe {
   id: string;
   name: string;
@@ -100,6 +101,9 @@ export default function Browse() {
   const selectedMatch = selectedRecipe ? calculateMatch(pantryNames, selectedIngredients) : null;
   const scaledServings = selectedRecipe ? Math.max(1, Math.round((selectedRecipe.servings || 4) * servingMultiplier)) : 1;
   const selectedInstructions = selectedRecipe ? normalizeStringArray((selectedRecipe as any).instructions) : [];
+  const selectedSource = selectedRecipe ? String((selectedRecipe as any).source || "Unknown source") : null;
+  const selectedSourceUrl = selectedRecipe ? String((selectedRecipe as any).source_url || "").trim() : "";
+  const selectedRawPayload = selectedRecipe ? (selectedRecipe as any).raw_api_payload : null;
   const isSelectedRecipeAddedToGrocery = useMemo(() => (
     selectedRecipe ? groceryAddedRecipeIds.includes(selectedRecipe.id) : false
   ), [groceryAddedRecipeIds, selectedRecipe]);
@@ -386,7 +390,18 @@ export default function Browse() {
                         <span className="flex items-center gap-1"><Clock size={13} /> {currentRecipe.cook_time}</span>
                         {currentRecipe.cuisine && <span className="flex items-center gap-1">🌍 {currentRecipe.cuisine}</span>}
                       </div>
-                      <p className="text-xs text-white/90">Tap photo to open full recipe details</p>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {currentRecipe.ingredients.slice(0, 3).map((line) => {
+                          const parsed = parseIngredientLine(line);
+                          const label = parsed.quantity ? `${parsed.name} · ${parsed.quantity}` : parsed.name;
+                          return (
+                            <span key={`${currentRecipe.id}-${line}`} className="text-[11px] bg-white/20 backdrop-blur-sm px-2.5 py-1 rounded-full font-medium">
+                              {label}
+                            </span>
+                          );
+                        })}
+                      </div>
+                      <p className="text-xs text-white/90 mt-2">Tap photo to open full recipe details</p>
                     </div>
                   </div>
                 </div>
@@ -489,29 +504,40 @@ export default function Browse() {
                   </div>
                 </div>
 
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm">
+                  <p className="text-gray-500">Source</p>
+                  {selectedSourceUrl ? (
+                    <a className="font-semibold text-primary hover:underline" href={selectedSourceUrl} target="_blank" rel="noreferrer">
+                      {selectedSource}
+                    </a>
+                  ) : (
+                    <p className="font-semibold text-gray-900">{selectedSource}</p>
+                  )}
+                </div>
+
                 {/* Ingredients */}
                 <div>
                   <h3 className="text-sm font-semibold text-gray-900 mb-3">Ingredients</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedMatch.matched.map((ing) => {
-                      const parsed = parseIngredientLine(ing);
+                  <ul className="space-y-2">
+                    {selectedIngredients.map((ingredientLine) => {
+                      const parsed = parseIngredientLine(ingredientLine);
                       const scaledQty = parsed.quantity ? scaleIngredientQuantity(parsed.quantity, servingMultiplier) : "";
+                      const isMatched = selectedMatch.matched.includes(ingredientLine);
                       return (
-                        <span key={ing} className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full bg-green-100 text-green-700 font-medium">
-                          <Check size={14} /> {parsed.name}{scaledQty ? ` (${scaledQty})` : ""}
-                        </span>
+                        <li key={ingredientLine} className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
+                          <span className="font-medium text-gray-900">{parsed.name}</span>
+                          <div className="flex items-center gap-2">
+                            {scaledQty && <span className="text-gray-500">{scaledQty}</span>}
+                            {isMatched ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700"><Check size={12} /> In pantry</span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-600"><ShoppingCart size={12} /> Missing</span>
+                            )}
+                          </div>
+                        </li>
                       );
                     })}
-                    {selectedMatch.missing.map((ing) => {
-                      const parsed = parseIngredientLine(ing);
-                      const scaledQty = parsed.quantity ? scaleIngredientQuantity(parsed.quantity, servingMultiplier) : "";
-                      return (
-                        <span key={ing} className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full bg-red-50 text-red-600 font-medium">
-                          <ShoppingCart size={14} /> {parsed.name}{scaledQty ? ` (${scaledQty})` : ""}
-                        </span>
-                      );
-                    })}
-                  </div>
+                  </ul>
                   {/* Add missing to grocery */}
                   {selectedMatch.missing.length > 0 && (
                     <button
@@ -560,6 +586,15 @@ export default function Browse() {
                   ingredients={selectedIngredients}
                   servings={scaledServings}
                 />
+
+                {selectedRawPayload && (
+                  <details className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                    <summary className="cursor-pointer text-sm font-semibold text-gray-800">View raw API JSON</summary>
+                    <pre className="mt-3 max-h-64 overflow-auto rounded bg-white p-3 text-xs text-gray-700">
+{JSON.stringify(selectedRawPayload, null, 2)}
+                    </pre>
+                  </details>
+                )}
 
                 {/* Save button */}
                 <Button

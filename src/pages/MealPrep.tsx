@@ -51,7 +51,6 @@ export default function MealPrep() {
     return dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Mon=0, Sun=6
   });
   const [recipePreview, setRecipePreview] = useState<{ name: string; sourceUrl?: string; instructions: string[] } | null>(null);
-  const [rawApiPreview, setRawApiPreview] = useState<{ name: string; payload: unknown } | null>(null);
 
   // Get saved recipes list - check both DB recipes and locally cached API recipes
   const savedRecipes = useMemo(() => {
@@ -139,19 +138,6 @@ export default function MealPrep() {
       sourceUrl,
       instructions,
     });
-  };
-
-  const openRawApiPreview = (item: MealItem) => {
-    const dbRecipe = dbRecipes.find((r) => r.id === item.recipe_id);
-    const apiRecipe = savedApiRecipes[item.recipe_id];
-    const payload = dbRecipe?.raw_api_payload || apiRecipe?.raw_api_payload;
-
-    if (!payload) {
-      toast({ title: 'No API payload found', description: 'This recipe was likely created/imported manually.' });
-      return;
-    }
-
-    setRawApiPreview({ name: item.recipe_name, payload });
   };
 
   const addRecipeToSlot = async (recipeId: string, recipeName: string, recipeImage: string) => {
@@ -663,7 +649,7 @@ export default function MealPrep() {
             {MEAL_TYPES.map((meal) => {
               const slotItems = items.filter(i => i.day_of_week === selectedDay && i.meal_type === meal);
               return (
-                <div key={meal} className="bg-card border border-border rounded-xl p-4">
+                <div key={meal} className="bg-card border border-border rounded-xl p-4 shadow-sm">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-sm font-bold text-foreground capitalize">{meal}</h3>
                     <Button
@@ -682,7 +668,7 @@ export default function MealPrep() {
                       {slotItems.map((item) => (
                         <div
                           key={item.id}
-                          className="flex items-center gap-3 bg-background rounded-lg p-2.5 border border-border cursor-pointer hover:border-primary/40"
+                          className="flex items-center gap-3 bg-background rounded-lg p-3 border border-border cursor-pointer hover:border-primary/40 hover:shadow-sm transition-all"
                           onClick={() => openRecipePreview(item)}
                         >
                           {item.recipe_image && (
@@ -704,10 +690,6 @@ export default function MealPrep() {
                                   ))}
                                 </SelectContent>
                               </Select>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); openRawApiPreview(item); }}
-                                className="text-[10px] text-muted-foreground hover:text-primary"
-                              >JSON</button>
                             </div>
                           </div>
                           <button
@@ -747,7 +729,7 @@ export default function MealPrep() {
               return (
                 <div
                   key={`${meal}-${di}`}
-                  className={`min-h-[80px] ${mealBg} border border-border rounded-lg p-1.5 transition-colors`}
+                  className={`min-h-[88px] ${mealBg} border border-border rounded-lg p-2 transition-colors`}
                   onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('ring-2', 'ring-primary'); }}
                   onDragLeave={(e) => e.currentTarget.classList.remove('ring-2', 'ring-primary')}
                   onDrop={(e) => { e.preventDefault(); e.currentTarget.classList.remove('ring-2', 'ring-primary'); handleDrop(di, meal); }}
@@ -760,7 +742,7 @@ export default function MealPrep() {
                       key={item.id}
                       draggable
                       onDragStart={() => handleDragStart(item)}
-                      className="bg-background rounded-md p-1.5 mb-1 border border-border cursor-grab active:cursor-grabbing shadow-sm group text-[11px] hover:border-primary/40"
+                      className="bg-background rounded-md p-2 mb-1.5 border border-border cursor-grab active:cursor-grabbing shadow-sm group text-[11px] hover:border-primary/40 transition-all"
                       onClick={() => openRecipePreview(item)}
                     >
                       <div className="flex items-start gap-1">
@@ -781,10 +763,6 @@ export default function MealPrep() {
                                 ))}
                               </SelectContent>
                             </Select>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); openRawApiPreview(item); }}
-                              className="text-[10px] text-muted-foreground hover:text-primary"
-                            >JSON</button>
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <button
@@ -933,17 +911,6 @@ export default function MealPrep() {
           </div>
         </SheetContent>
       </Sheet>
-
-      <Dialog open={!!rawApiPreview} onOpenChange={(open) => !open && setRawApiPreview(null)}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>MealDB API JSON — {rawApiPreview?.name}</DialogTitle>
-          </DialogHeader>
-          <pre className="max-h-[60vh] overflow-auto rounded bg-muted p-3 text-xs">
-{JSON.stringify(rawApiPreview?.payload, null, 2)}
-          </pre>
-        </DialogContent>
-      </Dialog>
 
     </div>
   );
