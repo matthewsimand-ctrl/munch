@@ -35,6 +35,7 @@ interface AppState {
   groceryRecipes: string[];
   customGroceryItems: CustomGroceryItem[];
   recipeMealTags: Record<string, string>; // recipeId -> meal type
+  recipeTags: Record<string, string[]>; // recipeId -> custom user tags
   recipeFolders: RecipeFolder[];
   onboardingComplete: boolean;
   tutorialComplete: boolean;
