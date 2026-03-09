@@ -319,7 +319,7 @@ export default function Dashboard() {
                   { label: "Find Recipe", to: "/swipe", emoji: "🔍" },
                   { label: "Add to Pantry", to: "/pantry", emoji: "📦" },
                   { label: "Grocery List", to: "/grocery", emoji: "🛒" },
-                  { label: "Plan Meals", to: "/meal-prep", emoji: "📅" },
+                  { label: "Plan Meals 🧠", to: "/meal-prep", emoji: "📅" },
                 ].map(({ label, to, emoji }) => (
                   <Link key={label} to={to} className="flex flex-col items-center gap-1.5 p-3 bg-gray-50 hover:bg-orange-50 rounded-xl transition-colors text-center group">
                     <span className="text-2xl">{emoji}</span>
