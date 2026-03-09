@@ -341,6 +341,8 @@ export default function MealPrep() {
           
           dayMeals.forEach((meal) => {
             const recipe = recipeMap.get(meal.recipe_id);
+            const apiRecipe = savedApiRecipes[meal.recipe_id];
+            const recipeData = recipe || apiRecipe;
             
             checkAddPage(15);
             doc.setFontSize(10);
@@ -349,16 +351,35 @@ export default function MealPrep() {
             doc.text(`• ${meal.recipe_name} (${meal.servings} servings)`, margin + 8, y);
             y += 6;
             
-            if (recipe?.ingredients && recipe.ingredients.length > 0) {
+            if (recipeData?.ingredients && recipeData.ingredients.length > 0) {
               doc.setFont('helvetica', 'normal');
               doc.setFontSize(9);
               doc.setTextColor(60, 60, 60);
               doc.text('Ingredients:', margin + 12, y);
               y += 5;
               
-              recipe.ingredients.forEach((ingredient: string) => {
+              recipeData.ingredients.forEach((ingredient: string) => {
                 checkAddPage(5);
                 const lines = doc.splitTextToSize(`- ${ingredient}`, pageWidth - margin - 25);
+                lines.forEach((line: string) => {
+                  doc.text(line, margin + 15, y);
+                  y += 4;
+                });
+              });
+              y += 3;
+            }
+
+            // Include instructions for single-day exports
+            if (exportType !== 'week' && recipeData?.instructions && recipeData.instructions.length > 0) {
+              doc.setFont('helvetica', 'normal');
+              doc.setFontSize(9);
+              doc.setTextColor(60, 60, 60);
+              doc.text('Instructions:', margin + 12, y);
+              y += 5;
+              
+              recipeData.instructions.forEach((step: string, idx: number) => {
+                checkAddPage(5);
+                const lines = doc.splitTextToSize(`${idx + 1}. ${step}`, pageWidth - margin - 25);
                 lines.forEach((line: string) => {
                   doc.text(line, margin + 15, y);
                   y += 4;
