@@ -78,7 +78,7 @@ export default function Dashboard() {
     { label: "Cooking Streak", value: `${cookingStreak}🔥`, icon: Flame, color: "text-orange-500", bg: "bg-orange-50" },
     { label: "Meals Cooked", value: String(totalMealsCooked), icon: ChefHat, color: "text-emerald-500", bg: "bg-emerald-50" },
     { label: "Recipes Saved", value: String(likedRecipes.length), icon: Heart, color: "text-rose-500", bg: "bg-rose-50" },
-    { label: "Unique Recipes", value: String(cookedRecipeIds.length), icon: Trophy, color: "text-amber-500", bg: "bg-amber-50" },
+    { label: "Recipes Curated", value: String(cookedRecipeIds.length), icon: Trophy, color: "text-amber-500", bg: "bg-amber-50" },
   ], [likedRecipes.length, cookingStreak, totalMealsCooked, cookedRecipeIds.length]);
 
   useEffect(() => {
