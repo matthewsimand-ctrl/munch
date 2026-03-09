@@ -39,6 +39,17 @@ interface Recipe {
   cuisine?: string;
 }
 
+function normalizeStringArray(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map((v) => String(v).trim()).filter(Boolean);
+  if (typeof value === "string") {
+    return value
+      .split(/\r?\n/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
 const DIFFICULTY_FILTERS = ["All", "Beginner", "Intermediate", "Advanced"];
 const TIME_FILTERS = ["All", "< 30 min", "30-60 min", "> 60 min"];
 const CUISINE_FILTERS = ["All", "Italian", "Asian", "Mexican", "Mediterranean", "American"];
