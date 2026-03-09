@@ -8,7 +8,7 @@ import AppLayout from "@/components/AppLayout";
 import Index from "./pages/Index";
 import Onboarding from "./pages/Onboarding";
 import Pantry from "./pages/Pantry";
-import Browse from "./pages/Browse";         // ← new, replaces Swipe (or keep both)
+import Swipe from "./pages/Swipe";
 import SavedRecipes from "./pages/SavedRecipes";
 import CookMode from "./pages/CookMode";
 import GroceryList from "./pages/GroceryList";
@@ -42,7 +42,7 @@ function AppRoutes() {
         {/* Main app — sidebar on desktop, bottom nav on mobile */}
         <Route element={<AppLayout />}>
           <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/browse" element={<Browse />} />  {/* or /swipe if you keep the old route */}
+          <Route path="/swipe" element={<Swipe />} />
           <Route path="/saved" element={<SavedRecipes />} />
           <Route path="/pantry" element={<Pantry />} />
           <Route path="/grocery" element={<GroceryList />} />
