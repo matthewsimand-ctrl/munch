@@ -120,6 +120,36 @@ function parseJsonObjectFromText(raw: string): Record<string, unknown> {
   }
 }
 
+function ingredientFromObject(value: Record<string, unknown>): string {
+  const quantity = String(value.quantity ?? value.amount ?? value.qty ?? '').trim();
+  const unit = String(value.unit ?? value.measure ?? '').trim();
+  const name = String(value.name ?? value.ingredient ?? value.item ?? value.text ?? '').trim();
+
+  if (!name) return '';
+  const prefix = [quantity, unit].filter(Boolean).join(' ').trim();
+  return prefix ? `${prefix} ${name}`.trim() : name;
+}
+
+function normalizeIngredients(input: unknown): string[] {
+  if (!Array.isArray(input)) return [];
+
+  return input
+    .map((item) => {
+      if (typeof item === 'string') return item.trim();
+      if (item && typeof item === 'object') return ingredientFromObject(item as Record<string, unknown>);
+      return '';
+    })
+    .map((line) => line.replace(/^[-•*]\s*/, '').replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
+}
+
+function normalizeRecipePayload(recipe: Record<string, unknown>): Record<string, unknown> {
+  return {
+    ...recipe,
+    ingredients: normalizeIngredients(recipe.ingredients),
+  };
+}
+
 function extractRecipeFromJsonLd(html: string): Record<string, unknown> | null {
   const scripts = [...html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)]
     .map((m) => m[1]?.trim())
@@ -343,6 +373,8 @@ Deno.serve(async (req) => {
         imageMimeType,
       });
     }
+
+    recipe = normalizeRecipePayload(recipe);
 
     if (!recipe?.name || !Array.isArray(recipe.ingredients) || recipe.ingredients.length === 0) {
       return new Response(
