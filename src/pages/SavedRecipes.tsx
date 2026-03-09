@@ -89,6 +89,7 @@ export default function SavedRecipes() {
   const [ingredientInput, setIngredientInput] = useState("");
   const [isEditingIngredients, setIsEditingIngredients] = useState(false);
   const [servingMultiplier, setServingMultiplier] = useState(1);
+  const [groceryAddedRecipeIds, setGroceryAddedRecipeIds] = useState<string[]>([]);
 
   // Resolve all saved recipes from DB + saved API cache
   const allSavedRecipes: Recipe[] = useMemo(() => {
@@ -251,6 +252,7 @@ export default function SavedRecipes() {
       const parsed = parseIngredientLine(ing);
       addCustomGroceryItem(parsed.name, parsed.quantity || "1");
     });
+    setGroceryAddedRecipeIds((prev) => prev.includes(recipe.id) ? prev : [...prev, recipe.id]);
     toast.success(`Added ${match.missing.length} items to grocery list`);
   };
 
@@ -991,14 +993,19 @@ export default function SavedRecipes() {
                               );
                             })}
                           </div>
-                          {m.missing.length > 0 && (
-                            <button
-                              onClick={() => handleAddMissingToGrocery({ ...selectedRecipe, ingredients: editingIngredients } as Recipe)}
-                              className="mt-3 flex items-center gap-2 text-sm text-orange-500 hover:text-orange-600 font-semibold transition-colors"
-                            >
-                              <ShoppingCart size={14} /> Add {m.missing.length} missing items to grocery list
-                            </button>
-                          )}
+                          {m.missing.length > 0 && (() => {
+                            const recipeForGrocery = { ...selectedRecipe, ingredients: editingIngredients } as Recipe;
+                            const alreadyAdded = groceryAddedRecipeIds.includes(recipeForGrocery.id);
+                            return (
+                              <button
+                                onClick={() => handleAddMissingToGrocery(recipeForGrocery)}
+                                disabled={alreadyAdded}
+                                className={`mt-3 flex items-center gap-2 text-sm font-semibold transition-colors ${alreadyAdded ? "text-muted-foreground cursor-not-allowed" : "text-orange-500 hover:text-orange-600"}`}
+                              >
+                                <ShoppingCart size={14} /> {alreadyAdded ? "Already added to grocery list" : `Add ${m.missing.length} missing items to grocery list`}
+                              </button>
+                            );
+                          })()}
                         </>
                       );
                     })() : (
