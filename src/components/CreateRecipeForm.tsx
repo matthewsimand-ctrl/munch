@@ -228,6 +228,7 @@ function looksLikeInstruction(s: string): boolean {
 export default function CreateRecipeForm({ onClose }: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { likeRecipe } = useStore();
   const [loading, setLoading] = useState(false);
   const [fetchingPhoto, setFetchingPhoto] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
