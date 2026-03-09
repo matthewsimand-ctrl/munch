@@ -64,7 +64,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
     setLastImportError('');
     setReviewMode(false);
     setReviewData(null);
-    setIsDiscoverable(false);
+    setIsDiscoverable(true);
     setNewIngredient('');
     setNewInstruction('');
     setNewTag('');
