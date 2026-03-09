@@ -57,7 +57,7 @@ export default function SavedRecipes() {
     recipeTags, addRecipeTag, removeRecipeTag,
     recipeFolders, createFolder, renameFolder, deleteFolder,
     addRecipeToFolder, removeRecipeFromFolder,
-    addCustomGroceryItem,
+    addCustomGroceryItem, cachedNutrition,
   } = useStore();
   const { data: dbRecipes = [] } = useDbRecipes();
 
