@@ -9,6 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, X, Loader2, Camera, ClipboardPaste, Globe, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
+import { useStore } from '@/lib/store';
 
 const FOODISH_API = 'https://foodish-api.com/api/';
 
