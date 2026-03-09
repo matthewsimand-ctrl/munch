@@ -12,7 +12,6 @@ import defaultChefAvatar from "@/assets/chef-avatar.png";
 import { calculateMatch } from "@/lib/matchLogic";
 import { parseIngredientLine } from "@/lib/ingredientText";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -237,9 +236,9 @@ export default function Dashboard() {
                     type="button"
                     onClick={handleRefreshSuggestions}
                     className="inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 font-semibold px-2.5 py-1 rounded-md hover:bg-gray-100"
-                    title="Show a fresh set of suggestions"
+                    title="Show a refreshed set of suggestions"
                   >
-                    <RotateCw size={12} /> Fresh
+                    <RotateCw size={12} /> Refresh
                   </button>
                   <Link to="/swipe" className="text-xs text-orange-500 font-semibold hover:text-orange-600 flex items-center gap-1">
                     See all <ChevronRight size={13} />
@@ -483,7 +482,7 @@ export default function Dashboard() {
               <DialogHeader>
                 <DialogTitle className="text-lg font-bold">{selectedRecipe.name}</DialogTitle>
               </DialogHeader>
-              <ScrollArea className="flex-1 min-h-0">
+              <div className="flex-1 min-h-0 overflow-y-auto pr-1">
                 <div className="space-y-4 pr-2">
                   {selectedRecipe.image && selectedRecipe.image !== '/placeholder.svg' && (
                     <img src={selectedRecipe.image} alt={selectedRecipe.name} className="w-full h-40 object-cover rounded-xl" />
@@ -551,7 +550,7 @@ export default function Dashboard() {
                     </button>
                   )}
                 </div>
-              </ScrollArea>
+              </div>
             </>
           )}
         </DialogContent>

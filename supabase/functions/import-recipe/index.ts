@@ -6,6 +6,11 @@ const corsHeaders = {
 const AI_GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
 const R_JINA_PROXY_PREFIX = 'https://r.jina.ai/';
 
+const PROXY_FETCHERS: Array<{ label: string; buildUrl: (url: string) => string }> = [
+  { label: 'r.jina.ai direct', buildUrl: (url) => `${R_JINA_PROXY_PREFIX}${url}` },
+  { label: 'r.jina.ai encoded', buildUrl: (url) => `${R_JINA_PROXY_PREFIX}http://${encodeURIComponent(url)}` },
+];
+
 const TEXT_EXTRACT_PROMPT = `You are a recipe extraction assistant. Extract the recipe from the provided content and return ONLY a valid JSON object with these fields:
 {
   "name": "Recipe name",
@@ -274,6 +279,7 @@ Deno.serve(async (req) => {
 
     if (url) {
       let html = '';
+      const attemptedStatuses: string[] = [];
       const pageRes = await fetch(url, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
@@ -282,18 +288,31 @@ Deno.serve(async (req) => {
         },
       });
 
+      attemptedStatuses.push(`direct:${pageRes.status}`);
+
       if (pageRes.ok) {
         html = await pageRes.text();
       } else {
         console.warn(`Direct fetch failed (${pageRes.status}) for ${url}, trying proxy fallback`);
-        const proxyRes = await fetch(`${R_JINA_PROXY_PREFIX}${url}`);
-        if (!proxyRes.ok) {
+
+        for (const proxy of PROXY_FETCHERS) {
+          const proxyRes = await fetch(proxy.buildUrl(url));
+          attemptedStatuses.push(`${proxy.label}:${proxyRes.status}`);
+          if (proxyRes.ok) {
+            html = await proxyRes.text();
+            break;
+          }
+        }
+
+        if (!html) {
           return new Response(
-            JSON.stringify({ success: false, error: `Failed to fetch URL (${pageRes.status})` }),
+            JSON.stringify({
+              success: false,
+              error: `Unable to fetch this URL (often blocked by site protections). Attempts: ${attemptedStatuses.join(', ')}`,
+            }),
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
           );
         }
-        html = await proxyRes.text();
       }
 
       recipe = extractRecipeFromJsonLd(html);
