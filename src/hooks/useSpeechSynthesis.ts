@@ -58,9 +58,11 @@ export function useSpeechSynthesis() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const synthRef = useRef(window.speechSynthesis);
   const voiceRef = useRef<SpeechSynthesisVoice | null>(null);
+  const voiceLockedRef = useRef(false);
 
   useEffect(() => {
     const loadVoice = () => {
+      if (voiceLockedRef.current) return;
       voiceRef.current = getBestVoice();
     };
     loadVoice();
@@ -71,8 +73,12 @@ export function useSpeechSynthesis() {
   const speak = useCallback((text: string) => {
     synthRef.current.cancel();
 
-    // Re-check voice in case voices loaded after initial mount
     if (!voiceRef.current) voiceRef.current = getBestVoice();
+    if (!voiceRef.current) {
+      const voices = window.speechSynthesis.getVoices();
+      voiceRef.current = voices[0] ?? null;
+    }
+    if (voiceRef.current) voiceLockedRef.current = true;
 
     const utter = new SpeechSynthesisUtterance(text);
     if (voiceRef.current) utter.voice = voiceRef.current;

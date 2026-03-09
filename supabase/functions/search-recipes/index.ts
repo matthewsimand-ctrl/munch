@@ -35,9 +35,10 @@ function normalizeInstructionLines(lines: string[]): string[] {
     const cleaned = line
       .replace(/^step\s*\d+\s*[:.)-]?\s*/i, '')
       .replace(/^\d+\s*[:.)-]\s*/, '')
+      .replace(/^step\s*\d+\s*[:.)-]?\s*/i, '')
       .trim();
 
-    if (cleaned.length > 3) normalized.push(cleaned);
+    if (!/^step\s*\d+$/i.test(cleaned) && cleaned.length > 3) normalized.push(cleaned);
   }
   return normalized;
 }
@@ -167,6 +168,8 @@ async function browseMealDBByCategory(category: string): Promise<NormalizedRecip
           tags: m.strTags ? m.strTags.split(',').map((t: string) => t.trim().toLowerCase()) : [],
           instructions: instructions.slice(0, 10),
           source: 'TheMealDB',
+          source_url: m.strSource || m.strYoutube || undefined,
+          raw_api_payload: m,
           cuisine: m.strArea || undefined,
         };
       });
