@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useStore } from "@/lib/store";
+import { supabase } from "@/integrations/supabase/client";
 import { useDbRecipes } from "@/hooks/useDbRecipes";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
