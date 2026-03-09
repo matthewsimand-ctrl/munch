@@ -661,6 +661,14 @@ export default function SavedRecipes() {
             <>
               <DialogHeader>
                 <DialogTitle className="text-xl font-bold">{selectedRecipe.name}</DialogTitle>
+                {selectedRecipe.created_by && chefProfiles[selectedRecipe.created_by] && (
+                  <button
+                    onClick={() => { setSelectedRecipe(null); navigate(`/chef/${selectedRecipe.created_by}`); }}
+                    className="inline-flex items-center gap-1 text-xs text-primary hover:underline w-fit"
+                  >
+                    <ChefHat className="h-3 w-3" /> by {chefProfiles[selectedRecipe.created_by].display_name || 'Chef'}
+                  </button>
+                )}
               </DialogHeader>
               <div className="flex-1 min-h-0 overflow-y-auto -mx-6 px-6">
                 <div className="space-y-6 pb-4">
