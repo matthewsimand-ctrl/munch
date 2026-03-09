@@ -45,8 +45,29 @@ export default function Dashboard() {
   });
 
   const { recipes: browseRecipes, loading: browseLoading, loadFeed } = useBrowseFeed();
-  const { likedRecipes, likeRecipe, savedApiRecipes, pantryList, addCustomGroceryItem, cookingStreak, totalMealsCooked, cookedRecipeIds, totalXp, earnedBadges, earnBadge } = useStore();
+  const { likedRecipes, likeRecipe, savedApiRecipes, pantryList, addCustomGroceryItem, cookingStreak, totalMealsCooked, cookedRecipeIds, totalXp, earnedBadges, earnBadge, chefAvatarUrl, setChefAvatarUrl } = useStore();
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingAvatar(true);
+    try {
+      const ext = file.name.split('.').pop();
+      const fileName = `chef-avatar-${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from('recipe-photos').upload(fileName, file, { upsert: true });
+      if (error) throw error;
+      const { data: { publicUrl } } = supabase.storage.from('recipe-photos').getPublicUrl(fileName);
+      setChefAvatarUrl(publicUrl);
+      toast.success('Avatar updated!');
+    } catch {
+      toast.error('Failed to upload avatar');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   const BADGES = useMemo(() => [
     { id: 'first_cook', label: 'First Cook', emoji: '👨‍🍳', desc: 'Cook your first recipe', unlocked: totalMealsCooked >= 1 },
