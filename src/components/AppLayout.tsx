@@ -12,12 +12,14 @@ import {
   ChevronLeft,
   ChevronRight,
   BookMarked,
+  CookingPot,
 } from "lucide-react";
 
 const NAV_ITEMS = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/swipe", icon: BookOpen, label: "Explore" },
   { to: "/saved", icon: Heart, label: "My Recipes" },
+  { to: "/let-me-cook", icon: CookingPot, label: "Let me Cook" },
   { to: "/pantry", icon: Package, label: "Pantry" },
   { to: "/grocery", icon: ShoppingCart, label: "Grocery" },
   { to: "/meal-prep", icon: CalendarDays, label: "Meal Prep" },

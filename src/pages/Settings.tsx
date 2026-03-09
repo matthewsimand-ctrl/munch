@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useStore } from '@/lib/store';
@@ -6,9 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, LogOut, User, Users, Utensils, Trash2, Flame, FolderArchive } from 'lucide-react';
+import { ArrowLeft, LogOut, User, Users, Utensils, Trash2, Flame, FolderArchive, Camera, ChefHat } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import BottomNav from '@/components/BottomNav';
+import { Switch } from '@/components/ui/switch';
 
 const DIETARY_OPTIONS = ['Vegetarian', 'Vegan', 'Gluten-Free', 'Dairy-Free', 'Nut-Free', 'None'];
 const SKILL_OPTIONS = ['Beginner', 'Intermediate', 'Advanced'];
@@ -30,11 +31,13 @@ const Chip = ({ label, selected, onClick }: { label: string; selected: boolean; 
 export default function Settings() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { userProfile, setUserProfile, resetStore } = useStore();
+  const { userProfile, setUserProfile, resetStore, chefAvatarUrl, setChefAvatarUrl, shareCustomRecipesByDefault, setShareCustomRecipesByDefault } = useStore();
   const [user, setUser] = useState<any>(null);
   const [displayName, setDisplayName] = useState('');
   const [defaultServings, setDefaultServings] = useState('2');
   const [loading, setLoading] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -77,6 +80,26 @@ export default function Settings() {
         ? current.filter(f => f !== item)
         : [...current, item],
     });
+  };
+
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingAvatar(true);
+    try {
+      const ext = file.name.split('.').pop() || 'jpg';
+      const fileName = `chef-avatar-${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from('recipe-photos').upload(fileName, file, { upsert: true });
+      if (error) throw error;
+      const { data: { publicUrl } } = supabase.storage.from('recipe-photos').getPublicUrl(fileName);
+      setChefAvatarUrl(publicUrl);
+      toast({ title: 'Cook mode avatar updated' });
+    } catch {
+      toast({ title: 'Failed to upload avatar', variant: 'destructive' });
+    } finally {
+      setUploadingAvatar(false);
+    }
   };
 
   const handleSave = async () => {
@@ -235,6 +258,39 @@ export default function Settings() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+          </section>
+
+          <section className="space-y-4">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <ChefHat className="h-4 w-4" />
+              <span className="text-sm font-semibold uppercase tracking-wide">Cook Mode Avatar</span>
+            </div>
+            <div className="space-y-3 bg-card rounded-xl p-4 border border-border">
+              <div className="flex items-center gap-3">
+                <img src={chefAvatarUrl || '/placeholder.svg'} alt="Chef avatar" className="h-14 w-14 rounded-full object-cover border border-border" />
+                <div className="space-y-1">
+                  <p className="text-sm text-foreground">Customize your in-game cook companion.</p>
+                  <Button type="button" variant="outline" size="sm" onClick={() => avatarInputRef.current?.click()} disabled={uploadingAvatar}>
+                    <Camera className="h-4 w-4 mr-1.5" /> {uploadingAvatar ? 'Uploading...' : 'Upload Avatar'}
+                  </Button>
+                  <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="space-y-4">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <User className="h-4 w-4" />
+              <span className="text-sm font-semibold uppercase tracking-wide">Recipe Sharing</span>
+            </div>
+            <div className="bg-card rounded-xl p-4 border border-border flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-foreground">Share custom recipes by default</p>
+                <p className="text-xs text-muted-foreground">New manual recipes will start as discoverable to others.</p>
+              </div>
+              <Switch checked={shareCustomRecipesByDefault} onCheckedChange={setShareCustomRecipesByDefault} />
             </div>
           </section>
 

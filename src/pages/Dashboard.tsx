@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import {
   Flame, Clock, Heart, ShoppingCart, TrendingUp, ChevronRight,
-  Sparkles, Calendar, Star, Plus, Check, Users, MapPin, X, RotateCw,
+  Calendar, Star, Plus, Check, Users, MapPin, X, RotateCw,
   Trophy, ChefHat, Zap, Award, Camera,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
@@ -196,8 +196,8 @@ export default function Dashboard() {
             to="/swipe"
             className="hidden sm:flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-sm"
           >
-            <Sparkles size={15} />
-            Find Recipes
+            <span role="img" aria-label="cookbook">📖</span>
+            Get Cooking
           </Link>
         </div>
       </div>

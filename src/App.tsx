@@ -15,6 +15,7 @@ import GroceryList from "./pages/GroceryList";
 import MealPrep from "./pages/MealPrep";
 import Settings from "./pages/Settings";
 import Dashboard from "./pages/Dashboard";
+import LetMeCook from "./pages/LetMeCook";
 import Auth from "./pages/Auth";
 import ChefProfile from "./pages/ChefProfile";
 import Dictionary from "./pages/Dictionary";
@@ -45,6 +46,7 @@ function AppRoutes() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/swipe" element={<Swipe />} />
           <Route path="/saved" element={<SavedRecipes />} />
+          <Route path="/let-me-cook" element={<LetMeCook />} />
           <Route path="/pantry" element={<Pantry />} />
           <Route path="/grocery" element={<GroceryList />} />
           <Route path="/meal-prep" element={<MealPrep />} />
