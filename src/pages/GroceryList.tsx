@@ -88,7 +88,7 @@ export default function GroceryList() {
       <div className="bg-white border-b border-gray-100 px-6 py-5">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Grocery List</h1>
+            <h1 className="text-2xl font-bold text-orange-500">Grocery List</h1>
             <p className="text-sm text-gray-500 mt-0.5">
               {uncheckedCount} to get · {checkedCount} done
             </p>

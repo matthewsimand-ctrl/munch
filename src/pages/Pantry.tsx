@@ -84,7 +84,7 @@ export default function Pantry() {
               </div>
             </button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Pantry</h1>
+              <h1 className="text-2xl font-bold text-orange-500">Pantry</h1>
               <p className="text-sm text-gray-500 mt-0.5">{items.length} items tracked</p>
             </div>
           </div>
