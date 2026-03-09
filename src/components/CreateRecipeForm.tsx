@@ -505,14 +505,30 @@ export default function CreateRecipeForm({ onClose }: Props) {
       </div>
 
       <div>
-        <label className="text-sm font-medium text-foreground">Instructions</label>
-        <Textarea
-          value={instructions}
-          onChange={e => setInstructions(e.target.value)}
-          placeholder="One step per line..."
-          rows={5}
-        />
-        <p className="text-xs text-muted-foreground mt-1">Put each step on a new line.</p>
+        <label className="text-sm font-medium text-foreground">Steps / Instructions</label>
+        <div className="flex gap-2 mt-1">
+          <Input
+            value={instructionInput}
+            onChange={(e) => setInstructionInput(e.target.value)}
+            placeholder="Add a cooking step"
+            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addInstruction())}
+          />
+          <Button type="button" variant="outline" size="icon" onClick={addInstruction}>
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
+        <div className="space-y-1.5 mt-2">
+          {instructions.map((step, index) => (
+            <div key={`${step}-${index}`} className="flex items-start gap-2 rounded-md border border-border bg-muted/40 px-2 py-1.5 text-sm">
+              <span className="text-xs font-semibold text-muted-foreground pt-0.5">{index + 1}.</span>
+              <span className="flex-1 text-foreground">{step}</span>
+              <button type="button" onClick={() => removeInstruction(index)} className="text-muted-foreground hover:text-destructive">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">Add one step at a time.</p>
       </div>
 
       <div className="flex items-start space-x-3 rounded-lg border border-border p-3 bg-muted/30">
