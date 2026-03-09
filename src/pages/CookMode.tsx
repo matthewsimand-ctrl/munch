@@ -202,7 +202,15 @@ export default function CookMode() {
           </p>
         )}
         <Progress value={progress} className="h-1.5 mt-2" />
-      </div>
+        {/* Animated chef companion */}
+        <div className="mt-3">
+          <ChefCompanion
+            currentStep={currentStep}
+            totalSteps={totalSteps}
+            timerRunning={timerRunning}
+            isDone={isDone}
+          />
+        </div>
 
       {/* Step Content */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 max-w-md mx-auto w-full">
