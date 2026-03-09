@@ -470,11 +470,11 @@ export default function CreateRecipeForm({ onClose }: Props) {
             size="sm"
             onClick={fetchRandomPhoto}
             disabled={fetchingPhoto}
-            title="Use random Foodish photo"
+            title="Use random photo"
             className="gap-1.5"
           >
             {fetchingPhoto ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
-            <span className="hidden sm:inline">Foodish</span>
+            <span className="hidden sm:inline">Random Photo</span>
           </Button>
         </div>
         {image && (
