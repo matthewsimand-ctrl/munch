@@ -48,7 +48,8 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
   // Review mode state
   const [reviewMode, setReviewMode] = useState(false);
   const [reviewData, setReviewData] = useState<ReviewData | null>(null);
-  const [isDiscoverable, setIsDiscoverable] = useState(false);
+  // Discoverable should be ON by default (user can toggle off)
+  const [isDiscoverable, setIsDiscoverable] = useState(true);
   const [newIngredient, setNewIngredient] = useState('');
   const [newInstruction, setNewInstruction] = useState('');
   const [newTag, setNewTag] = useState('');
