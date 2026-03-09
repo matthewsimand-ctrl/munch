@@ -266,7 +266,7 @@ export default function CreateRecipeForm({ onClose }: Props) {
   const fetchRandomPhoto = async () => {
     setFetchingPhoto(true);
     try {
-      const randomImage = await getRandomFoodishImage();
+      const randomImage = await getRandomFoodishImage(name);
       if (randomImage) {
         setImage(randomImage);
       } else {
