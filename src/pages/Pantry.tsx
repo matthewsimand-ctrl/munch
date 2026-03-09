@@ -1,376 +1,323 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
-import BottomNav from '@/components/BottomNav';
-import { useNavigate } from 'react-router-dom';
-import { useStore } from '@/lib/store';
-import { supabase } from '@/integrations/supabase/client';
-import { getCategory, getAllCategories, type IngredientCategory } from '@/lib/ingredientCategories';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, X, Camera, ArrowRight, ChefHat, User, LogOut, SlidersHorizontal, Loader2, Sparkles, ImagePlus } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useToast } from '@/hooks/use-toast';
+import { useState } from "react";
+import { Package, Plus, Search, AlertTriangle, CheckCircle, X, Trash2, ChevronDown } from "lucide-react";
 
-const QUANTITY_OPTIONS = ['1', '2', '3', '4', '5', '½', '¼', '100g', '200g', '500g', '1kg', '1L'];
-const SORT_OPTIONS = [
-  { value: 'name', label: 'Name' },
-  { value: 'category', label: 'Category' },
-  { value: 'recent', label: 'Recently Added' },
+// ── Types & mock data ─────────────────────────────────────────────────────────
+type Status = "good" | "low" | "expired";
+
+interface PantryItem {
+  id: number;
+  name: string;
+  quantity: string;
+  category: string;
+  status: Status;
+  expiry?: string;
+}
+
+const INITIAL_ITEMS: PantryItem[] = [
+  { id: 1, name: "Olive Oil", quantity: "750ml", category: "Oils & Condiments", status: "good", expiry: "Dec 2025" },
+  { id: 2, name: "Arborio Rice", quantity: "200g", category: "Grains & Pasta", status: "low", expiry: "Mar 2026" },
+  { id: 3, name: "Canned Tomatoes", quantity: "3 cans", category: "Canned Goods", status: "good" },
+  { id: 4, name: "Garlic", quantity: "1 bulb", category: "Fresh Produce", status: "low" },
+  { id: 5, name: "Cumin", quantity: "Full", category: "Spices", status: "good", expiry: "Jan 2026" },
+  { id: 6, name: "Coconut Milk", quantity: "400ml", category: "Canned Goods", status: "good" },
+  { id: 7, name: "Pasta", quantity: "500g", category: "Grains & Pasta", status: "good" },
+  { id: 8, name: "Chicken Stock", quantity: "Expired", category: "Canned Goods", status: "expired", expiry: "Nov 2024" },
+  { id: 9, name: "Soy Sauce", quantity: "Nearly empty", category: "Oils & Condiments", status: "low" },
+  { id: 10, name: "Paprika", quantity: "Full", category: "Spices", status: "good" },
+  { id: 11, name: "Lentils", quantity: "400g", category: "Grains & Pasta", status: "good" },
+  { id: 12, name: "Honey", quantity: "250g", category: "Oils & Condiments", status: "good" },
 ];
 
+const CATEGORIES = ["All", "Grains & Pasta", "Canned Goods", "Oils & Condiments", "Spices", "Fresh Produce"];
+
+const STATUS_CONFIG: Record<Status, { label: string; bg: string; text: string; icon: typeof CheckCircle }> = {
+  good: { label: "In stock", bg: "bg-green-50", text: "text-green-600", icon: CheckCircle },
+  low: { label: "Running low", bg: "bg-amber-50", text: "text-amber-600", icon: AlertTriangle },
+  expired: { label: "Expired", bg: "bg-red-50", text: "text-red-500", icon: X },
+};
+
 export default function Pantry() {
-  const navigate = useNavigate();
-  const { toast } = useToast();
-  const { pantryList, addPantryItem, addPantryItems, removePantryItem, updatePantryQuantity } = useStore();
-  const [input, setInput] = useState('');
-  const [quantity, setQuantity] = useState('1');
-  const [selectedCategory, setSelectedCategory] = useState<string>('auto');
-  const allCategories = getAllCategories();
-  const [user, setUser] = useState<any>(null);
-  const [filterCategory, setFilterCategory] = useState<string>('all');
-  const [sortBy, setSortBy] = useState('recent');
-  const [scanning, setScanning] = useState(false);
-  const [scannedItems, setScannedItems] = useState<string[] | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [items, setItems] = useState<PantryItem[]>(INITIAL_ITEMS);
+  const [search, setSearch] = useState("");
+  const [activeCategory, setActiveCategory] = useState("All");
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newItem, setNewItem] = useState({ name: "", quantity: "", category: "Grains & Pasta" });
 
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
-      setUser(session?.user ?? null);
-    });
-    supabase.auth.getSession().then(({ data: { session } }) => setUser(session?.user ?? null));
-    return () => subscription.unsubscribe();
-  }, []);
+  const filtered = items
+    .filter((i) => activeCategory === "All" || i.category === activeCategory)
+    .filter((i) => i.name.toLowerCase().includes(search.toLowerCase()));
 
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    
-    // Show preview
-    const url = URL.createObjectURL(file);
-    setPreviewUrl(url);
-    setScanning(true);
-    setScannedItems(null);
-
-    try {
-      // Convert to base64
-      const reader = new FileReader();
-      const base64 = await new Promise<string>((resolve, reject) => {
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-
-      const { data, error } = await supabase.functions.invoke('scan-fridge', {
-        body: { imageBase64: base64 },
-      });
-
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-
-      const ingredients: string[] = data?.ingredients || [];
-      if (ingredients.length === 0) {
-        toast({ title: 'No ingredients found', description: 'Try a clearer photo of your fridge or pantry.' });
-      } else {
-        setScannedItems(ingredients);
-      }
-    } catch (err: any) {
-      console.error('Fridge scan error:', err);
-      toast({ title: 'Scan failed', description: err.message || 'Could not analyze the image.', variant: 'destructive' });
-      setPreviewUrl(null);
-    } finally {
-      setScanning(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-  };
-
-  const acceptScannedItems = () => {
-    if (scannedItems) {
-      addPantryItems(scannedItems);
-      toast({ title: `Added ${scannedItems.length} ingredients`, description: 'Items added to your pantry.' });
-      setScannedItems(null);
-      setPreviewUrl(null);
-    }
-  };
-
-  const dismissScan = () => {
-    setScannedItems(null);
-    setPreviewUrl(null);
-  };
-
-  const categorizedItems = useMemo(() => {
-    return pantryList.map((item, index) => ({
-      ...item,
-      category: item.category as IngredientCategory || getCategory(item.name),
-      index,
-    }));
-  }, [pantryList]);
-
-  const filteredAndSorted = useMemo(() => {
-    let items = [...categorizedItems];
-    if (filterCategory !== 'all') {
-      items = items.filter(i => i.category === filterCategory);
-    }
-    if (sortBy === 'name') {
-      items.sort((a, b) => a.name.localeCompare(b.name));
-    } else if (sortBy === 'category') {
-      items.sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
-    }
-    // 'recent' keeps original order (reversed = newest first)
-    if (sortBy === 'recent') items.reverse();
-    return items;
-  }, [categorizedItems, filterCategory, sortBy]);
-
-  const activeCategories = useMemo(() => {
-    const cats = new Set(categorizedItems.map(i => i.category));
-    return getAllCategories().filter(c => cats.has(c));
-  }, [categorizedItems]);
-
-  const autoCategory = useMemo(() => {
-    const trimmed = input.trim();
-    return trimmed ? getCategory(trimmed) : 'Other';
-  }, [input]);
+  const goodCount = items.filter((i) => i.status === "good").length;
+  const lowCount = items.filter((i) => i.status === "low").length;
+  const expiredCount = items.filter((i) => i.status === "expired").length;
 
   const handleAdd = () => {
-    const trimmed = input.trim();
-    if (trimmed) {
-      const category = selectedCategory === 'auto' ? getCategory(trimmed) : selectedCategory;
-      addPantryItem(trimmed, quantity, category);
-      setInput('');
-      setQuantity('1');
-      setSelectedCategory('auto');
-    }
+    if (!newItem.name.trim()) return;
+    const item: PantryItem = {
+      id: Date.now(),
+      name: newItem.name,
+      quantity: newItem.quantity || "—",
+      category: newItem.category,
+      status: "good",
+    };
+    setItems((prev) => [item, ...prev]);
+    setNewItem({ name: "", quantity: "", category: "Grains & Pasta" });
+    setShowAddForm(false);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') handleAdd();
+  const handleRemove = (id: number) => {
+    setItems((prev) => prev.filter((i) => i.id !== id));
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col pb-20">
-      <div className="px-6 pt-8 pb-4 max-w-md mx-auto w-full">
-        <div className="flex items-center justify-between mb-4">
-          <button onClick={() => navigate('/dashboard')} className="flex items-center gap-2">
-            <ChefHat className="h-6 w-6 text-primary" />
-            <span className="font-display text-xl font-bold text-foreground">Pantry</span>
-          </button>
-          <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/settings')}>
-              <User className="h-5 w-5" />
-            </Button>
-            <Button onClick={() => navigate('/swipe')} disabled={pantryList.length === 0} size="sm">
-              Start Cooking <ArrowRight className="h-4 w-4 ml-1" />
-            </Button>
+    <div className="min-h-full bg-gray-50">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-100 px-6 py-5">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Pantry</h1>
+            <p className="text-sm text-gray-500 mt-0.5">{items.length} items tracked</p>
           </div>
-        </div>
-
-        {/* Add ingredient */}
-        <div className="space-y-2 mb-4" data-tutorial="pantry-add-form">
-          <div className="flex gap-2">
-            <Input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Add an ingredient..."
-              className="flex-1 h-12 bg-card"
-            />
-            <Select value={quantity} onValueChange={setQuantity}>
-              <SelectTrigger className="w-20 h-12 bg-card">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {QUANTITY_OPTIONS.map(q => (
-                  <SelectItem key={q} value={q}>{q}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button onClick={handleAdd} size="icon" className="h-12 w-12 shrink-0">
-              <Plus className="h-5 w-5" />
-            </Button>
-          </div>
-          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-            <SelectTrigger className="w-full h-9 bg-card text-xs">
-              <SelectValue placeholder="Category" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="auto">
-                Auto-detect{input.trim() ? ` → ${autoCategory}` : ''}
-              </SelectItem>
-              {allCategories.map(cat => (
-                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Filter & Sort bar */}
-        {pantryList.length > 0 && (
-          <div className="flex gap-2 mb-4">
-            <Select value={filterCategory} onValueChange={setFilterCategory}>
-              <SelectTrigger className="flex-1 h-9 bg-card text-xs">
-                <SlidersHorizontal className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
-                <SelectValue placeholder="All Categories" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {activeCategories.map(cat => (
-                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-32 h-9 bg-card text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {SORT_OPTIONS.map(opt => (
-                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-      </div>
-
-      <div className="flex-1 px-6 max-w-md mx-auto w-full space-y-6 overflow-y-auto">
-        {/* Quick-add suggestions */}
-        <div data-tutorial="pantry-quick-add">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Common Staples</p>
-          <div className="flex flex-wrap gap-2">
-            {['salt', 'pepper', 'olive oil', 'garlic', 'onion', 'butter', 'eggs', 'rice', 'flour', 'sugar'].map((item) => (
-              <button
-                key={item}
-                onClick={() => addPantryItem(item)}
-                disabled={pantryList.some(p => p.name === item)}
-                className="px-3 py-1 rounded-full text-xs font-medium border border-border bg-card text-foreground hover:border-primary/50 disabled:opacity-40 disabled:cursor-default transition-all"
-              >
-                + {item}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Ingredient list */}
-        <div className="space-y-1.5">
-          <AnimatePresence>
-            {filteredAndSorted.map((item) => (
-              <motion.div
-                key={item.name}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, x: -60 }}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-card border border-border"
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-card-foreground capitalize text-sm">{item.name}</p>
-                  <p className="text-[10px] text-muted-foreground">{item.category}</p>
-                </div>
-                <Select
-                  value={item.quantity}
-                  onValueChange={(val) => updatePantryQuantity(item.name, val)}
-                >
-                  <SelectTrigger className="w-16 h-7 text-xs bg-secondary border-0">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {QUANTITY_OPTIONS.map(q => (
-                      <SelectItem key={q} value={q}>{q}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <button
-                  onClick={() => removePantryItem(item.name)}
-                  className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-          {pantryList.length === 0 && (
-            <p className="text-muted-foreground text-sm italic text-center py-8">
-              Start adding what's in your kitchen...
-            </p>
-          )}
-          {pantryList.length > 0 && filteredAndSorted.length === 0 && (
-            <p className="text-muted-foreground text-sm italic text-center py-8">
-              No ingredients in this category.
-            </p>
-          )}
-        </div>
-
-        {/* AI Fridge Scanner */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          className="hidden"
-          onChange={handlePhotoUpload}
-        />
-        
-        {scannedItems ? (
-          <div className="rounded-xl border-2 border-primary/30 bg-card p-4 space-y-3">
-            {previewUrl && (
-              <img src={previewUrl} alt="Scanned" className="w-full h-32 object-cover rounded-lg" />
-            )}
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-primary" />
-              <span className="text-sm font-semibold text-foreground">Found {scannedItems.length} ingredients</span>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {scannedItems.map(item => (
-                <span
-                  key={item}
-                  className="px-2.5 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20"
-                >
-                  {item}
-                </span>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <Button onClick={acceptScannedItems} size="sm" className="flex-1">
-                <Plus className="h-4 w-4 mr-1" /> Add All to Pantry
-              </Button>
-              <Button onClick={dismissScan} variant="outline" size="sm">
-                Dismiss
-              </Button>
-            </div>
-          </div>
-        ) : (
           <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={scanning}
-            className="w-full rounded-xl border-2 border-dashed border-primary/30 bg-card/50 p-6 text-center hover:border-primary/60 hover:bg-card transition-all disabled:opacity-60"
+            onClick={() => setShowAddForm((v) => !v)}
+            className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-sm"
           >
-            {scanning ? (
-              <>
-                <Loader2 className="h-10 w-10 text-primary mx-auto mb-3 animate-spin" />
-                <p className="text-sm font-semibold text-foreground">Analyzing your fridge...</p>
-                <p className="text-xs text-muted-foreground mt-1">AI is identifying ingredients</p>
-              </>
-            ) : (
-              <>
-                <div className="relative inline-block">
-                  <Camera className="h-10 w-10 text-primary mx-auto mb-3" />
-                  <Sparkles className="h-4 w-4 text-accent absolute -top-1 -right-1" />
-                </div>
-                <p className="text-sm font-semibold text-foreground">Scan Your Fridge</p>
-                <p className="text-xs text-muted-foreground mt-1">Take a photo and AI will identify ingredients</p>
-              </>
-            )}
+            <Plus size={16} /> Add Item
           </button>
-        )}
-
-
+        </div>
       </div>
 
-      <div className="p-6 max-w-md mx-auto w-full">
-        <p className="text-center text-xs text-muted-foreground">
-          {pantryList.length} ingredient{pantryList.length !== 1 ? 's' : ''} in your pantry
-        </p>
+      <div className="max-w-7xl mx-auto px-6 py-6">
+        {/* ── Two-column layout on desktop ─────────────────────────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+          {/* LEFT: item list (2/3) */}
+          <div className="lg:col-span-2 space-y-4">
+
+            {/* Add item form */}
+            {showAddForm && (
+              <div className="bg-white rounded-2xl border border-orange-200 shadow-sm p-5">
+                <h3 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                  <Plus size={15} className="text-orange-500" /> Add new item
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <input
+                    value={newItem.name}
+                    onChange={(e) => setNewItem((p) => ({ ...p, name: e.target.value }))}
+                    placeholder="Item name"
+                    className="col-span-1 px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-orange-300 transition-colors"
+                  />
+                  <input
+                    value={newItem.quantity}
+                    onChange={(e) => setNewItem((p) => ({ ...p, quantity: e.target.value }))}
+                    placeholder="Quantity (e.g. 500g)"
+                    className="col-span-1 px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-orange-300 transition-colors"
+                  />
+                  <div className="relative">
+                    <select
+                      value={newItem.category}
+                      onChange={(e) => setNewItem((p) => ({ ...p, category: e.target.value }))}
+                      className="w-full appearance-none px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-orange-300 transition-colors pr-8"
+                    >
+                      {CATEGORIES.filter((c) => c !== "All").map((c) => (
+                        <option key={c}>{c}</option>
+                      ))}
+                    </select>
+                    <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                  </div>
+                </div>
+                <div className="flex gap-2 mt-3">
+                  <button
+                    onClick={handleAdd}
+                    className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold rounded-xl transition-colors"
+                  >
+                    Add to Pantry
+                  </button>
+                  <button
+                    onClick={() => setShowAddForm(false)}
+                    className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 text-sm font-semibold rounded-xl transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Search */}
+            <div className="relative">
+              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search pantry…"
+                className="w-full pl-10 pr-4 py-3 text-sm bg-white border border-gray-100 rounded-xl shadow-sm focus:outline-none focus:border-orange-300 transition-all"
+              />
+            </div>
+
+            {/* Category tabs */}
+            <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+              {CATEGORIES.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setActiveCategory(cat)}
+                  className={`shrink-0 text-xs font-semibold px-3.5 py-1.5 rounded-full border transition-all ${
+                    activeCategory === cat
+                      ? "bg-orange-500 text-white border-orange-500"
+                      : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+
+            {/* Items list */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm divide-y divide-gray-100 overflow-hidden">
+              {filtered.length === 0 ? (
+                <div className="py-16 text-center">
+                  <Package size={32} className="mx-auto text-gray-300 mb-3" />
+                  <p className="text-sm text-gray-500">No items found</p>
+                </div>
+              ) : (
+                filtered.map((item) => {
+                  const cfg = STATUS_CONFIG[item.status];
+                  const Icon = cfg.icon;
+                  return (
+                    <div key={item.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 transition-colors group">
+                      {/* Status indicator */}
+                      <div className={`w-8 h-8 rounded-xl ${cfg.bg} flex items-center justify-center shrink-0`}>
+                        <Icon size={14} className={cfg.text} />
+                      </div>
+
+                      {/* Name + category */}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold text-gray-800">{item.name}</div>
+                        <div className="text-xs text-gray-400">{item.category}</div>
+                      </div>
+
+                      {/* Quantity */}
+                      <div className="text-sm text-gray-600 font-medium shrink-0 hidden sm:block">
+                        {item.quantity}
+                      </div>
+
+                      {/* Status badge */}
+                      <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${cfg.bg} ${cfg.text} shrink-0 hidden md:block`}>
+                        {cfg.label}
+                      </span>
+
+                      {/* Expiry */}
+                      {item.expiry && (
+                        <span className="text-xs text-gray-400 shrink-0 hidden lg:block">
+                          {item.expiry}
+                        </span>
+                      )}
+
+                      {/* Remove */}
+                      <button
+                        onClick={() => handleRemove(item.id)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-300 hover:text-red-400 shrink-0"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* RIGHT: summary panel (1/3) */}
+          <div className="space-y-4">
+
+            {/* Status summary */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              <h2 className="text-sm font-bold text-gray-800 mb-4">Pantry health</h2>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-green-400" />
+                    <span className="text-sm text-gray-600">In stock</span>
+                  </div>
+                  <span className="text-sm font-bold text-gray-800">{goodCount}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-amber-400" />
+                    <span className="text-sm text-gray-600">Running low</span>
+                  </div>
+                  <span className="text-sm font-bold text-amber-600">{lowCount}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-red-400" />
+                    <span className="text-sm text-gray-600">Expired</span>
+                  </div>
+                  <span className="text-sm font-bold text-red-500">{expiredCount}</span>
+                </div>
+
+                {/* Bar */}
+                <div className="mt-3 h-2 bg-gray-100 rounded-full overflow-hidden flex">
+                  <div className="h-full bg-green-400 transition-all" style={{ width: `${(goodCount / items.length) * 100}%` }} />
+                  <div className="h-full bg-amber-400 transition-all" style={{ width: `${(lowCount / items.length) * 100}%` }} />
+                  <div className="h-full bg-red-400 transition-all" style={{ width: `${(expiredCount / items.length) * 100}%` }} />
+                </div>
+              </div>
+            </div>
+
+            {/* Needs attention */}
+            {(lowCount > 0 || expiredCount > 0) && (
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                <h2 className="text-sm font-bold text-gray-800 mb-3">Needs attention</h2>
+                <div className="space-y-2">
+                  {items
+                    .filter((i) => i.status === "expired" || i.status === "low")
+                    .map((item) => {
+                      const cfg = STATUS_CONFIG[item.status];
+                      const Icon = cfg.icon;
+                      return (
+                        <div key={item.id} className={`flex items-center gap-2.5 px-3 py-2 rounded-xl ${cfg.bg}`}>
+                          <Icon size={13} className={cfg.text} />
+                          <div className="min-w-0 flex-1">
+                            <div className="text-xs font-semibold text-gray-800 truncate">{item.name}</div>
+                            <div className={`text-xs ${cfg.text}`}>{cfg.label}</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+                <button className="w-full mt-3 text-xs font-semibold text-orange-500 hover:text-orange-600 py-2 border border-orange-200 rounded-xl hover:bg-orange-50 transition-colors">
+                  Add all to grocery list →
+                </button>
+              </div>
+            )}
+
+            {/* Categories breakdown */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              <h2 className="text-sm font-bold text-gray-800 mb-3">By category</h2>
+              <div className="space-y-2">
+                {CATEGORIES.filter((c) => c !== "All").map((cat) => {
+                  const count = items.filter((i) => i.category === cat).length;
+                  if (count === 0) return null;
+                  return (
+                    <button
+                      key={cat}
+                      onClick={() => setActiveCategory(cat)}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm transition-colors ${
+                        activeCategory === cat ? "bg-orange-50 text-orange-600" : "hover:bg-gray-50 text-gray-700"
+                      }`}
+                    >
+                      <span className="font-medium">{cat}</span>
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${activeCategory === cat ? "bg-orange-100 text-orange-600" : "bg-gray-100 text-gray-500"}`}>
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-      <BottomNav />
     </div>
   );
 }
