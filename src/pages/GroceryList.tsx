@@ -40,11 +40,11 @@ export default function GroceryList() {
 
   // Merge store custom items into local state on first render
   const [items, setItems] = useState<GroceryItem[]>(() => {
-    const storeItems: GroceryItem[] = customGroceryList.map((item, i) => ({
+    const storeItems: GroceryItem[] = customGroceryItems.map((item, i) => ({
       id: Date.now() + i + 1000,
       name: item.name,
       quantity: item.quantity || "1",
-      category: item.category || categorizeIngredient(item.name) || "Other",
+      category: getCategory(item.name) || "Other",
       checked: false,
     }));
     return storeItems;
