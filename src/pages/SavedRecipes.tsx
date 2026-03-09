@@ -71,6 +71,7 @@ export default function SavedRecipes() {
   const [viewMode, setViewMode] = useState<ViewMode>("all");
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
   const [showCreateRecipe, setShowCreateRecipe] = useState(false);
+  const [tweakingRecipe, setTweakingRecipe] = useState<Recipe | null>(null);
 
   // Tag editing
   const [editingTagsFor, setEditingTagsFor] = useState<string | null>(null);
