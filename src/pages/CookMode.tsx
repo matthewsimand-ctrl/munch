@@ -291,14 +291,9 @@ export default function CookMode() {
         </AnimatePresence>
       </div>
 
-      {/* Chef Companion XP Path — between content and nav */}
-      <div className="px-4 max-w-md mx-auto w-full">
-        <ChefCompanion
-          currentStep={currentStep}
-          totalSteps={totalSteps}
-          timerRunning={timerRunning}
-          isDone={isDone}
-        />
+      {/* XP bar at bottom */}
+      <div className="px-4 pb-2 max-w-md mx-auto w-full">
+        <CookingXpBar currentStep={currentStep} isDone={isDone} />
       </div>
 
       {/* Navigation */}
