@@ -341,22 +341,39 @@ export default function SavedRecipes() {
         </div>
       </div>
 
-      {/* Tag filters */}
+      {/* Tag filters (multi-select) */}
       <div className="bg-background border-b border-border px-6 py-2.5">
         <div className="max-w-7xl mx-auto flex gap-2 overflow-x-auto scrollbar-hide pb-0.5">
-          {allTags.map((tag) => (
-            <button
-              key={tag}
-              onClick={() => setActiveTag(tag)}
-              className={`shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${
-                activeTag === tag
-                  ? "bg-orange-500 text-white border-orange-500"
-                  : "bg-background text-muted-foreground border-border hover:border-foreground/30"
-              }`}
-            >
-              {tag}
-            </button>
-          ))}
+          <button
+            onClick={() => setActiveTags([])}
+            className={`shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${
+              activeTags.length === 0
+                ? "bg-orange-500 text-white border-orange-500"
+                : "bg-background text-muted-foreground border-border hover:border-foreground/30"
+            }`}
+          >
+            All
+          </button>
+          {allTags.filter(t => t !== "All").map((tag) => {
+            const isActive = activeTags.includes(tag);
+            return (
+              <button
+                key={tag}
+                onClick={() => {
+                  setActiveTags(prev =>
+                    isActive ? prev.filter(t => t !== tag) : [...prev, tag]
+                  );
+                }}
+                className={`shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${
+                  isActive
+                    ? "bg-orange-500 text-white border-orange-500"
+                    : "bg-background text-muted-foreground border-border hover:border-foreground/30"
+                }`}
+              >
+                {tag}
+              </button>
+            );
+          })}
         </div>
       </div>
 
