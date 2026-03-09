@@ -192,9 +192,10 @@ export default function CreateRecipeForm({ onClose }: Props) {
   const [servings, setServings] = useState('4');
   const [ingredientInput, setIngredientInput] = useState('');
   const [ingredients, setIngredients] = useState<string[]>([]);
+  const [instructionInput, setInstructionInput] = useState('');
+  const [instructions, setInstructions] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
   const [tags, setTags] = useState<string[]>([]);
-  const [instructions, setInstructions] = useState('');
   const [isPublic, setIsPublic] = useState(false);
 
   const handleParsePaste = () => {
