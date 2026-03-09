@@ -81,13 +81,17 @@ export default function SavedRecipes() {
 
   // Resolve all saved recipes from DB + saved API cache
   const allSavedRecipes: Recipe[] = useMemo(() => {
-    return likedRecipes.map((id) => {
-      const dbRecipe = dbRecipes.find((r) => r.id === id);
-      if (dbRecipe) return dbRecipe;
-      const apiRecipe = savedApiRecipes[id];
-      if (apiRecipe) return { ...apiRecipe, id } as Recipe;
-      return null;
-    }).filter(Boolean) as Recipe[];
+    return likedRecipes
+      .map((id) => {
+        const dbRecipe = dbRecipes.find((r) => r.id === id);
+        if (dbRecipe) return normalizeRecipeData(dbRecipe, id);
+
+        const apiRecipe = savedApiRecipes[id];
+        if (apiRecipe) return normalizeRecipeData(apiRecipe, id);
+
+        return null;
+      })
+      .filter(Boolean) as Recipe[];
   }, [likedRecipes, dbRecipes, savedApiRecipes]);
 
   // Collect all unique user tags
