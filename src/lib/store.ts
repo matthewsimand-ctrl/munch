@@ -78,6 +78,7 @@ interface AppState {
   addXp: (amount: number) => void;
   earnBadge: (badgeId: string) => void;
   setArchiveBehavior: (behavior: 'ask' | 'always' | 'never') => void;
+  setChefAvatarUrl: (url: string | null) => void;
   resetStore: () => void;
 }
 
