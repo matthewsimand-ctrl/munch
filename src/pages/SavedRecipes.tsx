@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import {
   Heart, Clock, Users, Search, Filter, Trash2, ChevronDown,
   Plus, FolderOpen, X, Tag, Edit2, Check, ChefHat, Play,
-  FolderPlus, MoreHorizontal, ShoppingCart, Import, Flame, Beef, Wheat, Droplets, Sparkles, Loader2, Wand2, Image,
+  FolderPlus, MoreHorizontal, ShoppingCart, Import, Flame, Beef, Wheat, Droplets, Sparkles, Loader2, Wand2, Image, ArrowLeft,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useStore } from "@/lib/store";
@@ -25,7 +25,7 @@ import { toast } from "sonner";
 import type { Recipe } from "@/data/recipes";
 
 type SortOption = "newest" | "time" | "name";
-type ViewMode = "all" | "cookbook";
+type ViewMode = "recipes" | "cookbooks";
 
 function normalizeStringArray(value: unknown): string[] {
   if (Array.isArray(value)) return value.map((v) => String(v).trim()).filter(Boolean);
@@ -68,7 +68,7 @@ export default function SavedRecipes() {
   const [activeTags, setActiveTags] = useState<string[]>([]);
   const [sort, setSort] = useState<SortOption>("newest");
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>("all");
+  const [viewMode, setViewMode] = useState<ViewMode>("recipes");
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
   const [showCreateRecipe, setShowCreateRecipe] = useState(false);
   const [tweakingRecipe, setTweakingRecipe] = useState<Recipe | null>(null);
@@ -119,7 +119,7 @@ export default function SavedRecipes() {
     let list = allSavedRecipes;
 
     // Filter by folder
-    if (viewMode === "cookbook" && activeFolderId) {
+    if (viewMode === "cookbooks" && activeFolderId) {
       const folder = recipeFolders.find((f) => f.id === activeFolderId);
       if (folder) {
         list = list.filter((r) => folder.recipeIds.includes(r.id));
@@ -160,6 +160,12 @@ export default function SavedRecipes() {
 
     return list;
   }, [allSavedRecipes, viewMode, activeFolderId, recipeFolders, activeTags, recipeTags, search, sort]);
+
+  const visibleCookbooks = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return recipeFolders;
+    return recipeFolders.filter((folder) => folder.name.toLowerCase().includes(q));
+  }, [recipeFolders, search]);
 
   const pantryNames = pantryList.map((p) => p.name);
   const selectedIngredients = selectedRecipe ? normalizeStringArray((selectedRecipe as any).ingredients) : [];
@@ -230,6 +236,7 @@ export default function SavedRecipes() {
 
   const activeFolder = recipeFolders.find((f) => f.id === activeFolderId);
   const activeCookbookName = activeFolder?.name || "Cookbook";
+  const isRecipeListingView = viewMode === "recipes" || (viewMode === "cookbooks" && Boolean(activeFolderId));
 
   return (
     <div className="min-h-full bg-muted/30">
@@ -274,7 +281,7 @@ export default function SavedRecipes() {
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search your recipes…"
+                placeholder={isRecipeListingView ? "Search your recipes…" : "Search cookbooks…"}
                 className="w-full pl-9 pr-4 py-2.5 text-sm bg-muted border border-transparent rounded-xl focus:outline-none focus:bg-background focus:border-orange-300 transition-all placeholder:text-muted-foreground"
               />
             </div>
@@ -295,39 +302,30 @@ export default function SavedRecipes() {
         </div>
       </div>
 
-      {/* Tabs: All / Cookbooks */}
+      {/* Tabs: Recipes / Cookbooks */}
       <div className="bg-background border-b border-border px-6 py-3">
-        <div className="max-w-7xl mx-auto flex items-center gap-4">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           <div className="flex gap-2 flex-wrap">
             <button
-              onClick={() => { setViewMode("all"); setActiveFolderId(null); setActiveTags([]); }}
+              onClick={() => { setViewMode("recipes"); setActiveFolderId(null); }}
               className={`text-xs font-semibold px-3.5 py-1.5 rounded-full border transition-all ${
-                viewMode === "all"
+                viewMode === "recipes"
                   ? "bg-orange-500 text-white border-orange-500"
                   : "bg-background text-muted-foreground border-border hover:border-foreground/30"
               }`}
             >
-              All Recipes
+              My Recipes
             </button>
-            {recipeFolders.map((folder) => (
-              <button
-                key={folder.id}
-                onClick={() => { setViewMode("cookbook"); setActiveFolderId(folder.id); }}
-                className={`text-xs font-semibold px-3.5 py-1.5 rounded-full border transition-all flex items-center gap-1 ${
-                  viewMode === "cookbook" && activeFolderId === folder.id
-                    ? "bg-orange-500 text-white border-orange-500"
-                    : "bg-background text-muted-foreground border-border hover:border-foreground/30"
-                }`}
-              >
-                {folder.coverImage ? (
-                  <img src={folder.coverImage} alt={folder.name} className="h-4 w-4 rounded-sm object-cover" />
-                ) : (
-                  <FolderOpen size={11} />
-                )}
-                {folder.name}
-                <span className="text-[10px] opacity-70">({folder.recipeIds.length})</span>
-              </button>
-            ))}
+            <button
+              onClick={() => { setViewMode("cookbooks"); setActiveFolderId(null); }}
+              className={`text-xs font-semibold px-3.5 py-1.5 rounded-full border transition-all ${
+                viewMode === "cookbooks"
+                  ? "bg-orange-500 text-white border-orange-500"
+                  : "bg-background text-muted-foreground border-border hover:border-foreground/30"
+              }`}
+            >
+              Cookbooks
+            </button>
             <button
               onClick={() => setShowNewCookbook(true)}
               className="text-xs font-semibold px-3 py-1.5 rounded-full border border-dashed border-border text-muted-foreground hover:border-orange-300 hover:text-orange-500 transition-all flex items-center gap-1"
@@ -337,7 +335,7 @@ export default function SavedRecipes() {
           </div>
 
           {/* Cookbook actions */}
-          {viewMode === "cookbook" && activeFolder && (
+          {viewMode === "cookbooks" && activeFolder && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="text-muted-foreground hover:text-foreground transition-colors">
@@ -358,7 +356,7 @@ export default function SavedRecipes() {
                   <Image size={12} className="mr-2" /> Update Cover
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-destructive" onClick={() => { deleteFolder(activeFolder.id); setViewMode("all"); setActiveFolderId(null); toast.success("Cookbook deleted"); }}>
+                <DropdownMenuItem className="text-destructive" onClick={() => { deleteFolder(activeFolder.id); setActiveFolderId(null); toast.success("Cookbook deleted"); }}>
                   <Trash2 size={12} className="mr-2" /> Delete Cookbook
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -367,9 +365,16 @@ export default function SavedRecipes() {
         </div>
       </div>
 
-      {viewMode === "cookbook" && activeFolder && (
+      {viewMode === "cookbooks" && activeFolder && (
         <div className="bg-orange-50/70 border-b border-orange-100 px-6 py-2.5">
           <div className="max-w-7xl mx-auto text-xs font-medium text-orange-700 flex items-center gap-2">
+            <button
+              onClick={() => setActiveFolderId(null)}
+              className="inline-flex items-center gap-1 text-orange-700/90 hover:text-orange-900 transition-colors"
+            >
+              <ArrowLeft size={12} /> Cookbooks
+            </button>
+            <span>/</span>
             {activeFolder.coverImage ? (
               <img src={activeFolder.coverImage} alt={activeCookbookName} className="h-5 w-5 rounded object-cover" />
             ) : (
@@ -381,44 +386,88 @@ export default function SavedRecipes() {
       )}
 
       {/* Tag filters (multi-select) */}
-      <div className="bg-background border-b border-border px-6 py-2.5">
-        <div className="max-w-7xl mx-auto flex gap-2 overflow-x-auto scrollbar-hide pb-0.5">
-          <button
-            onClick={() => setActiveTags([])}
-            className={`shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${
-              activeTags.length === 0
-                ? "bg-orange-500 text-white border-orange-500"
-                : "bg-background text-muted-foreground border-border hover:border-foreground/30"
-            }`}
-          >
-            All
-          </button>
-          {allTags.filter(t => t !== "All").map((tag) => {
-            const isActive = activeTags.includes(tag);
-            return (
-              <button
-                key={tag}
-                onClick={() => {
-                  setActiveTags(prev =>
-                    isActive ? prev.filter(t => t !== tag) : [...prev, tag]
-                  );
-                }}
-                className={`shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${
-                  isActive
-                    ? "bg-orange-500 text-white border-orange-500"
-                    : "bg-background text-muted-foreground border-border hover:border-foreground/30"
-                }`}
-              >
-                {tag}
-              </button>
-            );
-          })}
+      {isRecipeListingView && (
+        <div className="bg-background border-b border-border px-6 py-2.5">
+          <div className="max-w-7xl mx-auto flex gap-2 overflow-x-auto scrollbar-hide pb-0.5">
+            <button
+              onClick={() => setActiveTags([])}
+              className={`shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${
+                activeTags.length === 0
+                  ? "bg-orange-500 text-white border-orange-500"
+                  : "bg-background text-muted-foreground border-border hover:border-foreground/30"
+              }`}
+            >
+              All
+            </button>
+            {allTags.filter(t => t !== "All").map((tag) => {
+              const isActive = activeTags.includes(tag);
+              return (
+                <button
+                  key={tag}
+                  onClick={() => {
+                    setActiveTags(prev =>
+                      isActive ? prev.filter(t => t !== tag) : [...prev, tag]
+                    );
+                  }}
+                  className={`shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${
+                    isActive
+                      ? "bg-orange-500 text-white border-orange-500"
+                      : "bg-background text-muted-foreground border-border hover:border-foreground/30"
+                  }`}
+                >
+                  {tag}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Grid */}
       <div className="max-w-7xl mx-auto px-6 py-6">
-        {visibleRecipes.length === 0 ? (
+        {!isRecipeListingView ? (
+          visibleCookbooks.length === 0 ? (
+            <div className="text-center py-24">
+              <div className="text-5xl mb-4">📚</div>
+              <h3 className="text-lg font-semibold text-foreground">No cookbooks found</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                {recipeFolders.length === 0 ? "Create your first cookbook to organize your recipes." : "Try a different search term."}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+              {visibleCookbooks.map((folder) => {
+                const recipeCount = folder.recipeIds.length;
+                const previewRecipe = allSavedRecipes.find((recipe) => folder.recipeIds.includes(recipe.id));
+
+                return (
+                  <button
+                    key={folder.id}
+                    onClick={() => setActiveFolderId(folder.id)}
+                    className="group text-left rounded-2xl overflow-hidden border border-border bg-background shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all"
+                  >
+                    <div className="relative h-48">
+                      {folder.coverImage || previewRecipe?.image ? (
+                        <img
+                          src={folder.coverImage || previewRecipe?.image}
+                          alt={folder.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-orange-400 via-orange-500 to-rose-500" />
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                      <div className="absolute bottom-3 left-3 right-3">
+                        <p className="text-white text-lg font-semibold leading-tight line-clamp-2">{folder.name}</p>
+                        <p className="text-white/80 text-xs mt-1">{recipeCount} {recipeCount === 1 ? "recipe" : "recipes"}</p>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )
+        ) : visibleRecipes.length === 0 ? (
           <div className="text-center py-24">
             <div className="text-5xl mb-4">🍽️</div>
             <h3 className="text-lg font-semibold text-foreground">No recipes found</h3>
