@@ -24,6 +24,17 @@ import type { Recipe } from "@/data/recipes";
 type SortOption = "newest" | "time" | "name";
 type ViewMode = "all" | "folder";
 
+function normalizeStringArray(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map((v) => String(v).trim()).filter(Boolean);
+  if (typeof value === "string") {
+    return value
+      .split(/\r?\n/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
 export default function SavedRecipes() {
   const navigate = useNavigate();
   const {
