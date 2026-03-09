@@ -138,7 +138,7 @@ export default function GroceryList() {
             id: Date.now() + addedCount + Math.random() * 10000,
             name: ing.trim(),
             quantity: "1",
-            category: categorizeIngredient(ing) || "Other",
+            category: getCategory(ing) || "Other",
             checked: false,
             fromRecipe: recipeName,
           });
