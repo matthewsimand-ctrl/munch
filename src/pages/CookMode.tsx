@@ -314,7 +314,7 @@ export default function CookMode() {
               if (id) markRecipeCooked(id);
               setIsDone(true);
               toast.success('🎉 Recipe completed! Great cooking!');
-              setTimeout(() => navigate('/saved'), 1500);
+              setTimeout(() => setShowArchivePrompt(true), 800);
             }}>
               🎉 Done!
             </Button>
