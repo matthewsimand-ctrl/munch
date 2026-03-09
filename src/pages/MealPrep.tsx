@@ -44,11 +44,14 @@ export default function MealPrep() {
   const [aiGenerating, setAiGenerating] = useState(false);
   const [exportDialog, setExportDialog] = useState(false);
 
-  // Get saved recipes list
+  // Get saved recipes list - check both DB recipes and locally cached API recipes
   const savedRecipes = useMemo(() => {
     return likedRecipes.map((id) => {
-      const recipe = dbRecipes.find((r) => r.id === id) || savedApiRecipes[id];
-      return recipe ? { id, name: recipe.name, image: recipe.image } : null;
+      const dbRecipe = dbRecipes.find((r) => r.id === id);
+      if (dbRecipe) return { id, name: dbRecipe.name, image: dbRecipe.image };
+      const apiRecipe = savedApiRecipes[id];
+      if (apiRecipe) return { id, name: apiRecipe.name, image: apiRecipe.image || '/placeholder.svg' };
+      return null;
     }).filter(Boolean) as { id: string; name: string; image: string }[];
   }, [likedRecipes, dbRecipes, savedApiRecipes]);
 

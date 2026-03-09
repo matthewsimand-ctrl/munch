@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import {
   Heart, Clock, Users, Search, Filter, Trash2, ChevronDown,
   Plus, FolderOpen, X, Tag, Edit2, Check, ChefHat, Play,
-  FolderPlus, MoreHorizontal,
+  FolderPlus, MoreHorizontal, ShoppingCart, Import,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useStore } from "@/lib/store";
@@ -12,6 +12,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import NutritionCard from "@/components/NutritionCard";
+import ImportRecipeDialog from "@/components/ImportRecipeDialog";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
@@ -29,6 +30,7 @@ export default function SavedRecipes() {
     recipeTags, addRecipeTag, removeRecipeTag,
     recipeFolders, createFolder, renameFolder, deleteFolder,
     addRecipeToFolder, removeRecipeFromFolder,
+    addCustomGroceryItem,
   } = useStore();
   const { data: dbRecipes = [] } = useDbRecipes();
 
@@ -100,7 +102,7 @@ export default function SavedRecipes() {
     list = [...list].sort((a, b) => {
       if (sort === "time") return parseInt(a.cook_time || "0") - parseInt(b.cook_time || "0");
       if (sort === "name") return a.name.localeCompare(b.name);
-      return 0; // newest = original order
+      return 0;
     });
 
     return list;
@@ -137,6 +139,21 @@ export default function SavedRecipes() {
     }
   };
 
+  const handleAddMissingToGrocery = (recipe: Recipe) => {
+    const match = calculateMatch(pantryNames, recipe.ingredients || []);
+    if (match.missing.length === 0) {
+      toast.info("You already have all the ingredients!");
+      return;
+    }
+    match.missing.forEach((ing) => addCustomGroceryItem(ing));
+    toast.success(`Added ${match.missing.length} items to grocery list`);
+  };
+
+  // Get folder names for a recipe
+  const getFolderNames = (recipeId: string) => {
+    return recipeFolders.filter((f) => f.recipeIds.includes(recipeId)).map((f) => f.name);
+  };
+
   const activeFolder = recipeFolders.find((f) => f.id === activeFolderId);
 
   return (
@@ -151,13 +168,21 @@ export default function SavedRecipes() {
                 {allSavedRecipes.length} recipes in your collection
               </p>
             </div>
-            <Link
-              to="/swipe"
-              className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-sm"
-            >
-              <Heart size={15} />
-              Browse More
-            </Link>
+            <div className="flex items-center gap-2">
+              <ImportRecipeDialog>
+                <button className="flex items-center gap-2 bg-muted hover:bg-muted/80 text-foreground text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors border border-border">
+                  <Import size={15} />
+                  Import
+                </button>
+              </ImportRecipeDialog>
+              <Link
+                to="/swipe"
+                className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-sm"
+              >
+                <Heart size={15} />
+                Browse More
+              </Link>
+            </div>
           </div>
 
           {/* Search + sort */}
@@ -191,9 +216,9 @@ export default function SavedRecipes() {
       {/* Tabs: All / Folders */}
       <div className="bg-background border-b border-border px-6 py-3">
         <div className="max-w-7xl mx-auto flex items-center gap-4">
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <button
-              onClick={() => { setViewMode("all"); setActiveFolderId(null); }}
+              onClick={() => { setViewMode("all"); setActiveFolderId(null); setActiveTag("All"); }}
               className={`text-xs font-semibold px-3.5 py-1.5 rounded-full border transition-all ${
                 viewMode === "all"
                   ? "bg-orange-500 text-white border-orange-500"
@@ -286,6 +311,7 @@ export default function SavedRecipes() {
               const match = calculateMatch(pantryNames, recipe.ingredients || []);
               const userTags = recipeTags[recipe.id] || [];
               const allRecipeTags = [...(recipe.tags || []), ...userTags];
+              const folderNames = getFolderNames(recipe.id);
 
               return (
                 <div
@@ -334,6 +360,17 @@ export default function SavedRecipes() {
                       <span className="flex items-center gap-1"><Clock size={11} /> {recipe.cook_time}</span>
                       {recipe.servings && <span className="flex items-center gap-1"><Users size={11} /> {recipe.servings}</span>}
                     </div>
+
+                    {/* Folder indicators */}
+                    {folderNames.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mb-2">
+                        {folderNames.map((name) => (
+                          <span key={name} className="inline-flex items-center gap-0.5 text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full font-medium">
+                            <FolderOpen size={8} /> {name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
 
                     {/* Tags with edit */}
                     <div className="flex flex-wrap gap-1 mb-2">
@@ -527,10 +564,18 @@ export default function SavedRecipes() {
                           ))}
                           {m.missing.map((ing) => (
                             <span key={ing} className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full bg-red-50 text-red-600 font-medium">
-                              {ing}
+                              <ShoppingCart size={14} /> {ing}
                             </span>
                           ))}
                         </div>
+                        {m.missing.length > 0 && (
+                          <button
+                            onClick={() => handleAddMissingToGrocery(selectedRecipe)}
+                            className="mt-3 flex items-center gap-2 text-sm text-orange-500 hover:text-orange-600 font-semibold transition-colors"
+                          >
+                            <ShoppingCart size={14} /> Add {m.missing.length} missing items to grocery list
+                          </button>
+                        )}
                       </div>
                     );
                   })()}

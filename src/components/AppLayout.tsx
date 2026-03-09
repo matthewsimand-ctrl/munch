@@ -29,12 +29,21 @@ export default function AppLayout() {
     <div className="flex h-screen bg-gray-50 overflow-hidden">
       {/* ── Desktop Sidebar ── */}
       <aside
-        className={`hidden md:flex flex-col bg-white border-r border-gray-100 shrink-0 z-20 transition-all duration-300 ${
+        className={`hidden md:flex flex-col bg-white border-r border-gray-100 shrink-0 z-20 transition-all duration-300 relative ${
           collapsed ? "w-16" : "w-56 lg:w-64"
         }`}
       >
+        {/* Collapse toggle on the edge */}
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className="absolute -right-3 top-7 z-30 text-gray-400 hover:text-gray-600 transition-colors bg-white border border-gray-200 rounded-full w-6 h-6 flex items-center justify-center shadow-sm"
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+        </button>
+
         {/* Logo */}
-        <div className="flex items-center justify-between px-3 py-5 border-b border-gray-100">
+        <div className="flex items-center px-3 py-5 border-b border-gray-100">
           <div
             className={`flex items-center gap-2.5 transition-all ${
               collapsed ? "mx-auto" : "ml-2"
@@ -47,14 +56,6 @@ export default function AppLayout() {
               <span className="text-lg font-bold text-gray-900 tracking-tight">munch</span>
             )}
           </div>
-
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="absolute -right-3 top-5 text-gray-400 hover:text-gray-600 transition-colors bg-white border border-gray-200 rounded-full p-1 shadow-sm z-10"
-            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-          </button>
         </div>
 
         {/* Nav links */}
@@ -120,7 +121,6 @@ export default function AppLayout() {
 
       {/* ── Main content ── */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Page content scrollable area */}
         <div className="flex-1 overflow-y-auto pb-20 md:pb-0">
           <Outlet />
         </div>
