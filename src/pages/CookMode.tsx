@@ -328,7 +328,14 @@ export default function CookMode() {
               if (id) markRecipeCooked(id);
               setIsDone(true);
               toast.success('🎉 Recipe completed! Great cooking!');
-              setTimeout(() => setShowArchivePrompt(true), 800);
+              if (archiveBehavior === 'always') {
+                archiveRecipe();
+                setTimeout(() => navigate('/saved'), 1000);
+              } else if (archiveBehavior === 'never') {
+                setTimeout(() => navigate('/saved'), 1000);
+              } else {
+                setTimeout(() => setShowArchivePrompt(true), 800);
+              }
             }}>
               🎉 Done!
             </Button>
