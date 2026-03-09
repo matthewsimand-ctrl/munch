@@ -402,6 +402,20 @@ export default function SavedRecipes() {
                       {recipe.servings && <span className="flex items-center gap-1"><Users size={11} /> {recipe.servings}</span>}
                     </div>
 
+                    {/* Ingredient preview */}
+                    {recipe.ingredients.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mb-2">
+                        {recipe.ingredients.slice(0, 3).map((ing) => (
+                          <span key={ing} className="text-[10px] px-1.5 py-0.5 rounded-full bg-success/10 text-success font-medium truncate max-w-[100px]">
+                            {ing}
+                          </span>
+                        ))}
+                        {recipe.ingredients.length > 3 && (
+                          <span className="text-[10px] text-muted-foreground py-0.5">+{recipe.ingredients.length - 3}</span>
+                        )}
+                      </div>
+                    )}
+
                     {/* Folder indicators */}
                     {folderNames.length > 0 && (
                       <div className="flex flex-wrap gap-1 mb-2">
@@ -574,7 +588,7 @@ export default function SavedRecipes() {
               <DialogHeader>
                 <DialogTitle className="text-xl font-bold">{selectedRecipe.name}</DialogTitle>
               </DialogHeader>
-              <ScrollArea className="flex-1 -mx-6 px-6">
+              <ScrollArea className="flex-1 min-h-0 -mx-6 px-6">
                 <div className="space-y-6 pb-4">
                   {/* Image */}
                   {selectedRecipe.image && (
