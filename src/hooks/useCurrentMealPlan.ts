@@ -11,8 +11,26 @@ interface PlannedMeal {
   meal_type: MealPlanSlot;
 }
 
+const SLOT_ORDER: MealPlanSlot[] = ['breakfast', 'lunch', 'snack', 'dinner'];
+
+function slotIndex(slot: MealPlanSlot) {
+  return SLOT_ORDER.indexOf(slot);
+}
+
+function toPlannedMeal(item: any): PlannedMeal {
+  return {
+    id: item.id,
+    recipe_id: item.recipe_id,
+    recipe_name: item.recipe_data?.name || 'Planned meal',
+    recipe_image: item.recipe_data?.image || '/placeholder.svg',
+    day_of_week: item.day_of_week,
+    meal_type: item.meal_type as MealPlanSlot,
+  };
+}
+
 export function useCurrentMealPlan() {
   const [meal, setMeal] = useState<PlannedMeal | null>(null);
+  const [nextMeal, setNextMeal] = useState<PlannedMeal | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -26,6 +44,7 @@ export function useCurrentMealPlan() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) {
         setMeal(null);
+        setNextMeal(null);
         setLoading(false);
         return;
       }
@@ -39,6 +58,7 @@ export function useCurrentMealPlan() {
 
       if (!plan?.id) {
         setMeal(null);
+        setNextMeal(null);
         setLoading(false);
         return;
       }
@@ -47,31 +67,24 @@ export function useCurrentMealPlan() {
         .from('meal_plan_items')
         .select('*')
         .eq('meal_plan_id', plan.id)
-        .eq('day_of_week', dayOfWeek)
-        .eq('meal_type', mealType)
-        .order('sort_order')
-        .limit(1);
+        .order('day_of_week')
+        .order('sort_order');
 
-      const item = planItems?.[0];
-      if (!item) {
-        setMeal(null);
-        setLoading(false);
-        return;
-      }
+      const allItems = (planItems || []).map(toPlannedMeal);
+      const current = allItems.find((item) => item.day_of_week === dayOfWeek && item.meal_type === mealType) || null;
+      setMeal(current);
 
-      setMeal({
-        id: item.id,
-        recipe_id: item.recipe_id,
-        recipe_name: item.recipe_data?.name || 'Planned meal',
-        recipe_image: item.recipe_data?.image || '/placeholder.svg',
-        day_of_week: item.day_of_week,
-        meal_type: item.meal_type as MealPlanSlot,
-      });
+      const currentKey = dayOfWeek * 10 + slotIndex(mealType);
+      const next =
+        allItems.find((item) => item.day_of_week * 10 + slotIndex(item.meal_type) >= currentKey) ||
+        allItems[0] ||
+        null;
+      setNextMeal(next);
       setLoading(false);
     };
 
     load();
   }, []);
 
-  return { meal, loading };
+  return { meal, nextMeal, loading };
 }

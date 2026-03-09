@@ -32,7 +32,7 @@ export default function LetMeCook() {
   const navigate = useNavigate();
   const { likedRecipes, savedApiRecipes } = useStore();
   const { data: dbRecipes = [] } = useDbRecipes();
-  const { meal: currentPlannedMeal, loading: currentMealLoading } = useCurrentMealPlan();
+  const { meal: currentPlannedMeal, nextMeal, loading: currentMealLoading } = useCurrentMealPlan();
 
   const recipes = useMemo(() => likedRecipes.map((id) => {
     const dbRecipe = dbRecipes.find((r) => r.id === id);
@@ -54,17 +54,17 @@ export default function LetMeCook() {
         <div className="bg-orange-50 border border-orange-100 rounded-2xl p-4 mb-4">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold text-orange-600 uppercase tracking-wide">From Meal Prep · Right now</p>
+              <p className="text-xs font-semibold text-orange-600 uppercase tracking-wide">From Meal Prep · Up next</p>
               <h2 className="text-base font-bold text-gray-900 mt-1">
                 {currentMealLoading
                   ? "Loading your planned meal..."
-                  : currentPlannedMeal
-                    ? currentPlannedMeal.recipe_name
-                    : "No meal is planned for this time slot"}
+                  : nextMeal
+                    ? nextMeal.recipe_name
+                    : "No meals are planned for this week"}
               </h2>
             </div>
-            {currentPlannedMeal && (
-              <Button size="sm" onClick={() => navigate(`/cook/${currentPlannedMeal.recipe_id}`)}>
+            {(nextMeal || currentPlannedMeal) && (
+              <Button size="sm" onClick={() => navigate(`/cook/${(nextMeal || currentPlannedMeal)!.recipe_id}`)}>
                 <Play className="h-3.5 w-3.5 mr-1.5" /> Start Planned Meal
               </Button>
             )}

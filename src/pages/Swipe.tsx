@@ -587,14 +587,16 @@ export default function Browse() {
                   servings={scaledServings}
                 />
 
-                {selectedRawPayload && (
-                  <details className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                    <summary className="cursor-pointer text-sm font-semibold text-gray-800">View raw API JSON</summary>
+                <details className="rounded-lg border border-gray-200 bg-gray-50 p-3" open>
+                  <summary className="cursor-pointer text-sm font-semibold text-gray-800">View raw API JSON</summary>
+                  {selectedRawPayload ? (
                     <pre className="mt-3 max-h-64 overflow-auto rounded bg-white p-3 text-xs text-gray-700">
 {JSON.stringify(selectedRawPayload, null, 2)}
                     </pre>
-                  </details>
-                )}
+                  ) : (
+                    <p className="mt-3 text-xs text-gray-600">Raw API payload is not available for this recipe source yet.</p>
+                  )}
+                </details>
 
                 {/* Save button */}
                 <Button
