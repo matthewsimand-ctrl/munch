@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import {
   X,
   Heart,
@@ -69,6 +69,7 @@ export default function Browse() {
   const [swipeIndicator, setSwipeIndicator] = useState<"saved" | "passed" | null>(null);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [servingMultiplier, setServingMultiplier] = useState(1);
+  const [groceryAddedRecipeIds, setGroceryAddedRecipeIds] = useState<string[]>([]);
   const constraintsRef = useRef(null);
 
   useEffect(() => {
@@ -99,6 +100,10 @@ export default function Browse() {
   const selectedMatch = selectedRecipe ? calculateMatch(pantryNames, selectedIngredients) : null;
   const scaledServings = selectedRecipe ? Math.max(1, Math.round((selectedRecipe.servings || 4) * servingMultiplier)) : 1;
   const selectedInstructions = selectedRecipe ? normalizeStringArray((selectedRecipe as any).instructions) : [];
+  const isSelectedRecipeAddedToGrocery = useMemo(() => (
+    selectedRecipe ? groceryAddedRecipeIds.includes(selectedRecipe.id) : false
+  ), [groceryAddedRecipeIds, selectedRecipe]);
+
 
   useEffect(() => {
     if (!selectedRecipe) return;
@@ -381,19 +386,7 @@ export default function Browse() {
                         <span className="flex items-center gap-1"><Clock size={13} /> {currentRecipe.cook_time}</span>
                         {currentRecipe.cuisine && <span className="flex items-center gap-1">🌍 {currentRecipe.cuisine}</span>}
                       </div>
-                      {/* Ingredient preview */}
-                      {currentRecipe.ingredients.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {currentRecipe.ingredients.slice(0, 3).map((ing) => (
-                            <span key={ing} className="text-[10px] bg-white/20 backdrop-blur-sm px-2 py-0.5 rounded-full font-medium">
-                              {ing}
-                            </span>
-                          ))}
-                          {currentRecipe.ingredients.length > 3 && (
-                            <span className="text-[10px] text-white/60 py-0.5">+{currentRecipe.ingredients.length - 3}</span>
-                          )}
-                        </div>
-                      )}
+                      <p className="text-xs text-white/80">Tap card for ingredients, steps, and grocery actions</p>
                     </div>
                   </div>
                 </div>
@@ -476,26 +469,13 @@ export default function Browse() {
                     </div>
                   </div>
 
-                  {/* Ingredients */}
-                  <div>
-                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Ingredients</h3>
-                    <div className="flex flex-wrap gap-1.5">
-                      {currentMatch.matched.slice(0, 6).map((ing) => (
-                        <span key={ing} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 font-medium">
-                          <Check size={10} /> {ing}
-                        </span>
-                      ))}
-                      {currentMatch.missing.slice(0, 4).map((ing) => (
-                        <span key={ing} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-red-50 text-red-600 font-medium">
-                          <ShoppingCart size={10} /> {ing}
-                        </span>
-                      ))}
-                      {(currentMatch.matched.length + currentMatch.missing.length) > 10 && (
-                        <span className="text-xs text-gray-400 px-2 py-1">
-                          +{currentRecipe.ingredients.length - 10} more
-                        </span>
-                      )}
-                    </div>
+                  <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Pantry Match</h3>
+                    <p className="text-sm text-gray-700">
+                      <span className="font-semibold text-green-700">{currentMatch.matched.length}</span> on hand · {" "}
+                      <span className="font-semibold text-red-600">{currentMatch.missing.length}</span> missing
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">Open the card for full ingredient details and one-tap grocery add.</p>
                   </div>
                 </div>
               </div>
@@ -591,11 +571,13 @@ export default function Browse() {
                           const qty = parsed.quantity ? scaleIngredientQuantity(parsed.quantity, servingMultiplier) : "1";
                           addCustomGroceryItem(parsed.name, qty);
                         });
+                        setGroceryAddedRecipeIds((prev) => prev.includes(selectedRecipe!.id) ? prev : [...prev, selectedRecipe!.id]);
                         toast.success(`Added ${selectedMatch.missing.length} items to grocery list`);
                       }}
-                      className="mt-3 flex items-center gap-2 text-sm text-primary hover:text-primary/80 font-semibold transition-colors"
+                      disabled={isSelectedRecipeAddedToGrocery}
+                      className={`mt-3 flex items-center gap-2 text-sm font-semibold transition-colors ${isSelectedRecipeAddedToGrocery ? "text-muted-foreground cursor-not-allowed" : "text-primary hover:text-primary/80"}`}
                     >
-                      <ShoppingCart size={14} /> Add {selectedMatch.missing.length} missing items to grocery list
+                      <ShoppingCart size={14} /> {isSelectedRecipeAddedToGrocery ? "Already added to grocery list" : `Add ${selectedMatch.missing.length} missing items to grocery list`}
                     </button>
                   )}
                 </div>

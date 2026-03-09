@@ -159,9 +159,7 @@ function parseRecipeText(raw: string): {
       // Clean up bullet points, numbers, dashes
       const cleaned = stripped.replace(/^[-•*·▪◦▢]\s*/, '').replace(/^\d+[.)]\s*/, '').trim();
       if (cleaned.length > 1) {
-        // Extract just the ingredient name (strip quantities)
-        const ingName = stripQuantity(cleaned);
-        if (ingName) ingredients.push(ingName);
+        ingredients.push(cleaned);
       }
     } else if (currentSection === 'instructions') {
       const cleaned = stripped.replace(/^[-•*·▪◦▢]\s*/, '').replace(/^\d+[.)]\s*/, '').trim();
@@ -173,8 +171,7 @@ function parseRecipeText(raw: string): {
       const cleaned = stripped.replace(/^[-•*·▪◦▢]\s*/, '').replace(/^\d+[.)]\s*/, '').trim();
       if (looksLikeIngredient(cleaned)) {
         currentSection = 'ingredients';
-        const ingName = stripQuantity(cleaned);
-        if (ingName) ingredients.push(ingName);
+        ingredients.push(cleaned);
       } else if (looksLikeInstruction(cleaned)) {
         currentSection = 'instructions';
         instructions.push(cleaned);
@@ -188,8 +185,7 @@ function parseRecipeText(raw: string): {
       const stripped = line.replace(/^[-•*·▪◦▢]\s*/, '').replace(/^\d+[.)]\s*/, '').replace(/^#+\s*/, '').trim();
       if (stripped === name || stripped.length < 2) continue;
       if (stripped.length < 50 && !stripped.includes('.')) {
-        const ingName = stripQuantity(stripped);
-        if (ingName) ingredients.push(ingName);
+        ingredients.push(stripped);
       } else if (stripped.length >= 15) {
         instructions.push(stripped);
       }
@@ -197,16 +193,6 @@ function parseRecipeText(raw: string): {
   }
 
   return { name, ingredients, instructions, cookTime, difficulty, cuisine };
-}
-
-function stripQuantity(s: string): string {
-  // Remove leading quantities like "2 cups", "1/2 tsp", "100g", etc.
-  return s
-    .replace(/^[\d½¼¾⅓⅔⅛\/\s.,-]+\s*(cups?|tbsp|tsp|tablespoons?|teaspoons?|oz|ounces?|lbs?|pounds?|g|grams?|kg|ml|liters?|litres?|cloves?|cans?|bunch(es)?|pieces?|slices?|pinch(es)?|dash(es)?|handfuls?|sprigs?|stalks?|heads?|sticks?|packages?|packets?|bottles?|jars?|bags?|boxes?|containers?|large|medium|small|whole|half)\s*/i, '')
-    .replace(/^of\s+/i, '')
-    .replace(/,\s*(divided|chopped|minced|diced|sliced|grated|melted|softened|room temperature|to taste|optional|fresh|dried|frozen|canned|packed|loosely packed|firmly packed).*$/i, '')
-    .trim()
-    .toLowerCase();
 }
 
 function looksLikeIngredient(s: string): boolean {
@@ -322,7 +308,7 @@ export default function CreateRecipeForm({ onClose }: Props) {
   };
 
   const addIngredient = () => {
-    const val = ingredientInput.trim().toLowerCase();
+    const val = ingredientInput.trim();
     if (val && !ingredients.includes(val)) {
       setIngredients(prev => [...prev, val]);
       setIngredientInput('');
@@ -540,7 +526,7 @@ export default function CreateRecipeForm({ onClose }: Props) {
           <Input
             value={ingredientInput}
             onChange={e => setIngredientInput(e.target.value)}
-            placeholder="Add ingredient"
+            placeholder="e.g. 2 cups flour"
             onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addIngredient())}
           />
           <Button type="button" variant="outline" size="icon" onClick={addIngredient}>
