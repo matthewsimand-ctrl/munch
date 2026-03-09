@@ -94,17 +94,32 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
       }
 
       const recipe = data.recipe;
-      // Enter review mode with extracted data
+
+      const normalizeList = (value: unknown): string[] => {
+        if (Array.isArray(value)) {
+          return value.map((v) => String(v).trim()).filter(Boolean);
+        }
+        if (typeof value === 'string') {
+          return value
+            .split(/\r?\n/)
+            .map((s) => s.trim())
+            .filter(Boolean);
+        }
+        return [];
+      };
+
+      // Enter review mode with extracted data (discoverable ON by default)
       setReviewData({
-        name: recipe.name || '',
-        ingredients: recipe.ingredients || [],
-        instructions: recipe.instructions || [],
+        name: String(recipe.name || ''),
+        ingredients: normalizeList(recipe.ingredients),
+        instructions: normalizeList(recipe.instructions),
         cook_time: recipe.cook_time || '30 min',
         difficulty: recipe.difficulty || 'Intermediate',
         cuisine: recipe.cuisine || '',
-        tags: recipe.tags || [],
+        tags: normalizeList(recipe.tags),
         image: recipe.image || '/placeholder.svg',
       });
+      setIsDiscoverable(true);
       setReviewMode(true);
       toast.success('Recipe extracted! Review and edit before saving.');
     } catch (err) {
