@@ -64,9 +64,9 @@ export function useBrowseFeed() {
         .map((id) => savedApiRecipes[id])
         .filter(Boolean);
 
-      if (likedRecipesList.length > 0) {
+      if (likedRecipesList.length > 0 || userProfile.cuisinePreferences.length > 0 || userProfile.skillLevel) {
         const likedIds = new Set(likedRecipes);
-        const ranked = rankByRecommendation(fetched, likedRecipesList, likedIds);
+        const ranked = rankByRecommendation(fetched, likedRecipesList, likedIds, userProfile);
         setRecipes(ranked.map((item) => item.recipe as BrowseRecipe));
       } else {
         const shuffled = [...fetched].sort(() => Math.random() - 0.5);
