@@ -46,6 +46,7 @@ interface AppState {
   cookedRecipeIds: string[];
   totalXp: number;
   earnedBadges: string[];
+  archiveBehavior: 'ask' | 'always' | 'never';
 
   setUserProfile: (profile: Partial<UserProfile>) => void;
   completeOnboarding: () => void;
