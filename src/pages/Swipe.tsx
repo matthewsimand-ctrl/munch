@@ -295,48 +295,53 @@ export default function Browse() {
               style={{ height: 420 }}
             >
               {/* Stack: next-next */}
-              <SwipeCard recipe={nextNextRecipe} offset={16} scale={0.88} opacity={0.5} />
+              {nextNextRecipe && <SwipeCard recipe={nextNextRecipe} offset={16} scale={0.88} opacity={0.5} />}
               {/* Stack: next */}
-              <SwipeCard recipe={nextRecipe} offset={8} scale={0.94} opacity={0.75} />
+              {nextRecipe && <SwipeCard recipe={nextRecipe} offset={8} scale={0.94} opacity={0.75} />}
               {/* Top card */}
-              <div
-                className="absolute inset-0 rounded-3xl overflow-hidden shadow-2xl cursor-grab active:cursor-grabbing"
-                style={{
-                  transform: `
-                    translateX(${animating === "left" ? -300 : animating === "right" ? 300 : 0}px)
-                    rotate(${animating === "left" ? -15 : animating === "right" ? 15 : 0}deg)
-                    scale(1)
-                  `,
-                  opacity: animating ? 0 : 1,
-                  transition: "transform 0.35s cubic-bezier(.34,1.56,.64,1), opacity 0.3s ease",
-                  zIndex: 10,
-                }}
-              >
-                <div className={`absolute inset-0 bg-gradient-to-br ${currentRecipe.gradient} opacity-90`} />
-                <div className="relative h-full flex flex-col justify-between p-6 text-white">
-                  <div className="flex items-start justify-between">
-                    <div className="flex flex-wrap gap-1.5">
-                      {currentRecipe.tags.slice(0, 2).map((t) => (
-                        <span key={t} className="text-xs bg-white/20 backdrop-blur-sm px-2.5 py-0.5 rounded-full font-medium">
-                          {t}
-                        </span>
-                      ))}
+              {currentRecipe && (
+                <div
+                  className="absolute inset-0 rounded-3xl overflow-hidden shadow-2xl cursor-grab active:cursor-grabbing"
+                  style={{
+                    transform: `
+                      translateX(${animating === "left" ? -300 : animating === "right" ? 300 : 0}px)
+                      rotate(${animating === "left" ? -15 : animating === "right" ? 15 : 0}deg)
+                      scale(1)
+                    `,
+                    opacity: animating ? 0 : 1,
+                    transition: "transform 0.35s cubic-bezier(.34,1.56,.64,1), opacity 0.3s ease",
+                    zIndex: 10,
+                  }}
+                >
+                  {currentRecipe.image ? (
+                    <img src={currentRecipe.image} alt={currentRecipe.name} className="absolute inset-0 w-full h-full object-cover" />
+                  ) : (
+                    <div className="absolute inset-0 bg-gradient-to-br from-orange-400 to-pink-400 opacity-90" />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+                  <div className="relative h-full flex flex-col justify-between p-6 text-white">
+                    <div className="flex items-start justify-between">
+                      <div className="flex flex-wrap gap-1.5">
+                        {currentRecipe.tags.slice(0, 2).map((t) => (
+                          <span key={t} className="text-xs bg-white/20 backdrop-blur-sm px-2.5 py-0.5 rounded-full font-medium">
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-1 bg-white/20 backdrop-blur-sm px-2.5 py-0.5 rounded-full text-xs font-semibold">
+                        <Star size={11} className="fill-white" /> {currentRecipe.difficulty}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1 bg-white/20 backdrop-blur-sm px-2.5 py-0.5 rounded-full text-xs font-semibold">
-                      <Star size={11} className="fill-white" /> {currentRecipe.rating}
-                    </div>
-                  </div>
-                  <div className="text-7xl text-center select-none">{currentRecipe.emoji}</div>
-                  <div>
-                    <h2 className="text-2xl font-bold leading-tight mb-2">{currentRecipe.title}</h2>
-                    <div className="flex items-center gap-4 text-sm text-white/80">
-                      <span className="flex items-center gap-1"><Clock size={13} /> {currentRecipe.time}</span>
-                      <span className="flex items-center gap-1"><Users size={13} /> {currentRecipe.servings} serv.</span>
-                      <span className="flex items-center gap-1"><Flame size={13} /> {currentRecipe.calories} cal</span>
+                    <div>
+                      <h2 className="text-2xl font-bold leading-tight mb-2">{currentRecipe.name}</h2>
+                      <div className="flex items-center gap-4 text-sm text-white/80">
+                        <span className="flex items-center gap-1"><Clock size={13} /> {currentRecipe.cook_time}</span>
+                        {currentRecipe.cuisine && <span className="flex items-center gap-1">🌍 {currentRecipe.cuisine}</span>}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Action buttons */}
