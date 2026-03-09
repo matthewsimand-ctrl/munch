@@ -436,8 +436,8 @@ export default function SavedRecipes() {
                       </div>
                     )}
 
-                    {/* Nutrition preview (if cached) */}
-                    {cachedNutrition[recipe.id] && (() => {
+                    {/* Nutrition preview (if cached) or generate button */}
+                    {cachedNutrition[recipe.id] ? (() => {
                       const n = cachedNutrition[recipe.id];
                       return (
                         <div className="flex items-center gap-2 mb-2 px-2 py-1.5 rounded-lg bg-muted/50 border border-border">
@@ -449,7 +449,21 @@ export default function SavedRecipes() {
                           <span className="text-[10px] text-muted-foreground flex items-center gap-0.5"><Droplets size={9} /> {Math.round(n.fat)}g</span>
                         </div>
                       );
-                    })()}
+                    })() : recipe.ingredients.length > 0 && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); quickAnalyzeNutrition(recipe); }}
+                        disabled={analyzingNutrition === recipe.id}
+                        className="inline-flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary mb-2 transition-colors disabled:opacity-50"
+                        title="Generate nutrition facts"
+                      >
+                        {analyzingNutrition === recipe.id ? (
+                          <Loader2 size={11} className="animate-spin" />
+                        ) : (
+                          <Sparkles size={11} className="text-amber-500" />
+                        )}
+                        {analyzingNutrition === recipe.id ? 'Analyzing...' : 'Nutrition'}
+                      </button>
+                    )}
 
                     {folderNames.length > 0 && (
                       <div className="flex flex-wrap gap-1 mb-2">
