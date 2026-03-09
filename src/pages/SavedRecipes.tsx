@@ -288,7 +288,7 @@ export default function SavedRecipes() {
         <div className="max-w-7xl mx-auto flex items-center gap-4">
           <div className="flex gap-2 flex-wrap">
             <button
-              onClick={() => { setViewMode("all"); setActiveFolderId(null); setActiveTag("All"); }}
+              onClick={() => { setViewMode("all"); setActiveFolderId(null); setActiveTags([]); }}
               className={`text-xs font-semibold px-3.5 py-1.5 rounded-full border transition-all ${
                 viewMode === "all"
                   ? "bg-orange-500 text-white border-orange-500"
