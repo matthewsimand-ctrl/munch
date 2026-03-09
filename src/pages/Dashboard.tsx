@@ -42,7 +42,7 @@ export default function Dashboard() {
   });
 
   const { recipes: browseRecipes, loading: browseLoading, loadFeed } = useBrowseFeed();
-  const { likedRecipes, likeRecipe, savedApiRecipes, pantryList, addCustomGroceryItem } = useStore();
+  const { likedRecipes, likeRecipe, savedApiRecipes, pantryList, addCustomGroceryItem, cookingStreak, totalMealsCooked, cookedRecipeIds } = useStore();
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
 
   const likedSet = useMemo(() => new Set(likedRecipes), [likedRecipes]);
