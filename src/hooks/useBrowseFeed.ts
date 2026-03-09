@@ -79,7 +79,7 @@ export function useBrowseFeed() {
     } finally {
       setLoading(false);
     }
-  }, [loaded, loading, likedRecipes, savedApiRecipes]);
+  }, [loaded, loading, likedRecipes, savedApiRecipes, userProfile]);
 
   return { recipes, loading, loaded, loadFeed };
 }
