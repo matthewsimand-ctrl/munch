@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDbRecipes } from '@/hooks/useDbRecipes';
 import { useStore } from '@/lib/store';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis';
 import { useVoiceCommands } from '@/hooks/useVoiceCommands';
 import { Button } from '@/components/ui/button';
