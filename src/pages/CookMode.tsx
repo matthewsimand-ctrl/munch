@@ -261,7 +261,7 @@ export default function CookMode() {
               {currentStep + 1}
             </div>
             <p className="text-xl leading-relaxed text-foreground font-medium">
-              {steps[currentStep]}
+              <HighlightedStep text={steps[currentStep]} />
             </p>
 
             {/* Timer section */}
