@@ -45,7 +45,7 @@ export function useBrowseFeed() {
   const [recipes, setRecipes] = useState<BrowseRecipe[]>([]);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  const { likedRecipes, savedApiRecipes, userProfile } = useStore();
+  const { likedRecipes, savedApiRecipes, userProfile, pantryList } = useStore();
 
   const loadFeed = useCallback(async () => {
     if (loaded || loading) return;
@@ -60,13 +60,14 @@ export function useBrowseFeed() {
         .map(normalizeRecipe)
         .filter(Boolean) as BrowseRecipe[];
 
+      const pantryNames = pantryList.map(p => p.name);
       const likedRecipesList: Recipe[] = likedRecipes
         .map((id) => savedApiRecipes[id])
         .filter(Boolean);
 
-      if (likedRecipesList.length > 0 || userProfile.cuisinePreferences.length > 0 || userProfile.skillLevel) {
+      if (likedRecipesList.length > 0 || userProfile.cuisinePreferences.length > 0 || userProfile.skillLevel || pantryNames.length > 0) {
         const likedIds = new Set(likedRecipes);
-        const ranked = rankByRecommendation(fetched, likedRecipesList, likedIds, userProfile);
+        const ranked = rankByRecommendation(fetched, likedRecipesList, likedIds, userProfile, pantryNames);
         setRecipes(ranked.map((item) => item.recipe as BrowseRecipe));
       } else {
         const shuffled = [...fetched].sort(() => Math.random() - 0.5);
@@ -79,7 +80,7 @@ export function useBrowseFeed() {
     } finally {
       setLoading(false);
     }
-  }, [loaded, loading, likedRecipes, savedApiRecipes, userProfile]);
+  }, [loaded, loading, likedRecipes, savedApiRecipes, userProfile, pantryList]);
 
   return { recipes, loading, loaded, loadFeed };
 }

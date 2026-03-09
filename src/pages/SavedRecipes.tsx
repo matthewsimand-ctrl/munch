@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import {
   Heart, Clock, Users, Search, Filter, Trash2, ChevronDown,
   Plus, FolderOpen, X, Tag, Edit2, Check, ChefHat, Play,
-  FolderPlus, MoreHorizontal, ShoppingCart, Import, Flame, Beef, Wheat, Droplets, Sparkles, Loader2,
+  FolderPlus, MoreHorizontal, ShoppingCart, Import, Flame, Beef, Wheat, Droplets, Sparkles, Loader2, Wand2,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useStore } from "@/lib/store";
@@ -15,6 +15,8 @@ import { Input } from "@/components/ui/input";
 import NutritionCard from "@/components/NutritionCard";
 import ImportRecipeDialog from "@/components/ImportRecipeDialog";
 import CreateRecipeForm from "@/components/CreateRecipeForm";
+import RecipeTweakDialog from "@/components/RecipeTweakDialog";
+import { useChefProfiles } from "@/hooks/useChefProfiles";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
@@ -69,6 +71,7 @@ export default function SavedRecipes() {
   const [viewMode, setViewMode] = useState<ViewMode>("all");
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
   const [showCreateRecipe, setShowCreateRecipe] = useState(false);
+  const [tweakingRecipe, setTweakingRecipe] = useState<Recipe | null>(null);
 
   // Tag editing
   const [editingTagsFor, setEditingTagsFor] = useState<string | null>(null);
@@ -95,6 +98,10 @@ export default function SavedRecipes() {
       })
       .filter(Boolean) as Recipe[];
   }, [likedRecipes, dbRecipes, savedApiRecipes]);
+
+  // Fetch chef profiles for recipes with created_by
+  const chefIds = useMemo(() => allSavedRecipes.map(r => r.created_by).filter(Boolean), [allSavedRecipes]);
+  const { data: chefProfiles = {} } = useChefProfiles(chefIds);
 
   // Collect all unique user tags
   const allTags = useMemo(() => {
@@ -417,6 +424,16 @@ export default function SavedRecipes() {
                       {recipe.name}
                     </h3>
 
+                    {/* Chef attribution */}
+                    {recipe.created_by && chefProfiles[recipe.created_by] && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); navigate(`/chef/${recipe.created_by}`); }}
+                        className="inline-flex items-center gap-1 text-[10px] text-primary hover:underline mb-1"
+                      >
+                        <ChefHat size={10} /> by {chefProfiles[recipe.created_by].display_name || 'Chef'}
+                      </button>
+                    )}
+
                     <div className="flex items-center gap-3 text-xs text-muted-foreground mb-2.5">
                       <span className="flex items-center gap-1"><Clock size={11} /> {recipe.cook_time}</span>
                       {recipe.servings && <span className="flex items-center gap-1"><Users size={11} /> {recipe.servings}</span>}
@@ -556,12 +573,21 @@ export default function SavedRecipes() {
 
                     <div className="flex items-center justify-between pt-2.5 border-t border-border">
                       <span className="text-xs text-muted-foreground">{recipe.difficulty}</span>
-                      <button
-                        onClick={() => setSelectedRecipe(recipe)}
-                        className="text-xs text-orange-500 font-semibold hover:text-orange-600 transition-colors"
-                      >
-                        View Recipe →
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setTweakingRecipe(recipe); }}
+                          className="text-xs text-primary hover:text-primary/80 font-semibold flex items-center gap-1 transition-colors"
+                          title="AI Tweak"
+                        >
+                          <Wand2 size={12} />
+                        </button>
+                        <button
+                          onClick={() => setSelectedRecipe(recipe)}
+                          className="text-xs text-orange-500 font-semibold hover:text-orange-600 transition-colors"
+                        >
+                          View Recipe →
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -635,6 +661,14 @@ export default function SavedRecipes() {
             <>
               <DialogHeader>
                 <DialogTitle className="text-xl font-bold">{selectedRecipe.name}</DialogTitle>
+                {selectedRecipe.created_by && chefProfiles[selectedRecipe.created_by] && (
+                  <button
+                    onClick={() => { setSelectedRecipe(null); navigate(`/chef/${selectedRecipe.created_by}`); }}
+                    className="inline-flex items-center gap-1 text-xs text-primary hover:underline w-fit"
+                  >
+                    <ChefHat className="h-3 w-3" /> by {chefProfiles[selectedRecipe.created_by].display_name || 'Chef'}
+                  </button>
+                )}
               </DialogHeader>
               <div className="flex-1 min-h-0 overflow-y-auto -mx-6 px-6">
                 <div className="space-y-6 pb-4">
@@ -726,19 +760,36 @@ export default function SavedRecipes() {
                     servings={selectedRecipe.servings}
                   />
 
-                  {/* Start cooking */}
-                  <button
-                    onClick={() => { setSelectedRecipe(null); navigate(`/cook/${selectedRecipe.id}`); }}
-                    className="w-full flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-xl transition-colors"
-                  >
-                    <Play size={18} /> Start Cooking
-                  </button>
+                  {/* Action buttons */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { setSelectedRecipe(null); setTweakingRecipe(selectedRecipe); }}
+                      className="flex-1 flex items-center justify-center gap-2 bg-muted hover:bg-muted/80 text-foreground font-bold py-3 rounded-xl transition-colors border border-border"
+                    >
+                      <Wand2 size={16} /> AI Tweak
+                    </button>
+                    <button
+                      onClick={() => { setSelectedRecipe(null); navigate(`/cook/${selectedRecipe.id}`); }}
+                      className="flex-1 flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-xl transition-colors"
+                    >
+                      <Play size={18} /> Start Cooking
+                    </button>
+                  </div>
                 </div>
               </div>
             </>
           )}
         </DialogContent>
       </Dialog>
+
+      {/* AI Tweak Dialog */}
+      {tweakingRecipe && (
+        <RecipeTweakDialog
+          recipe={tweakingRecipe}
+          open={!!tweakingRecipe}
+          onOpenChange={(v) => { if (!v) setTweakingRecipe(null); }}
+        />
+      )}
     </div>
   );
 }
