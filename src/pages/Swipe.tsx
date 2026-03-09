@@ -16,6 +16,7 @@ import { useBrowseFeed } from "@/hooks/useBrowseFeed";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "@/lib/store";
 import { calculateMatch } from "@/lib/matchLogic";
+import { parseIngredientLine, scaleIngredientQuantity } from "@/lib/ingredientText";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Dialog,
@@ -37,6 +38,7 @@ interface Recipe {
   tags: string[];
   instructions: string[];
   cuisine?: string;
+  servings?: number;
 }
 
 function normalizeStringArray(value: unknown): string[] {
@@ -66,6 +68,7 @@ export default function Browse() {
   const [showFilters, setShowFilters] = useState(false);
   const [swipeIndicator, setSwipeIndicator] = useState<"saved" | "passed" | null>(null);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  const [servingMultiplier, setServingMultiplier] = useState(1);
   const constraintsRef = useRef(null);
 
   useEffect(() => {
@@ -94,7 +97,13 @@ export default function Browse() {
   const nextMatch = nextRecipe ? calculateMatch(pantryNames, nextRecipe.ingredients) : null;
   const selectedIngredients = selectedRecipe ? normalizeStringArray((selectedRecipe as any).ingredients) : [];
   const selectedMatch = selectedRecipe ? calculateMatch(pantryNames, selectedIngredients) : null;
+  const scaledServings = selectedRecipe ? Math.max(1, Math.round((selectedRecipe.servings || 4) * servingMultiplier)) : 1;
   const selectedInstructions = selectedRecipe ? normalizeStringArray((selectedRecipe as any).instructions) : [];
+
+  useEffect(() => {
+    if (!selectedRecipe) return;
+    setServingMultiplier(1);
+  }, [selectedRecipe?.id]);
   // Count saved recipes
   const savedCount = likedRecipes.length;
 
@@ -535,27 +544,52 @@ export default function Browse() {
                   ))}
                 </div>
 
+                <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="text-sm text-gray-600">Servings: <span className="font-semibold text-gray-900">{scaledServings}</span></p>
+                  <div className="inline-flex items-center gap-1">
+                    {[0.5, 1, 2].map((value) => (
+                      <button
+                        key={value}
+                        onClick={() => setServingMultiplier(value)}
+                        className={`px-2.5 py-1 rounded-md text-xs font-semibold ${servingMultiplier === value ? "bg-primary text-primary-foreground" : "bg-white text-gray-500"}`}
+                      >
+                        {value}x
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Ingredients */}
                 <div>
                   <h3 className="text-sm font-semibold text-gray-900 mb-3">Ingredients</h3>
                   <div className="flex flex-wrap gap-2">
-                    {selectedMatch.matched.map((ing) => (
-                      <span key={ing} className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full bg-green-100 text-green-700 font-medium">
-                        <Check size={14} /> {ing}
-                      </span>
-                    ))}
-                    {selectedMatch.missing.map((ing) => (
-                      <span key={ing} className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full bg-red-50 text-red-600 font-medium">
-                        <ShoppingCart size={14} /> {ing}
-                      </span>
-                    ))}
+                    {selectedMatch.matched.map((ing) => {
+                      const parsed = parseIngredientLine(ing);
+                      const scaledQty = parsed.quantity ? scaleIngredientQuantity(parsed.quantity, servingMultiplier) : "";
+                      return (
+                        <span key={ing} className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full bg-green-100 text-green-700 font-medium">
+                          <Check size={14} /> {parsed.name}{scaledQty ? ` (${scaledQty})` : ""}
+                        </span>
+                      );
+                    })}
+                    {selectedMatch.missing.map((ing) => {
+                      const parsed = parseIngredientLine(ing);
+                      const scaledQty = parsed.quantity ? scaleIngredientQuantity(parsed.quantity, servingMultiplier) : "";
+                      return (
+                        <span key={ing} className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full bg-red-50 text-red-600 font-medium">
+                          <ShoppingCart size={14} /> {parsed.name}{scaledQty ? ` (${scaledQty})` : ""}
+                        </span>
+                      );
+                    })}
                   </div>
                   {/* Add missing to grocery */}
                   {selectedMatch.missing.length > 0 && (
                     <button
                       onClick={() => {
                         selectedMatch.missing.forEach((ing) => {
-                          addCustomGroceryItem(ing, "1");
+                          const parsed = parseIngredientLine(ing);
+                          const qty = parsed.quantity ? scaleIngredientQuantity(parsed.quantity, servingMultiplier) : "1";
+                          addCustomGroceryItem(parsed.name, qty);
                         });
                         toast.success(`Added ${selectedMatch.missing.length} items to grocery list`);
                       }}
@@ -592,7 +626,7 @@ export default function Browse() {
                   recipeId={selectedRecipe.id}
                   recipeName={selectedRecipe.name}
                   ingredients={selectedIngredients}
-                  servings={4}
+                  servings={scaledServings}
                 />
 
                 {/* Save button */}

@@ -1,3 +1,5 @@
+import { ingredientNameOnly } from '@/lib/ingredientText';
+
 // Base-form mapping: maps specific variants to their generic base ingredient
 const BASE_FORMS: Record<string, string> = {
   'chicken drumstick': 'chicken',
@@ -86,7 +88,8 @@ export function calculateMatch(pantry: string[], recipeIngredients: string[]): M
   const missing: string[] = [];
 
   for (const ingredient of recipeIngredients) {
-    const found = pantry.some(item => fuzzyMatch(item, ingredient));
+    const productName = ingredientNameOnly(ingredient);
+    const found = pantry.some(item => fuzzyMatch(item, productName));
     if (found) {
       matched.push(ingredient);
     } else {

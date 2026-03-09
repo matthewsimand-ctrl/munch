@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Link2, FileText, Loader2, Import, ClipboardPaste, X, Plus, Globe, Lock, Camera, Upload, Brain } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useStore } from '@/lib/store';
+import { composeIngredientLine, parseIngredientLine } from '@/lib/ingredientText';
 import { toast } from 'sonner';
 
 interface ImportRecipeDialogProps {
@@ -20,9 +21,14 @@ interface ImportRecipeDialogProps {
 
 type ImportTab = 'url' | 'pdf';
 
+interface IngredientEntry {
+  name: string;
+  quantity: string;
+}
+
 interface ReviewData {
   name: string;
-  ingredients: string[];
+  ingredients: IngredientEntry[];
   instructions: string[];
   cook_time: string;
   difficulty: string;
@@ -52,6 +58,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
   const [reviewData, setReviewData] = useState<ReviewData | null>(null);
   const [isDiscoverable, setIsDiscoverable] = useState(true);
   const [newIngredient, setNewIngredient] = useState('');
+  const [newIngredientQty, setNewIngredientQty] = useState('');
   const [newInstruction, setNewInstruction] = useState('');
   const [newTag, setNewTag] = useState('');
   const [saving, setSaving] = useState(false);
@@ -69,6 +76,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
     setReviewData(null);
     setIsDiscoverable(true);
     setNewIngredient('');
+    setNewIngredientQty('');
     setNewInstruction('');
     setNewTag('');
     setSaving(false);
@@ -113,9 +121,15 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
         return [];
       };
 
+      const normalizeIngredients = (value: unknown): IngredientEntry[] =>
+        normalizeList(value).map((line) => {
+          const parsed = parseIngredientLine(line);
+          return { name: parsed.name, quantity: parsed.quantity };
+        });
+
       setReviewData({
         name: String(recipe.name || ''),
-        ingredients: normalizeList(recipe.ingredients),
+        ingredients: normalizeIngredients(recipe.ingredients),
         instructions: normalizeList(recipe.instructions),
         cook_time: recipe.cook_time || '30 min',
         difficulty: recipe.difficulty || 'Intermediate',
@@ -168,7 +182,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
           const { error } = await supabase.from('recipes').insert({
             id,
             name: reviewData.name,
-            ingredients: reviewData.ingredients,
+            ingredients: reviewData.ingredients.map(composeIngredientLine),
             instructions: reviewData.instructions,
             cook_time: reviewData.cook_time,
             difficulty: reviewData.difficulty,
@@ -194,7 +208,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
       const recipeData = {
         id,
         name: reviewData.name,
-        ingredients: reviewData.ingredients,
+        ingredients: reviewData.ingredients.map(composeIngredientLine),
         instructions: reviewData.instructions,
         cook_time: reviewData.cook_time,
         difficulty: reviewData.difficulty,
@@ -352,8 +366,12 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
   // Review mode helpers
   const addIngredient = () => {
     if (!newIngredient.trim() || !reviewData) return;
-    setReviewData({ ...reviewData, ingredients: [...reviewData.ingredients, newIngredient.trim()] });
+    setReviewData({
+      ...reviewData,
+      ingredients: [...reviewData.ingredients, { name: newIngredient.trim(), quantity: newIngredientQty.trim() }],
+    });
     setNewIngredient('');
+    setNewIngredientQty('');
   };
 
   const removeIngredient = (idx: number) => {
@@ -516,6 +534,13 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
                 <label className="text-sm font-medium text-foreground">Ingredients *</label>
                 <div className="flex gap-2 mt-1">
                   <Input
+                    value={newIngredientQty}
+                    onChange={(e) => setNewIngredientQty(e.target.value)}
+                    placeholder="Qty"
+                    className="w-24"
+                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addIngredient())}
+                  />
+                  <Input
                     value={newIngredient}
                     onChange={(e) => setNewIngredient(e.target.value)}
                     placeholder="Add ingredient..."
@@ -528,7 +553,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
                 <div className="flex flex-wrap gap-1.5 mt-2">
                   {reviewData.ingredients.map((ing, idx) => (
                     <Badge key={idx} variant="secondary" className="gap-1">
-                      {ing}
+                      {ing.quantity ? `${ing.quantity} ${ing.name}` : ing.name}
                       <button onClick={() => removeIngredient(idx)} className="ml-1 hover:text-destructive">
                         <X size={12} />
                       </button>

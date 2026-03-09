@@ -21,6 +21,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { calculateMatch } from "@/lib/matchLogic";
+import { parseIngredientLine, scaleIngredientQuantity } from "@/lib/ingredientText";
 import { toast } from "sonner";
 import type { Recipe } from "@/data/recipes";
 
@@ -87,6 +88,7 @@ export default function SavedRecipes() {
   const [editingIngredients, setEditingIngredients] = useState<string[]>([]);
   const [ingredientInput, setIngredientInput] = useState("");
   const [isEditingIngredients, setIsEditingIngredients] = useState(false);
+  const [servingMultiplier, setServingMultiplier] = useState(1);
 
   // Resolve all saved recipes from DB + saved API cache
   const allSavedRecipes: Recipe[] = useMemo(() => {
@@ -178,6 +180,7 @@ export default function SavedRecipes() {
 
   const pantryNames = pantryList.map((p) => p.name);
   const selectedIngredients = selectedRecipe ? normalizeStringArray((selectedRecipe as any).ingredients) : [];
+  const scaledServings = selectedRecipe ? Math.max(1, Math.round((selectedRecipe.servings || 4) * servingMultiplier)) : 1;
   const selectedInstructions = selectedRecipe ? normalizeStringArray((selectedRecipe as any).instructions) : [];
   const handleRemove = (id: string) => {
     unlikeRecipe(id);
@@ -214,6 +217,7 @@ export default function SavedRecipes() {
     setEditingIngredients(normalizeStringArray((selectedRecipe as any).ingredients));
     setIngredientInput("");
     setIsEditingIngredients(false);
+    setServingMultiplier(1);
   }, [selectedRecipe?.id]);
 
   const addEditingIngredient = () => {
@@ -243,7 +247,10 @@ export default function SavedRecipes() {
       toast.info("You already have all the ingredients!");
       return;
     }
-    match.missing.forEach((ing) => addCustomGroceryItem(ing));
+    match.missing.forEach((ing) => {
+      const parsed = parseIngredientLine(ing);
+      addCustomGroceryItem(parsed.name, parsed.quantity || "1");
+    });
     toast.success(`Added ${match.missing.length} items to grocery list`);
   };
 
@@ -873,6 +880,21 @@ export default function SavedRecipes() {
                     ))}
                   </div>
 
+                  <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 p-3">
+                    <p className="text-sm text-muted-foreground">Servings: <span className="font-semibold text-foreground">{scaledServings}</span></p>
+                    <div className="inline-flex items-center gap-1">
+                      {[0.5, 1, 2].map((value) => (
+                        <button
+                          key={value}
+                          onClick={() => setServingMultiplier(value)}
+                          className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors ${servingMultiplier === value ? "bg-orange-500 text-white" : "bg-background text-muted-foreground hover:text-foreground"}`}
+                        >
+                          {value}x
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   {/* Ingredients with match */}
                   <div>
                     <div className="flex items-center justify-between mb-3">
@@ -950,16 +972,24 @@ export default function SavedRecipes() {
                       return (
                         <>
                           <div className="flex flex-wrap gap-2">
-                            {m.matched.map((ing) => (
-                              <span key={ing} className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full bg-green-100 text-green-700 font-medium">
-                                <Check size={14} /> {ing}
-                              </span>
-                            ))}
-                            {m.missing.map((ing) => (
-                              <span key={ing} className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full bg-red-50 text-red-600 font-medium">
-                                <ShoppingCart size={14} /> {ing}
-                              </span>
-                            ))}
+                            {m.matched.map((ing) => {
+                              const parsed = parseIngredientLine(ing);
+                              const scaledQty = parsed.quantity ? scaleIngredientQuantity(parsed.quantity, servingMultiplier) : "";
+                              return (
+                                <span key={ing} className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full bg-green-100 text-green-700 font-medium">
+                                  <Check size={14} /> {parsed.name}{scaledQty ? ` (${scaledQty})` : ""}
+                                </span>
+                              );
+                            })}
+                            {m.missing.map((ing) => {
+                              const parsed = parseIngredientLine(ing);
+                              const scaledQty = parsed.quantity ? scaleIngredientQuantity(parsed.quantity, servingMultiplier) : "";
+                              return (
+                                <span key={ing} className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full bg-red-50 text-red-600 font-medium">
+                                  <ShoppingCart size={14} /> {parsed.name}{scaledQty ? ` (${scaledQty})` : ""}
+                                </span>
+                              );
+                            })}
                           </div>
                           {m.missing.length > 0 && (
                             <button
