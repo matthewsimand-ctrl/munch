@@ -35,6 +35,7 @@ interface AppState {
   groceryRecipes: string[];
   customGroceryItems: CustomGroceryItem[];
   recipeMealTags: Record<string, string>; // recipeId -> meal type
+  recipeTags: Record<string, string[]>; // recipeId -> custom user tags
   recipeFolders: RecipeFolder[];
   onboardingComplete: boolean;
   tutorialComplete: boolean;
@@ -56,6 +57,9 @@ interface AppState {
   removeCustomGroceryItem: (name: string) => void;
   updateCustomGroceryQuantity: (name: string, quantity: string) => void;
   setRecipeMealTag: (recipeId: string, tag: string) => void;
+  setRecipeTags: (recipeId: string, tags: string[]) => void;
+  addRecipeTag: (recipeId: string, tag: string) => void;
+  removeRecipeTag: (recipeId: string, tag: string) => void;
   createFolder: (name: string) => void;
   renameFolder: (folderId: string, name: string) => void;
   deleteFolder: (folderId: string) => void;
@@ -83,6 +87,7 @@ export const useStore = create<AppState>()(
       groceryRecipes: [],
       customGroceryItems: [],
       recipeMealTags: {},
+      recipeTags: {},
       recipeFolders: [],
       onboardingComplete: false,
       tutorialComplete: false,
@@ -189,6 +194,24 @@ export const useStore = create<AppState>()(
       setRecipeMealTag: (recipeId, tag) =>
         set((state) => ({
           recipeMealTags: { ...state.recipeMealTags, [recipeId]: tag },
+        })),
+
+      setRecipeTags: (recipeId, tags) =>
+        set((state) => ({
+          recipeTags: { ...state.recipeTags, [recipeId]: tags },
+        })),
+
+      addRecipeTag: (recipeId, tag) =>
+        set((state) => {
+          const current = state.recipeTags[recipeId] || [];
+          const normalized = tag.trim();
+          if (!normalized || current.includes(normalized)) return state;
+          return { recipeTags: { ...state.recipeTags, [recipeId]: [...current, normalized] } };
+        }),
+
+      removeRecipeTag: (recipeId, tag) =>
+        set((state) => ({
+          recipeTags: { ...state.recipeTags, [recipeId]: (state.recipeTags[recipeId] || []).filter(t => t !== tag) },
         })),
 
       createFolder: (name) =>
