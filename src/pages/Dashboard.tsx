@@ -1,287 +1,244 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useStore } from '@/lib/store';
-import { useDbRecipes } from '@/hooks/useDbRecipes';
-import { supabase } from '@/integrations/supabase/client';
-import BottomNav from '@/components/BottomNav';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { useState } from "react";
 import {
-  UtensilsCrossed,
+  Flame,
+  Clock,
   Heart,
   ShoppingCart,
-  CalendarDays,
-  ChefHat,
-  Flame,
-  ArrowRight,
-  User,
-  Sparkles,
-  Trophy,
   TrendingUp,
-  Lock,
-} from 'lucide-react';
-import { motion } from 'framer-motion';
+  ChevronRight,
+  Sparkles,
+  Calendar,
+  Star,
+  Plus,
+} from "lucide-react";
+import { Link } from "react-router-dom";
+
+// ── Mock data (replace with your real data / hooks) ──────────────────────────
+const STATS = [
+  { label: "Recipes Saved", value: "42", icon: Heart, color: "text-rose-500", bg: "bg-rose-50" },
+  { label: "Meals This Week", value: "14", icon: Flame, color: "text-orange-500", bg: "bg-orange-50" },
+  { label: "Avg Cook Time", value: "28m", icon: Clock, color: "text-blue-500", bg: "bg-blue-50" },
+  { label: "Items to Buy", value: "9", icon: ShoppingCart, color: "text-violet-500", bg: "bg-violet-50" },
+];
+
+const ACTIVITY = [
+  { type: "saved", text: "Saved Shakshuka with Feta", time: "2h ago", emoji: "🍳" },
+  { type: "cooked", text: "Marked Pasta Carbonara as cooked", time: "Yesterday", emoji: "✅" },
+  { type: "added", text: "Added 6 items to grocery list", time: "Yesterday", emoji: "🛒" },
+  { type: "planned", text: "Planned meals for the week", time: "2 days ago", emoji: "📅" },
+  { type: "saved", text: "Saved Thai Green Curry", time: "3 days ago", emoji: "🍛" },
+  { type: "cooked", text: "Marked Avocado Toast as cooked", time: "4 days ago", emoji: "✅" },
+];
+
+const SUGGESTED = [
+  {
+    id: 1,
+    title: "Lemon Herb Salmon",
+    time: "25 min",
+    rating: 4.8,
+    tag: "High Protein",
+    emoji: "🐟",
+    color: "from-blue-50 to-cyan-50",
+  },
+  {
+    id: 2,
+    title: "Mushroom Risotto",
+    time: "40 min",
+    rating: 4.6,
+    tag: "Vegetarian",
+    emoji: "🍄",
+    color: "from-amber-50 to-orange-50",
+  },
+  {
+    id: 3,
+    title: "BBQ Chicken Bowl",
+    time: "30 min",
+    rating: 4.7,
+    tag: "Popular",
+    emoji: "🍗",
+    color: "from-rose-50 to-pink-50",
+  },
+];
+
+const MEAL_PLAN = [
+  { day: "Mon", meal: "Pasta Carbonara", done: true },
+  { day: "Tue", meal: "Thai Green Curry", done: true },
+  { day: "Wed", meal: "Lemon Herb Salmon", done: false },
+  { day: "Thu", meal: "—", done: false },
+  { day: "Fri", meal: "BBQ Chicken Bowl", done: false },
+];
 
 export default function Dashboard() {
-  const navigate = useNavigate();
-  const { pantryList, likedRecipes, savedApiRecipes, tutorialComplete, setShowTutorial } = useStore();
-  const { data: dbRecipes = [] } = useDbRecipes();
-  const [user, setUser] = useState<any>(null);
-  const [greeting, setGreeting] = useState('');
-  const [displayName, setDisplayName] = useState('');
-  const [firstName, setFirstName] = useState('');
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        navigate('/auth', { replace: true });
-        return;
-      }
-      setUser(session.user);
-      supabase
-        .from('profiles')
-        .select('display_name')
-        .eq('user_id', session.user.id)
-        .single()
-        .then(({ data, error }) => {
-          console.log('Profile fetch:', { data, error });
-          const full = data?.display_name || session.user.email?.split('@')[0] || 'Chef';
-          setDisplayName(full);
-          setFirstName(full.split(' ')[0]);
-        });
-    });
-
-    // Also listen for auth changes to refresh name
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!session) return;
-      setUser(session.user);
-      const { data } = await supabase
-        .from('profiles')
-        .select('display_name')
-        .eq('user_id', session.user.id)
-        .single();
-      const full = data?.display_name || session.user.email?.split('@')[0] || 'Chef';
-      setDisplayName(full);
-      setFirstName(full.split(' ')[0]);
-    });
-
-    return () => subscription.unsubscribe();
-  }, [navigate]);
-
-  useEffect(() => {
-    const hour = new Date().getHours();
-    if (hour < 12) setGreeting('Good morning');
-    else if (hour < 17) setGreeting('Good afternoon');
-    else setGreeting('Good evening');
-  }, []);
-
-  // Show tutorial after a short delay for first-time users
-  useEffect(() => {
-    if (!tutorialComplete && user) {
-      const timer = setTimeout(() => setShowTutorial(true), 600);
-      return () => clearTimeout(timer);
-    }
-  }, [tutorialComplete, user, setShowTutorial]);
-
-  const savedCount = likedRecipes.length;
-  const pantryCount = pantryList.length;
-
-  // Gamification stats (placeholder values — will be persisted later)
-  const cookingStreak = 3; // TODO: track from cook-mode completions
-  const mealsThisWeek = 5; // TODO: track from cook-mode completions
-  const isPremium = false; // TODO: wire to subscription
-
-  const quickActions = [
-    {
-      label: 'Browse Recipes',
-      icon: Flame,
-      path: '/swipe',
-      color: 'bg-primary/10 text-primary',
-    },
-    {
-      label: 'My Pantry',
-      icon: UtensilsCrossed,
-      path: '/pantry',
-      color: 'bg-accent/20 text-accent-foreground',
-    },
-    {
-      label: 'Saved Recipes',
-      icon: Heart,
-      path: '/saved',
-      color: 'bg-destructive/10 text-destructive',
-    },
-    {
-      label: 'Meal Prep',
-      icon: CalendarDays,
-      path: '/meal-prep',
-      color: 'bg-success/10 text-foreground',
-    },
-  ];
-
-  const container = {
-    hidden: { opacity: 0 },
-    show: { opacity: 1, transition: { staggerChildren: 0.08 } },
-  };
-
-  const item = {
-    hidden: { opacity: 0, y: 16 },
-    show: { opacity: 1, y: 0 },
-  };
+  const [greeting] = useState(() => {
+    const h = new Date().getHours();
+    if (h < 12) return "Good morning";
+    if (h < 17) return "Good afternoon";
+    return "Good evening";
+  });
 
   return (
-    <div className="min-h-screen bg-background pb-24">
-      <div className="px-6 pt-8 pb-4 max-w-md mx-auto w-full">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <button onClick={() => navigate('/dashboard')} className="flex items-center gap-2">
-            <UtensilsCrossed className="h-7 w-7 text-primary" />
-            <span className="font-display text-xl font-bold text-foreground">Munch</span>
-          </button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate('/settings')}
-            data-tutorial="settings-btn"
+    <div className="min-h-full bg-gray-50">
+      {/* ── Header ────────────────────────────────────────────────────────── */}
+      <div className="bg-white border-b border-gray-100 px-6 py-5">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">{greeting} 👋</h1>
+            <p className="text-sm text-gray-500 mt-0.5">Here's what's cooking this week</p>
+          </div>
+          <Link
+            to="/browse"
+            className="hidden sm:flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-sm"
           >
-            <User className="h-5 w-5" />
-          </Button>
+            <Sparkles size={15} />
+            Find Recipes
+          </Link>
+        </div>
+      </div>
+
+      {/* ── Body ──────────────────────────────────────────────────────────── */}
+      <div className="max-w-7xl mx-auto px-6 py-6">
+
+        {/* Stats row */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {STATS.map(({ label, value, icon: Icon, color, bg }) => (
+            <div key={label} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center gap-4">
+              <div className={`w-11 h-11 rounded-xl ${bg} flex items-center justify-center shrink-0`}>
+                <Icon size={20} className={color} />
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-gray-900 leading-none">{value}</div>
+                <div className="text-xs text-gray-500 mt-1">{label}</div>
+              </div>
+            </div>
+          ))}
         </div>
 
-        {/* Greeting */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <h1 className="font-display text-3xl font-bold text-foreground">
-            {greeting},
-          </h1>
-          <p className="font-display text-3xl font-bold text-primary">
-            chef {firstName} 👨‍🍳
-          </p>
-          <p className="text-muted-foreground mt-2 text-sm">
-            What are we cooking today?
-          </p>
-        </motion.div>
+        {/* ── Two-column grid on desktop ─────────────────────────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        {/* Gamification Stats */}
-        <motion.div
-          variants={container}
-          initial="hidden"
-          animate="show"
-          className="grid grid-cols-3 gap-3 mb-6"
-        >
-          <motion.div variants={item}>
-            <Card className="text-center border-border">
-              <CardContent className="py-4 px-2">
-                <Flame className="h-5 w-5 text-orange-500 mx-auto mb-1" />
-                <p className="text-2xl font-bold text-foreground">{cookingStreak}</p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Day Streak</p>
-              </CardContent>
-            </Card>
-          </motion.div>
-          <motion.div variants={item}>
-            <Card className="text-center border-border">
-              <CardContent className="py-4 px-2">
-                <Trophy className="h-5 w-5 text-amber-500 mx-auto mb-1" />
-                <p className="text-2xl font-bold text-foreground">{mealsThisWeek}</p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">This Week</p>
-              </CardContent>
-            </Card>
-          </motion.div>
-          <motion.div variants={item}>
-            <Card className={`text-center border-border ${!isPremium ? 'opacity-70' : ''}`}>
-              <CardContent className="py-4 px-2 relative">
-                {!isPremium && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-card/60 rounded-xl z-10">
-                    <Lock className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                )}
-                <TrendingUp className="h-5 w-5 text-emerald-500 mx-auto mb-1" />
-                <p className="text-2xl font-bold text-foreground">{isPremium ? '—' : '🔒'}</p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Wk Nutrition</p>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </motion.div>
+          {/* LEFT: main content (2/3 width) */}
+          <div className="lg:col-span-2 space-y-6">
 
-        {/* Overview Stats */}
-        <motion.div
-          variants={container}
-          initial="hidden"
-          animate="show"
-          className="grid grid-cols-3 gap-3 mb-8"
-          data-tutorial="stats"
-        >
-          <motion.div variants={item}>
-            <Card className="text-center border-border">
-              <CardContent className="py-4 px-2">
-                <UtensilsCrossed className="h-5 w-5 text-accent mx-auto mb-1" />
-                <p className="text-2xl font-bold text-foreground">{pantryCount}</p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Pantry Items</p>
-              </CardContent>
-            </Card>
-          </motion.div>
-          <motion.div variants={item}>
-            <Card className="text-center border-border">
-              <CardContent className="py-4 px-2">
-                <Heart className="h-5 w-5 text-destructive mx-auto mb-1" />
-                <p className="text-2xl font-bold text-foreground">{savedCount}</p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Saved</p>
-              </CardContent>
-            </Card>
-          </motion.div>
-          <motion.div variants={item}>
-            <Card className="text-center border-border">
-              <CardContent className="py-4 px-2">
-                <ChefHat className="h-5 w-5 text-primary mx-auto mb-1" />
-                <p className="text-2xl font-bold text-foreground">{dbRecipes.length}</p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Available</p>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </motion.div>
-
-        {/* Quick Actions */}
-        <motion.div
-          variants={container}
-          initial="hidden"
-          animate="show"
-          className="space-y-3 mb-8"
-        >
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Quick Actions</h2>
-          {quickActions.map((action) => (
-            <motion.div key={action.path} variants={item}>
-              <button
-                onClick={() => navigate(action.path)}
-                className="w-full flex items-center gap-4 p-4 rounded-xl bg-card border border-border hover:border-primary/30 transition-all group"
-              >
-                <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${action.color}`}>
-                  <action.icon className="h-5 w-5" />
+            {/* Suggested for you */}
+            <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between px-5 pt-5 pb-4">
+                <div className="flex items-center gap-2">
+                  <TrendingUp size={17} className="text-orange-500" />
+                  <h2 className="text-base font-bold text-gray-900">Suggested for you</h2>
                 </div>
-                <span className="font-medium text-foreground flex-1 text-left">{action.label}</span>
-                <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-              </button>
-            </motion.div>
-          ))}
-        </motion.div>
+                <Link to="/browse" className="text-xs text-orange-500 font-semibold hover:text-orange-600 flex items-center gap-1">
+                  See all <ChevronRight size={13} />
+                </Link>
+              </div>
 
-        {/* Browse CTA */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.4 }}
-        >
-          <Button
-            onClick={() => navigate('/swipe')}
-            className="w-full h-14 text-base font-semibold gap-2"
-          >
-            <Sparkles className="h-5 w-5" />
-            Start Browsing Recipes
-          </Button>
-        </motion.div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-gray-100">
+                {SUGGESTED.map((recipe) => (
+                  <div key={recipe.id} className={`p-4 bg-gradient-to-br ${recipe.color} hover:brightness-95 cursor-pointer transition-all group`}>
+                    <div className="text-4xl mb-3">{recipe.emoji}</div>
+                    <div className="text-sm font-semibold text-gray-900 mb-1 group-hover:text-orange-600 transition-colors">
+                      {recipe.title}
+                    </div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xs text-gray-500 flex items-center gap-1">
+                        <Clock size={11} /> {recipe.time}
+                      </span>
+                      <span className="text-xs text-gray-500 flex items-center gap-1">
+                        <Star size={11} className="fill-amber-400 text-amber-400" /> {recipe.rating}
+                      </span>
+                    </div>
+                    <span className="inline-block text-xs bg-white/60 text-gray-600 px-2 py-0.5 rounded-full font-medium">
+                      {recipe.tag}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* This week's meal plan */}
+            <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Calendar size={17} className="text-orange-500" />
+                  <h2 className="text-base font-bold text-gray-900">This week</h2>
+                </div>
+                <Link to="/mealprep" className="text-xs text-orange-500 font-semibold hover:text-orange-600 flex items-center gap-1">
+                  Meal Prep <ChevronRight size={13} />
+                </Link>
+              </div>
+
+              <div className="space-y-2">
+                {MEAL_PLAN.map(({ day, meal, done }) => (
+                  <div
+                    key={day}
+                    className={`flex items-center gap-4 px-3 py-2.5 rounded-xl transition-colors ${
+                      done ? "bg-green-50" : "bg-gray-50 hover:bg-gray-100"
+                    }`}
+                  >
+                    <div className={`text-xs font-bold w-8 shrink-0 ${done ? "text-green-600" : "text-gray-500"}`}>
+                      {day}
+                    </div>
+                    <div className={`text-sm flex-1 ${done ? "text-gray-400 line-through" : "text-gray-800 font-medium"}`}>
+                      {meal}
+                    </div>
+                    {!done && meal === "—" && (
+                      <button className="text-xs text-orange-500 font-semibold hover:text-orange-600 flex items-center gap-1">
+                        <Plus size={12} /> Add
+                      </button>
+                    )}
+                    {done && <span className="text-xs text-green-500 font-semibold">Done</span>}
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+
+          {/* RIGHT: activity feed (1/3 width) */}
+          <div className="space-y-6">
+
+            {/* Quick actions */}
+            <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              <h2 className="text-base font-bold text-gray-900 mb-3">Quick actions</h2>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { label: "Find Recipe", to: "/browse", emoji: "🔍" },
+                  { label: "Add to Pantry", to: "/pantry", emoji: "📦" },
+                  { label: "Grocery List", to: "/grocery", emoji: "🛒" },
+                  { label: "Plan Meals", to: "/mealprep", emoji: "📅" },
+                ].map(({ label, to, emoji }) => (
+                  <Link
+                    key={label}
+                    to={to}
+                    className="flex flex-col items-center gap-1.5 p-3 bg-gray-50 hover:bg-orange-50 rounded-xl transition-colors text-center group"
+                  >
+                    <span className="text-2xl">{emoji}</span>
+                    <span className="text-xs font-semibold text-gray-600 group-hover:text-orange-600 transition-colors leading-tight">
+                      {label}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </section>
+
+            {/* Activity feed */}
+            <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              <h2 className="text-base font-bold text-gray-900 mb-4">Recent activity</h2>
+              <div className="space-y-3">
+                {ACTIVITY.map((item, i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-gray-50 flex items-center justify-center text-base shrink-0">
+                      {item.emoji}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs text-gray-800 font-medium leading-snug">{item.text}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{item.time}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+        </div>
       </div>
-      <BottomNav />
     </div>
   );
 }
