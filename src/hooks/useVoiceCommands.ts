@@ -4,19 +4,29 @@ interface VoiceCommandHandlers {
   onNext: () => void;
   onPrevious: () => void;
   onRepeat: () => void;
+  onStartTimer?: () => void;
+  onPauseTimer?: () => void;
+  onStopTimer?: () => void;
 }
 
-export function useVoiceCommands({ onNext, onPrevious, onRepeat }: VoiceCommandHandlers) {
+export function useVoiceCommands({ onNext, onPrevious, onRepeat, onStartTimer, onPauseTimer, onStopTimer }: VoiceCommandHandlers) {
   const [isListening, setIsListening] = useState(false);
   const [lastCommand, setLastCommand] = useState<string | null>(null);
+  const [commandStatus, setCommandStatus] = useState<'success' | 'error' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const recognitionRef = useRef<any>(null);
-  const handlersRef = useRef({ onNext, onPrevious, onRepeat });
-  handlersRef.current = { onNext, onPrevious, onRepeat };
+  const handlersRef = useRef({ onNext, onPrevious, onRepeat, onStartTimer, onPauseTimer, onStopTimer });
+  handlersRef.current = { onNext, onPrevious, onRepeat, onStartTimer, onPauseTimer, onStopTimer };
   const restartAttempts = useRef(0);
 
   const isSupported = typeof window !== 'undefined' && 
     ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
+
+  const showCommand = useCallback((label: string, status: 'success' | 'error') => {
+    setLastCommand(label);
+    setCommandStatus(status);
+    setTimeout(() => { setLastCommand(null); setCommandStatus(null); }, 2500);
+  }, []);
 
   const startListening = useCallback(() => {
     if (!isSupported) {
@@ -45,38 +55,53 @@ export function useVoiceCommands({ onNext, onPrevious, onRepeat }: VoiceCommandH
       const transcript = last[0].transcript.toLowerCase().trim();
       
       if (transcript.includes('next') || transcript.includes('continue') || transcript.includes('forward')) {
-        setLastCommand('next');
+        showCommand('Next step ▶', 'success');
         handlersRef.current.onNext();
       } else if (transcript.includes('previous') || transcript.includes('back') || transcript.includes('go back')) {
-        setLastCommand('previous');
+        showCommand('Previous step ◀', 'success');
         handlersRef.current.onPrevious();
       } else if (transcript.includes('repeat') || transcript.includes('again') || transcript.includes('read')) {
-        setLastCommand('repeat');
+        showCommand('Repeating step 🔁', 'success');
         handlersRef.current.onRepeat();
+      } else if (transcript.includes('start timer') || transcript.includes('begin timer') || transcript.includes('set timer')) {
+        if (handlersRef.current.onStartTimer) {
+          showCommand('Timer started ⏱️', 'success');
+          handlersRef.current.onStartTimer();
+        } else {
+          showCommand('No timer on this step', 'error');
+        }
+      } else if (transcript.includes('pause timer') || transcript.includes('pause')) {
+        if (handlersRef.current.onPauseTimer) {
+          showCommand('Timer paused ⏸️', 'success');
+          handlersRef.current.onPauseTimer();
+        } else {
+          showCommand('No timer running', 'error');
+        }
+      } else if (transcript.includes('stop timer') || transcript.includes('end timer') || transcript.includes('cancel timer') || transcript.includes('reset timer')) {
+        if (handlersRef.current.onStopTimer) {
+          showCommand('Timer stopped ⏹️', 'success');
+          handlersRef.current.onStopTimer();
+        } else {
+          showCommand('No timer to stop', 'error');
+        }
       } else {
-        setLastCommand(`"${transcript}" — try "next", "back", or "repeat"`);
+        showCommand(`"${transcript}" — didn't catch that`, 'error');
       }
-
-      setTimeout(() => setLastCommand(null), 2500);
     };
 
     recognition.onerror = (event: any) => {
-      if (event.error === 'no-speech') return; // Normal, just no audio detected
+      if (event.error === 'no-speech') return;
       if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
         setError('Microphone access denied. Please allow microphone permission and try again.');
         recognitionRef.current = null;
         setIsListening(false);
         return;
       }
-      if (event.error === 'network') {
-        // Network issue, will try restart in onend
-        return;
-      }
+      if (event.error === 'network') return;
       console.warn('Speech recognition error:', event.error);
     };
 
     recognition.onend = () => {
-      // Auto-restart if still supposed to be listening
       if (recognitionRef.current) {
         restartAttempts.current += 1;
         if (restartAttempts.current > 5) {
@@ -102,7 +127,7 @@ export function useVoiceCommands({ onNext, onPrevious, onRepeat }: VoiceCommandH
       setError('Failed to start voice recognition. Please try again.');
       recognitionRef.current = null;
     }
-  }, [isSupported]);
+  }, [isSupported, showCommand]);
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {
@@ -119,10 +144,9 @@ export function useVoiceCommands({ onNext, onPrevious, onRepeat }: VoiceCommandH
     else startListening();
   }, [isListening, startListening, stopListening]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => { stopListening(); };
   }, [stopListening]);
 
-  return { isListening, isSupported, lastCommand, error, toggleListening, startListening, stopListening };
+  return { isListening, isSupported, lastCommand, commandStatus, error, toggleListening, startListening, stopListening };
 }
