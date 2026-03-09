@@ -122,6 +122,7 @@ export default function SavedRecipes() {
   }, [allSavedRecipes, viewMode, activeFolderId, recipeFolders, activeTag, recipeTags, search, sort]);
 
   const pantryNames = pantryList.map((p) => p.name);
+  const selectedInstructions = selectedRecipe ? normalizeStringArray((selectedRecipe as any).instructions) : [];
 
   const handleRemove = (id: string) => {
     unlikeRecipe(id);
