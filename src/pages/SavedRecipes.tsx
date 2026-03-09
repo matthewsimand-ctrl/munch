@@ -642,12 +642,12 @@ export default function SavedRecipes() {
 
       {/* Add Recipe Dialog */}
       <Dialog open={showCreateRecipe} onOpenChange={setShowCreateRecipe}>
-        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
-          <DialogHeader>
+        <DialogContent className="max-w-2xl h-[90vh] flex flex-col overflow-hidden">
+          <DialogHeader className="shrink-0">
             <DialogTitle>Add a Recipe</DialogTitle>
           </DialogHeader>
-          <ScrollArea className="flex-1 pr-1">
-            <div className="px-1 pb-1">
+          <ScrollArea className="flex-1 min-h-0">
+            <div className="px-1 pb-4">
               <CreateRecipeForm onClose={() => setShowCreateRecipe(false)} />
             </div>
           </ScrollArea>
