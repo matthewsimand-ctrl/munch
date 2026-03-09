@@ -530,11 +530,11 @@ export default function Browse() {
                     <button
                       onClick={() => {
                         selectedMatch.missing.forEach((ing) => {
-                          addCustomGroceryItem({ name: ing, quantity: "1", category: "Other" });
+                          addCustomGroceryItem(ing, "1");
                         });
                         toast.success(`Added ${selectedMatch.missing.length} items to grocery list`);
                       }}
-                      className="mt-3 flex items-center gap-2 text-sm text-orange-500 hover:text-orange-600 font-semibold transition-colors"
+                      className="mt-3 flex items-center gap-2 text-sm text-primary hover:text-primary/80 font-semibold transition-colors"
                     >
                       <ShoppingCart size={14} /> Add {selectedMatch.missing.length} missing items to grocery list
                     </button>

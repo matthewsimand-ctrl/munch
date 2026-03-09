@@ -581,7 +581,7 @@ export default function SavedRecipes() {
                   })()}
 
                   {/* Instructions */}
-                  {selectedRecipe.instructions && selectedRecipe.instructions.length > 0 && (
+                  {selectedRecipe.instructions && selectedRecipe.instructions.length > 0 ? (
                     <div>
                       <h3 className="text-sm font-semibold text-foreground mb-3">Instructions</h3>
                       <ol className="space-y-3">
@@ -594,6 +594,10 @@ export default function SavedRecipes() {
                           </li>
                         ))}
                       </ol>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-muted-foreground italic">
+                      No instructions available for this recipe.
                     </div>
                   )}
 
