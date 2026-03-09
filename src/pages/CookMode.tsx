@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDbRecipes } from '@/hooks/useDbRecipes';
 import { useStore } from '@/lib/store';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis';
 import { useVoiceCommands } from '@/hooks/useVoiceCommands';
 import { Button } from '@/components/ui/button';
@@ -11,6 +12,7 @@ import { ArrowLeft, ChevronLeft, ChevronRight, Play, Pause, RotateCcw, Timer, Vo
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { buildDictionaryRegex, lookupTerm } from '@/lib/cookingDictionary';
 
 function parseTimerFromStep(step: string): number | null {
   const patterns = [
