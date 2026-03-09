@@ -573,12 +573,21 @@ export default function SavedRecipes() {
 
                     <div className="flex items-center justify-between pt-2.5 border-t border-border">
                       <span className="text-xs text-muted-foreground">{recipe.difficulty}</span>
-                      <button
-                        onClick={() => setSelectedRecipe(recipe)}
-                        className="text-xs text-orange-500 font-semibold hover:text-orange-600 transition-colors"
-                      >
-                        View Recipe →
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setTweakingRecipe(recipe); }}
+                          className="text-xs text-primary hover:text-primary/80 font-semibold flex items-center gap-1 transition-colors"
+                          title="AI Tweak"
+                        >
+                          <Wand2 size={12} />
+                        </button>
+                        <button
+                          onClick={() => setSelectedRecipe(recipe)}
+                          className="text-xs text-orange-500 font-semibold hover:text-orange-600 transition-colors"
+                        >
+                          View Recipe →
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
