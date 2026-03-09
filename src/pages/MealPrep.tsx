@@ -511,7 +511,7 @@ export default function MealPrep() {
                   onClick={() => generateAiPlan(7)}
                 >
                   {aiGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                  <span className="hidden sm:inline">{aiGenerating ? 'Generating...' : 'AI Plan'}</span>
+                  <span className="hidden sm:inline">{aiGenerating ? 'Generating...' : '🧠 AI Plan'}</span>
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Generate a full week meal plan with AI based on your saved recipes</TooltipContent>
