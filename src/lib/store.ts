@@ -97,6 +97,10 @@ export const useStore = create<AppState>()(
       onboardingComplete: false,
       tutorialComplete: false,
       showTutorial: false,
+      cookingStreak: 0,
+      lastCookedDate: null,
+      totalMealsCooked: 0,
+      cookedRecipeIds: [],
 
       setShowTutorial: (show) => set({ showTutorial: show }),
 
