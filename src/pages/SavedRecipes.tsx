@@ -371,12 +371,14 @@ export default function SavedRecipes() {
             >
               Cookbooks
             </button>
-            <button
-              onClick={() => setShowNewCookbook(true)}
-              className="text-xs font-semibold px-3 py-1.5 rounded-full border border-dashed border-border text-muted-foreground hover:border-orange-300 hover:text-orange-500 transition-all flex items-center gap-1"
-            >
-              <FolderPlus size={11} /> New Cookbook
-            </button>
+            {viewMode === "cookbooks" && (
+              <button
+                onClick={() => setShowNewCookbook(true)}
+                className="text-xs font-semibold px-3 py-1.5 rounded-full border border-dashed border-border text-muted-foreground hover:border-orange-300 hover:text-orange-500 transition-all flex items-center gap-1"
+              >
+                <FolderPlus size={11} /> New Cookbook
+              </button>
+            )}
           </div>
 
           {/* Cookbook actions */}
