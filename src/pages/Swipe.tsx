@@ -96,8 +96,7 @@ export default function Browse() {
 
   const handleSave = useCallback(() => {
     if (animating || !currentRecipe) return;
-    addLikedRecipe(currentRecipe.id);
-    saveApiRecipe(currentRecipe.id, currentRecipe as any);
+    likeRecipe(currentRecipe.id, currentRecipe);
     setAnimating("right");
     setSwipeIndicator("saved");
     setTimeout(() => {
@@ -105,7 +104,7 @@ export default function Browse() {
       setAnimating(null);
       setSwipeIndicator(null);
     }, 500);
-  }, [animating, currentRecipe, filteredRecipes.length, addLikedRecipe, saveApiRecipe]);
+  }, [animating, currentRecipe, filteredRecipes.length, likeRecipe]);
 
   // Keyboard support
   useEffect(() => {
