@@ -131,6 +131,28 @@ async function browseMealDBByCategory(category: string): Promise<NormalizedRecip
   }
 }
 
+// Infer cuisine from recipe metadata
+function inferCuisine(name: string, tags: string[], ingredients: string[]): string | undefined {
+  const lowerName = name.toLowerCase();
+  const allText = [lowerName, ...tags, ...ingredients].join(' ').toLowerCase();
+  
+  // Cuisine patterns
+  if (/(thai|pad thai|green curry|tom yum)/i.test(allText)) return 'Thai';
+  if (/(italian|pasta|pizza|risotto|carbonara|pesto)/i.test(allText)) return 'Italian';
+  if (/(mexican|taco|burrito|enchilada|quesadilla|salsa)/i.test(allText)) return 'Mexican';
+  if (/(chinese|stir[- ]?fry|kung pao|szechuan|wonton)/i.test(allText)) return 'Chinese';
+  if (/(japanese|sushi|ramen|teriyaki|miso)/i.test(allText)) return 'Japanese';
+  if (/(indian|curry|tikka|masala|naan|tandoori)/i.test(allText)) return 'Indian';
+  if (/(mediterranean|greek|hummus|falafel|kebab)/i.test(allText)) return 'Mediterranean';
+  if (/(french|crepe|croissant|coq au vin|bouillabaisse)/i.test(allText)) return 'French';
+  if (/(american|burger|bbq|southern|cajun)/i.test(allText)) return 'American';
+  if (/(korean|kimchi|bibimbap|bulgogi)/i.test(allText)) return 'Korean';
+  if (/(vietnamese|pho|banh mi)/i.test(allText)) return 'Vietnamese';
+  if (/(spanish|paella|tapas)/i.test(allText)) return 'Spanish';
+  
+  return undefined;
+}
+
 // --- Tasty (RapidAPI) ---
 async function searchTasty(query: string, apiKey: string, size = 5): Promise<NormalizedRecipe[]> {
   try {
@@ -154,6 +176,7 @@ async function searchTasty(query: string, apiKey: string, size = 5): Promise<Nor
         .map((i: any) => i.display_text)
         .filter(Boolean);
       const totalTime = r.total_time_minutes || r.cook_time_minutes || r.prep_time_minutes;
+      const tags = (r.tags || []).slice(0, 5).map((t: any) => t.display_name?.toLowerCase()).filter(Boolean);
       return {
         id: `tasty-${r.id}`,
         name: r.name,
@@ -161,9 +184,10 @@ async function searchTasty(query: string, apiKey: string, size = 5): Promise<Nor
         cook_time: totalTime ? `${totalTime} min` : '30 min',
         difficulty: (r.total_time_minutes && r.total_time_minutes > 45) ? 'Advanced' as const : 'Intermediate' as const,
         ingredients,
-        tags: (r.tags || []).slice(0, 5).map((t: any) => t.display_name?.toLowerCase()).filter(Boolean),
+        tags,
         instructions: instructions.slice(0, 10),
         source: 'Tasty',
+        cuisine: inferCuisine(r.name, tags, ingredients),
       };
     });
   } catch (e) {
