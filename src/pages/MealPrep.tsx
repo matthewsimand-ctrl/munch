@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ChevronLeft, ChevronRight, Plus, X, Calendar, CalendarDays, FileText, Table2, GripVertical, User, Sparkles, Loader2 } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import BottomNav from '@/components/BottomNav';
 import { format, startOfWeek, addDays, addWeeks, subWeeks } from 'date-fns';
@@ -41,6 +42,7 @@ export default function MealPrep() {
   const [dragItem, setDragItem] = useState<MealItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [aiGenerating, setAiGenerating] = useState(false);
+  const [exportDialog, setExportDialog] = useState(false);
 
   // Get saved recipes list
   const savedRecipes = useMemo(() => {
@@ -249,33 +251,102 @@ export default function MealPrep() {
   };
 
   // Export functions
-  const exportPDF = async () => {
+  const exportPDF = async (exportType: 'week' | number) => {
     const { jsPDF } = await import('jspdf');
-    const doc = new jsPDF({ orientation: 'landscape' });
-    doc.setFontSize(18);
-    doc.text(`Meal Plan — Week of ${format(weekStart, 'MMM d, yyyy')}`, 14, 20);
-
-    let y = 35;
-    MEAL_TYPES.forEach((meal) => {
-      doc.setFontSize(12);
+    const doc = new jsPDF({ orientation: 'portrait' });
+    
+    // Fetch full recipe data including ingredients
+    const recipeIds = [...new Set(items.map(i => i.recipe_id))];
+    const { data: fullRecipes } = await supabase
+      .from('recipes')
+      .select('*')
+      .in('id', recipeIds);
+    
+    const recipeMap = new Map(fullRecipes?.map(r => [r.id, r]) || []);
+    
+    let y = 20;
+    const pageHeight = doc.internal.pageSize.height;
+    const margin = 14;
+    const lineHeight = 5;
+    
+    // Helper to add new page if needed
+    const checkAddPage = (requiredSpace: number) => {
+      if (y + requiredSpace > pageHeight - 20) {
+        doc.addPage();
+        y = 20;
+      }
+    };
+    
+    // Title
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    if (exportType === 'week') {
+      doc.text(`Meal Plan — Week of ${format(weekStart, 'MMM d, yyyy')}`, margin, y);
+    } else {
+      doc.text(`Meal Plan — ${DAYS[exportType]}, ${format(addDays(weekStart, exportType), 'MMM d, yyyy')}`, margin, y);
+    }
+    y += 12;
+    
+    // Determine days to export
+    const daysToExport = exportType === 'week' ? [0, 1, 2, 3, 4, 5, 6] : [exportType];
+    
+    // Loop through days
+    daysToExport.forEach((dayIndex) => {
+      const dayDate = addDays(weekStart, dayIndex);
+      
+      checkAddPage(20);
+      doc.setFontSize(14);
       doc.setFont('helvetica', 'bold');
-      doc.text(meal.charAt(0).toUpperCase() + meal.slice(1), 14, y);
-      y += 7;
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(10);
-      DAYS.forEach((day, di) => {
-        const dayItems = items.filter(i => i.day_of_week === di && i.meal_type === meal);
-        const text = dayItems.length > 0
-          ? dayItems.map(i => `${i.recipe_name} (${i.servings}p)`).join(', ')
-          : '—';
-        doc.text(`${day}: ${text}`, 20, y);
-        y += 5;
+      doc.text(`${DAYS[dayIndex]} — ${format(dayDate, 'MMM d')}`, margin, y);
+      y += 8;
+      
+      // Loop through meal types
+      MEAL_TYPES.forEach((mealType) => {
+        const dayMeals = items.filter(i => i.day_of_week === dayIndex && i.meal_type === mealType);
+        
+        if (dayMeals.length > 0) {
+          checkAddPage(15);
+          doc.setFontSize(11);
+          doc.setFont('helvetica', 'bold');
+          doc.text(mealType.charAt(0).toUpperCase() + mealType.slice(1), margin + 5, y);
+          y += 6;
+          
+          dayMeals.forEach((meal) => {
+            const recipe = recipeMap.get(meal.recipe_id);
+            
+            checkAddPage(10);
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'bold');
+            doc.text(`• ${meal.recipe_name} (${meal.servings} servings)`, margin + 10, y);
+            y += 5;
+            
+            if (recipe?.ingredients && recipe.ingredients.length > 0) {
+              doc.setFont('helvetica', 'normal');
+              doc.setFontSize(9);
+              doc.text('Ingredients:', margin + 15, y);
+              y += 4;
+              
+              recipe.ingredients.forEach((ingredient: string) => {
+                checkAddPage(5);
+                const lines = doc.splitTextToSize(`- ${ingredient}`, 160);
+                lines.forEach((line: string) => {
+                  doc.text(line, margin + 20, y);
+                  y += 4;
+                });
+              });
+              y += 2;
+            }
+          });
+          y += 3;
+        }
       });
+      
       y += 5;
     });
-
-    doc.save(`meal-plan-${format(weekStart, 'yyyy-MM-dd')}.pdf`);
+    
+    doc.save(`meal-plan-${exportType === 'week' ? format(weekStart, 'yyyy-MM-dd') : format(addDays(weekStart, exportType), 'yyyy-MM-dd')}.pdf`);
     toast({ title: 'PDF exported! 📄' });
+    setExportDialog(false);
   };
 
   const exportCSV = () => {
@@ -351,7 +422,7 @@ export default function MealPrep() {
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" onClick={exportPDF}>
+                <Button variant="ghost" size="icon" onClick={() => setExportDialog(true)}>
                   <FileText className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
@@ -532,6 +603,43 @@ export default function MealPrep() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Export PDF Dialog */}
+      <AlertDialog open={exportDialog} onOpenChange={setExportDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Export Meal Plan to PDF</AlertDialogTitle>
+            <AlertDialogDescription>
+              Choose what you'd like to export. The PDF will include all meals and their ingredients.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2 py-4">
+            <Button
+              variant="outline"
+              className="w-full justify-start"
+              onClick={() => exportPDF('week')}
+            >
+              <CalendarDays className="h-4 w-4 mr-2" />
+              Export Full Week
+            </Button>
+            <div className="grid grid-cols-2 gap-2">
+              {DAYS.map((day, di) => (
+                <Button
+                  key={di}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => exportPDF(di)}
+                >
+                  {day}
+                </Button>
+              ))}
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <BottomNav />
     </div>
