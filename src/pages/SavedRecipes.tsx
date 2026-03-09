@@ -99,6 +99,10 @@ export default function SavedRecipes() {
       .filter(Boolean) as Recipe[];
   }, [likedRecipes, dbRecipes, savedApiRecipes]);
 
+  // Fetch chef profiles for recipes with created_by
+  const chefIds = useMemo(() => allSavedRecipes.map(r => r.created_by).filter(Boolean), [allSavedRecipes]);
+  const { data: chefProfiles = {} } = useChefProfiles(chefIds);
+
   // Collect all unique user tags
   const allTags = useMemo(() => {
     const tags = new Set<string>();
