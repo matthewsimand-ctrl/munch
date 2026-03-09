@@ -45,7 +45,7 @@ export function useBrowseFeed() {
   const [recipes, setRecipes] = useState<BrowseRecipe[]>([]);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  const { likedRecipes, savedApiRecipes } = useStore();
+  const { likedRecipes, savedApiRecipes, userProfile } = useStore();
 
   const loadFeed = useCallback(async () => {
     if (loaded || loading) return;
