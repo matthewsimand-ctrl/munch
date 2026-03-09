@@ -42,6 +42,10 @@ function SwipeCard({
   scale: number;
   opacity: number;
 }) {
+  const gradient = recipe.cuisine 
+    ? `from-${recipe.cuisine === "Italian" ? "green" : recipe.cuisine === "Mexican" ? "orange" : "blue"}-400 to-${recipe.cuisine === "Italian" ? "red" : recipe.cuisine === "Mexican" ? "red" : "purple"}-400`
+    : "from-orange-400 to-pink-400";
+
   return (
     <div
       className="absolute inset-0 rounded-3xl overflow-hidden shadow-2xl"
@@ -52,8 +56,13 @@ function SwipeCard({
         zIndex: Math.round(opacity * 10),
       }}
     >
-      {/* Gradient background */}
-      <div className={`absolute inset-0 bg-gradient-to-br ${recipe.gradient} opacity-90`} />
+      {/* Image or gradient */}
+      {recipe.image ? (
+        <img src={recipe.image} alt={recipe.name} className="absolute inset-0 w-full h-full object-cover" />
+      ) : (
+        <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-90`} />
+      )}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
 
       {/* Content */}
       <div className="relative h-full flex flex-col justify-between p-6 text-white">
@@ -67,20 +76,16 @@ function SwipeCard({
             ))}
           </div>
           <div className="flex items-center gap-1 bg-white/20 backdrop-blur-sm px-2.5 py-0.5 rounded-full text-xs font-semibold">
-            <Star size={11} className="fill-white" /> {recipe.rating}
+            <Star size={11} className="fill-white" /> {recipe.difficulty}
           </div>
         </div>
 
-        {/* Emoji */}
-        <div className="text-7xl text-center select-none">{recipe.emoji}</div>
-
         {/* Bottom info */}
         <div>
-          <h2 className="text-2xl font-bold leading-tight mb-2">{recipe.title}</h2>
+          <h2 className="text-2xl font-bold leading-tight mb-2">{recipe.name}</h2>
           <div className="flex items-center gap-4 text-sm text-white/80">
-            <span className="flex items-center gap-1"><Clock size={13} /> {recipe.time}</span>
-            <span className="flex items-center gap-1"><Users size={13} /> {recipe.servings} servings</span>
-            <span className="flex items-center gap-1"><Flame size={13} /> {recipe.calories} cal</span>
+            <span className="flex items-center gap-1"><Clock size={13} /> {recipe.cook_time}</span>
+            {recipe.cuisine && <span className="flex items-center gap-1">🌍 {recipe.cuisine}</span>}
           </div>
         </div>
       </div>
@@ -89,14 +94,37 @@ function SwipeCard({
 }
 
 export default function Browse() {
+  const navigate = useNavigate();
+  const { recipes, loading, loaded, loadFeed } = useBrowseFeed();
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [savedIds, setSavedIds] = useState<number[]>([]);
+  const [savedIds, setSavedIds] = useState<string[]>([]);
   const [animating, setAnimating] = useState<"left" | "right" | null>(null);
+  const [difficultyFilter, setDifficultyFilter] = useState("All");
+  const [timeFilter, setTimeFilter] = useState("All");
+  const [cuisineFilter, setCuisineFilter] = useState("All");
+  const [showFilters, setShowFilters] = useState(false);
   const constraintsRef = useRef(null);
 
-  const currentRecipe = RECIPES[currentIndex];
-  const nextRecipe = RECIPES[(currentIndex + 1) % RECIPES.length];
-  const nextNextRecipe = RECIPES[(currentIndex + 2) % RECIPES.length];
+  useEffect(() => {
+    loadFeed();
+  }, [loadFeed]);
+
+  // Apply filters
+  const filteredRecipes = recipes.filter((r) => {
+    if (difficultyFilter !== "All" && r.difficulty !== difficultyFilter) return false;
+    if (cuisineFilter !== "All" && r.cuisine !== cuisineFilter) return false;
+    if (timeFilter !== "All") {
+      const time = parseInt(r.cook_time);
+      if (timeFilter === "< 30 min" && time >= 30) return false;
+      if (timeFilter === "30-60 min" && (time < 30 || time >= 60)) return false;
+      if (timeFilter === "> 60 min" && time < 60) return false;
+    }
+    return true;
+  });
+
+  const currentRecipe = filteredRecipes[currentIndex];
+  const nextRecipe = filteredRecipes[(currentIndex + 1) % filteredRecipes.length];
+  const nextNextRecipe = filteredRecipes[(currentIndex + 2) % filteredRecipes.length];
 
   const handlePass = useCallback(() => {
     if (animating) return;
