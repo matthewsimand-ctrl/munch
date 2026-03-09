@@ -215,9 +215,12 @@ export default function CreateRecipeForm({ onClose }: Props) {
   const fetchRandomPhoto = async () => {
     setFetchingPhoto(true);
     try {
-      const res = await fetch(FOODISH_API);
-      const data = await res.json();
-      if (data.image) setImage(data.image);
+      const randomImage = await getRandomFoodishImage();
+      if (randomImage) {
+        setImage(randomImage);
+      } else {
+        toast({ title: 'Could not fetch photo', variant: 'destructive' });
+      }
     } catch {
       toast({ title: 'Could not fetch photo', variant: 'destructive' });
     } finally {
