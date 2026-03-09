@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Flame,
   Clock,
@@ -12,6 +12,7 @@ import {
   Plus,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 // ── Mock data (replace with your real data / hooks) ──────────────────────────
 const STATS = [
