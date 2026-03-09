@@ -147,7 +147,7 @@ export default function Dashboard() {
                   <TrendingUp size={17} className="text-orange-500" />
                   <h2 className="text-base font-bold text-gray-900">Suggested for you</h2>
                 </div>
-                <Link to="/browse" className="text-xs text-orange-500 font-semibold hover:text-orange-600 flex items-center gap-1">
+                <Link to="/swipe" className="text-xs text-orange-500 font-semibold hover:text-orange-600 flex items-center gap-1">
                   See all <ChevronRight size={13} />
                 </Link>
               </div>
