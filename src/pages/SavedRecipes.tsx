@@ -144,7 +144,8 @@ export default function SavedRecipes() {
     list = [...list].sort((a, b) => {
       if (sort === "time") return parseInt(a.cook_time || "0") - parseInt(b.cook_time || "0");
       if (sort === "name") return a.name.localeCompare(b.name);
-      return 0;
+      // newest: reverse the natural (oldest-first) order
+      return -1;
     });
 
     return list;
