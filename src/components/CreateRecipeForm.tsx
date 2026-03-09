@@ -376,7 +376,9 @@ export default function CreateRecipeForm({ onClose }: Props) {
       const stepList = instructions.map((s) => s.trim()).filter(Boolean);
       const finalImage = image || (await getRandomFoodishImage(name)) || '/placeholder.svg';
 
+      const recipeId = crypto.randomUUID();
       const { error } = await supabase.from('recipes').insert({
+        id: recipeId,
         name: name.trim(),
         image: finalImage,
         cook_time: cookTime.trim() || '30 min',
@@ -392,6 +394,21 @@ export default function CreateRecipeForm({ onClose }: Props) {
       } as any);
 
       if (error) throw error;
+
+      // Also save to local liked recipes so it appears in All Recipes
+      likeRecipe(recipeId, {
+        id: recipeId,
+        name: name.trim(),
+        image: finalImage,
+        cook_time: cookTime.trim() || '30 min',
+        difficulty,
+        cuisine: cuisine.trim() || null,
+        ingredients,
+        tags,
+        instructions: stepList,
+        source: 'community',
+        servings: parseInt(servings) || 4,
+      });
 
       toast({ title: 'Recipe created! 🎉' });
       queryClient.invalidateQueries({ queryKey: ['recipes'] });
