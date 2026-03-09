@@ -10,6 +10,7 @@ import {
   Loader2,
   Check,
   ShoppingCart,
+  Play,
 } from "lucide-react";
 import { useBrowseFeed } from "@/hooks/useBrowseFeed";
 import { useNavigate } from "react-router-dom";
@@ -23,7 +24,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-
+import { Button } from "@/components/ui/button";
+import NutritionCard from "@/components/NutritionCard";
+import { toast } from "sonner";
 interface Recipe {
   id: string;
   name: string;
