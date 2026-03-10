@@ -88,7 +88,9 @@ export default function CookMode() {
   const { data: dbRecipes = [] } = useDbRecipes();
   const { savedApiRecipes, markRecipeCooked, rateRecipe, cookModeTtsEnabled, setCookModeTtsEnabled, recipeRatings } = useStore();
   const rawRecipe = dbRecipes.find(r => r.id === id) || savedApiRecipes[id || ''];
-  const recipe = rawRecipe ? normalizeRecipe(rawRecipe, id) : null;
+  const recipe = useMemo(() => (
+    rawRecipe ? normalizeRecipe(rawRecipe, id) : null
+  ), [rawRecipe, id]);
   const [isDone, setIsDone] = useState(false);
   const [showRatingPrompt, setShowRatingPrompt] = useState(false);
 
@@ -139,12 +141,14 @@ export default function CookMode() {
   }, [currentStep]);
 
   // Auto-read on step change
+  const currentStepInstruction = steps[currentStep];
+
   useEffect(() => {
-    if (cookModeTtsEnabled && steps[currentStep]) {
-      speak(`Step ${currentStep + 1}. ${steps[currentStep]}`);
+    if (cookModeTtsEnabled && currentStepInstruction) {
+      speak(`Step ${currentStep + 1}. ${currentStepInstruction}`);
     }
     return () => { stopSpeaking(); };
-  }, [cookModeTtsEnabled, currentStep, steps, speak, stopSpeaking]);
+  }, [cookModeTtsEnabled, currentStep, currentStepInstruction, speak, stopSpeaking]);
 
   const goNext = useCallback(() => {
     if (currentStep < totalSteps - 1) setCurrentStep(s => s + 1);
