@@ -149,7 +149,8 @@ function cleanIngredientPart(value: unknown): string {
 
 function normalizeMeasurePart(value: unknown): string {
   const rawMeasure = String(value ?? '');
-  if (rawMeasure === ' ') return '';
+  // MealDB often returns whitespace-only strings for empty measures
+  if (!rawMeasure.trim()) return '';
 
   const measure = cleanIngredientPart(rawMeasure);
   if (!measure) return '';

@@ -156,11 +156,24 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
     } = await supabase.auth.getUser();
 
     if (user && isDiscoverable) {
-      const { error } = await supabase.from('recipes').insert({
-        ...payload,
+      const insertData = {
+        id: payload.id,
+        name: payload.name,
+        image: payload.image || '',
+        cook_time: payload.cook_time || '30 min',
+        difficulty: payload.difficulty || 'Intermediate',
+        ingredients: payload.ingredients || [],
+        instructions: payload.instructions || [],
+        tags: payload.tags || [],
+        cuisine: payload.cuisine || null,
+        source: payload.source || 'imported',
+        source_url: payload.source_url || null,
+        raw_api_payload: payload.raw_api_payload || null,
+        servings: payload.servings || 4,
         created_by: user.id,
         is_public: true,
-      });
+      };
+      const { error } = await supabase.from('recipes').insert(insertData);
 
       if (error) throw error;
     }
