@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowLeft, Check, Clock, Plus, Star } from "lucide-react";
+import { ArrowLeft, Check, Clock, Grid3X3, List, Plus, Star, Trash2 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useStore } from "@/lib/store";
 import { toast } from "sonner";
@@ -23,12 +23,14 @@ export default function CookbookDetails() {
     cachedNutrition,
     pantryList,
     addRecipeToFolder,
+    removeRecipeFromFolder,
     addCustomGroceryItem,
   } = useStore();
   const [showAddRecipes, setShowAddRecipes] = useState(false);
   const [selectedRecipeIds, setSelectedRecipeIds] = useState<string[]>([]);
   const [previewRecipe, setPreviewRecipe] = useState<Recipe | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [view, setView] = useState<"grid" | "list">("grid");
 
   const cookbook = useMemo(
     () => recipeFolders.find((folder) => folder.id === id) ?? null,
@@ -66,6 +68,12 @@ export default function CookbookDetails() {
     setShowAddRecipes(false);
   };
 
+  const onRemoveRecipe = (recipeId: string) => {
+    if (!cookbook) return;
+    removeRecipeFromFolder(cookbook.id, recipeId);
+    toast.success("Removed recipe from cookbook");
+  };
+
   const openPreview = (recipe: Recipe) => {
     setPreviewRecipe(recipe);
     setPreviewOpen(true);
@@ -99,12 +107,21 @@ export default function CookbookDetails() {
           >
             <ArrowLeft size={12} /> Back to Cookbooks
           </button>
-          <button
-            onClick={() => setShowAddRecipes((prev) => !prev)}
-            className="px-3 py-2 rounded-xl text-xs font-semibold bg-orange-500 text-white inline-flex items-center gap-1"
-          >
-            <Plus size={12} /> {showAddRecipes ? "Done" : "Add Recipes"}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowAddRecipes((prev) => !prev)}
+              className="px-3 py-2 rounded-xl text-xs font-semibold bg-orange-500 text-white inline-flex items-center gap-1"
+            >
+              <Plus size={12} /> {showAddRecipes ? "Done" : "Add Recipes"}
+            </button>
+            <button
+              onClick={() => setView(view === "grid" ? "list" : "grid")}
+              className="w-9 h-9 rounded-xl bg-white border border-stone-200 flex items-center justify-center text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
+              aria-label="Toggle recipe layout"
+            >
+              {view === "grid" ? <List size={16} /> : <Grid3X3 size={16} />}
+            </button>
+          </div>
         </div>
 
         <div className="rounded-2xl bg-white border border-stone-200 overflow-hidden">
@@ -155,7 +172,7 @@ export default function CookbookDetails() {
 
           {recipes.length === 0 ? (
             <div className="p-6 text-sm text-stone-500">No recipes in this cookbook yet.</div>
-          ) : (
+          ) : view === "grid" ? (
             <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {recipes.map((recipe) => {
                 const rating = recipeRatings?.[recipe.id];
@@ -170,33 +187,82 @@ export default function CookbookDetails() {
                       : "text-red-600 bg-red-50";
 
                 return (
-                  <button
+                  <div
                     key={recipe.id}
-                    onClick={() => openPreview(recipe)}
-                    className="text-left rounded-2xl overflow-hidden border border-stone-200 bg-white hover:border-orange-200 hover:shadow-sm transition-all"
+                    className="rounded-2xl overflow-hidden border border-stone-200 bg-white hover:border-orange-200 hover:shadow-sm transition-all"
                   >
-                    <div className="aspect-[4/3] bg-stone-100 overflow-hidden">
+                    <button onClick={() => openPreview(recipe)} className="w-full text-left">
+                      <div className="aspect-[4/3] bg-stone-100 overflow-hidden">
+                        {recipe.image && recipe.image !== "/placeholder.svg" ? (
+                          <img src={recipe.image} alt={recipe.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-4xl bg-gradient-to-br from-orange-50 to-amber-50">🍽️</div>
+                        )}
+                      </div>
+                      <div className="p-3">
+                        <p className="font-semibold text-sm text-stone-800 line-clamp-1">{recipe.name}</p>
+                        <div className="flex items-center gap-2 mt-2 text-[11px] text-stone-400">
+                          <span className="flex items-center gap-1"><Clock size={11} /> {recipe.cook_time}</span>
+                          <span className={`px-2 py-0.5 rounded-full font-semibold ${diffColor}`}>{difficulty}</span>
+                          <span className="flex items-center gap-1 text-amber-500"><Star size={11} fill="currentColor" /> {stats.stars.toFixed(1)}</span>
+                        </div>
+                        {(nutrition?.calories || nutrition?.protein) && (
+                          <p className="mt-1 text-[11px] text-stone-500 line-clamp-1">
+                            {nutrition?.calories ? `${Math.round(nutrition.calories)} cal` : null}
+                            {nutrition?.protein ? ` • ${Math.round(nutrition.protein)}g protein` : null}
+                          </p>
+                        )}
+                      </div>
+                    </button>
+                    <div className="px-3 pb-3">
+                      <button
+                        onClick={() => onRemoveRecipe(recipe.id)}
+                        className="w-full text-xs px-2 py-2 rounded-lg border border-red-200 text-red-500 inline-flex items-center justify-center gap-1"
+                      >
+                        <Trash2 size={12} /> Remove from Cookbook
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="p-4 space-y-2">
+              {recipes.map((recipe) => {
+                const rating = recipeRatings?.[recipe.id];
+                const stats = getCookStats(recipe, rating);
+                const difficulty = recipe.difficulty ?? "medium";
+                const diffColor =
+                  difficulty === "easy"
+                    ? "text-emerald-600 bg-emerald-50"
+                    : difficulty === "medium"
+                      ? "text-amber-600 bg-amber-50"
+                      : "text-red-600 bg-red-50";
+
+                return (
+                  <div key={recipe.id} className="rounded-xl border border-stone-200 bg-white p-3 flex items-center gap-3">
+                    <button onClick={() => openPreview(recipe)} className="w-16 h-16 rounded-lg overflow-hidden bg-stone-100 shrink-0">
                       {recipe.image && recipe.image !== "/placeholder.svg" ? (
                         <img src={recipe.image} alt={recipe.name} className="w-full h-full object-cover" />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-4xl bg-gradient-to-br from-orange-50 to-amber-50">🍽️</div>
+                        <div className="w-full h-full flex items-center justify-center text-xl bg-gradient-to-br from-orange-50 to-amber-50">🍽️</div>
                       )}
-                    </div>
-                    <div className="p-3">
-                      <p className="font-semibold text-sm text-stone-800 line-clamp-1">{recipe.name}</p>
-                      <div className="flex items-center gap-2 mt-2 text-[11px] text-stone-400">
+                    </button>
+                    <button onClick={() => openPreview(recipe)} className="text-left flex-1 min-w-0">
+                      <p className="font-semibold text-sm text-stone-800 truncate">{recipe.name}</p>
+                      <div className="flex items-center gap-2 mt-1 text-[11px] text-stone-400">
                         <span className="flex items-center gap-1"><Clock size={11} /> {recipe.cook_time}</span>
                         <span className={`px-2 py-0.5 rounded-full font-semibold ${diffColor}`}>{difficulty}</span>
                         <span className="flex items-center gap-1 text-amber-500"><Star size={11} fill="currentColor" /> {stats.stars.toFixed(1)}</span>
                       </div>
-                      {(nutrition?.calories || nutrition?.protein) && (
-                        <p className="mt-1 text-[11px] text-stone-500 line-clamp-1">
-                          {nutrition?.calories ? `${Math.round(nutrition.calories)} cal` : null}
-                          {nutrition?.protein ? ` • ${Math.round(nutrition.protein)}g protein` : null}
-                        </p>
-                      )}
-                    </div>
-                  </button>
+                    </button>
+                    <button
+                      onClick={() => onRemoveRecipe(recipe.id)}
+                      className="text-xs px-2 py-2 rounded-lg border border-red-200 text-red-500 inline-flex items-center gap-1"
+                    >
+                      <Trash2 size={12} /> Remove
+                    </button>
+                  </div>
                 );
               })}
             </div>

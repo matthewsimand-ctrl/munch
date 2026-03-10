@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { BookOpen, FolderPlus, ImagePlus, Trash2 } from "lucide-react";
+import { BookOpen, FolderPlus, Grid3X3, ImagePlus, List, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "@/lib/store";
 import { toast } from "sonner";
@@ -11,6 +11,7 @@ export default function Cookbooks() {
   const [newFolderName, setNewFolderName] = useState("");
   const [newCookbookRecipeIds, setNewCookbookRecipeIds] = useState<string[]>([]);
   const [newCookbookCover, setNewCookbookCover] = useState<string | undefined>();
+  const [view, setView] = useState<"grid" | "list">("grid");
 
   const savedRecipes = useMemo(
     () => likedRecipes.map((id) => savedApiRecipes[id]).filter(Boolean),
@@ -53,7 +54,7 @@ export default function Cookbooks() {
             <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1">Your collection</p>
             <h1 className="text-2xl font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>Cookbooks</h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full justify-end">
             <button onClick={() => navigate('/saved')} className="px-3 py-2 rounded-xl text-xs font-semibold bg-white border border-stone-200 text-stone-600">My Recipes</button>
             <button className="px-3 py-2 rounded-xl text-xs font-semibold bg-orange-500 text-white">Cookbooks</button>
             <button onClick={() => navigate('/swipe')} className="px-3 py-2 rounded-xl text-xs font-semibold bg-white border border-stone-200 text-stone-600">Find Recipes</button>
@@ -62,6 +63,13 @@ export default function Cookbooks() {
               className="px-3 py-2 rounded-xl text-xs font-semibold bg-white border border-stone-200 text-stone-600 inline-flex items-center gap-1"
             >
               <FolderPlus size={12} /> Add Cookbook
+            </button>
+            <button
+              onClick={() => setView(view === "grid" ? "list" : "grid")}
+              className="w-9 h-9 rounded-xl bg-white border border-stone-200 flex items-center justify-center text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors ml-1"
+              aria-label="Toggle cookbook layout"
+            >
+              {view === "grid" ? <List size={16} /> : <Grid3X3 size={16} />}
             </button>
           </div>
         </div>
@@ -109,7 +117,7 @@ export default function Cookbooks() {
             <p className="text-lg font-semibold text-stone-800">No cookbooks yet</p>
             <p className="text-sm text-stone-500 mt-1">Use the cookbook form above to create your first collection.</p>
           </div>
-        ) : (
+        ) : view === "grid" ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {recipeFolders.map((folder) => (
               <div key={folder.id} className="rounded-2xl bg-white border border-stone-200 overflow-hidden">
@@ -127,6 +135,33 @@ export default function Cookbooks() {
                   </div>
                 </button>
                 <div className="px-3 pb-3 flex items-center gap-2">
+                  <label className="text-xs px-2 py-1 rounded-lg border border-stone-200 text-stone-600 cursor-pointer inline-flex items-center gap-1">
+                    <ImagePlus size={12} /> Update Cover
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => onUploadCover(folder.id, e.target.files?.[0] ?? null)} />
+                  </label>
+                  <button onClick={() => deleteFolder(folder.id)} className="text-xs px-2 py-1 rounded-lg border border-red-200 text-red-500 inline-flex items-center gap-1">
+                    <Trash2 size={12} /> Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {recipeFolders.map((folder) => (
+              <div key={folder.id} className="rounded-2xl bg-white border border-stone-200 p-3 flex items-center gap-3">
+                <button className="w-20 h-16 rounded-xl overflow-hidden bg-stone-100 shrink-0" onClick={() => navigate(`/cookbooks/${folder.id}`)}>
+                  {folder.coverImage ? (
+                    <img src={folder.coverImage} alt={folder.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center"><BookOpen className="text-stone-300" /></div>
+                  )}
+                </button>
+                <button className="text-left flex-1 min-w-0" onClick={() => navigate(`/cookbooks/${folder.id}`)}>
+                  <p className="font-semibold text-stone-800 truncate">{folder.name}</p>
+                  <p className="text-xs text-stone-400 mt-1">{folder.recipeIds.length} recipes</p>
+                </button>
+                <div className="flex items-center gap-2">
                   <label className="text-xs px-2 py-1 rounded-lg border border-stone-200 text-stone-600 cursor-pointer inline-flex items-center gap-1">
                     <ImagePlus size={12} /> Update Cover
                     <input type="file" accept="image/*" className="hidden" onChange={(e) => onUploadCover(folder.id, e.target.files?.[0] ?? null)} />
