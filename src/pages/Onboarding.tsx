@@ -11,11 +11,19 @@ import { ChefHat, ArrowRight, ArrowLeft, Users } from 'lucide-react';
 
 const DIETARY_OPTIONS = ['Vegetarian', 'Vegan', 'Gluten-Free', 'Dairy-Free', 'Nut-Free', 'None'];
 const SKILL_OPTIONS = ['Beginner', 'Intermediate', 'Advanced'];
-const FLAVOR_OPTIONS = ['Spicy', 'Sweet', 'Savory', 'Umami', 'Fresh/Citrusy'];
+const NO_PREFERENCE_OPTION = 'No preference';
+const FLAVOR_OPTIONS = ['Spicy', 'Sweet', 'Savory', 'Umami', 'Fresh/Citrusy', NO_PREFERENCE_OPTION];
 const CUISINE_OPTIONS = [
   'Italian', 'Mexican', 'Chinese', 'Japanese', 'Indian',
   'Thai', 'Korean', 'Mediterranean', 'French', 'American',
   'Middle Eastern', 'Vietnamese', 'Greek', 'Ethiopian', 'Caribbean',
+  NO_PREFERENCE_OPTION,
+];
+const COOKING_FOR_OPTIONS = [
+  { value: '1', label: 'Solo', description: 'Just me' },
+  { value: '2', label: 'Partner', description: 'Two servings' },
+  { value: '4', label: 'Family', description: 'About four servings' },
+  { value: '8', label: 'Party', description: 'Cooking for a crowd' },
 ];
 const TOTAL_STEPS = 6;
 
@@ -69,20 +77,28 @@ export default function Onboarding() {
   };
 
   const toggleFlavor = (item: string) => {
+    if (item === NO_PREFERENCE_OPTION) {
+      setUserProfile({ flavorProfiles: [NO_PREFERENCE_OPTION] });
+      return;
+    }
     const current = userProfile.flavorProfiles ?? [];
     setUserProfile({
       flavorProfiles: current.includes(item)
         ? current.filter(f => f !== item)
-        : [...current, item],
+        : [...current.filter(f => f !== NO_PREFERENCE_OPTION), item],
     });
   };
 
   const toggleCuisine = (item: string) => {
+    if (item === NO_PREFERENCE_OPTION) {
+      setUserProfile({ cuisinePreferences: [NO_PREFERENCE_OPTION] });
+      return;
+    }
     const current = userProfile.cuisinePreferences ?? [];
     setUserProfile({
       cuisinePreferences: current.includes(item)
         ? current.filter(c => c !== item)
-        : [...current, item],
+        : [...current.filter(c => c !== NO_PREFERENCE_OPTION), item],
     });
   };
 
@@ -166,7 +182,7 @@ export default function Onboarding() {
               {step === 1 && (
                 <div>
                   <h1 className="font-display text-3xl font-bold text-foreground mb-2">
-                    How many mouths to feed?
+                    Who are you cooking for?
                   </h1>
                   <p className="text-muted-foreground mb-8">
                     We'll set this as your default serving size.
@@ -177,9 +193,9 @@ export default function Onboarding() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {[1, 2, 3, 4, 5, 6, 8, 10, 12].map((n) => (
-                        <SelectItem key={n} value={String(n)}>
-                          {n} {n === 1 ? 'serving' : 'servings'}
+                      {COOKING_FOR_OPTIONS.map((option) => (
+                        <SelectItem key={option.label} value={option.value}>
+                          {option.label} · {option.description}
                         </SelectItem>
                       ))}
                     </SelectContent>

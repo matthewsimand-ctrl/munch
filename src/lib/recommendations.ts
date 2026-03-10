@@ -20,6 +20,10 @@ function normalize(s: string): string {
   return s.toLowerCase().trim();
 }
 
+function hasNoPreference(values: string[]): boolean {
+  return values.some((value) => normalize(value) === 'no preference');
+}
+
 /** Build a taste profile from liked recipes */
 export function buildTasteProfile(likedRecipes: Recipe[]): UserTasteProfile {
   const tagFreq: Record<string, number> = {};
@@ -175,9 +179,12 @@ export function scoreRecipe(recipe: Recipe, profile: UserTasteProfile, userPrefs
 
   if (userPrefs) {
     // Cuisine preference match (weight: 15 * scale)
-    if (userPrefs.cuisinePreferences.length > 0 && recipe.cuisine) {
+    const cuisinePrefs = hasNoPreference(userPrefs.cuisinePreferences)
+      ? []
+      : userPrefs.cuisinePreferences;
+    if (cuisinePrefs.length > 0 && recipe.cuisine) {
       const recipeCuisine = normalize(recipe.cuisine);
-      const match = userPrefs.cuisinePreferences.some(c => normalize(c) === recipeCuisine);
+      const match = cuisinePrefs.some(c => normalize(c) === recipeCuisine);
       if (match) score += 15 * prefScale;
     }
     maxScore += 15 * prefScale;
@@ -200,7 +207,10 @@ export function scoreRecipe(recipe: Recipe, profile: UserTasteProfile, userPrefs
     maxScore += 10 * prefScale;
 
     // Flavor profile match (weight: 10 * scale)
-    if (userPrefs.flavorProfiles.length > 0) {
+    const flavorPrefs = hasNoPreference(userPrefs.flavorProfiles)
+      ? []
+      : userPrefs.flavorProfiles;
+    if (flavorPrefs.length > 0) {
       const recipeTags = (recipe.tags || []).map(normalize);
       const recipeIngs = (recipe.ingredients || []).map(normalize);
       const allText = [...recipeTags, ...recipeIngs].join(' ');
@@ -214,13 +224,13 @@ export function scoreRecipe(recipe: Recipe, profile: UserTasteProfile, userPrefs
       };
 
       let flavorMatches = 0;
-      for (const pref of userPrefs.flavorProfiles) {
+      for (const pref of flavorPrefs) {
         const keywords = flavorKeywords[normalize(pref)] || [];
         if (keywords.some(kw => allText.includes(kw))) {
           flavorMatches++;
         }
       }
-      score += (flavorMatches / Math.max(userPrefs.flavorProfiles.length, 1)) * 10 * prefScale;
+      score += (flavorMatches / Math.max(flavorPrefs.length, 1)) * 10 * prefScale;
     }
     maxScore += 10 * prefScale;
 

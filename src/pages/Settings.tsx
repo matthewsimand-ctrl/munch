@@ -12,7 +12,8 @@ import { Switch } from '@/components/ui/switch';
 
 const DIETARY_OPTIONS = ['Vegetarian', 'Vegan', 'Gluten-Free', 'Dairy-Free', 'Nut-Free', 'None'];
 const SKILL_OPTIONS = ['Beginner', 'Intermediate', 'Advanced'];
-const FLAVOR_OPTIONS = ['Spicy', 'Sweet', 'Savory', 'Umami', 'Fresh/Citrusy'];
+const NO_PREFERENCE_OPTION = 'No preference';
+const FLAVOR_OPTIONS = ['Spicy', 'Sweet', 'Savory', 'Umami', 'Fresh/Citrusy', NO_PREFERENCE_OPTION];
 
 const Chip = ({ label, selected, onClick }: { label: string; selected: boolean; onClick: () => void }) => (
   <button
@@ -73,11 +74,16 @@ export default function Settings() {
   };
 
   const toggleFlavor = (item: string) => {
+    if (item === NO_PREFERENCE_OPTION) {
+      setUserProfile({ flavorProfiles: [NO_PREFERENCE_OPTION] });
+      return;
+    }
+
     const current = userProfile.flavorProfiles;
     setUserProfile({
       flavorProfiles: current.includes(item)
         ? current.filter(f => f !== item)
-        : [...current, item],
+        : [...current.filter(f => f !== NO_PREFERENCE_OPTION), item],
     });
   };
 
