@@ -561,6 +561,28 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
     }
   };
 
+  const openReviewForWebsitePreview = () => {
+    if (!websitePreview) return;
+
+    setReviewData({
+      name: websitePreview.name,
+      ingredients: websitePreview.ingredients.map((line) => {
+        const parsed = parseIngredientLine(line);
+        return { name: parsed.name, quantity: parsed.quantity };
+      }),
+      instructions: websitePreview.instructions,
+      cook_time: websitePreview.cook_time,
+      difficulty: websitePreview.difficulty,
+      cuisine: websitePreview.cuisine,
+      tags: websitePreview.tags,
+      image: websitePreview.image,
+      servings: websitePreview.servings,
+    });
+    setReviewMode(true);
+    setWebsitePreview(null);
+    toast.success('You can now edit the imported recipe before saving.');
+  };
+
   // Review mode helpers
   const addIngredient = () => {
     if (!newIngredient.trim() || !reviewData) return;
@@ -628,7 +650,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
         </DialogHeader>
 
         {websitePreview ? (
-          <ScrollArea className="flex-1 min-h-0 px-6 pb-6">
+          <ScrollArea className="flex-1 min-h-0 h-full px-6 pb-6">
             <div className="space-y-5 pr-2">
               {websitePreview.image && websitePreview.image !== '/placeholder.svg' && (
                 <img src={websitePreview.image} alt={websitePreview.name} className="h-44 w-full rounded-xl object-cover" />
@@ -716,6 +738,9 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
                 <Button variant="outline" className="flex-1" onClick={() => setWebsitePreview(null)} disabled={saving}>
                   Back
                 </Button>
+                <Button variant="outline" className="flex-1" onClick={openReviewForWebsitePreview} disabled={saving}>
+                  Review & Edit
+                </Button>
                 <Button className="flex-1" onClick={saveWebsitePreview} disabled={saving}>
                   {saving ? (
                     <>
@@ -729,7 +754,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
             </div>
           </ScrollArea>
         ) : reviewMode && reviewData ? (
-          <ScrollArea className="flex-1 min-h-0 px-6 pb-6">
+          <ScrollArea className="flex-1 min-h-0 h-full px-6 pb-6">
             <div className="space-y-4 pr-2">
               {/* Recipe Name */}
               <div>
