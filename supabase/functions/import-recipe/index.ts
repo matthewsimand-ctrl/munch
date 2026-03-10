@@ -13,6 +13,8 @@ const PROXY_FETCHERS: Array<{ label: string; buildUrl: (url: string) => string }
 
 const NON_CONTENT_TAGS = ['script', 'style', 'noscript', 'svg', 'canvas', 'iframe'];
 const NON_ESSENTIAL_SECTIONS = ['header', 'footer', 'nav', 'aside', 'form'];
+const INGREDIENT_SECTION_HEADERS = ['ingredients'];
+const RECIPE_SECTION_END_HEADERS = ['instructions', 'directions', 'method', 'preparation', 'steps', 'nutrition', 'notes'];
 
 const TEXT_EXTRACT_PROMPT = `You are a recipe extraction assistant. Extract the recipe from the provided content and return ONLY a valid JSON object with these fields:
 {
@@ -152,6 +154,127 @@ function normalizeIngredients(input: unknown): string[] {
     })
     .map((line) => line.replace(/^[-•*]\s*/, '').replace(/\s+/g, ' ').trim())
     .filter(Boolean);
+}
+
+function decodeHtmlEntities(text: string): string {
+  return text
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>');
+}
+
+function cleanIngredientCandidate(line: string): string {
+  return decodeHtmlEntities(String(line || ''))
+    .replace(/^[-•*▢]\s*/, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function ingredientNameForMatch(line: string): string {
+  return cleanIngredientCandidate(line)
+    .replace(/^(?:\d+\s+\d\/\d|\d+\/\d|\d+(?:[.,]\d+)?(?:\s*-\s*\d+(?:[.,]\d+)?)?|[¼½¾⅓⅔⅛⅜⅝⅞]|a|an)\s*/i, '')
+    .replace(/^(?:cup|cups|tbsp|tablespoon|tablespoons|tsp|teaspoon|teaspoons|oz|ounce|ounces|lb|lbs|pound|pounds|g|gram|grams|kg|ml|l|liter|liters|clove|cloves|can|cans|jar|jars|slice|slices|pinch|dash|sprig|sprigs|package|packages|stick|sticks|bunch|bunches)\b\s*/i, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+function hasIngredientQuantity(line: string): boolean {
+  return /^(?:[-•*▢]\s*)?(?:\d+\s+\d\/\d|\d+\/\d|\d+(?:[.,]\d+)?(?:\s*-\s*\d+(?:[.,]\d+)?)?|[¼½¾⅓⅔⅛⅜⅝⅞]|a|an)\b/i.test(cleanIngredientCandidate(line));
+}
+
+function looksLikeIngredientLine(line: string): boolean {
+  const cleaned = cleanIngredientCandidate(line);
+  if (!cleaned) return false;
+  if (cleaned.length < 2 || cleaned.length > 160) return false;
+  if (/^(yield|serves|prep time|cook time|total time)$/i.test(cleaned)) return false;
+  return hasIngredientQuantity(cleaned) || /^[-•*▢]/.test(line) || cleaned.split(/\s+/).length <= 8;
+}
+
+function extractStructuredText(html: string): string {
+  let cleaned = html;
+
+  for (const tag of NON_CONTENT_TAGS) {
+    cleaned = cleaned.replace(new RegExp(`<${tag}[^>]*>[\\s\\S]*?<\\/${tag}>`, 'gi'), '\n');
+  }
+
+  for (const tag of NON_ESSENTIAL_SECTIONS) {
+    cleaned = cleaned.replace(new RegExp(`<${tag}[^>]*>[\\s\\S]*?<\\/${tag}>`, 'gi'), '\n');
+  }
+
+  cleaned = cleaned
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|section|article|li|ul|ol|h1|h2|h3|h4|h5|h6)>/gi, '\n')
+    .replace(/<(li|p|div|section|article|h1|h2|h3|h4|h5|h6)[^>]*>/gi, '\n')
+    .replace(/<!--([\s\S]*?)-->/g, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\r/g, '\n');
+
+  return decodeHtmlEntities(cleaned)
+    .split('\n')
+    .map((line) => line.replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+    .join('\n');
+}
+
+function extractIngredientSectionLines(text: string): string[] {
+  const lines = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const startIndex = lines.findIndex((line) =>
+    INGREDIENT_SECTION_HEADERS.some((header) => line.toLowerCase() === header || line.toLowerCase().startsWith(`${header}:`))
+  );
+
+  if (startIndex === -1) return [];
+
+  const extracted: string[] = [];
+  for (let i = startIndex + 1; i < lines.length; i++) {
+    const line = lines[i];
+    const lowered = line.toLowerCase();
+
+    if (RECIPE_SECTION_END_HEADERS.some((header) => lowered === header || lowered.startsWith(`${header}:`))) {
+      break;
+    }
+
+    if (!looksLikeIngredientLine(line)) {
+      if (extracted.length > 0) break;
+      continue;
+    }
+
+    extracted.push(cleanIngredientCandidate(line));
+  }
+
+  return extracted.filter(Boolean);
+}
+
+function upgradeIngredientLines(recipe: Record<string, unknown>, fallbackLines: string[]): Record<string, unknown> {
+  const currentIngredients = normalizeIngredients(recipe.ingredients);
+  if (currentIngredients.length === 0 || fallbackLines.length === 0) return recipe;
+
+  const upgraded = currentIngredients.map((line, index) => {
+    if (hasIngredientQuantity(line)) return line;
+
+    const currentName = ingredientNameForMatch(line);
+    const byName = fallbackLines.find((candidate) => ingredientNameForMatch(candidate) === currentName && hasIngredientQuantity(candidate));
+    if (byName) return byName;
+
+    const byIndex = fallbackLines[index];
+    if (byIndex && hasIngredientQuantity(byIndex) && ingredientNameForMatch(byIndex) === currentName) {
+      return byIndex;
+    }
+
+    return line;
+  });
+
+  return {
+    ...recipe,
+    ingredients: upgraded,
+  };
 }
 
 function normalizeRecipePayload(recipe: Record<string, unknown>): Record<string, unknown> {
@@ -435,6 +558,8 @@ Deno.serve(async (req) => {
     let content = textContent || '';
     let recipe: Record<string, unknown> | null = null;
     let previewText = '';
+    let structuredText = '';
+    let extractedIngredientLines: string[] = [];
 
     if (normalizedUrl) {
       let html = '';
@@ -495,6 +620,8 @@ Deno.serve(async (req) => {
       }
 
       if (html) {
+        structuredText = extractStructuredText(html);
+        extractedIngredientLines = extractIngredientSectionLines(structuredText);
         previewText = cleanHtmlForAi(html);
       }
 
@@ -520,6 +647,7 @@ Deno.serve(async (req) => {
     }
 
     recipe = normalizeRecipePayload(recipe);
+    recipe = upgradeIngredientLines(recipe, extractedIngredientLines);
 
     if (normalizedUrl) {
       recipe = {
@@ -529,6 +657,8 @@ Deno.serve(async (req) => {
           import_type: 'website',
           source_url: normalizedUrl,
           preview_text: previewText || content || '',
+          structured_text: structuredText,
+          extracted_ingredient_lines: extractedIngredientLines,
         },
       };
     }
