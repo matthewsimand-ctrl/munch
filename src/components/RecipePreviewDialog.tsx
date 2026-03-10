@@ -1,13 +1,15 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import type { Recipe } from '@/data/recipes';
 import type { MatchResult } from '@/lib/matchLogic';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Clock, BarChart3, Check, ShoppingCart, MapPin, ChefHat, Users, Heart, Play, Sparkles, ChevronDown } from 'lucide-react';
+import { Clock, BarChart3, Check, ShoppingCart, MapPin, ChefHat, Users, Heart, Play, Sparkles } from 'lucide-react';
 import MatchBadge from '@/components/MatchBadge';
 import RecipeTweakDialog from '@/components/RecipeTweakDialog';
+import NutritionCard from '@/components/NutritionCard';
 
 interface Props {
   recipe: Recipe | null;
@@ -48,8 +50,8 @@ export default function RecipePreviewDialog({
 }: Props) {
   const navigate = useNavigate();
   const [portionFactor, setPortionFactor] = useState(1);
-  const [showNutrition, setShowNutrition] = useState(false);
   const [tweakOpen, setTweakOpen] = useState(false);
+  const [addedToGrocery, setAddedToGrocery] = useState(false);
 
   const fallbackMatch: MatchResult = useMemo(() => ({
     percentage: 0,
@@ -59,6 +61,13 @@ export default function RecipePreviewDialog({
 
   if (!recipe) return null;
   const displayMatch = match ?? fallbackMatch;
+
+  const handleAddMissingToGrocery = () => {
+    if (!onAddMissingToGrocery || displayMatch.missing.length === 0) return;
+    onAddMissingToGrocery(recipe, displayMatch.missing);
+    setAddedToGrocery(true);
+    window.setTimeout(() => setAddedToGrocery(false), 1400);
+  };
 
   return (
     <>
@@ -144,33 +153,46 @@ export default function RecipePreviewDialog({
               )}
 
               {displayMatch.missing.length > 0 && onAddMissingToGrocery && (
-                <button
-                  onClick={() => onAddMissingToGrocery(recipe, displayMatch.missing)}
-                  className="w-full px-3 py-2 rounded-lg border text-sm font-semibold inline-flex items-center justify-center gap-1.5"
+                <motion.button
+                  onClick={handleAddMissingToGrocery}
+                  whileTap={{ scale: 0.98 }}
+                  animate={addedToGrocery ? { scale: [1, 1.02, 1] } : { scale: 1 }}
+                  transition={{ duration: 0.3 }}
+                  className={`w-full px-3 py-2 rounded-lg border text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-colors ${
+                    addedToGrocery
+                      ? 'border-emerald-500/60 bg-emerald-500/10 text-emerald-700'
+                      : 'border-border'
+                  }`}
                 >
-                  <ShoppingCart className="h-4 w-4" /> Add {displayMatch.missing.length} missing items
-                </button>
+                  <motion.span
+                    animate={addedToGrocery ? { rotate: [0, -12, 12, 0] } : { rotate: 0 }}
+                    transition={{ duration: 0.35 }}
+                  >
+                    {addedToGrocery ? <Check className="h-4 w-4" /> : <ShoppingCart className="h-4 w-4" />}
+                  </motion.span>
+                  {addedToGrocery ? 'Added to grocery list' : `Add ${displayMatch.missing.length} missing items`}
+                </motion.button>
               )}
 
-              {showNutrition && (
-                <div className="rounded-lg border p-3 bg-muted/30 text-sm">
-                  <p className="font-semibold mb-1">Nutrition Facts</p>
-                  <p className="text-muted-foreground">Calories: {(recipe.servings ?? 2) * 180} · Protein: {(recipe.servings ?? 2) * 9}g · Carbs: {(recipe.servings ?? 2) * 18}g</p>
-                </div>
-              )}
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">AI Nutrition Dashboard</p>
+                <NutritionCard
+                  recipeId={recipe.id}
+                  recipeName={recipe.name}
+                  ingredients={recipe.ingredients}
+                  servings={recipe.servings ?? 1}
+                />
+              </div>
             </div>
           </ScrollArea>
 
           <div className="px-4 pb-4 pt-2 border-t grid grid-cols-2 gap-2">
-            <button onClick={() => setShowNutrition((v) => !v)} className="px-3 py-2 rounded-lg border text-sm font-medium inline-flex items-center justify-center gap-1.5">
-              Nutrition <ChevronDown className={`h-4 w-4 transition-transform ${showNutrition ? 'rotate-180' : ''}`} />
-            </button>
             {mode === 'default' ? (
-              <button onClick={() => setTweakOpen(true)} className="px-3 py-2 rounded-lg border text-sm font-medium inline-flex items-center justify-center gap-1.5">
+              <button onClick={() => setTweakOpen(true)} className="col-span-2 px-3 py-2 rounded-lg border text-sm font-medium inline-flex items-center justify-center gap-1.5">
                 <Sparkles className="h-4 w-4" /> AI Tools
               </button>
             ) : (
-              <button onClick={() => onSave?.(recipe)} className="px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold inline-flex items-center justify-center gap-1.5">
+              <button onClick={() => onSave?.(recipe)} className="col-span-2 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold inline-flex items-center justify-center gap-1.5">
                 <Heart className="h-4 w-4" /> Save Recipe
               </button>
             )}
