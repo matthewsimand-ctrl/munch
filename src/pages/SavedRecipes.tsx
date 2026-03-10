@@ -214,7 +214,7 @@ export default function MyRecipesScreen() {
                 onClick={() => setActiveTab("explore")}
                 className={`px-3 py-2 rounded-xl text-xs font-semibold ${activeTab === "explore" ? "bg-orange-500 text-white" : "bg-white border border-stone-200 text-stone-600"}`}
               >
-                Explore
+                Find Recipes
               </button>
               <button
                 onClick={() => setActiveTab("mine")}
