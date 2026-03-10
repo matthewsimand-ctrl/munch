@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Calendar, Plus, X, ChevronLeft, ChevronRight,
   Clock, Shuffle, ShoppingCart, Utensils, Download,
@@ -6,6 +6,9 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "@/lib/store";
 import { useNavigate } from "react-router-dom";
+import type { Recipe } from "@/data/recipes";
+import { useBrowseFeed } from "@/hooks/useBrowseFeed";
+import RecipePreviewDialog from "@/components/RecipePreviewDialog";
 import { toast } from "sonner";
 import { jsPDF } from "jspdf";
 
@@ -107,10 +110,15 @@ export default function MealPrepScreen() {
   const [weekOffset, setWeekOffset] = useState(0);
   const [showAddModal, setShowAddModal] = useState<{ day: string; mealType: MealType } | null>(null);
   const [showMealActionModal, setShowMealActionModal] = useState<PlannedMeal | null>(null);
+  const [showSurpriseSourceModal, setShowSurpriseSourceModal] = useState(false);
+  const [previewRecipe, setPreviewRecipe] = useState<Recipe | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [pendingAiSurprise, setPendingAiSurprise] = useState(false);
   const [draggedMealId, setDraggedMealId] = useState<string | null>(null);
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportSettings, setExportSettings] = useState({ pdf: true, excel: false, calendar: false });
   const [searchRecipe, setSearchRecipe] = useState("");
+  const { recipes: browseRecipes, loaded: browseLoaded, loadFeed } = useBrowseFeed();
 
   // Get week label
   const weekLabel = useMemo(() => {
@@ -155,23 +163,79 @@ export default function MealPrepScreen() {
     setSearchRecipe("");
   };
 
-  const handleSurpriseMe = () => {
-    if (savedRecipesList.length === 0) {
-      toast.info("Save some recipes first to use Surprise Me!");
+  const toRecipeShape = (recipe: any): Recipe => ({
+    id: String(recipe.id),
+    name: String(recipe.name ?? "Untitled recipe"),
+    image: String(recipe.image ?? "/placeholder.svg"),
+    cook_time: String(recipe.cook_time ?? "30 min"),
+    difficulty: String(recipe.difficulty ?? "Intermediate"),
+    ingredients: Array.isArray(recipe.ingredients) ? recipe.ingredients : [],
+    tags: Array.isArray(recipe.tags) ? recipe.tags : [],
+    instructions: Array.isArray(recipe.instructions) ? recipe.instructions : [],
+    cuisine: recipe.cuisine ? String(recipe.cuisine) : undefined,
+  });
+
+  const applySurpriseMe = (sourceRecipes: any[], sourceLabel: string) => {
+    if (sourceRecipes.length === 0) {
+      toast.info(`No ${sourceLabel} recipes available right now.`);
       return;
     }
-    let added = 0;
-    DAYS.forEach((day) => {
-      MEAL_TYPES.forEach((mealType) => {
-        if (!getMeal(day, mealType) && savedRecipesList.length > 0) {
-          const recipe = savedRecipesList[Math.floor(Math.random() * savedRecipesList.length)];
-          addMealPlanItem?.({ day, mealType, recipeName: recipe.name, recipeId: recipe.id, cookTime: recipe.cook_time });
-          added++;
-        }
+
+    const emptySlots = DAYS.flatMap((day) =>
+      MEAL_TYPES
+        .filter((mealType) => !getMeal(day, mealType))
+        .map((mealType) => ({ day, mealType })),
+    );
+
+    if (emptySlots.length > 0) {
+      emptySlots.forEach(({ day, mealType }) => {
+        const recipe = sourceRecipes[Math.floor(Math.random() * sourceRecipes.length)];
+        addMealPlanItem?.({ day, mealType, recipeName: recipe.name, recipeId: recipe.id, cookTime: recipe.cook_time });
+      });
+      toast.success(`🎲 Filled ${emptySlots.length} open slots with ${sourceLabel} picks!`);
+      return;
+    }
+
+    const slotsToReplace = [...plannedMeals]
+      .sort(() => Math.random() - 0.5)
+      .slice(0, Math.min(5, plannedMeals.length));
+
+    slotsToReplace.forEach((meal) => {
+      const recipe = sourceRecipes[Math.floor(Math.random() * sourceRecipes.length)];
+      removeMealPlanItem?.(meal.id);
+      addMealPlanItem?.({
+        day: meal.day,
+        mealType: meal.mealType,
+        recipeName: recipe.name,
+        recipeId: recipe.id,
+        cookTime: recipe.cook_time,
       });
     });
-    toast.success(`🎲 Filled ${added} empty slots!`);
+
+    toast.success(`🎲 Swapped ${slotsToReplace.length} meals with ${sourceLabel} surprises!`);
   };
+
+  const handleSurpriseSaved = () => {
+    setShowSurpriseSourceModal(false);
+    applySurpriseMe(savedRecipesList, "saved");
+  };
+
+  const handleSurpriseAi = async () => {
+    setShowSurpriseSourceModal(false);
+    if (browseLoaded) {
+      applySurpriseMe(browseRecipes, "AI-recommended");
+      return;
+    }
+    setPendingAiSurprise(true);
+    await loadFeed();
+  };
+
+
+  useEffect(() => {
+    if (!pendingAiSurprise || !browseLoaded) return;
+    applySurpriseMe(browseRecipes, "AI-recommended");
+    setPendingAiSurprise(false);
+  }, [pendingAiSurprise, browseLoaded, browseRecipes]);
 
   const handleGenerateGroceryList = () => {
     const recipeIds = [...new Set(plannedMeals.map((m) => m.recipeId))];
@@ -333,7 +397,7 @@ export default function MealPrepScreen() {
                 <Download size={14} /> Export
               </button>
               <button
-                onClick={handleSurpriseMe}
+                onClick={() => setShowSurpriseSourceModal(true)}
                 className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-stone-200 text-sm font-semibold text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
               >
                 <Shuffle size={14} /> Surprise Me
@@ -548,7 +612,14 @@ export default function MealPrepScreen() {
                 <div className="grid grid-cols-2 gap-2 mt-5">
                   <button
                     onClick={() => {
-                      navigate("/saved");
+                      const recipe = savedApiRecipes[showMealActionModal.recipeId];
+                      if (!recipe) {
+                        toast.info("Recipe details not found in your saved collection.");
+                        setShowMealActionModal(null);
+                        return;
+                      }
+                      setPreviewRecipe(toRecipeShape(recipe));
+                      setPreviewOpen(true);
                       setShowMealActionModal(null);
                     }}
                     className="rounded-xl border border-stone-200 py-2 text-sm font-semibold text-stone-600 hover:border-orange-300 hover:text-orange-600"
@@ -573,6 +644,50 @@ export default function MealPrepScreen() {
       </AnimatePresence>
 
       {/* Export modal */}
+      <AnimatePresence>
+        {showSurpriseSourceModal && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
+              onClick={() => setShowSurpriseSourceModal(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, y: 20, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.97 }}
+              className="fixed bottom-0 left-0 right-0 sm:bottom-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:max-w-md z-50 rounded-t-3xl sm:rounded-3xl overflow-hidden"
+              style={{ background: "#fff", boxShadow: "0 -8px 40px rgba(0,0,0,0.15)" }}
+            >
+              <div className="p-6">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-orange-500 mb-1">Surprise Me</p>
+                <h3 className="text-lg font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+                  Choose your surprise source
+                </h3>
+                <p className="text-xs text-stone-500 mt-1">Use only recipes you saved, or let AI recommendations mix in new ideas.</p>
+                <div className="grid grid-cols-1 gap-2 mt-5">
+                  <button
+                    onClick={handleSurpriseSaved}
+                    className="rounded-xl border border-stone-200 py-2.5 text-sm font-semibold text-stone-700 hover:border-orange-300 hover:text-orange-600"
+                  >
+                    Use saved recipes only
+                  </button>
+                  <button
+                    onClick={handleSurpriseAi}
+                    className="rounded-xl py-2.5 text-sm font-semibold text-white"
+                    style={{ background: "linear-gradient(135deg,#FB923C,#F97316,#EA580C)" }}
+                  >
+                    Use AI recommendations
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {showExportModal && (
           <>
@@ -626,6 +741,13 @@ export default function MealPrepScreen() {
           </>
         )}
       </AnimatePresence>
+
+      <RecipePreviewDialog
+        recipe={previewRecipe}
+        match={null}
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+      />
     </div>
   );
 }
