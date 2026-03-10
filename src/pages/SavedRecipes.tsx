@@ -16,11 +16,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { toast } from "sonner";
 import type { Recipe } from "@/data/recipes";
 
-const getCookStats = (recipe: Recipe, rating?: number) => ({
-  stars: rating ?? ((recipe.name.length % 2) + 4),
-  timesCooked: (recipe.id.charCodeAt(0) % 12) + 3,
-});
-
 const SORT_OPTIONS = ["Recently Saved", "Cook Time", "Rating", "Name A–Z"];
 const CUISINE_TAGS = ["All", "Italian", "Asian", "Mexican", "Mediterranean", "American", "Indian"];
 
@@ -31,6 +26,8 @@ function RecipeCard({
   nutrition,
   onCook,
   onUnsave,
+  cookCount,
+  onChefClick,
 }: {
   recipe: Recipe;
   view: "grid" | "list";
@@ -38,6 +35,8 @@ function RecipeCard({
   nutrition?: { calories?: number; protein?: number; carbs?: number; fat?: number };
   onCook: () => void;
   onUnsave: () => void;
+  cookCount?: number;
+  onChefClick: (chef: string) => void;
 }) {
   const diff = recipe.difficulty ?? "medium";
   const diffColor =
@@ -46,7 +45,6 @@ function RecipeCard({
     "text-red-600 bg-red-50";
 
   if (view === "list") {
-    const { stars, timesCooked } = getCookStats(recipe, rating);
     return (
       <motion.div
         layout
@@ -69,10 +67,20 @@ function RecipeCard({
           <div className="flex items-center gap-3 mt-1 text-xs text-stone-400">
             <span className="flex items-center gap-1"><Clock size={11} /> {recipe.cook_time}</span>
             <span className={`px-2 py-0.5 rounded-full font-semibold ${diffColor}`}>{diff}</span>
-            <span className="flex items-center gap-1 text-amber-500">
-              <Star size={11} fill="currentColor" /> {stars.toFixed(1)}
-            </span>
-            <span>{timesCooked}x cooked</span>
+            {typeof rating === "number" && (
+              <span className="flex items-center gap-1 text-amber-500">
+                <Star size={11} fill="currentColor" /> {rating.toFixed(1)}
+              </span>
+            )}
+            {typeof cookCount === "number" && cookCount > 0 && <span>{cookCount}x cooked</span>}
+            {recipe.chef && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onChefClick(recipe.chef!); }}
+                className="text-orange-600 hover:text-orange-700 underline underline-offset-2"
+              >
+                {recipe.chef}
+              </button>
+            )}
           </div>
           {(nutrition?.calories || nutrition?.protein || nutrition?.carbs || nutrition?.fat) && (
             <p className="mt-1 text-[11px] text-stone-500 line-clamp-1">
@@ -93,8 +101,6 @@ function RecipeCard({
       </motion.div>
     );
   }
-
-  const { stars, timesCooked } = getCookStats(recipe, rating);
 
   return (
     <motion.div
@@ -120,18 +126,30 @@ function RecipeCard({
         <div className="absolute bottom-2 left-2">
           <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${diffColor}`}>{diff}</span>
         </div>
-        <div className="absolute bottom-2 right-2 flex items-center gap-1 bg-black/30 backdrop-blur-sm px-2 py-0.5 rounded-full text-amber-400 text-[10px] font-bold">
-          <Star size={9} fill="currentColor" /> {stars.toFixed(1)}
-        </div>
+        {typeof rating === "number" && (
+          <div className="absolute bottom-2 right-2 flex items-center gap-1 bg-black/30 backdrop-blur-sm px-2 py-0.5 rounded-full text-amber-400 text-[10px] font-bold">
+            <Star size={9} fill="currentColor" /> {rating.toFixed(1)}
+          </div>
+        )}
       </div>
       <p className="text-sm font-semibold text-stone-800 line-clamp-2 leading-snug mb-1 group-hover:text-orange-600 transition-colors">
         {recipe.name}
       </p>
       <div className="flex items-center gap-2 text-xs text-stone-400">
         <Clock size={11} /> {recipe.cook_time}
-        <span className="w-1 h-1 rounded-full bg-stone-300" />
-        <span>{timesCooked}x cooked</span>
+        {typeof cookCount === "number" && cookCount > 0 && <><span className="w-1 h-1 rounded-full bg-stone-300" /><span>{cookCount}x cooked</span></>}
         {recipe.cuisine && <><span className="w-1 h-1 rounded-full bg-stone-300" /><span>{recipe.cuisine}</span></>}
+        {recipe.chef && (
+          <>
+            <span className="w-1 h-1 rounded-full bg-stone-300" />
+            <button
+              onClick={(e) => { e.stopPropagation(); onChefClick(recipe.chef!); }}
+              className="text-orange-600 hover:text-orange-700 underline underline-offset-2"
+            >
+              {recipe.chef}
+            </button>
+          </>
+        )}
       </div>
       {(nutrition?.calories || nutrition?.protein || nutrition?.carbs || nutrition?.fat) && (
         <p className="text-[11px] text-stone-500 mt-1 line-clamp-1">
@@ -152,7 +170,7 @@ export default function MyRecipesScreen() {
   const {
     likedRecipes, savedApiRecipes, unlikeRecipe,
     recipeFolders, removeFolder,
-    recipeRatings, pantryList, addCustomGroceryItem, cachedNutrition,
+    recipeRatings, recipeCookCounts, pantryList, addCustomGroceryItem, cachedNutrition,
   } = useStore();
   const { loaded: exploreLoaded, loadFeed } = useBrowseFeed();
   const [search, setSearch] = useState("");
@@ -160,6 +178,7 @@ export default function MyRecipesScreen() {
   const [sortBy, setSortBy] = useState(SORT_OPTIONS[0]);
   const [activeCuisine, setActiveCuisine] = useState("All");
   const [activeFolder, setActiveFolder] = useState<string | null>(null);
+  const [selectedChef, setSelectedChef] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState<string>("My");
   const [previewRecipe, setPreviewRecipe] = useState<Recipe | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -194,13 +213,17 @@ export default function MyRecipesScreen() {
       const ids = new Set(folder?.recipeIds ?? []);
       list = list.filter((recipe) => ids.has(recipe.id));
     }
-    if (search) list = list.filter((r) => r.name.toLowerCase().includes(search.toLowerCase()));
+    if (search) {
+      const term = search.toLowerCase();
+      list = list.filter((r) => r.name.toLowerCase().includes(term) || (r.chef || "").toLowerCase().includes(term));
+    }
+    if (selectedChef) list = list.filter((r) => (r.chef || "").toLowerCase() === selectedChef.toLowerCase());
     if (activeCuisine !== "All") list = list.filter((r) => r.cuisine?.toLowerCase() === activeCuisine.toLowerCase());
     if (sortBy === "Cook Time") list = [...list].sort((a, b) => parseInt(a.cook_time || "0") - parseInt(b.cook_time || "0"));
     if (sortBy === "Name A–Z") list = [...list].sort((a, b) => a.name.localeCompare(b.name));
     if (sortBy === "Rating") list = [...list].sort((a, b) => (recipeRatings?.[b.id] ?? 0) - (recipeRatings?.[a.id] ?? 0));
     return list;
-  }, [savedRecipes, activeFolder, recipeFolders, search, activeCuisine, sortBy, recipeRatings]);
+  }, [savedRecipes, activeFolder, recipeFolders, search, selectedChef, activeCuisine, sortBy, recipeRatings]);
 
 
 
@@ -344,6 +367,17 @@ export default function MyRecipesScreen() {
           </div>
         </div>
 
+        {selectedChef && (
+          <div className="mb-3">
+            <button
+              onClick={() => setSelectedChef(null)}
+              className="px-3 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-700"
+            >
+              Chef: {selectedChef} ✕
+            </button>
+          </div>
+        )}
+
         {/* Cuisine filter */}
         <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
           {CUISINE_TAGS.map((c) => (
@@ -396,6 +430,8 @@ export default function MyRecipesScreen() {
                   view={view}
                   rating={recipeRatings?.[recipe.id]}
                   nutrition={cachedNutrition?.[recipe.id]}
+                  cookCount={recipeCookCounts?.[recipe.id]}
+                  onChefClick={(chef) => setSelectedChef(chef)}
                   onCook={() => openPreview(recipe)}
                   onUnsave={() => handleUnsave(recipe.id)}
                 />

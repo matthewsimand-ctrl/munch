@@ -53,6 +53,7 @@ function SwipeCard({
   onSwipeRight,
   isTop,
   onOpenDetails,
+  onChefClick,
 }: {
   recipe: Recipe;
   matchPercent: number;
@@ -60,6 +61,7 @@ function SwipeCard({
   onSwipeRight: () => void;
   isTop: boolean;
   onOpenDetails: () => void;
+  onChefClick: (chef: string) => void;
 }) {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
@@ -181,6 +183,14 @@ function SwipeCard({
               <Clock size={13} />
               {recipe.cook_time}
             </span>
+            {recipe.chef && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onChefClick(recipe.chef!); }}
+                className="underline underline-offset-2 text-orange-200 hover:text-orange-100"
+              >
+                {recipe.chef}
+              </button>
+            )}
             {recipe.servings && (
               <span className="flex items-center gap-1.5">
                 <ChefHat size={13} />
@@ -216,6 +226,7 @@ export default function SwipeScreen() {
 
   const [cardIndex, setCardIndex] = useState(0);
   const [activeFilter, setActiveFilter] = useState("All");
+  const [selectedChef, setSelectedChef] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [swipeHistory, setSwipeHistory] = useState<string[]>([]);
   const [previewRecipe, setPreviewRecipe] = useState<Recipe | null>(null);
@@ -226,19 +237,28 @@ export default function SwipeScreen() {
   const likedSet = useMemo(() => new Set(likedRecipes), [likedRecipes]);
 
   const filtered = useMemo(() => {
-    if (activeFilter === "All") return recipes;
-    if (activeFilter === "Quick (<30 min)")
-      return recipes.filter((r) => {
+    let byFilter = recipes;
+    if (activeFilter === "Quick (<30 min)") {
+      byFilter = recipes.filter((r) => {
         const m = parseInt(r.cook_time || "99");
         return m <= 30;
       });
-    if (activeFilter === "Easy") return recipes.filter((r) => r.difficulty === "easy");
-    return recipes.filter(
-      (r) =>
-        r.tags?.some((t: string) => t.toLowerCase().includes(activeFilter.toLowerCase())) ||
-        r.cuisine?.toLowerCase().includes(activeFilter.toLowerCase()),
-    );
-  }, [recipes, activeFilter]);
+    } else if (activeFilter === "Easy") {
+      byFilter = recipes.filter((r) => r.difficulty === "easy");
+    } else if (activeFilter !== "All") {
+      byFilter = recipes.filter(
+        (r) =>
+          r.tags?.some((t: string) => t.toLowerCase().includes(activeFilter.toLowerCase())) ||
+          r.cuisine?.toLowerCase().includes(activeFilter.toLowerCase()),
+      );
+    }
+
+    if (selectedChef) {
+      byFilter = byFilter.filter((r) => (r.chef || "").toLowerCase() === selectedChef.toLowerCase());
+    }
+
+    return byFilter;
+  }, [recipes, activeFilter, selectedChef]);
 
   const stack = useMemo(() => filtered.slice(cardIndex, cardIndex + 3), [filtered, cardIndex]);
   const current = stack[0];
@@ -352,6 +372,17 @@ export default function SwipeScreen() {
         </div>
       </div>
 
+      {selectedChef && (
+        <div className="max-w-2xl mx-auto px-6 pt-3">
+          <button
+            onClick={() => { setSelectedChef(null); setCardIndex(0); }}
+            className="px-3 py-1 rounded-full bg-orange-100 text-orange-700 text-xs font-semibold"
+          >
+            Chef: {selectedChef} ✕
+          </button>
+        </div>
+      )}
+
       {/* Card stack area */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-8">
         <div className="w-full max-w-sm">
@@ -418,6 +449,7 @@ export default function SwipeScreen() {
                       onSwipeRight={handleSave}
                       isTop
                       onOpenDetails={() => { setPreviewRecipe(current); setPreviewOpen(true); }}
+                      onChefClick={(chef) => { setSelectedChef(chef); setCardIndex(0); }}
                     />
                   )}
                 </AnimatePresence>

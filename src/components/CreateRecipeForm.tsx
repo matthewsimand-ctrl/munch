@@ -241,6 +241,7 @@ export default function CreateRecipeForm({ onClose }: Props) {
   const [cookTime, setCookTime] = useState('');
   const [difficulty, setDifficulty] = useState('Beginner');
   const [cuisine, setCuisine] = useState('');
+  const [chef, setChef] = useState('');
   const [servings, setServings] = useState('4');
   const [ingredientInput, setIngredientInput] = useState('');
   const [ingredientQuantity, setIngredientQuantity] = useState('1 unit');
@@ -392,6 +393,7 @@ export default function CreateRecipeForm({ onClose }: Props) {
         cook_time: cookTime.trim() || '30 min',
         difficulty,
         cuisine: cuisine.trim() || null,
+        chef: chef.trim() || null,
         ingredients,
         tags,
         instructions: stepList,
@@ -411,6 +413,7 @@ export default function CreateRecipeForm({ onClose }: Props) {
         cook_time: cookTime.trim() || '30 min',
         difficulty,
         cuisine: cuisine.trim() || null,
+        chef: chef.trim() || null,
         ingredients,
         tags,
         instructions: stepList,
@@ -537,6 +540,10 @@ export default function CreateRecipeForm({ onClose }: Props) {
         <div>
           <label className="text-sm font-medium text-foreground">Cuisine</label>
           <Input value={cuisine} onChange={e => setCuisine(e.target.value)} placeholder="Italian" />
+        </div>
+        <div>
+          <label className="text-sm font-medium text-foreground">Chef (optional)</label>
+          <Input value={chef} onChange={e => setChef(e.target.value)} placeholder="Chef name" />
         </div>
       </div>
 
