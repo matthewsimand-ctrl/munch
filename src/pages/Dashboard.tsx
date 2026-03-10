@@ -13,6 +13,7 @@ import { calculateMatch } from "@/lib/matchLogic";
 import { parseIngredientLine } from "@/lib/ingredientText";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import MatchBadge from "@/components/MatchBadge";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -169,8 +170,52 @@ export default function Dashboard() {
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [suggestionOffset, setSuggestionOffset] = useState(0);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
+  const [avatarSkinTone, setAvatarSkinTone] = useState("#F5C9A9");
+  const [avatarHair, setAvatarHair] = useState("short");
+  const [avatarHairColor, setAvatarHairColor] = useState("#3F2A1D");
+  const [avatarShirtColor, setAvatarShirtColor] = useState("#EA580C");
+  const [avatarAccessory, setAvatarAccessory] = useState("none");
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const { meal: currentPlannedMeal, loading: currentMealLoading } = useCurrentMealPlan();
+
+  const AVATAR_PRESETS = [
+    defaultChefAvatar,
+    "https://api.dicebear.com/9.x/adventurer/svg?seed=ChefMunch",
+    "https://api.dicebear.com/9.x/notionists/svg?seed=KitchenHero",
+    "https://api.dicebear.com/9.x/fun-emoji/svg?seed=Foodie",
+  ];
+
+  const buildCustomAvatar = () => {
+    const hairStyle = avatarHair === "short"
+      ? `<path d='M34 36c6-10 26-10 32 0v6H34z' fill='${avatarHairColor}' />`
+      : avatarHair === "curly"
+        ? `<path d='M33 40c1-12 33-14 35 0l-1 5H34z' fill='${avatarHairColor}' /><circle cx='38' cy='38' r='4' fill='${avatarHairColor}' /><circle cx='62' cy='38' r='4' fill='${avatarHairColor}' />`
+        : `<path d='M30 42c3-13 37-13 40 0v7H30z' fill='${avatarHairColor}' />`;
+    const accessory = avatarAccessory === "glasses"
+      ? "<circle cx='43' cy='58' r='5' fill='none' stroke='#3A3A3A' stroke-width='1.5'/><circle cx='57' cy='58' r='5' fill='none' stroke='#3A3A3A' stroke-width='1.5'/><path d='M48 58h4' stroke='#3A3A3A' stroke-width='1.5'/>"
+      : avatarAccessory === "hat"
+        ? "<rect x='32' y='30' width='36' height='8' rx='3' fill='#FFFFFF'/><rect x='39' y='24' width='22' height='8' rx='3' fill='#FFFFFF'/>"
+        : "";
+
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>
+      <rect width='100' height='100' rx='20' fill='#FFF7ED' />
+      <circle cx='50' cy='57' r='18' fill='${avatarSkinTone}' />
+      ${hairStyle}
+      <circle cx='44' cy='58' r='1.7' fill='#1C1917' />
+      <circle cx='56' cy='58' r='1.7' fill='#1C1917' />
+      <path d='M45 66c3 2 7 2 10 0' stroke='#1C1917' stroke-width='1.8' stroke-linecap='round' fill='none'/>
+      ${accessory}
+      <path d='M26 100c2-17 13-24 24-24s22 7 24 24' fill='${avatarShirtColor}' />
+    </svg>`;
+    return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+  };
+
+  const applyCustomAvatar = () => {
+    setChefAvatarUrl(buildCustomAvatar());
+    setAvatarDialogOpen(false);
+    toast.success("Custom avatar updated!");
+  };
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -192,14 +237,14 @@ export default function Dashboard() {
   };
 
   const BADGES = useMemo(() => [
-    { id: "first_cook",  label: "First Cook",   emoji: "👨‍🍳", desc: "Cook your first recipe",          unlocked: totalMealsCooked >= 1 },
-    { id: "streak_3",   label: "3-Day Streak",  emoji: "🔥", desc: "3 consecutive days cooking",      unlocked: cookingStreak >= 3 },
-    { id: "streak_7",   label: "Week Warrior",  emoji: "⚡", desc: "7-day cooking streak",             unlocked: cookingStreak >= 7 },
-    { id: "5_recipes",  label: "5 Recipes",     emoji: "📖", desc: "Cook 5 different recipes",         unlocked: cookedRecipeIds.length >= 5 },
-    { id: "10_meals",   label: "Meal Master",   emoji: "🏆", desc: "Cook 10 total meals",              unlocked: totalMealsCooked >= 10 },
-    { id: "level_5",    label: "Level 5",       emoji: "⭐", desc: "Reach cooking level 5",            unlocked: getLevel(totalXp).level >= 5 },
-    { id: "saver_10",   label: "Collector",     emoji: "💎", desc: "Save 10 recipes",                  unlocked: likedRecipes.length >= 10 },
-    { id: "level_10",   label: "Chef Pro",      emoji: "👑", desc: "Reach cooking level 10",           unlocked: getLevel(totalXp).level >= 10 },
+    { id: "first_cook",  label: "First Cook",   emoji: "👨‍🍳", desc: "Cook your first recipe", current: totalMealsCooked, target: 1, unlocked: totalMealsCooked >= 1 },
+    { id: "streak_3",   label: "3-Day Streak",  emoji: "🔥", desc: "Cook on 3 consecutive days", current: cookingStreak, target: 3, unlocked: cookingStreak >= 3 },
+    { id: "streak_7",   label: "Week Warrior",  emoji: "⚡", desc: "Maintain a 7-day streak", current: cookingStreak, target: 7, unlocked: cookingStreak >= 7 },
+    { id: "5_recipes",  label: "5 Recipes",     emoji: "📖", desc: "Cook 5 different recipes", current: cookedRecipeIds.length, target: 5, unlocked: cookedRecipeIds.length >= 5 },
+    { id: "10_meals",   label: "Meal Master",   emoji: "🏆", desc: "Cook 10 total meals", current: totalMealsCooked, target: 10, unlocked: totalMealsCooked >= 10 },
+    { id: "level_5",    label: "Level 5",       emoji: "⭐", desc: "Reach chef level 5", current: getLevel(totalXp).level, target: 5, unlocked: getLevel(totalXp).level >= 5 },
+    { id: "saver_10",   label: "Collector",     emoji: "💎", desc: "Save 10 recipes", current: likedRecipes.length, target: 10, unlocked: likedRecipes.length >= 10 },
+    { id: "level_10",   label: "Chef Pro",      emoji: "👑", desc: "Reach chef level 10", current: getLevel(totalXp).level, target: 10, unlocked: getLevel(totalXp).level >= 10 },
   ], [totalMealsCooked, cookingStreak, cookedRecipeIds.length, totalXp, likedRecipes.length]);
 
   useEffect(() => {
@@ -312,7 +357,7 @@ export default function Dashboard() {
           </div>
           <div className="flex items-center gap-4">
             <button
-              onClick={() => avatarInputRef.current?.click()}
+              onClick={() => setAvatarDialogOpen(true)}
               className="relative w-12 h-12 rounded-full overflow-hidden ring-2 ring-orange-200 ring-offset-2 group shrink-0"
               disabled={uploadingAvatar}
             >
@@ -535,23 +580,96 @@ export default function Dashboard() {
                 {BADGES.filter((b) => b.unlocked).length} / {BADGES.length}
               </span>
             </div>
-            <div className="grid grid-cols-4 gap-2">
-              {BADGES.map((b) => (
-                <div
-                  key={b.id}
-                  title={b.desc}
-                  className={`flex flex-col items-center gap-1 p-2.5 rounded-xl border transition-all ${
-                    b.unlocked ? "border-amber-100 bg-gradient-to-br from-amber-50 to-orange-50" : "border-stone-100 bg-stone-50 opacity-40 grayscale"
-                  }`}
-                >
-                  <span className="text-xl leading-none">{b.emoji}</span>
-                  <span className="text-[9px] font-semibold text-stone-600 text-center leading-tight">{b.label}</span>
-                </div>
-              ))}
-            </div>
+            <TooltipProvider>
+              <div className="grid grid-cols-4 gap-2">
+                {BADGES.map((b) => (
+                  <Tooltip key={b.id}>
+                    <TooltipTrigger asChild>
+                      <div
+                        className={`flex flex-col items-center gap-1 p-2.5 rounded-xl border transition-all cursor-help ${
+                          b.unlocked ? "border-amber-100 bg-gradient-to-br from-amber-50 to-orange-50" : "border-stone-100 bg-stone-50 opacity-40 grayscale"
+                        }`}
+                      >
+                        <span className="text-xl leading-none">{b.emoji}</span>
+                        <span className="text-[9px] font-semibold text-stone-600 text-center leading-tight">{b.label}</span>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-[220px] bg-stone-900 text-stone-100 border-stone-800">
+                      <p className="text-xs font-semibold">{b.label}</p>
+                      <p className="text-[11px] text-stone-300 mt-1">{b.desc}</p>
+                      <p className="text-[11px] text-orange-300 mt-1.5">
+                        {b.unlocked ? "Unlocked" : `Progress: ${Math.min(b.current, b.target)} / ${b.target}`}
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                ))}
+              </div>
+            </TooltipProvider>
           </section>
         </div>
       </div>
+
+      <Dialog open={avatarDialogOpen} onOpenChange={setAvatarDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Customize your avatar</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm font-semibold text-stone-700 mb-2">Upload your own photo</p>
+              <button
+                onClick={() => avatarInputRef.current?.click()}
+                className="w-full text-sm font-semibold text-orange-600 bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-lg py-2.5"
+                disabled={uploadingAvatar}
+              >
+                {uploadingAvatar ? "Uploading..." : "Upload photo"}
+              </button>
+            </div>
+
+            <div>
+              <p className="text-sm font-semibold text-stone-700 mb-2">Choose a ready-made avatar</p>
+              <div className="grid grid-cols-4 gap-2">
+                {AVATAR_PRESETS.map((preset) => (
+                  <button
+                    key={preset}
+                    onClick={() => { setChefAvatarUrl(preset); setAvatarDialogOpen(false); }}
+                    className="rounded-xl overflow-hidden border border-stone-200 hover:border-orange-300"
+                  >
+                    <img src={preset} alt="Avatar preset" className="w-full h-16 object-cover bg-orange-50" />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-sm font-semibold text-stone-700 mb-2">Or build your own</p>
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <label className="space-y-1"><span className="font-semibold text-stone-600">Skin tone</span><input type="color" value={avatarSkinTone} onChange={(e) => setAvatarSkinTone(e.target.value)} className="w-full h-9 rounded" /></label>
+                <label className="space-y-1"><span className="font-semibold text-stone-600">Hair color</span><input type="color" value={avatarHairColor} onChange={(e) => setAvatarHairColor(e.target.value)} className="w-full h-9 rounded" /></label>
+                <label className="space-y-1"><span className="font-semibold text-stone-600">Shirt color</span><input type="color" value={avatarShirtColor} onChange={(e) => setAvatarShirtColor(e.target.value)} className="w-full h-9 rounded" /></label>
+                <label className="space-y-1"><span className="font-semibold text-stone-600">Hair style</span>
+                  <select value={avatarHair} onChange={(e) => setAvatarHair(e.target.value)} className="w-full h-9 rounded border border-stone-200 px-2">
+                    <option value="short">Short</option>
+                    <option value="curly">Curly</option>
+                    <option value="long">Long</option>
+                  </select>
+                </label>
+                <label className="space-y-1 col-span-2"><span className="font-semibold text-stone-600">Accessory</span>
+                  <select value={avatarAccessory} onChange={(e) => setAvatarAccessory(e.target.value)} className="w-full h-9 rounded border border-stone-200 px-2">
+                    <option value="none">None</option>
+                    <option value="glasses">Glasses</option>
+                    <option value="hat">Chef hat</option>
+                  </select>
+                </label>
+              </div>
+              <div className="mt-3 flex items-center gap-3">
+                <img src={buildCustomAvatar()} alt="Custom avatar preview" className="w-14 h-14 rounded-full border border-stone-200" />
+                <button onClick={applyCustomAvatar} className="text-sm font-semibold text-white bg-orange-500 hover:bg-orange-600 px-3 py-2 rounded-lg">Use this avatar</button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Recipe detail dialog */}
       <Dialog open={!!selectedRecipe} onOpenChange={() => setSelectedRecipe(null)}>
