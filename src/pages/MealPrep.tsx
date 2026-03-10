@@ -120,6 +120,8 @@ export default function MealPrepScreen() {
   const [draggedMealId, setDraggedMealId] = useState<string | null>(null);
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportSettings, setExportSettings] = useState({ pdf: true, excel: false, calendar: false });
+  const [exportScope, setExportScope] = useState<"week" | "day">("week");
+  const [exportDay, setExportDay] = useState<(typeof DAYS)[number]>(DAYS[0]);
   const [searchRecipe, setSearchRecipe] = useState("");
   const { recipes: browseRecipes, loaded: browseLoaded, loadFeed } = useBrowseFeed();
 
@@ -324,34 +326,176 @@ export default function MealPrepScreen() {
     URL.revokeObjectURL(url);
   };
 
+  const getRecipeDetails = (meal: PlannedMeal) => {
+    const source = meal.recipeSnapshot ?? savedApiRecipes[meal.recipeId] ?? {};
+    const ingredients = Array.isArray(source.ingredients) ? source.ingredients.map(String) : [];
+    const instructions = Array.isArray(source.instructions) ? source.instructions.map(String) : [];
+    return { ingredients, instructions };
+  };
+
+  const exportPdf = (orderedMeals: PlannedMeal[]) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 14;
+
+    const drawHeader = (subtitle: string) => {
+      doc.setFillColor(251, 146, 60);
+      doc.rect(0, 0, pageWidth, 28, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(18);
+      doc.text("MUNCH · Meal Prep", margin, 12);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.text(subtitle, margin, 19);
+      doc.text(`Generated ${new Date().toLocaleDateString()}`, pageWidth - margin, 19, { align: "right" });
+      doc.setTextColor(41, 37, 36);
+    };
+
+    drawHeader(exportScope === "week" ? `Weekly plan · ${weekLabel}` : `${exportDay} · Detailed plan`);
+
+    if (exportScope === "week") {
+      let y = 38;
+      DAYS.forEach((day) => {
+        const dayMeals = orderedMeals.filter((meal) => meal.day === day);
+        if (y > pageHeight - 30) {
+          doc.addPage();
+          drawHeader(`Weekly plan · ${weekLabel}`);
+          y = 38;
+        }
+
+        doc.setFillColor(255, 247, 237);
+        doc.roundedRect(margin, y, pageWidth - margin * 2, 9, 2, 2, "F");
+        doc.setTextColor(194, 65, 12);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.text(day, margin + 3, y + 6);
+        y += 13;
+
+        if (dayMeals.length === 0) {
+          doc.setFont("helvetica", "italic");
+          doc.setTextColor(120, 113, 108);
+          doc.setFontSize(10);
+          doc.text("No meals planned.", margin + 3, y);
+          y += 8;
+          return;
+        }
+
+        dayMeals.forEach((meal) => {
+          if (y > pageHeight - 18) {
+            doc.addPage();
+            drawHeader(`Weekly plan · ${weekLabel}`);
+            y = 38;
+          }
+          doc.setTextColor(41, 37, 36);
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(10);
+          doc.text(`${meal.mealType}`, margin + 3, y);
+          doc.setFont("helvetica", "normal");
+          doc.text(`• ${meal.recipeName}${meal.cookTime ? ` (${meal.cookTime})` : ""}`, margin + 24, y);
+          y += 7;
+        });
+        y += 3;
+      });
+    } else {
+      let y = 38;
+      orderedMeals.forEach((meal, index) => {
+        const { ingredients, instructions } = getRecipeDetails(meal);
+        const cardHeight = 18;
+        if (y > pageHeight - 35) {
+          doc.addPage();
+          drawHeader(`${exportDay} · Detailed plan`);
+          y = 38;
+        }
+
+        doc.setFillColor(239, 246, 255);
+        doc.roundedRect(margin, y, pageWidth - margin * 2, cardHeight, 3, 3, "F");
+        doc.setTextColor(30, 64, 175);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.text(`${meal.mealType}: ${meal.recipeName}`, margin + 4, y + 7);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(71, 85, 105);
+        doc.setFontSize(10);
+        doc.text(`Cook time: ${meal.cookTime ?? "N/A"}`, margin + 4, y + 13);
+        y += cardHeight + 4;
+
+        doc.setTextColor(41, 37, 36);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.text("Ingredients", margin + 2, y);
+        y += 5;
+        doc.setFont("helvetica", "normal");
+
+        const ingredientLines = ingredients.length > 0 ? ingredients : ["No ingredients available."];
+        ingredientLines.forEach((ingredient) => {
+          const wrapped = doc.splitTextToSize(`• ${ingredient}`, pageWidth - margin * 2 - 8);
+          const lineHeight = 4.5 * wrapped.length;
+          if (y + lineHeight > pageHeight - 16) {
+            doc.addPage();
+            drawHeader(`${exportDay} · Detailed plan`);
+            y = 38;
+          }
+          doc.text(wrapped, margin + 4, y);
+          y += lineHeight;
+        });
+
+        y += 2;
+        doc.setFont("helvetica", "bold");
+        doc.text("Instructions", margin + 2, y);
+        y += 5;
+        doc.setFont("helvetica", "normal");
+
+        const steps = instructions.length > 0 ? instructions : ["No instructions available."];
+        steps.forEach((step, stepIndex) => {
+          const wrapped = doc.splitTextToSize(`${stepIndex + 1}. ${step}`, pageWidth - margin * 2 - 8);
+          const lineHeight = 4.5 * wrapped.length;
+          if (y + lineHeight > pageHeight - 16) {
+            doc.addPage();
+            drawHeader(`${exportDay} · Detailed plan`);
+            y = 38;
+          }
+          doc.text(wrapped, margin + 4, y);
+          y += lineHeight;
+        });
+
+        if (index < orderedMeals.length - 1) {
+          y += 4;
+          doc.setDrawColor(231, 229, 228);
+          doc.line(margin, y, pageWidth - margin, y);
+          y += 6;
+        }
+      });
+    }
+
+    const fileSuffix = exportScope === "week" ? `week-${weekStart}` : `${weekStart}-${exportDay.toLowerCase()}`;
+    doc.save(`meal-plan-${fileSuffix}.pdf`);
+  };
+
   const exportMealPlan = () => {
     if (plannedMeals.length === 0) {
       toast.info("Add meals to your plan before exporting.");
       return;
     }
 
-    const orderedMeals = [...plannedMeals].sort((a, b) => {
+    const mealsByScope = exportScope === "week"
+      ? plannedMeals
+      : plannedMeals.filter((meal) => meal.day === exportDay);
+
+    if (mealsByScope.length === 0) {
+      toast.info(exportScope === "week" ? "No meals planned this week to export." : `No meals planned for ${exportDay}.`);
+      return;
+    }
+
+    const orderedMeals = [...mealsByScope].sort((a, b) => {
       const dayDiff = DAYS.indexOf(a.day) - DAYS.indexOf(b.day);
       if (dayDiff !== 0) return dayDiff;
       return MEAL_TYPES.indexOf(a.mealType) - MEAL_TYPES.indexOf(b.mealType);
     });
 
     if (exportSettings.pdf) {
-      const doc = new jsPDF();
-      doc.setFontSize(16);
-      doc.text("Meal Prep Plan", 14, 16);
-      doc.setFontSize(10);
-      doc.text(`Week: ${weekOffset === 0 ? "This Week" : weekLabel}`, 14, 23);
-      let y = 34;
-      orderedMeals.forEach((meal) => {
-        doc.text(`${meal.day} • ${meal.mealType} • ${meal.recipeName}${meal.cookTime ? ` (${meal.cookTime})` : ""}`, 14, y);
-        y += 7;
-        if (y > 280) {
-          doc.addPage();
-          y = 20;
-        }
-      });
-      doc.save("meal-plan.pdf");
+      exportPdf(orderedMeals);
     }
 
     if (exportSettings.excel) {
@@ -361,7 +505,8 @@ export default function MealPrepScreen() {
       ]
         .map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(","))
         .join("\n");
-      downloadTextFile("meal-plan.csv", csv, "text/csv;charset=utf-8;");
+      const csvName = exportScope === "week" ? "meal-plan-week.csv" : `meal-plan-${exportDay.toLowerCase()}.csv`;
+      downloadTextFile(csvName, csv, "text/csv;charset=utf-8;");
     }
 
     if (exportSettings.calendar) {
@@ -389,7 +534,8 @@ export default function MealPrepScreen() {
         "END:VCALENDAR",
       ].join("\n");
 
-      downloadTextFile("meal-plan.ics", ics, "text/calendar;charset=utf-8;");
+      const calendarName = exportScope === "week" ? "meal-plan-week.ics" : `meal-plan-${exportDay.toLowerCase()}.ics`;
+      downloadTextFile(calendarName, ics, "text/calendar;charset=utf-8;");
     }
 
     toast.success("Meal plan exported.");
@@ -743,7 +889,56 @@ export default function MealPrepScreen() {
                     <X size={14} />
                   </button>
                 </div>
-                <p className="text-xs text-stone-500 mt-1">Choose one or more formats.</p>
+                <p className="text-xs text-stone-500 mt-1">Choose format and what range to include.</p>
+                <div className="mt-4">
+                  <p className="text-[11px] uppercase tracking-wide font-semibold text-stone-500 mb-2">Export range</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => setExportScope("week")}
+                      className="rounded-xl border px-3 py-2 text-sm font-semibold transition-colors"
+                      style={{
+                        borderColor: exportScope === "week" ? "rgba(249,115,22,0.45)" : "rgba(231,229,228,1)",
+                        background: exportScope === "week" ? "rgba(255,237,213,0.8)" : "#fff",
+                        color: exportScope === "week" ? "#C2410C" : "#57534E",
+                      }}
+                    >
+                      Full week
+                    </button>
+                    <button
+                      onClick={() => setExportScope("day")}
+                      className="rounded-xl border px-3 py-2 text-sm font-semibold transition-colors"
+                      style={{
+                        borderColor: exportScope === "day" ? "rgba(249,115,22,0.45)" : "rgba(231,229,228,1)",
+                        background: exportScope === "day" ? "rgba(255,237,213,0.8)" : "#fff",
+                        color: exportScope === "day" ? "#C2410C" : "#57534E",
+                      }}
+                    >
+                      Single day
+                    </button>
+                  </div>
+                  {exportScope === "day" && (
+                    <div className="mt-3 rounded-xl border border-orange-100 bg-orange-50/60 p-3">
+                      <p className="text-[11px] uppercase tracking-wide font-semibold text-orange-700 mb-2">Select day</p>
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {DAYS.map((day) => (
+                          <button
+                            key={day}
+                            onClick={() => setExportDay(day)}
+                            className="rounded-lg px-2 py-1.5 text-xs font-semibold transition-colors"
+                            style={{
+                              background: exportDay === day ? "#F97316" : "#fff",
+                              color: exportDay === day ? "#fff" : "#78716C",
+                              border: "1px solid rgba(251,146,60,0.35)",
+                            }}
+                          >
+                            {day}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-[11px] text-orange-700 mt-2">Single-day PDF includes ingredients and instructions.</p>
+                    </div>
+                  )}
+                </div>
                 <div className="space-y-2 mt-4">
                   {[
                     { key: "pdf", label: "PDF" },
