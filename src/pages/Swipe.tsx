@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import {
   Heart, X, Clock, ChefHat, Flame, Filter,
   ChevronDown, Sparkles,
@@ -63,6 +63,7 @@ function SwipeCard({
 }) {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
+  const didMoveRef = useRef(false);
   const rotate = useTransform(x, [-200, 200], [-18, 18]);
   const likeOpacity = useTransform(x, [20, 100], [0, 1]);
   const nopeOpacity = useTransform(x, [-100, -20], [1, 0]);
@@ -84,10 +85,20 @@ function SwipeCard({
       drag={isTop}
       dragElastic={0.12}
       onDragEnd={handleDragEnd}
+      onPanStart={() => {
+        didMoveRef.current = false;
+      }}
+      onPan={(_, info) => {
+        if (Math.hypot(info.offset.x, info.offset.y) > 8) {
+          didMoveRef.current = true;
+        }
+      }}
       style={{ x, y, rotate, touchAction: "none" }}
       className="absolute inset-0 cursor-grab active:cursor-grabbing select-none"
       whileDrag={{ scale: 1.02 }}
-      onTap={() => { if (isTop) onOpenDetails(); }}
+      onTap={() => {
+        if (isTop && !didMoveRef.current) onOpenDetails();
+      }}
     >
       {/* Card */}
       <div
