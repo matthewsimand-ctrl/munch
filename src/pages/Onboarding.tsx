@@ -20,9 +20,9 @@ const CUISINE_OPTIONS = [
 ];
 const COOKING_FOR_OPTIONS = [
   { value: '1', label: 'Solo', description: 'Just me', emoji: '🧑‍🍳' },
-  { value: '2', label: 'Partner', description: 'Two servings', emoji: '💑' },
-  { value: '4', label: 'Family', description: 'About four servings', emoji: '👨‍👩‍👧‍👦' },
-  { value: '8', label: 'Party', description: 'Cooking for a crowd', emoji: '🎉' },
+  { value: '2', label: 'Couple', description: 'Two servings', emoji: '👫' },
+  { value: '4', label: 'Family', description: 'Four servings', emoji: '👨‍👩‍👧‍👦' },
+  { value: '8', label: 'Party', description: 'Cooking for a crowd (8+ people)', emoji: '🎉' },
 ];
 const TOTAL_STEPS = 6;
 
