@@ -135,6 +135,9 @@ export default function Settings() {
   };
 
   const handleLogout = async () => {
+    const confirmed = window.confirm('Are you sure you want to sign out?');
+    if (!confirmed) return;
+
     await supabase.auth.signOut();
     navigate('/auth', { replace: true });
   };
@@ -318,6 +321,9 @@ export default function Settings() {
               variant="outline"
               className="w-full text-destructive border-destructive/30 hover:bg-destructive hover:text-destructive-foreground"
               onClick={() => {
+                const confirmed = window.confirm('Clear all local data on this device? This cannot be undone.');
+                if (!confirmed) return;
+
                 resetStore();
                 toast({ title: 'Local data cleared' });
               }}
