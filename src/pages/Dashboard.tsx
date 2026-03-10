@@ -433,7 +433,7 @@ export default function Dashboard() {
       <div className="max-w-7xl mx-auto px-6 py-7 space-y-7">
 
         {/* Stats */}
-        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3" data-tutorial="stats">
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
           {stats.map((s, i) => (
             <motion.div key={s.label} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06, duration: 0.4, ease: "easeOut" }}>
               <StatCard {...s} />

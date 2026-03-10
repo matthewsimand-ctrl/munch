@@ -5,8 +5,9 @@ import { cn } from '@/lib/utils';
 const TUTORIAL_MAP: Record<string, string> = {
   Home: 'nav-home',
   Pantry: 'nav-pantry',
+  Recipes: 'nav-browse',
   'Find Recipes': 'nav-browse',
-  'My Recipes': 'nav-recipes',
+  Saved: 'nav-recipes',
   Plan: 'nav-plan',
   Grocery: 'nav-grocery',
 };
