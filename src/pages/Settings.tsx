@@ -31,7 +31,16 @@ const Chip = ({ label, selected, onClick }: { label: string; selected: boolean; 
 export default function Settings() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { userProfile, setUserProfile, resetStore, chefAvatarUrl, setChefAvatarUrl, shareCustomRecipesByDefault, setShareCustomRecipesByDefault } = useStore();
+  const {
+    userProfile,
+    setUserProfile,
+    resetStore,
+    chefAvatarUrl,
+    setChefAvatarUrl,
+    setShowTutorial,
+    shareCustomRecipesByDefault,
+    setShareCustomRecipesByDefault,
+  } = useStore();
   const [user, setUser] = useState<any>(null);
   const [displayName, setDisplayName] = useState('');
   const [defaultServings, setDefaultServings] = useState('2');
@@ -310,6 +319,16 @@ export default function Settings() {
           <section className="space-y-3">
             <Button variant="outline" className="w-full" onClick={handleLogout}>
               <LogOut className="h-4 w-4 mr-2" /> Sign Out
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => {
+                setShowTutorial(true);
+                navigate('/dashboard');
+              }}
+            >
+              <ChefHat className="h-4 w-4 mr-2" /> Replay Spotlight Tutorial
             </Button>
             <Button
               variant="outline"
