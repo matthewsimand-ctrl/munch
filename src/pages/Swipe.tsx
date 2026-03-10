@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import {
   Heart, X, Clock, ChefHat, Flame, Filter,
-  ChevronDown, Sparkles,
+  ChevronDown, Sparkles, ArrowLeft, ArrowRight,
 } from "lucide-react";
 import { motion, AnimatePresence, useMotionValue, useTransform } from "framer-motion";
 import { useStore } from "@/lib/store";
@@ -264,6 +264,23 @@ export default function SwipeScreen() {
     advance();
   }, [current, advance]);
 
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!current || previewOpen) return;
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        handleSkip();
+      }
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        handleSave();
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [current, previewOpen, handleSave, handleSkip]);
+
 
   useEffect(() => {
     if (!loaded) {
@@ -435,9 +452,14 @@ export default function SwipeScreen() {
 
           {/* Swipe hint */}
           {stack.length > 0 && !loading && (
-            <p className="text-center text-[10px] text-stone-300 mt-4 font-medium">
-              ← Skip &nbsp;·&nbsp; ❤ Save
-            </p>
+            <div className="mt-4 text-center space-y-2">
+              <p className="text-[10px] text-stone-300 font-medium">← Skip &nbsp;·&nbsp; ❤ Save</p>
+              <div className="flex items-center justify-center gap-2 text-xs text-stone-400 font-medium">
+                <ArrowLeft size={14} />
+                <span>Use keyboard arrows to swipe</span>
+                <ArrowRight size={14} />
+              </div>
+            </div>
           )}
         </div>
       </div>

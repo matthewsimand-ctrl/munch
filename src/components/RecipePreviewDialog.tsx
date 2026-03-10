@@ -170,7 +170,7 @@ export default function RecipePreviewDialog({
                   >
                     {addedToGrocery ? <Check className="h-4 w-4" /> : <ShoppingCart className="h-4 w-4" />}
                   </motion.span>
-                  {addedToGrocery ? 'Added to grocery list' : `Add ${displayMatch.missing.length} missing items`}
+                  {addedToGrocery ? 'Added to grocery list' : `Add ${displayMatch.missing.length} missing ingredients to Grocery List`}
                 </motion.button>
               )}
 
