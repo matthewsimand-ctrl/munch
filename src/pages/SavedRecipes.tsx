@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo, type ChangeEvent } from "react";
 import {
   Heart, Clock, Users, Search, Filter, Trash2, ChevronDown,
   Plus, FolderOpen, X, Tag, Edit2, Check, ChefHat, Play,
-  FolderPlus, MoreHorizontal, ShoppingCart, Import, Flame, Beef, Wheat, Droplets, Sparkles, Loader2, Wand2, Image, ArrowLeft, Upload,
+  FolderPlus, MoreHorizontal, ShoppingCart, Import, Flame, Beef, Wheat, Droplets, Sparkles, Loader2, Wand2, Image, ArrowLeft, Upload, Star,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useStore } from "@/lib/store";
@@ -39,6 +39,7 @@ export default function SavedRecipes() {
     recipeFolders, createFolder, renameFolder, updateFolderCover, deleteFolder,
     addRecipeToFolder, removeRecipeFromFolder,
     addCustomGroceryItem, cachedNutrition, cacheNutrition,
+    recipeRatings, recipeCookCounts,
   } = useStore();
   const { data: dbRecipes = [] } = useDbRecipes();
 
@@ -667,7 +668,14 @@ export default function SavedRecipes() {
                     <div className="flex items-center gap-3 text-xs text-muted-foreground mb-2.5">
                       <span className="flex items-center gap-1"><Clock size={11} /> {recipe.cook_time}</span>
                       {recipe.servings && <span className="flex items-center gap-1"><Users size={11} /> {recipe.servings}</span>}
+                      {recipeCookCounts[recipe.id] ? <span>{recipeCookCounts[recipe.id]} cooks</span> : null}
                     </div>
+
+                    {(recipeRatings[recipe.id] || 0) > 0 && (
+                      <div className="mb-2 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-[11px] text-amber-700">
+                        <Star size={11} className="fill-current" /> {recipeRatings[recipe.id]}/5
+                      </div>
+                    )}
 
                     {/* Ingredient preview */}
                     {recipe.ingredients.length > 0 && (
@@ -952,6 +960,12 @@ export default function SavedRecipes() {
                     <Badge variant="secondary">{selectedRecipe.difficulty}</Badge>
                     {selectedRecipe.cuisine && <Badge variant="outline">{selectedRecipe.cuisine}</Badge>}
                     {selectedRecipe.servings && <Badge variant="secondary" className="gap-1"><Users size={12} /> Serves {selectedRecipe.servings}</Badge>}
+                    {recipeCookCounts[selectedRecipe.id] ? <Badge variant="outline">Cooked {recipeCookCounts[selectedRecipe.id]}x</Badge> : null}
+                    {(recipeRatings[selectedRecipe.id] || 0) > 0 ? (
+                      <Badge variant="outline" className="gap-1 text-amber-700 border-amber-200 bg-amber-50">
+                        <Star size={12} className="fill-current" /> {recipeRatings[selectedRecipe.id]}/5
+                      </Badge>
+                    ) : null}
                   </div>
 
                   <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 p-3">
