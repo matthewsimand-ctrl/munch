@@ -153,7 +153,7 @@ export default function CookMode() {
     if (cookModeTtsEnabled && currentStepInstruction) {
       speak(`Step ${currentStep + 1}. ${currentStepInstruction}`);
     }
-  }, [currentStep, currentStepInstruction]);
+  }, [cookModeTtsEnabled, currentStep, currentStepInstruction, speak]);
 
   // Stop speaking when TTS is disabled or component unmounts
   useEffect(() => {
