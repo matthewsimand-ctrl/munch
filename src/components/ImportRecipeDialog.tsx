@@ -40,8 +40,35 @@ interface ReviewData {
   servings: string;
 }
 
+interface WebsitePreviewData {
+  name: string;
+  ingredients: string[];
+  instructions: string[];
+  cook_time: string;
+  difficulty: string;
+  cuisine: string;
+  tags: string[];
+  image: string;
+  servings: string;
+  source_url?: string;
+  raw_api_payload?: Record<string, unknown>;
+}
+
 const DIFFICULTY_OPTIONS = ['Beginner', 'Intermediate', 'Advanced'];
 const CUISINE_OPTIONS = ['Italian', 'Asian', 'Mexican', 'Mediterranean', 'American', 'French', 'Indian', 'Other'];
+
+function normalizeList(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.map((v) => String(v).replace(/^▢\s*/, '').trim()).filter(Boolean);
+  }
+  if (typeof value === 'string') {
+    return value
+      .split(/\r?\n/)
+      .map((s) => s.replace(/^▢\s*/, '').trim())
+      .filter(Boolean);
+  }
+  return [];
+}
 
 export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps) {
   const navigate = useNavigate();
@@ -60,6 +87,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
   // Review mode state
   const [reviewMode, setReviewMode] = useState(false);
   const [reviewData, setReviewData] = useState<ReviewData | null>(null);
+  const [websitePreview, setWebsitePreview] = useState<WebsitePreviewData | null>(null);
   const [isDiscoverable, setIsDiscoverable] = useState(true);
   const [newIngredient, setNewIngredient] = useState('');
   const [newIngredientQty, setNewIngredientQty] = useState('');
@@ -97,8 +125,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
     return () => window.clearInterval(timer);
   }, [loading]);
 
-  const persistRecipeAndRedirect = async (recipe: Record<string, any>) => {
-    const id = crypto.randomUUID();
+  const buildImportedPayload = (id: string, recipe: Record<string, any>) => {
     const normalizedIngredients = Array.isArray(recipe.ingredients)
       ? recipe.ingredients.map((item: unknown) => String(item).trim()).filter(Boolean)
       : [];
@@ -106,7 +133,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
       ? recipe.instructions.map((item: unknown) => String(item).trim()).filter(Boolean)
       : [];
 
-    const payload = {
+    return {
       id,
       name: String(recipe.name || 'Imported Recipe').trim(),
       ingredients: normalizedIngredients,
@@ -117,14 +144,18 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
       tags: Array.isArray(recipe.tags) ? recipe.tags.map((tag: unknown) => String(tag).trim()).filter(Boolean) : [],
       image: String(recipe.image || '/placeholder.svg'),
       source: 'imported',
+      source_url: recipe.source_url ? String(recipe.source_url).trim() : undefined,
+      raw_api_payload: recipe.raw_api_payload ?? undefined,
       servings: parseInt(String(recipe.servings || 4), 10) || 4,
     };
+  };
 
+  const persistRecipe = async (payload: Record<string, any>) => {
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (user) {
+    if (user && isDiscoverable) {
       const { error } = await supabase.from('recipes').insert({
         ...payload,
         created_by: user.id,
@@ -134,12 +165,29 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
       if (error) throw error;
     }
 
-    likeRecipe(id, payload);
-    setMagicProgress(100);
-    toast.success(`Imported "${payload.name}"!`);
-    setOpen(false);
-    resetState();
-    navigate(`/cook/${id}`);
+    likeRecipe(payload.id, payload);
+  };
+
+  const saveWebsitePreview = async () => {
+    if (!websitePreview) return;
+
+    const id = crypto.randomUUID();
+    const payload = buildImportedPayload(id, websitePreview);
+
+    setSaving(true);
+    try {
+      await persistRecipe(payload);
+      setMagicProgress(100);
+      toast.success(`Imported "${payload.name}"!`);
+      setOpen(false);
+      resetState();
+      navigate(`/saved`);
+    } catch (err: any) {
+      console.error('Website import save error:', err);
+      toast.error(err.message || 'Failed to save imported recipe');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const resetState = () => {
@@ -151,6 +199,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
     setLastImportError('');
     setReviewMode(false);
     setReviewData(null);
+    setWebsitePreview(null);
     setIsDiscoverable(true);
     setNewIngredient('');
     setNewIngredientQty('');
@@ -193,22 +242,24 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
       const recipe = data.recipe;
 
       if (payload.url) {
-        await persistRecipeAndRedirect(recipe);
+        setWebsitePreview({
+          name: String(recipe.name || 'Imported Recipe').trim(),
+          ingredients: Array.isArray(recipe.ingredients) ? recipe.ingredients.map((item: unknown) => String(item).trim()).filter(Boolean) : [],
+          instructions: normalizeList(recipe.instructions),
+          cook_time: String(recipe.cook_time || '30 min'),
+          difficulty: String(recipe.difficulty || 'Intermediate'),
+          cuisine: recipe.cuisine ? String(recipe.cuisine) : '',
+          tags: normalizeList(recipe.tags),
+          image: String(recipe.image || '/placeholder.svg'),
+          servings: String(recipe.servings || 4),
+          source_url: recipe.source_url ? String(recipe.source_url) : undefined,
+          raw_api_payload: recipe.raw_api_payload && typeof recipe.raw_api_payload === 'object'
+            ? recipe.raw_api_payload as Record<string, unknown>
+            : undefined,
+        });
+        toast.success('Recipe preview ready. Review the cleaned page and save it if it looks right.');
         return;
       }
-
-      const normalizeList = (value: unknown): string[] => {
-        if (Array.isArray(value)) {
-          return value.map((v) => String(v).replace(/^▢\s*/, '').trim()).filter(Boolean);
-        }
-        if (typeof value === 'string') {
-          return value
-            .split(/\r?\n/)
-            .map((s) => s.replace(/^▢\s*/, '').trim())
-            .filter(Boolean);
-        }
-        return [];
-      };
 
       const normalizeIngredients = (value: unknown): IngredientEntry[] =>
         normalizeList(value).map((line) => {
@@ -555,11 +606,116 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
       <DialogContent className="max-w-lg max-h-[85vh] overflow-hidden flex flex-col p-0">
         <DialogHeader className="px-6 pt-6 pb-2">
           <DialogTitle className="flex items-center gap-2">
-            {reviewMode ? 'Review & Edit Recipe' : <><Brain className="h-4 w-4 text-violet-500" /> Import Recipe (AI)</>}
+            {websitePreview
+              ? 'Website Recipe Preview'
+              : reviewMode
+                ? 'Review & Edit Recipe'
+                : <><Brain className="h-4 w-4 text-violet-500" /> Import Recipe (AI)</>}
           </DialogTitle>
         </DialogHeader>
 
-        {reviewMode && reviewData ? (
+        {websitePreview ? (
+          <ScrollArea className="flex-1 min-h-0 px-6 pb-6">
+            <div className="space-y-5 pr-2">
+              {websitePreview.image && websitePreview.image !== '/placeholder.svg' && (
+                <img src={websitePreview.image} alt={websitePreview.name} className="h-44 w-full rounded-xl object-cover" />
+              )}
+
+              <div className="space-y-2">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-xl font-semibold text-foreground">{websitePreview.name}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {websitePreview.cook_time} · {websitePreview.difficulty} · {websitePreview.servings} servings
+                    </p>
+                  </div>
+                  {websitePreview.source_url && (
+                    <Button type="button" variant="outline" size="sm" asChild>
+                      <a href={websitePreview.source_url} target="_blank" rel="noreferrer">
+                        <Globe className="h-4 w-4 mr-1.5" /> Open source
+                      </a>
+                    </Button>
+                  )}
+                </div>
+                {websitePreview.cuisine && (
+                  <p className="text-sm text-muted-foreground">{websitePreview.cuisine}</p>
+                )}
+              </div>
+
+              {websitePreview.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {websitePreview.tags.map((tag) => (
+                    <Badge key={tag} variant="outline">{tag}</Badge>
+                  ))}
+                </div>
+              )}
+
+              <div>
+                <p className="text-sm font-medium text-foreground">Ingredients</p>
+                <div className="mt-2 space-y-2">
+                  {websitePreview.ingredients.map((ingredient, idx) => (
+                    <div key={idx} className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm text-foreground">
+                      {ingredient}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-sm font-medium text-foreground">Instructions</p>
+                <ol className="mt-2 space-y-2">
+                  {websitePreview.instructions.map((step, idx) => (
+                    <li key={idx} className="flex gap-3 rounded-md border border-border bg-muted/30 px-3 py-2 text-sm text-foreground">
+                      <span className="text-xs font-semibold text-muted-foreground pt-0.5">{idx + 1}.</span>
+                      <span>{step}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+
+              {typeof websitePreview.raw_api_payload?.preview_text === 'string' && websitePreview.raw_api_payload.preview_text.trim() && (
+                <div>
+                  <p className="text-sm font-medium text-foreground">Cleaned Page Preview</p>
+                  <div className="mt-2 rounded-lg border border-border bg-muted/20 p-3 text-sm text-muted-foreground whitespace-pre-wrap max-h-56 overflow-y-auto">
+                    {websitePreview.raw_api_payload.preview_text.trim()}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
+                <div className="flex items-center gap-2">
+                  {isDiscoverable ? <Globe size={18} className="text-primary" /> : <Lock size={18} className="text-muted-foreground" />}
+                  <div>
+                    <Label htmlFor="discoverable-web" className="cursor-pointer">Make Discoverable</Label>
+                    <p className="text-xs text-muted-foreground">
+                      {isDiscoverable ? 'Others can find this cleaned recipe preview' : 'Only you can see this imported recipe'}
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  id="discoverable-web"
+                  checked={isDiscoverable}
+                  onCheckedChange={setIsDiscoverable}
+                />
+              </div>
+
+              <div className="flex gap-2 pt-1">
+                <Button variant="outline" className="flex-1" onClick={() => setWebsitePreview(null)} disabled={saving}>
+                  Back
+                </Button>
+                <Button className="flex-1" onClick={saveWebsitePreview} disabled={saving}>
+                  {saving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving...
+                    </>
+                  ) : (
+                    'Save Recipe'
+                  )}
+                </Button>
+              </div>
+            </div>
+          </ScrollArea>
+        ) : reviewMode && reviewData ? (
           <ScrollArea className="flex-1 min-h-0 px-6 pb-6">
             <div className="space-y-4 pr-2">
               {/* Recipe Name */}

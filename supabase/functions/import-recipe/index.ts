@@ -434,6 +434,7 @@ Deno.serve(async (req) => {
 
     let content = textContent || '';
     let recipe: Record<string, unknown> | null = null;
+    let previewText = '';
 
     if (normalizedUrl) {
       let html = '';
@@ -493,8 +494,12 @@ Deno.serve(async (req) => {
         recipe = extractRecipeFromJsonLd(html);
       }
 
-      if (!recipe && html) {
-        content = cleanHtmlForAi(html);
+      if (html) {
+        previewText = cleanHtmlForAi(html);
+      }
+
+      if (!recipe && previewText) {
+        content = previewText;
       }
     }
 
@@ -515,6 +520,18 @@ Deno.serve(async (req) => {
     }
 
     recipe = normalizeRecipePayload(recipe);
+
+    if (normalizedUrl) {
+      recipe = {
+        ...recipe,
+        source_url: normalizedUrl,
+        raw_api_payload: {
+          import_type: 'website',
+          source_url: normalizedUrl,
+          preview_text: previewText || content || '',
+        },
+      };
+    }
 
     if (!recipe?.name || !Array.isArray(recipe.ingredients) || recipe.ingredients.length === 0) {
       return new Response(

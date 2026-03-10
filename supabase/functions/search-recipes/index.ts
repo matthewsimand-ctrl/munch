@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -18,6 +19,62 @@ interface NormalizedRecipe {
   source_url?: string;
   raw_api_payload?: unknown;
   cuisine?: string;
+}
+
+async function fetchPublicRecipes(query?: string): Promise<NormalizedRecipe[]> {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
+  if (!supabaseUrl || !supabaseAnonKey) return [];
+
+  try {
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    const request = supabase
+      .from('recipes')
+      .select('id, name, image, cook_time, difficulty, ingredients, tags, instructions, source, source_url, raw_api_payload, cuisine')
+      .eq('is_public', true)
+      .order('created_at', { ascending: false })
+      .limit(query ? 200 : 100);
+
+    const { data, error } = await request;
+    if (error) {
+      console.error('Public recipe fetch error:', error);
+      return [];
+    }
+
+    const normalized = (data || []).map((recipe: any) => ({
+      id: String(recipe.id),
+      name: String(recipe.name || '').trim(),
+      image: String(recipe.image || ''),
+      cook_time: String(recipe.cook_time || '30 min'),
+      difficulty: String(recipe.difficulty || 'Intermediate') as NormalizedRecipe['difficulty'],
+      ingredients: Array.isArray(recipe.ingredients)
+        ? recipe.ingredients.map((item: unknown) => String(item).trim()).filter(Boolean)
+        : [],
+      tags: Array.isArray(recipe.tags)
+        ? recipe.tags.map((tag: unknown) => String(tag).trim().toLowerCase()).filter(Boolean)
+        : [],
+      instructions: Array.isArray(recipe.instructions)
+        ? recipe.instructions.map((step: unknown) => String(step).trim()).filter(Boolean)
+        : [],
+      source: String(recipe.source || 'community'),
+      source_url: recipe.source_url ? String(recipe.source_url) : undefined,
+      raw_api_payload: recipe.raw_api_payload ?? undefined,
+      cuisine: recipe.cuisine ? String(recipe.cuisine) : undefined,
+    }));
+
+    if (!query) return normalized;
+
+    const loweredQuery = query.toLowerCase().trim();
+    return normalized.filter((recipe) =>
+      recipe.name.toLowerCase().includes(loweredQuery) ||
+      recipe.ingredients.some((ingredient) => ingredient.toLowerCase().includes(loweredQuery)) ||
+      recipe.tags.some((tag) => tag.toLowerCase().includes(loweredQuery)) ||
+      (recipe.cuisine || '').toLowerCase().includes(loweredQuery)
+    );
+  } catch (error) {
+    console.error('Public recipe fetch failure:', error);
+    return [];
+  }
 }
 
 function normalizeInstructionLines(lines: string[]): string[] {
@@ -48,7 +105,10 @@ function cleanIngredientPart(value: unknown): string {
 }
 
 function normalizeMeasurePart(value: unknown): string {
-  const measure = cleanIngredientPart(value);
+  const rawMeasure = String(value ?? '');
+  if (rawMeasure === ' ') return '';
+
+  const measure = cleanIngredientPart(rawMeasure);
   if (!measure) return '';
 
   // TheMealDB sometimes provides compact values like "500g" or "1kg".
@@ -61,9 +121,22 @@ function normalizeMeasurePart(value: unknown): string {
 
 function joinIngredient(measure: unknown, ingredient: unknown): string | null {
   const measureText = normalizeMeasurePart(measure);
-  const ingredientText = cleanIngredientPart(ingredient).toLowerCase();
+  const ingredientText = cleanIngredientPart(ingredient);
   if (!ingredientText) return null;
   return measureText ? `${measureText} ${ingredientText}`.trim() : ingredientText;
+}
+
+function buildMealDbIngredients(meal: Record<string, unknown>): string[] {
+  const ingredients: string[] = [];
+
+  for (let i = 1; i <= 20; i++) {
+    const ingredient = meal[`strIngredient${i}`];
+    const measure = meal[`strMeasure${i}`];
+    const line = joinIngredient(measure, ingredient);
+    if (line) ingredients.push(line);
+  }
+
+  return ingredients;
 }
 
 // --- TheMealDB ---
@@ -73,13 +146,7 @@ async function searchMealDB(query: string): Promise<NormalizedRecipe[]> {
     const data = await res.json();
     if (!data.meals) return [];
     return data.meals.map((m: any) => {
-      const ingredients: string[] = [];
-      for (let i = 1; i <= 20; i++) {
-        const ing = m[`strIngredient${i}`];
-        const measure = m[`strMeasure${i}`];
-        const normalized = joinIngredient(measure, ing);
-        if (normalized) ingredients.push(normalized);
-      }
+      const ingredients = buildMealDbIngredients(m);
       const instructions = m.strInstructions
         ? normalizeInstructionLines(m.strInstructions.split(/\r?\n/))
         : [];
@@ -110,13 +177,7 @@ async function browseMealDBByLetter(letter: string): Promise<NormalizedRecipe[]>
     const data = await res.json();
     if (!data.meals) return [];
     return data.meals.map((m: any) => {
-      const ingredients: string[] = [];
-      for (let i = 1; i <= 20; i++) {
-        const ing = m[`strIngredient${i}`];
-        const measure = m[`strMeasure${i}`];
-        const normalized = joinIngredient(measure, ing);
-        if (normalized) ingredients.push(normalized);
-      }
+      const ingredients = buildMealDbIngredients(m);
       const instructions = m.strInstructions
         ? normalizeInstructionLines(m.strInstructions.split(/\r?\n/))
         : [];
@@ -160,13 +221,7 @@ async function browseMealDBByCategory(category: string): Promise<NormalizedRecip
       .filter((r): r is PromiseFulfilledResult<any> => r.status === 'fulfilled' && r.value)
       .map(r => {
         const m = r.value;
-        const ingredients: string[] = [];
-        for (let i = 1; i <= 20; i++) {
-          const ing = m[`strIngredient${i}`];
-          const measure = m[`strMeasure${i}`];
-          const normalized = joinIngredient(measure, ing);
-          if (normalized) ingredients.push(normalized);
-        }
+        const ingredients = buildMealDbIngredients(m);
         const instructions = m.strInstructions
           ? normalizeInstructionLines(m.strInstructions.split(/\r?\n/))
           : [];
@@ -374,6 +429,7 @@ serve(async (req) => {
     if (mode === 'browse') {
       console.log('Browse mode: fetching large catalog...');
       const promises: Promise<NormalizedRecipe[]>[] = [];
+      promises.push(fetchPublicRecipes());
 
       // MealDB: fetch by first letter (a-z) to get ~200+ recipes
       const letters = 'abcdefghijklmnopqrstuvwxyz'.split('');
@@ -417,6 +473,7 @@ serve(async (req) => {
     const searchQuery = query || 'chicken';
 
     const promises: Promise<NormalizedRecipe[]>[] = [];
+    promises.push(fetchPublicRecipes(searchQuery));
     promises.push(searchMealDB(searchQuery));
     if (RAPIDAPI_KEY) {
       promises.push(searchTasty(searchQuery, RAPIDAPI_KEY, 10));
