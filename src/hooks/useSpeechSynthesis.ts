@@ -120,8 +120,12 @@ export function useSpeechSynthesis() {
         return;
       }
 
+      let started = false;
       const primary = createUtterance(voiceRef.current);
-      primary.onstart = () => setIsSpeaking(true);
+      primary.onstart = () => {
+        started = true;
+        setIsSpeaking(true);
+      };
       primary.onend = () => setIsSpeaking(false);
       primary.onerror = () => {
         const fallbackVoice = getFallbackVoice();
@@ -142,6 +146,22 @@ export function useSpeechSynthesis() {
       setTimeout(() => {
         synthRef.current.speak(primary);
       }, 0);
+
+      // Some webviews fail silently without firing onerror/onstart; retry once on a safer local voice.
+      setTimeout(() => {
+        if (started || !text.trim()) return;
+        const fallbackVoice = getFallbackVoice();
+        if (!fallbackVoice || fallbackVoice.name === primary.voice?.name) return;
+
+        synthRef.current.cancel();
+        synthRef.current.resume();
+        voiceRef.current = fallbackVoice;
+        const fallback = createUtterance(fallbackVoice);
+        fallback.onstart = () => setIsSpeaking(true);
+        fallback.onend = () => setIsSpeaking(false);
+        fallback.onerror = () => setIsSpeaking(false);
+        synthRef.current.speak(fallback);
+      }, 900);
     };
 
     speakWithRetry();

@@ -1,13 +1,34 @@
 import type { Recipe } from '@/data/recipes';
 import { normalizeIngredients } from '@/lib/normalizeIngredients';
 
+function splitInstructionBlock(text: string): string[] {
+  const normalized = text
+    .replace(/\r/g, '\n')
+    .replace(/\u2022/g, '\n• ')
+    .replace(/\s+(?=(?:step\s*)?\d+\s*[).:-])/gi, '\n');
+
+  const rawLines = normalized
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const splitByMarkers = rawLines.flatMap((line) => {
+    const segments = line
+      .split(/(?=(?:step\s*)?\d+\s*[).:-]\s+)/gi)
+      .map((segment) => segment.trim())
+      .filter(Boolean);
+    return segments.length ? segments : [line];
+  });
+
+  return splitByMarkers
+    .map((line) => line.replace(/^(?:step\s*)?\d+\s*[).:-]\s*/i, '').trim())
+    .filter(Boolean);
+}
+
 export function normalizeStringArray(value: unknown): string[] {
   if (Array.isArray(value)) return value.map((v) => String(v).trim()).filter(Boolean);
   if (typeof value === 'string') {
-    return value
-      .split(/\r?\n/)
-      .map((s) => s.trim())
-      .filter(Boolean);
+    return splitInstructionBlock(value);
   }
   return [];
 }
