@@ -492,7 +492,10 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
       return;
     }
 
-    const toBase64 = (input: File) =>
+    const MAX_IMAGE_SIDE = 1600;
+    const JPEG_QUALITY = 0.82;
+
+    const toBase64 = (input: Blob) =>
       new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => {
@@ -508,9 +511,53 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
         reader.readAsDataURL(input);
       });
 
+    const optimizeImageForExtraction = (input: File) =>
+      new Promise<Blob>((resolve) => {
+        const imageUrl = URL.createObjectURL(input);
+        const img = new Image();
+
+        img.onload = () => {
+          const width = img.naturalWidth || img.width;
+          const height = img.naturalHeight || img.height;
+          const longestSide = Math.max(width, height) || 1;
+          const scale = Math.min(1, MAX_IMAGE_SIDE / longestSide);
+          const targetWidth = Math.max(1, Math.round(width * scale));
+          const targetHeight = Math.max(1, Math.round(height * scale));
+
+          const canvas = document.createElement('canvas');
+          canvas.width = targetWidth;
+          canvas.height = targetHeight;
+
+          const context = canvas.getContext('2d');
+          if (!context) {
+            URL.revokeObjectURL(imageUrl);
+            resolve(input);
+            return;
+          }
+
+          context.drawImage(img, 0, 0, targetWidth, targetHeight);
+          canvas.toBlob(
+            (blob) => {
+              URL.revokeObjectURL(imageUrl);
+              resolve(blob || input);
+            },
+            'image/jpeg',
+            JPEG_QUALITY,
+          );
+        };
+
+        img.onerror = () => {
+          URL.revokeObjectURL(imageUrl);
+          resolve(input);
+        };
+
+        img.src = imageUrl;
+      });
+
     try {
-      const imageBase64 = await toBase64(file);
-      handleExtract({ imageBase64, imageMimeType: file.type || 'image/jpeg' });
+      const optimizedImage = await optimizeImageForExtraction(file);
+      const imageBase64 = await toBase64(optimizedImage);
+      handleExtract({ imageBase64, imageMimeType: 'image/jpeg' });
     } catch {
       toast.error('Could not read image. Try a different file.');
     }
