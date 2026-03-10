@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import {
-  Heart, Search, FolderPlus, Folder, Clock, ChefHat,
-  Filter, Grid3X3, List, Star, BookOpen, X, Plus, Trash2,
+  Search, FolderPlus, Folder, Clock,
+  Filter, Grid3X3, List, Star, BookOpen, X, Trash2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "@/lib/store";
@@ -15,6 +15,11 @@ import CreateRecipeForm from "@/components/CreateRecipeForm";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import type { Recipe } from "@/data/recipes";
+
+const getCookStats = (recipe: Recipe, rating?: number) => ({
+  stars: rating ?? ((recipe.name.length % 2) + 4),
+  timesCooked: (recipe.id.charCodeAt(0) % 12) + 3,
+});
 
 const SORT_OPTIONS = ["Recently Saved", "Cook Time", "Rating", "Name A–Z"];
 const CUISINE_TAGS = ["All", "Italian", "Asian", "Mexican", "Mediterranean", "American", "Indian"];
@@ -39,6 +44,7 @@ function RecipeCard({
     "text-red-600 bg-red-50";
 
   if (view === "list") {
+    const { stars, timesCooked } = getCookStats(recipe, rating);
     return (
       <motion.div
         layout
@@ -61,12 +67,12 @@ function RecipeCard({
           <div className="flex items-center gap-3 mt-1 text-xs text-stone-400">
             <span className="flex items-center gap-1"><Clock size={11} /> {recipe.cook_time}</span>
             <span className={`px-2 py-0.5 rounded-full font-semibold ${diffColor}`}>{diff}</span>
-            {rating && (
-              <span className="flex items-center gap-1 text-amber-500">
-                <Star size={11} fill="currentColor" /> {rating}
-              </span>
-            )}
+            <span className="flex items-center gap-1 text-amber-500">
+              <Star size={11} fill="currentColor" /> {stars.toFixed(1)}
+            </span>
+            <span>{timesCooked}x cooked</span>
           </div>
+          {!!recipe.tags?.length && <p className="mt-1 text-xs text-stone-500 line-clamp-1">{recipe.tags.slice(0, 3).join(" • ")}</p>}
         </div>
         <button
           onClick={(e) => { e.stopPropagation(); onUnsave(); }}
@@ -77,6 +83,8 @@ function RecipeCard({
       </motion.div>
     );
   }
+
+  const { stars, timesCooked } = getCookStats(recipe, rating);
 
   return (
     <motion.div
@@ -102,19 +110,20 @@ function RecipeCard({
         <div className="absolute bottom-2 left-2">
           <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${diffColor}`}>{diff}</span>
         </div>
-        {rating && (
-          <div className="absolute bottom-2 right-2 flex items-center gap-1 bg-black/30 backdrop-blur-sm px-2 py-0.5 rounded-full text-amber-400 text-[10px] font-bold">
-            <Star size={9} fill="currentColor" /> {rating}
-          </div>
-        )}
+        <div className="absolute bottom-2 right-2 flex items-center gap-1 bg-black/30 backdrop-blur-sm px-2 py-0.5 rounded-full text-amber-400 text-[10px] font-bold">
+          <Star size={9} fill="currentColor" /> {stars.toFixed(1)}
+        </div>
       </div>
       <p className="text-sm font-semibold text-stone-800 line-clamp-2 leading-snug mb-1 group-hover:text-orange-600 transition-colors">
         {recipe.name}
       </p>
       <div className="flex items-center gap-2 text-xs text-stone-400">
         <Clock size={11} /> {recipe.cook_time}
+        <span className="w-1 h-1 rounded-full bg-stone-300" />
+        <span>{timesCooked}x cooked</span>
         {recipe.cuisine && <><span className="w-1 h-1 rounded-full bg-stone-300" /><span>{recipe.cuisine}</span></>}
       </div>
+      {!!recipe.tags?.length && <p className="text-[11px] text-stone-500 mt-1 line-clamp-1">{recipe.tags.slice(0, 3).join(" • ")}</p>}
     </motion.div>
   );
 }
@@ -124,11 +133,9 @@ export default function MyRecipesScreen() {
   const {
     likedRecipes, savedApiRecipes, unlikeRecipe,
     recipeFolders, addFolder, removeFolder,
-    recipeRatings, pantryList, likeRecipe,
+    recipeRatings, pantryList,
   } = useStore();
-  const { recipes: exploreRecipes, loading: exploreLoading, loaded: exploreLoaded, loadFeed } = useBrowseFeed();
-
-  const [activeTab, setActiveTab] = useState<"explore" | "mine">("mine");
+  const { loaded: exploreLoaded, loadFeed } = useBrowseFeed();
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"grid" | "list">("grid");
   const [sortBy, setSortBy] = useState(SORT_OPTIONS[0]);
@@ -210,16 +217,7 @@ export default function MyRecipesScreen() {
               <p className="text-xs text-stone-400 mt-1">{savedRecipes.length} saved recipe{savedRecipes.length !== 1 ? "s" : ""}</p>
             </div>
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => setActiveTab("explore")}
-                className={`px-3 py-2 rounded-xl text-xs font-semibold ${activeTab === "explore" ? "bg-orange-500 text-white" : "bg-white border border-stone-200 text-stone-600"}`}
-              >
-                Explore
-              </button>
-              <button
-                onClick={() => setActiveTab("mine")}
-                className={`px-3 py-2 rounded-xl text-xs font-semibold ${activeTab === "mine" ? "bg-orange-500 text-white" : "bg-white border border-stone-200 text-stone-600"}`}
-              >
+              <button className="px-3 py-2 rounded-xl text-xs font-semibold bg-orange-500 text-white">
                 My Recipes
               </button>
               <ImportRecipeDialog>
@@ -294,7 +292,6 @@ export default function MyRecipesScreen() {
       </div>
 
       {/* Controls */}
-      {activeTab === "mine" && (
       <div className="max-w-6xl mx-auto px-6 py-4">
         <div className="flex items-center gap-3 mb-4">
           {/* Search */}
@@ -346,36 +343,10 @@ export default function MyRecipesScreen() {
           ))}
         </div>
       </div>
-      )}
 
       {/* Content */}
       <div className="max-w-6xl mx-auto px-6 pb-10">
-        {activeTab === "explore" ? (
-          <AnimatePresence>
-            {exploreLoading ? (
-              <div className="py-16 text-center text-stone-400 text-sm">Loading recipes…</div>
-            ) : (
-              <div className={view === "grid" ? "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5" : "space-y-1"}>
-                {exploreRecipes.map((recipe) => {
-                  const match = calculateMatch(pantryNames, recipe.ingredients || []);
-                  return (
-                    <RecipeCard
-                      key={recipe.id}
-                      recipe={recipe}
-                      view={view}
-                      onCook={() => openPreview(recipe)}
-                      onUnsave={() => {
-                        likeRecipe(recipe.id, recipe);
-                        toast.success(`Saved ${recipe.name}`);
-                      }}
-                      rating={match.percentage}
-                    />
-                  );
-                })}
-              </div>
-            )}
-          </AnimatePresence>
-        ) : savedRecipes.length === 0 ? (
+        {savedRecipes.length === 0 ? (
           <div className="py-20 flex flex-col items-center gap-4 text-center">
             <div className="w-20 h-20 rounded-2xl bg-orange-50 flex items-center justify-center text-4xl">📖</div>
             <div>
