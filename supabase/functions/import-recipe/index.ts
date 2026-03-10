@@ -591,11 +591,8 @@ Deno.serve(async (req) => {
       const attemptedStatuses: string[] = [];
       try {
         const pageRes = await fetch(normalizedUrl, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
-            Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.9',
-          },
+          headers: { ...BROWSER_HEADERS, Referer: new URL(normalizedUrl).origin + '/' },
+          redirect: 'follow',
         });
 
         attemptedStatuses.push(`direct:${pageRes.status}`);
@@ -618,10 +615,18 @@ Deno.serve(async (req) => {
       if (!recipe && !html) {
         for (const proxy of PROXY_FETCHERS) {
           try {
-            const proxyRes = await fetch(proxy.buildUrl(normalizedUrl));
+            const proxyRes = await fetch(proxy.buildUrl(normalizedUrl), {
+              headers: proxy.headers || {},
+            });
             attemptedStatuses.push(`${proxy.label}:${proxyRes.status}`);
             if (proxyRes.ok) {
-              html = await proxyRes.text();
+              const body = await proxyRes.text();
+              // Jina markdown mode: use as AI content directly
+              if (proxy.headers?.Accept === 'text/markdown' && body.length > 100) {
+                content = body;
+                break;
+              }
+              html = body;
               break;
             }
           } catch {
