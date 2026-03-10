@@ -1055,26 +1055,23 @@ export default function SavedRecipes() {
                       const m = calculateMatch(pantryNames, editingIngredients);
                       return (
                         <>
-                          <div className="flex flex-wrap gap-2">
-                            {m.matched.map((ing) => {
+                          <ul className="space-y-2">
+                            {editingIngredients.map((ing) => {
                               const parsed = parseIngredientLine(ing);
                               const scaledQty = parsed.quantity ? scaleIngredientQuantity(parsed.quantity, servingMultiplier) : "";
+                              const isMatched = m.matched.includes(ing);
                               return (
-                                <span key={ing} className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full bg-green-100 text-green-700 font-medium">
-                                  <Check size={14} /> {formatIngredientDisplay(ing, scaledQty)}
-                                </span>
+                                <li key={ing} className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
+                                  <span className="font-medium text-gray-900">{formatIngredientDisplay(ing, scaledQty)}</span>
+                                  {isMatched ? (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700"><Check size={12} /> In pantry</span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-600"><ShoppingCart size={12} /> Missing</span>
+                                  )}
+                                </li>
                               );
                             })}
-                            {m.missing.map((ing) => {
-                              const parsed = parseIngredientLine(ing);
-                              const scaledQty = parsed.quantity ? scaleIngredientQuantity(parsed.quantity, servingMultiplier) : "";
-                              return (
-                                <span key={ing} className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full bg-red-50 text-red-600 font-medium">
-                                  <ShoppingCart size={14} /> {formatIngredientDisplay(ing, scaledQty)}
-                                </span>
-                              );
-                            })}
-                          </div>
+                          </ul>
                           {m.missing.length > 0 && (() => {
                             const recipeForGrocery = { ...selectedRecipe, ingredients: editingIngredients } as Recipe;
                             const alreadyAdded = groceryAddedRecipeIds.includes(recipeForGrocery.id);
