@@ -32,14 +32,16 @@ function getBestVoice(): SpeechSynthesisVoice | null {
     if (n.includes('google us english')) score += 90;
     if (n.includes('google')) score += 85;
     // Microsoft Online / Neural (Edge)
-    if (n.includes('online') && n.includes('natural')) score += 88;
-    if (n.includes('neural')) score += 86;
-    if (n.includes('online')) score += 78;
+    if (n.includes('online') && n.includes('natural')) score += 82;
+    if (n.includes('neural')) score += 80;
+    if (n.includes('online')) score += 72;
     // Microsoft desktop voices (okay but not great)
     if (n.includes('microsoft') && score === 0) score += 55;
 
-    // Prefer non-local voices when we have no other signal — they're often higher quality
-    if (!v.localService && score === 0) score += 45;
+    // Prefer local voices for reliability (some cloud voices fail silently on mobile/webviews)
+    if (v.localService && score < 90) score += 25;
+    // If no other signal, still allow non-local as fallback
+    if (!v.localService && score === 0) score += 20;
     // Generic English fallback
     if (score === 0) score = 30;
 
@@ -60,6 +62,14 @@ export function useSpeechSynthesis() {
   const voiceRef = useRef<SpeechSynthesisVoice | null>(null);
   const voiceLockedRef = useRef(false);
 
+  const getFallbackVoice = useCallback((): SpeechSynthesisVoice | null => {
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices.length) return null;
+
+    const english = voices.filter(v => v.lang.startsWith('en'));
+    return english.find(v => v.localService) ?? english[0] ?? voices[0] ?? null;
+  }, []);
+
   useEffect(() => {
     const loadVoice = () => {
       if (voiceLockedRef.current) return;
@@ -72,6 +82,7 @@ export function useSpeechSynthesis() {
 
   const speak = useCallback((text: string) => {
     synthRef.current.cancel();
+    synthRef.current.resume();
 
     if (!voiceRef.current) voiceRef.current = getBestVoice();
     if (!voiceRef.current) {
@@ -80,19 +91,41 @@ export function useSpeechSynthesis() {
     }
     if (voiceRef.current) voiceLockedRef.current = true;
 
-    const utter = new SpeechSynthesisUtterance(text);
-    if (voiceRef.current) utter.voice = voiceRef.current;
-    utter.rate = 0.95;
-    utter.pitch = 1.0;
-    utter.volume = 1;
-    utter.onend = () => setIsSpeaking(false);
-    utter.onerror = () => setIsSpeaking(false);
+    const createUtterance = (voice?: SpeechSynthesisVoice | null) => {
+      const utter = new SpeechSynthesisUtterance(text);
+      if (voice) utter.voice = voice;
+      utter.rate = 0.95;
+      utter.pitch = 1.0;
+      utter.volume = 1;
+      return utter;
+    };
+
+    const primary = createUtterance(voiceRef.current);
+    primary.onend = () => setIsSpeaking(false);
+    primary.onerror = () => {
+      const fallbackVoice = getFallbackVoice();
+      if (!fallbackVoice || fallbackVoice.name === primary.voice?.name) {
+        setIsSpeaking(false);
+        return;
+      }
+
+      voiceRef.current = fallbackVoice;
+      const fallback = createUtterance(fallbackVoice);
+      fallback.onend = () => setIsSpeaking(false);
+      fallback.onerror = () => setIsSpeaking(false);
+      synthRef.current.speak(fallback);
+    };
+
     setIsSpeaking(true);
-    synthRef.current.speak(utter);
-  }, []);
+    // Small defer improves reliability in Safari/webviews after cancel().
+    setTimeout(() => {
+      synthRef.current.speak(primary);
+    }, 0);
+  }, [getFallbackVoice]);
 
   const stop = useCallback(() => {
     synthRef.current.cancel();
+    synthRef.current.resume();
     setIsSpeaking(false);
   }, []);
 
