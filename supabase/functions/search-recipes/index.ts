@@ -420,7 +420,7 @@ async function browseSpoonacularRandom(apiKey: string, number = 20): Promise<Nor
           return joinIngredient(amount ? `${amount}${unit ? ` ${unit}` : ''}` : '', i.name || i.originalName || i.original);
         })
         .filter(Boolean);
-      const instructions = normalizeInstructionLines((r.analyzedInstructions?.[0]?.steps
+      const instructions = normalizeInstructionLines(r.analyzedInstructions?.[0]?.steps
         ?.sort((a: any, b: any) => a.number - b.number)
         .map((s: any) => s.step)
         .filter(Boolean) || []);
