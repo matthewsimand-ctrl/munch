@@ -15,27 +15,62 @@ export function useVoiceCommands({ onNext, onPrevious, onRepeat, onStartTimer, o
   const [commandStatus, setCommandStatus] = useState<'success' | 'error' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const recognitionRef = useRef<any>(null);
+  const commandTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isUnmountedRef = useRef(false);
   const handlersRef = useRef({ onNext, onPrevious, onRepeat, onStartTimer, onPauseTimer, onStopTimer });
   handlersRef.current = { onNext, onPrevious, onRepeat, onStartTimer, onPauseTimer, onStopTimer };
   const restartAttempts = useRef(0);
 
-  const isSupported = typeof window !== 'undefined' && 
+  const isSupported = typeof window !== 'undefined' &&
     ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
 
-  const showCommand = useCallback((label: string, status: 'success' | 'error') => {
-    setLastCommand(label);
-    setCommandStatus(status);
-    setTimeout(() => { setLastCommand(null); setCommandStatus(null); }, 2500);
+  const safeSetState = useCallback((fn: () => void) => {
+    if (isUnmountedRef.current) return;
+    fn();
   }, []);
+
+  const showCommand = useCallback((label: string, status: 'success' | 'error') => {
+    safeSetState(() => {
+      setLastCommand(label);
+      setCommandStatus(status);
+    });
+
+    if (commandTimeoutRef.current) clearTimeout(commandTimeoutRef.current);
+    commandTimeoutRef.current = setTimeout(() => {
+      safeSetState(() => {
+        setLastCommand(null);
+        setCommandStatus(null);
+      });
+    }, 2500);
+  }, [safeSetState]);
+
+  const stopListening = useCallback((suppressState = false) => {
+    if (recognitionRef.current) {
+      const r = recognitionRef.current;
+      recognitionRef.current = null;
+      try { r.stop(); } catch {}
+    }
+
+    if (!suppressState) {
+      safeSetState(() => {
+        setIsListening(false);
+        setError(null);
+      });
+    }
+  }, [safeSetState]);
 
   const startListening = useCallback(() => {
     if (!isSupported) {
-      setError('Voice commands are not supported in this browser. Try Chrome on desktop or Android.');
+      safeSetState(() => {
+        setError('Voice commands are not supported in this browser. Try Chrome on desktop or Android.');
+      });
       return;
     }
     if (recognitionRef.current) return;
 
-    setError(null);
+    safeSetState(() => {
+      setError(null);
+    });
     restartAttempts.current = 0;
 
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -45,7 +80,9 @@ export function useVoiceCommands({ onNext, onPrevious, onRepeat, onStartTimer, o
     recognition.lang = 'en-US';
 
     recognition.onstart = () => {
-      setIsListening(true);
+      safeSetState(() => {
+        setIsListening(true);
+      });
       restartAttempts.current = 0;
     };
 
@@ -53,7 +90,7 @@ export function useVoiceCommands({ onNext, onPrevious, onRepeat, onStartTimer, o
       const last = event.results[event.results.length - 1];
       if (!last.isFinal) return;
       const transcript = last[0].transcript.toLowerCase().trim();
-      
+
       if (transcript.includes('next') || transcript.includes('continue') || transcript.includes('forward')) {
         showCommand('Next step ▶', 'success');
         handlersRef.current.onNext();
@@ -92,9 +129,11 @@ export function useVoiceCommands({ onNext, onPrevious, onRepeat, onStartTimer, o
     recognition.onerror = (event: any) => {
       if (event.error === 'no-speech') return;
       if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-        setError('Microphone access denied. Please allow microphone permission and try again.');
+        safeSetState(() => {
+          setError('Microphone access denied. Please allow microphone permission and try again.');
+          setIsListening(false);
+        });
         recognitionRef.current = null;
-        setIsListening(false);
         return;
       }
       if (event.error === 'network') return;
@@ -105,39 +144,35 @@ export function useVoiceCommands({ onNext, onPrevious, onRepeat, onStartTimer, o
       if (recognitionRef.current) {
         restartAttempts.current += 1;
         if (restartAttempts.current > 5) {
-          setError('Voice recognition keeps stopping. Your browser may not fully support this feature.');
+          safeSetState(() => {
+            setError('Voice recognition keeps stopping. Your browser may not fully support this feature.');
+            setIsListening(false);
+          });
           recognitionRef.current = null;
-          setIsListening(false);
           return;
         }
         try {
           setTimeout(() => {
-            if (recognitionRef.current) recognition.start();
+            if (recognitionRef.current && !isUnmountedRef.current) recognition.start();
           }, 300);
         } catch {}
       } else {
-        setIsListening(false);
+        safeSetState(() => {
+          setIsListening(false);
+        });
       }
     };
 
     recognitionRef.current = recognition;
     try {
       recognition.start();
-    } catch (e) {
-      setError('Failed to start voice recognition. Please try again.');
+    } catch {
+      safeSetState(() => {
+        setError('Failed to start voice recognition. Please try again.');
+      });
       recognitionRef.current = null;
     }
-  }, [isSupported, showCommand]);
-
-  const stopListening = useCallback(() => {
-    if (recognitionRef.current) {
-      const r = recognitionRef.current;
-      recognitionRef.current = null;
-      try { r.stop(); } catch {}
-      setIsListening(false);
-    }
-    setError(null);
-  }, []);
+  }, [isSupported, safeSetState, showCommand]);
 
   const toggleListening = useCallback(() => {
     if (isListening) stopListening();
@@ -145,8 +180,12 @@ export function useVoiceCommands({ onNext, onPrevious, onRepeat, onStartTimer, o
   }, [isListening, startListening, stopListening]);
 
   useEffect(() => {
-    return () => { stopListening(); };
+    return () => {
+      isUnmountedRef.current = true;
+      if (commandTimeoutRef.current) clearTimeout(commandTimeoutRef.current);
+      stopListening(true);
+    };
   }, [stopListening]);
 
-  return { isListening, isSupported, lastCommand, commandStatus, error, toggleListening, startListening, stopListening };
+  return { isListening, isSupported, lastCommand, commandStatus, error, toggleListening, startListening, stopListening: () => stopListening() };
 }

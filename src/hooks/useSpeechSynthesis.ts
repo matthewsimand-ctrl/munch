@@ -82,6 +82,7 @@ export function useSpeechSynthesis() {
 
   const speak = useCallback((text: string) => {
     synthRef.current.cancel();
+    synthRef.current.resume();
 
     if (!voiceRef.current) voiceRef.current = getBestVoice();
     if (!voiceRef.current) {
@@ -116,11 +117,15 @@ export function useSpeechSynthesis() {
     };
 
     setIsSpeaking(true);
-    synthRef.current.speak(primary);
+    // Small defer improves reliability in Safari/webviews after cancel().
+    setTimeout(() => {
+      synthRef.current.speak(primary);
+    }, 0);
   }, [getFallbackVoice]);
 
   const stop = useCallback(() => {
     synthRef.current.cancel();
+    synthRef.current.resume();
     setIsSpeaking(false);
   }, []);
 
