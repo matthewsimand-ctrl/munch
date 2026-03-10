@@ -8,6 +8,7 @@ import { useCurrentMealPlan } from "@/hooks/useCurrentMealPlan";
 import type { Recipe } from "@/data/recipes";
 import { normalizeRecipe } from "@/lib/normalizeRecipe";
 import { motion, AnimatePresence } from "framer-motion";
+import { Button } from "@/components/ui/button";
 
 export default function LetMeCook() {
   const navigate = useNavigate();
