@@ -1,0 +1,174 @@
+/* ============================================================
+   MUNCH DESIGN SYSTEM
+   Aesthetic: Warm editorial — food magazine meets modern SaaS
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400;1,9..144,600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+
+/* ── Tokens ─────────────────────────────────────────────── */
+:root {
+  /* Brand */
+  --munch-orange:     #F97316;
+  --munch-amber:      #F59E0B;
+  --munch-red:        #EF4444;
+  --munch-green:      #22C55E;
+
+  /* Warm neutrals */
+  --cream-50:         #FFFAF5;
+  --cream-100:        #FFF3E4;
+  --cream-200:        #FFE4C4;
+  --stone-50:         #FAFAF9;
+  --stone-100:        #F5F5F4;
+  --stone-200:        #E7E5E4;
+  --stone-400:        #A8A29E;
+  --stone-600:        #57534E;
+  --stone-800:        #292524;
+  --stone-900:        #1C1917;
+
+  /* Surfaces */
+  --surface-page:     #FFFAF5;
+  --surface-card:     #FFFFFF;
+  --surface-elevated: #FFFCF9;
+  --surface-muted:    #F5F4F2;
+
+  /* Border */
+  --border-soft:      rgba(0,0,0,0.06);
+  --border-medium:    rgba(0,0,0,0.10);
+  --border-warm:      rgba(249,115,22,0.15);
+
+  /* Shadows */
+  --shadow-xs:        0 1px 2px rgba(28,25,23,0.04);
+  --shadow-sm:        0 1px 4px rgba(28,25,23,0.06), 0 2px 8px rgba(28,25,23,0.04);
+  --shadow-md:        0 4px 12px rgba(28,25,23,0.08), 0 1px 3px rgba(28,25,23,0.06);
+  --shadow-lg:        0 8px 24px rgba(28,25,23,0.10), 0 2px 8px rgba(28,25,23,0.06);
+  --shadow-orange:    0 4px 20px rgba(249,115,22,0.20);
+
+  /* Typography */
+  --font-display:     'Fraunces', Georgia, serif;
+  --font-ui:          'Plus Jakarta Sans', system-ui, sans-serif;
+
+  /* Radius */
+  --radius-sm:        8px;
+  --radius-md:        14px;
+  --radius-lg:        20px;
+  --radius-xl:        28px;
+  --radius-full:      9999px;
+
+  /* Spacing scale (8-pt grid) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+}
+
+/* ── Global resets ──────────────────────────────────────── */
+body {
+  font-family: var(--font-ui);
+  background-color: var(--surface-page);
+  color: var(--stone-900);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Card system ────────────────────────────────────────── */
+.munch-card {
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.munch-card:hover {
+  box-shadow: var(--shadow-md);
+}
+.munch-card-elevated {
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-warm);
+  box-shadow: var(--shadow-md);
+}
+
+/* ── Stat cards ─────────────────────────────────────────── */
+.stat-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  border: 1px solid var(--border-soft);
+}
+.stat-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.04;
+  background: radial-gradient(circle at 80% 20%, currentColor 0%, transparent 60%);
+  pointer-events: none;
+}
+
+/* ── Section headers ───────────────────────────────────── */
+.munch-section-label {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--stone-400);
+}
+
+/* ── Display headings ───────────────────────────────────── */
+.munch-display {
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+
+/* ── Orange gradient button ─────────────────────────────── */
+.btn-munch {
+  background: linear-gradient(135deg, #FB923C 0%, #F97316 50%, #EA580C 100%);
+  color: white;
+  border: none;
+  border-radius: var(--radius-full);
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 13px;
+  padding: 10px 20px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(249,115,22,0.30);
+  transition: opacity 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+.btn-munch:hover {
+  opacity: 0.95;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-orange);
+}
+.btn-munch:active {
+  transform: translateY(0);
+}
+
+/* ── Badge pill ──────────────────────────────────────────── */
+.munch-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* ── Meal plan day row ───────────────────────────────────── */
+.meal-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  transition: background 0.15s;
+}
+
+/* ── Scroll fade ─────────────────────────────────────────── */
+.scroll-fade-right {
+  -webkit-mask-image: linear-gradient(to right, black 80%, transparent 100%);
+  mask-image: linear-gradient(to right, black 80%, transparent 100%);
+}
