@@ -106,7 +106,10 @@ export default function MealPrepScreen() {
     return `${start.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${end.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
   }, [weekOffset]);
 
-  const plannedMeals: PlannedMeal[] = mealPlan ?? [];
+  const plannedMeals: PlannedMeal[] = (mealPlan ?? []).map((item, idx) => ({
+    ...item,
+    id: item.id ?? `${item.day}-${item.mealType}-${item.recipeId}-${idx}`,
+  }));
 
   const getMeal = (day: string, mealType: MealType) =>
     plannedMeals.find((m) => m.day === day && m.mealType === mealType);

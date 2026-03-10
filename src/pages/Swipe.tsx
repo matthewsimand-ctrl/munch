@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import {
   Heart, X, Plus, Clock, ChefHat, Flame, Filter,
   ChevronDown, Sparkles, BookOpen, Zap,
@@ -199,7 +199,7 @@ function SwipeCard({
 const FILTERS = ["All", "Quick (<30 min)", "Vegetarian", "High Protein", "Easy", "Asian", "Italian", "Mexican"];
 
 export default function SwipeScreen() {
-  const { recipes, loading } = useBrowseFeed();
+  const { recipes, loading, loaded, loadFeed } = useBrowseFeed();
   const { likedRecipes, likeRecipe, pantryList, addMealPlanItem } = useStore();
 
   const [cardIndex, setCardIndex] = useState(0);
@@ -247,10 +247,24 @@ export default function SwipeScreen() {
 
   const handlePlan = useCallback(() => {
     if (!current) return;
+    addMealPlanItem?.({
+      day: "Mon",
+      mealType: "Dinner",
+      recipeName: current.name,
+      recipeId: current.id,
+      cookTime: current.cook_time,
+    });
     toast.success(`📅 Added "${current.name}" to your meal plan`);
     setSwipeHistory((h) => [...h, current.id]);
     advance();
-  }, [current, advance]);
+  }, [current, addMealPlanItem, advance]);
+
+
+  useEffect(() => {
+    if (!loaded) {
+      loadFeed();
+    }
+  }, [loaded, loadFeed]);
 
   const handleUndo = () => {
     if (swipeHistory.length === 0) { toast.info("Nothing to undo"); return; }

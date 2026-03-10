@@ -10,15 +10,27 @@ export interface UserProfile {
 }
 
 export interface PantryItem {
+  id: string;
   name: string;
   quantity: string;
   category?: string;
 }
 
 export interface CustomGroceryItem {
+  id: string;
   name: string;
   quantity: string;
   category?: string;
+  checked?: boolean;
+}
+
+export interface MealPlanItem {
+  id: string;
+  day: string;
+  mealType: string;
+  recipeName: string;
+  recipeId: string;
+  cookTime?: string;
 }
 
 export interface RecipeFolder {
@@ -31,6 +43,7 @@ export interface RecipeFolder {
 interface AppState {
   userProfile: UserProfile;
   pantryList: PantryItem[];
+  mealPlan: MealPlanItem[];
   likedRecipes: string[];
   savedApiRecipes: Record<string, any>;
   cachedNutrition: Record<string, any>;
@@ -59,27 +72,35 @@ interface AppState {
   setUserProfile: (profile: Partial<UserProfile>) => void;
   completeOnboarding: () => void;
   setShowTutorial: (show: boolean) => void;
-  addPantryItem: (name: string, quantity?: string, category?: string) => void;
-  removePantryItem: (name: string) => void;
-  updatePantryQuantity: (name: string, quantity: string) => void;
+  addPantryItem: (name: string | { name: string; quantity?: string; category?: string }, quantity?: string, category?: string) => void;
+  removePantryItem: (nameOrId: string) => void;
+  updatePantryQuantity: (nameOrId: string, quantity: string) => void;
+  updatePantryItem: (id: string, updates: Partial<PantryItem>) => void;
   addPantryItems: (items: string[]) => void;
   likeRecipe: (id: string, recipeData?: any) => void;
   unlikeRecipe: (id: string) => void;
   cacheNutrition: (recipeId: string, data: any) => void;
   addToGrocery: (recipeId: string) => void;
   removeFromGrocery: (recipeId: string) => void;
-  addCustomGroceryItem: (name: string, quantity?: string) => void;
-  removeCustomGroceryItem: (name: string) => void;
-  updateCustomGroceryQuantity: (name: string, quantity: string) => void;
+  addCustomGroceryItem: (name: string, quantity?: string | { qty?: string; section?: string; category?: string }) => void;
+  removeCustomGroceryItem: (nameOrId: string) => void;
+  updateCustomGroceryQuantity: (nameOrId: string, quantity: string) => void;
+  toggleGroceryItem: (id: string) => void;
+  updateGroceryItem: (id: string, updates: Partial<CustomGroceryItem> & { qty?: string; section?: string }) => void;
+  clearCheckedGroceryItems: () => void;
+  addMealPlanItem: (item: Omit<MealPlanItem, 'id'>) => void;
+  removeMealPlanItem: (id: string) => void;
   setRecipeMealTag: (recipeId: string, tag: string) => void;
   setRecipeTags: (recipeId: string, tags: string[]) => void;
   addRecipeTag: (recipeId: string, tag: string) => void;
   removeRecipeTag: (recipeId: string, tag: string) => void;
   setRecipeIngredients: (recipeId: string, ingredients: string[]) => void;
   createFolder: (name: string, coverImage?: string) => void;
+  addFolder: (name: string) => void;
   renameFolder: (folderId: string, name: string) => void;
   updateFolderCover: (folderId: string, coverImage: string) => void;
   deleteFolder: (folderId: string) => void;
+  removeFolder: (folderId: string) => void;
   addRecipeToFolder: (folderId: string, recipeId: string) => void;
   removeRecipeFromFolder: (folderId: string, recipeId: string) => void;
   completeTutorial: () => void;
@@ -106,6 +127,7 @@ export const useStore = create<AppState>()(
     (set) => ({
       userProfile: initialProfile,
       pantryList: [],
+      mealPlan: [],
       likedRecipes: [],
       savedApiRecipes: {},
       cachedNutrition: {},
@@ -140,24 +162,46 @@ export const useStore = create<AppState>()(
 
       completeOnboarding: () => set({ onboardingComplete: true }),
 
-      addPantryItem: (name, quantity = '1', category) => {
-        const normalized = name.toLowerCase().trim();
+      addPantryItem: (nameOrItem, quantity = '1', category) => {
+        const input = typeof nameOrItem === 'string'
+          ? { name: nameOrItem, quantity, category }
+          : nameOrItem;
+        const normalized = input.name.toLowerCase().trim();
+        if (!normalized) return;
         set((state) => ({
           pantryList: state.pantryList.some(p => p.name === normalized)
             ? state.pantryList
-            : [...state.pantryList, { name: normalized, quantity, category }],
+            : [...state.pantryList, {
+                id: crypto.randomUUID(),
+                name: normalized,
+                quantity: input.quantity ?? '1',
+                category: input.category,
+              }],
         }));
       },
 
-      removePantryItem: (name) =>
+      removePantryItem: (nameOrId) =>
         set((state) => ({
-          pantryList: state.pantryList.filter((p) => p.name !== name),
+          pantryList: state.pantryList.filter((p) => p.id !== nameOrId && p.name !== nameOrId),
         })),
 
-      updatePantryQuantity: (name, quantity) =>
+      updatePantryQuantity: (nameOrId, quantity) =>
         set((state) => ({
           pantryList: state.pantryList.map(p =>
-            p.name === name ? { ...p, quantity } : p
+            p.id === nameOrId || p.name === nameOrId ? { ...p, quantity } : p
+          ),
+        })),
+
+      updatePantryItem: (id, updates) =>
+        set((state) => ({
+          pantryList: state.pantryList.map((item) =>
+            item.id === id
+              ? {
+                  ...item,
+                  ...updates,
+                  name: updates.name ? updates.name.toLowerCase().trim() : item.name,
+                }
+              : item
           ),
         })),
 
@@ -167,7 +211,7 @@ export const useStore = create<AppState>()(
           const newItems: PantryItem[] = items
             .map(i => i.toLowerCase().trim())
             .filter(i => i && !existing.has(i))
-            .map(name => ({ name, quantity: '1' }));
+            .map(name => ({ id: crypto.randomUUID(), name, quantity: '1' }));
           return { pantryList: [...state.pantryList, ...newItems] };
         }),
 
@@ -216,23 +260,81 @@ export const useStore = create<AppState>()(
 
       addCustomGroceryItem: (name, quantity = '1') => {
         const normalized = name.toLowerCase().trim();
+        if (!normalized) return;
+
+        const parsed = typeof quantity === 'string'
+          ? { qty: quantity }
+          : (quantity || {});
+
         set((state) => ({
           customGroceryItems: state.customGroceryItems.some(i => i.name === normalized)
             ? state.customGroceryItems
-            : [...state.customGroceryItems, { name: normalized, quantity }],
+            : [...state.customGroceryItems, {
+                id: crypto.randomUUID(),
+                name: normalized,
+                quantity: parsed.qty ?? '1',
+                category: parsed.section ?? parsed.category,
+                checked: false,
+              }],
         }));
       },
 
-      removeCustomGroceryItem: (name) =>
+      removeCustomGroceryItem: (nameOrId) =>
         set((state) => ({
-          customGroceryItems: state.customGroceryItems.filter(i => i.name !== name),
+          customGroceryItems: state.customGroceryItems.filter(i => i.id !== nameOrId && i.name !== nameOrId),
         })),
 
-      updateCustomGroceryQuantity: (name, quantity) =>
+      updateCustomGroceryQuantity: (nameOrId, quantity) =>
         set((state) => ({
           customGroceryItems: state.customGroceryItems.map(i =>
-            i.name === name ? { ...i, quantity } : i
+            i.id === nameOrId || i.name === nameOrId ? { ...i, quantity } : i
           ),
+        })),
+
+      toggleGroceryItem: (id) =>
+        set((state) => ({
+          customGroceryItems: state.customGroceryItems.map((item) =>
+            item.id === id ? { ...item, checked: !item.checked } : item
+          ),
+        })),
+
+      updateGroceryItem: (id, updates) =>
+        set((state) => ({
+          customGroceryItems: state.customGroceryItems.map((item) =>
+            item.id === id
+              ? {
+                  ...item,
+                  ...updates,
+                  quantity: updates.qty ?? updates.quantity ?? item.quantity,
+                  category: updates.section ?? updates.category ?? item.category,
+                }
+              : item
+          ),
+        })),
+
+      clearCheckedGroceryItems: () =>
+        set((state) => ({
+          customGroceryItems: state.customGroceryItems.filter((item) => !item.checked),
+        })),
+
+      addMealPlanItem: (item) =>
+        set((state) => {
+          const existingIndex = state.mealPlan.findIndex(
+            (m) => m.day === item.day && m.mealType === item.mealType
+          );
+          if (existingIndex >= 0) {
+            return {
+              mealPlan: state.mealPlan.map((m, idx) =>
+                idx === existingIndex ? { ...m, ...item } : m
+              ),
+            };
+          }
+          return { mealPlan: [...state.mealPlan, { ...item, id: crypto.randomUUID() }] };
+        }),
+
+      removeMealPlanItem: (id) =>
+        set((state) => ({
+          mealPlan: state.mealPlan.filter((item) => item.id !== id),
         })),
 
       setRecipeMealTag: (recipeId, tag) =>
@@ -274,6 +376,14 @@ export const useStore = create<AppState>()(
           ],
         })),
 
+      addFolder: (name) =>
+        set((state) => ({
+          recipeFolders: [
+            ...state.recipeFolders,
+            { id: crypto.randomUUID(), name, recipeIds: [] },
+          ],
+        })),
+
       renameFolder: (folderId, name) =>
         set((state) => ({
           recipeFolders: state.recipeFolders.map(f =>
@@ -291,6 +401,11 @@ export const useStore = create<AppState>()(
       deleteFolder: (folderId) =>
         set((state) => ({
           recipeFolders: state.recipeFolders.filter(f => f.id !== folderId),
+        })),
+
+      removeFolder: (folderId) =>
+        set((state) => ({
+          recipeFolders: state.recipeFolders.filter((f) => f.id !== folderId && f.name !== folderId),
         })),
 
       addRecipeToFolder: (folderId, recipeId) =>
@@ -369,6 +484,7 @@ export const useStore = create<AppState>()(
         set({
           userProfile: initialProfile,
           pantryList: [],
+          mealPlan: [],
           likedRecipes: [],
           savedApiRecipes: {},
           cachedNutrition: {},

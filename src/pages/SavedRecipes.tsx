@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Heart, Search, FolderPlus, Folder, Clock, ChefHat,
   Filter, Grid3X3, List, Star, BookOpen, X, Plus, Trash2,
@@ -6,6 +6,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "@/lib/store";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Recipe } from "@/data/recipes";
 
@@ -127,6 +128,18 @@ export default function MyRecipesScreen() {
   const [activeFolder, setActiveFolder] = useState<string | null>(null);
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
+  const [displayName, setDisplayName] = useState<string>("My");
+
+  useEffect(() => {
+    const loadName = async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData.session?.user?.id;
+      if (!userId) return;
+      const { data } = await supabase.from("profiles").select("display_name").eq("user_id", userId).single();
+      if (data?.display_name) setDisplayName(data.display_name);
+    };
+    loadName();
+  }, []);
 
   const savedRecipes = useMemo<Recipe[]>(
     () => likedRecipes.map((id) => savedApiRecipes[id]).filter(Boolean),
@@ -169,7 +182,7 @@ export default function MyRecipesScreen() {
             <div>
               <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1">Your collection</p>
               <h1 className="text-2xl font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
-                My Cookbook
+                {displayName}'s Recipes
               </h1>
               <p className="text-xs text-stone-400 mt-1">{savedRecipes.length} saved recipe{savedRecipes.length !== 1 ? "s" : ""}</p>
             </div>
@@ -193,18 +206,18 @@ export default function MyRecipesScreen() {
             >
               <BookOpen size={11} /> All Recipes
             </button>
-            {(recipeFolders ?? []).map((folder: string) => (
+            {(recipeFolders ?? []).map((folder) => (
               <button
-                key={folder}
-                onClick={() => setActiveFolder(folder === activeFolder ? null : folder)}
+                key={folder.id}
+                onClick={() => setActiveFolder(folder.id === activeFolder ? null : folder.id)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all group ${
-                  activeFolder === folder ? "bg-stone-900 text-white" : "bg-white border border-stone-200 text-stone-600 hover:border-stone-300"
+                  activeFolder === folder.id ? "bg-stone-900 text-white" : "bg-white border border-stone-200 text-stone-600 hover:border-stone-300"
                 }`}
               >
-                <Folder size={11} /> {folder}
+                <Folder size={11} /> {folder.name}
                 <span
-                  onClick={(e) => { e.stopPropagation(); removeFolder(folder); }}
-                  className={`ml-0.5 opacity-0 group-hover:opacity-100 hover:text-red-400 transition-opacity ${activeFolder === folder ? "text-white/60" : ""}`}
+                  onClick={(e) => { e.stopPropagation(); removeFolder(folder.id); }}
+                  className={`ml-0.5 opacity-0 group-hover:opacity-100 hover:text-red-400 transition-opacity ${activeFolder === folder.id ? "text-white/60" : ""}`}
                 >
                   <X size={9} />
                 </span>
