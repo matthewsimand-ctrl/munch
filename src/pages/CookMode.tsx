@@ -270,7 +270,10 @@ export default function CookMode() {
                   return;
                 }
 
+                // Mark so the effect doesn't double-speak
+                ttsJustEnabled.current = true;
                 setCookModeTtsEnabled(true);
+                // Speak directly from click handler (required for mobile user gesture)
                 if (steps[currentStep]) {
                   speak(`Step ${currentStep + 1}. ${steps[currentStep]}`);
                 }
