@@ -21,6 +21,45 @@ interface NormalizedRecipe {
   cuisine?: string;
 }
 
+function hasQuantityPrefix(line: string): boolean {
+  return /^(?:\d+\s+\d\/\d|\d+\/\d|\d+(?:[.,]\d+)?(?:[a-zA-Z]+)?|[¼½¾⅓⅔⅛⅜⅝⅞]|a|an)\b/i.test(String(line || '').trim());
+}
+
+function ingredientNameForMatch(line: string): string {
+  return String(line || '')
+    .trim()
+    .replace(/^(?:\d+\s+\d\/\d|\d+\/\d|\d+(?:[.,]\d+)?(?:[a-zA-Z]+)?|[¼½¾⅓⅔⅛⅜⅝⅞]|a|an)\b\s*/i, '')
+    .replace(/^(?:cup|cups|tbsp|tablespoon|tablespoons|tsp|teaspoon|teaspoons|oz|ounce|ounces|lb|lbs|pound|pounds|g|gram|grams|kg|ml|l|liter|liters|clove|cloves|can|cans|jar|jars|slice|slices|pinch|dash|sprig|sprigs|package|packages|stick|sticks|bunch|bunches)\b\s*/i, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+function upgradeIngredientsFromImportMetadata(ingredients: string[], rawPayload: any): string[] {
+  const fallbackLines = Array.isArray(rawPayload?.extracted_ingredient_lines)
+    ? rawPayload.extracted_ingredient_lines.map((line: unknown) => String(line).trim()).filter(Boolean)
+    : [];
+
+  if (ingredients.length === 0 || fallbackLines.length === 0) return ingredients;
+
+  return ingredients.map((line, index) => {
+    if (hasQuantityPrefix(line)) return line;
+
+    const ingredientName = ingredientNameForMatch(line);
+    const byName = fallbackLines.find((candidate: string) =>
+      hasQuantityPrefix(candidate) && ingredientNameForMatch(candidate) === ingredientName
+    );
+    if (byName) return byName;
+
+    const byIndex = fallbackLines[index];
+    if (byIndex && hasQuantityPrefix(byIndex) && ingredientNameForMatch(byIndex) === ingredientName) {
+      return byIndex;
+    }
+
+    return line;
+  });
+}
+
 async function fetchPublicRecipes(query?: string): Promise<NormalizedRecipe[]> {
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
@@ -41,26 +80,30 @@ async function fetchPublicRecipes(query?: string): Promise<NormalizedRecipe[]> {
       return [];
     }
 
-    const normalized = (data || []).map((recipe: any) => ({
-      id: String(recipe.id),
-      name: String(recipe.name || '').trim(),
-      image: String(recipe.image || ''),
-      cook_time: String(recipe.cook_time || '30 min'),
-      difficulty: String(recipe.difficulty || 'Intermediate') as NormalizedRecipe['difficulty'],
-      ingredients: Array.isArray(recipe.ingredients)
+    const normalized = (data || []).map((recipe: any) => {
+      const ingredients = Array.isArray(recipe.ingredients)
         ? recipe.ingredients.map((item: unknown) => String(item).trim()).filter(Boolean)
-        : [],
-      tags: Array.isArray(recipe.tags)
-        ? recipe.tags.map((tag: unknown) => String(tag).trim().toLowerCase()).filter(Boolean)
-        : [],
-      instructions: Array.isArray(recipe.instructions)
-        ? recipe.instructions.map((step: unknown) => String(step).trim()).filter(Boolean)
-        : [],
-      source: String(recipe.source || 'community'),
-      source_url: recipe.source_url ? String(recipe.source_url) : undefined,
-      raw_api_payload: recipe.raw_api_payload ?? undefined,
-      cuisine: recipe.cuisine ? String(recipe.cuisine) : undefined,
-    }));
+        : [];
+
+      return {
+        id: String(recipe.id),
+        name: String(recipe.name || '').trim(),
+        image: String(recipe.image || ''),
+        cook_time: String(recipe.cook_time || '30 min'),
+        difficulty: String(recipe.difficulty || 'Intermediate') as NormalizedRecipe['difficulty'],
+        ingredients: upgradeIngredientsFromImportMetadata(ingredients, recipe.raw_api_payload),
+        tags: Array.isArray(recipe.tags)
+          ? recipe.tags.map((tag: unknown) => String(tag).trim().toLowerCase()).filter(Boolean)
+          : [],
+        instructions: Array.isArray(recipe.instructions)
+          ? recipe.instructions.map((step: unknown) => String(step).trim()).filter(Boolean)
+          : [],
+        source: String(recipe.source || 'community'),
+        source_url: recipe.source_url ? String(recipe.source_url) : undefined,
+        raw_api_payload: recipe.raw_api_payload ?? undefined,
+        cuisine: recipe.cuisine ? String(recipe.cuisine) : undefined,
+      };
+    });
 
     if (!query) return normalized;
 
