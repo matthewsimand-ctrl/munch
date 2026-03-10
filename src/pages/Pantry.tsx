@@ -1,10 +1,8 @@
 import { useMemo, useState } from "react";
-import { Package, Search, AlertTriangle, CheckCircle, X, Trash2, Camera, ChefHat } from "lucide-react";
+import { Package, Search, Trash2, Camera, ChefHat, ShoppingCart } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "@/lib/store";
 import { getCategory, getAllCategories } from "@/lib/ingredientCategories";
-
-type Status = "good" | "low" | "expired";
 
 const PANTRY_CATEGORIES = ["All", ...getAllCategories()];
 
@@ -30,19 +28,6 @@ const KEYWORD_QUANTITY_HINTS: { keywords: string[]; quantity: string }[] = [
   { keywords: ["bean", "chickpea", "tomato paste", "coconut milk"], quantity: "1 can" },
 ];
 
-const STATUS_CONFIG: Record<Status, { label: string; bg: string; text: string; icon: typeof CheckCircle }> = {
-  good: { label: "In stock", bg: "bg-green-50", text: "text-green-600", icon: CheckCircle },
-  low: { label: "Running low", bg: "bg-amber-50", text: "text-amber-600", icon: AlertTriangle },
-  expired: { label: "Expired", bg: "bg-red-50", text: "text-red-500", icon: X },
-};
-
-function inferStatusFromQuantity(quantity: string): Status {
-  const q = quantity.toLowerCase();
-  if (q.includes("expired")) return "expired";
-  if (q.includes("low") || q.includes("empty") || q.includes("last") || q === "0") return "low";
-  return "good";
-}
-
 function detectMetaFromName(name: string) {
   const lower = name.toLowerCase().trim();
   const category = getCategory(lower);
@@ -55,24 +40,17 @@ function detectMetaFromName(name: string) {
 
 export default function Pantry() {
   const navigate = useNavigate();
-  const { pantryList, addPantryItem, removePantryItem } = useStore();
+  const { pantryList, addPantryItem, removePantryItem, addCustomGroceryItem } = useStore();
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
   const [newItem, setNewItem] = useState({ name: "", quantity: "", category: "Other" });
   const [isPremium] = useState(true);
 
-  const items = useMemo(
-    () => pantryList.map((item) => ({ ...item, status: inferStatusFromQuantity(item.quantity || "1") })),
-    [pantryList],
-  );
+  const items = useMemo(() => pantryList, [pantryList]);
 
   const filtered = items
     .filter((i) => activeCategory === "All" || (i.category || "Other") === activeCategory)
     .filter((i) => i.name.toLowerCase().includes(search.toLowerCase()));
-
-  const goodCount = items.filter((i) => i.status === "good").length;
-  const lowCount = items.filter((i) => i.status === "low").length;
-  const expiredCount = items.filter((i) => i.status === "expired").length;
 
   const handleNameChange = (name: string) => {
     const detected = detectMetaFromName(name);
@@ -90,6 +68,10 @@ export default function Pantry() {
     const detected = detectMetaFromName(name);
     addPantryItem(name, newItem.quantity.trim() || detected.quantity, newItem.category || detected.category);
     setNewItem({ name: "", quantity: "", category: "Other" });
+  };
+
+  const handleAddToGrocery = (name: string, quantity?: string) => {
+    addCustomGroceryItem(name, quantity || "1");
   };
 
   return (
@@ -119,8 +101,8 @@ export default function Pantry() {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-4">
+        <div className="space-y-4">
+          <div className="space-y-4">
             <div data-tour-id="pantry-add-form" className="bg-white rounded-2xl border border-orange-200 shadow-sm p-5">
               <h3 className="text-sm font-bold text-gray-800 mb-3">Add items to your pantry</h3>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
@@ -163,38 +145,24 @@ export default function Pantry() {
 
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm divide-y divide-gray-100 overflow-hidden">
               {filtered.length === 0 ? <div className="py-16 text-center"><Package size={32} className="mx-auto text-gray-300 mb-3" /><p className="text-sm text-gray-500">No items found</p></div> : filtered.map((item) => {
-                const cfg = STATUS_CONFIG[item.status];
-                const Icon = cfg.icon;
                 return (
                   <div key={item.name} className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 group">
-                    <div className={`w-8 h-8 rounded-xl ${cfg.bg} flex items-center justify-center shrink-0`}><Icon size={14} className={cfg.text} /></div>
+                    <div className="w-8 h-8 rounded-xl bg-orange-50 flex items-center justify-center shrink-0"><Package size={14} className="text-orange-500" /></div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold text-gray-800">{item.name}</div>
                       <div className="text-xs text-gray-400">{item.category || "Other"}</div>
                     </div>
                     <div className="text-sm text-gray-600 font-medium shrink-0 hidden sm:block">{item.quantity || "1"}</div>
-                    <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${cfg.bg} ${cfg.text} shrink-0 hidden md:block`}>{cfg.label}</span>
+                    <button
+                      onClick={() => handleAddToGrocery(item.name, item.quantity)}
+                      className="text-xs font-semibold px-2.5 py-1 rounded-full border border-orange-200 text-orange-600 hover:bg-orange-50 transition-colors shrink-0 hidden md:flex items-center gap-1"
+                    >
+                      <ShoppingCart size={12} /> Add to Grocery
+                    </button>
                     <button onClick={() => removePantryItem(item.name)} className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400"><Trash2 size={14} /></button>
                   </div>
                 );
               })}
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-              <h2 className="text-sm font-bold text-gray-800 mb-2">Pantry health</h2>
-              <p className="text-xs text-gray-500 mb-3">Health is calculated by item status: good, low, or expired based on quantity text (e.g. "nearly empty" = low, "expired" = expired).</p>
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm"><span>In stock</span><span className="font-bold">{goodCount}</span></div>
-                <div className="flex justify-between text-sm"><span>Running low</span><span className="font-bold text-amber-600">{lowCount}</span></div>
-                <div className="flex justify-between text-sm"><span>Expired</span><span className="font-bold text-red-500">{expiredCount}</span></div>
-                <div className="mt-3 h-2 bg-gray-100 rounded-full overflow-hidden flex">
-                  <div className="h-full bg-green-400" style={{ width: `${items.length ? (goodCount / items.length) * 100 : 0}%` }} />
-                  <div className="h-full bg-amber-400" style={{ width: `${items.length ? (lowCount / items.length) * 100 : 0}%` }} />
-                  <div className="h-full bg-red-400" style={{ width: `${items.length ? (expiredCount / items.length) * 100 : 0}%` }} />
-                </div>
-              </div>
             </div>
           </div>
         </div>

@@ -13,7 +13,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useStore } from "@/lib/store";
 import { toast } from "sonner";
-import { getCategory } from "@/lib/ingredientCategories";
+import { getCategory, getAllCategories } from "@/lib/ingredientCategories";
 
 // ── Types & data ──────────────────────────────────────────────────────────────
 interface GroceryItem {
@@ -24,15 +24,7 @@ interface GroceryItem {
   fromRecipe?: string;
 }
 
-const CATEGORIES_ORDER = [
-  "Fresh Produce",
-  "Meat & Fish",
-  "Dairy",
-  "Grains & Pasta",
-  "Canned Goods",
-  "Sauces & Condiments",
-  "Other",
-];
+const CATEGORIES_ORDER = getAllCategories();
 
 export default function GroceryList() {
   const { customGroceryItems } = useStore();
@@ -49,7 +41,7 @@ export default function GroceryList() {
   });
 
   const [newName, setNewName] = useState("");
-  const [newCat, setNewCat] = useState("Fresh Produce");
+  const [newCat, setNewCat] = useState("Other");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [fillingFromPlan, setFillingFromPlan] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -73,16 +65,25 @@ export default function GroceryList() {
 
   const clearChecked = () => setItems((prev) => prev.filter((i) => !i.checked));
 
+  const handleNameChange = (value: string) => {
+    setNewName(value);
+    const trimmed = value.trim();
+    if (!trimmed) return;
+    setNewCat(getCategory(trimmed));
+  };
+
   const handleAdd = () => {
-    if (!newName.trim()) return;
+    const trimmedName = newName.trim();
+    if (!trimmedName) return;
     const item: GroceryItem = {
       id: Date.now(),
-      name: newName,
-      category: newCat,
+      name: trimmedName,
+      category: getCategory(trimmedName) || newCat,
       checked: false,
     };
     setItems((prev) => [...prev, item]);
     setNewName("");
+    setNewCat("Other");
   };
 
   const handleAutoFill = async () => {
@@ -229,7 +230,7 @@ export default function GroceryList() {
               <div className="flex gap-3">
                 <input
                   value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
+                  onChange={(e) => handleNameChange(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleAdd()}
                   placeholder="Add an item…"
                   className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-orange-300 transition-colors"
@@ -251,6 +252,7 @@ export default function GroceryList() {
                   <Plus size={18} />
                 </button>
               </div>
+              <p className="mt-2 text-xs text-gray-500">Category auto-detects as you type and can still be adjusted.</p>
             </div>
 
             {/* Grouped items */}
