@@ -101,10 +101,10 @@ export default function Dashboard() {
   const suggestedRecipes = useMemo(() => availableSuggestions.slice(suggestionOffset, suggestionOffset + 3), [availableSuggestions, suggestionOffset]);
 
   const stats = useMemo(() => [
-    { label: "Cooking Streak", value: `${cookingStreak}🔥`, icon: Flame, color: "text-orange-500", bg: "bg-orange-50" },
-    { label: "Meals Cooked", value: String(totalMealsCooked), icon: ChefHat, color: "text-emerald-500", bg: "bg-emerald-50" },
-    { label: "Recipes Saved", value: String(likedRecipes.length), icon: Heart, color: "text-rose-500", bg: "bg-rose-50" },
-    { label: "Recipes Curated", value: String(cookedRecipeIds.length), icon: Trophy, color: "text-amber-500", bg: "bg-amber-50" },
+    { label: "Cooking Streak", value: `${cookingStreak}🔥`, icon: Flame, color: "text-orange-500", bg: "bg-orange-50", accent: "from-orange-100/80 to-amber-50" },
+    { label: "Meals Cooked", value: String(totalMealsCooked), icon: ChefHat, color: "text-emerald-500", bg: "bg-emerald-50", accent: "from-emerald-100/70 to-teal-50" },
+    { label: "Recipes Saved", value: String(likedRecipes.length), icon: Heart, color: "text-rose-500", bg: "bg-rose-50", accent: "from-rose-100/70 to-pink-50" },
+    { label: "Recipes Curated", value: String(cookedRecipeIds.length), icon: Trophy, color: "text-amber-500", bg: "bg-amber-50", accent: "from-amber-100/70 to-yellow-50" },
   ], [likedRecipes.length, cookingStreak, totalMealsCooked, cookedRecipeIds.length]);
 
   useEffect(() => {
@@ -183,9 +183,9 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-full bg-gray-50">
+    <div className="min-h-full">
       {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-6 py-5">
+      <div className="border-b border-orange-100/70 bg-white/80 backdrop-blur-sm px-6 py-5">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
@@ -206,9 +206,9 @@ export default function Dashboard() {
       {/* Body */}
       <div className="max-w-7xl mx-auto px-6 py-6">
         {/* Stats row */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {stats.map(({ label, value, icon: Icon, color, bg }) => (
-            <div key={label} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
+          {stats.map(({ label, value, icon: Icon, color, bg, accent }) => (
+            <div key={label} className={`app-tile p-4 flex items-center gap-4 transition-transform duration-200 hover:-translate-y-0.5 bg-gradient-to-br ${accent}`}>
               <div className={`w-11 h-11 rounded-xl ${bg} flex items-center justify-center shrink-0`}>
                 <Icon size={20} className={color} />
               </div>
@@ -225,7 +225,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
             {/* Suggested for you */}
-            <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <section className="app-section overflow-hidden">
               <div className="flex items-center justify-between px-5 pt-5 pb-4">
                 <div className="flex items-center gap-2">
                   <TrendingUp size={17} className="text-orange-500" />
@@ -325,7 +325,7 @@ export default function Dashboard() {
             </section>
 
             {/* This week's meal plan */}
-            <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <section className="app-section p-5">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <Calendar size={17} className="text-orange-500" />
@@ -372,7 +372,7 @@ export default function Dashboard() {
 
           {/* Right column */}
           <div className="space-y-6">
-            <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <section className="app-section p-5">
               <h2 className="text-base font-bold text-gray-900 mb-3">Quick actions</h2>
               <div className="grid grid-cols-2 gap-2">
                 {[
@@ -389,7 +389,7 @@ export default function Dashboard() {
               </div>
             </section>
 
-            <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <section className="app-section p-5">
               <h2 className="text-base font-bold text-gray-900 mb-4">Recent activity</h2>
               <div className="space-y-3">
                 {ACTIVITY.map((item, i) => (
@@ -408,7 +408,7 @@ export default function Dashboard() {
 
         {/* XP & Badges — at bottom */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-8">
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <div className="app-section p-5">
             <div className="flex items-center gap-3 mb-3">
               <button
                 onClick={() => avatarInputRef.current?.click()}
@@ -443,7 +443,7 @@ export default function Dashboard() {
               <span>{levelInfo.current}/{levelInfo.needed} to next level</span>
             </div>
           </div>
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <div className="app-section p-5">
             <div className="flex items-center gap-2 mb-3">
               <Award size={17} className="text-violet-500" />
               <h2 className="text-base font-bold text-gray-900">Badges</h2>
