@@ -72,7 +72,10 @@ export default function RecipePreviewDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-md h-[90vh] p-0 overflow-hidden flex flex-col">
+        <DialogContent
+          className="max-w-md h-[90vh] p-0 overflow-hidden flex flex-col"
+          onOpenAutoFocus={(event) => event.preventDefault()}
+        >
           <div className="relative h-48 overflow-hidden">
             <img src={recipe.image} alt={recipe.name} className="w-full h-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-background/90 to-transparent" />
