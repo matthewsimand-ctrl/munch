@@ -194,6 +194,13 @@ function SwipeCard({
               </span>
             )}
           </div>
+          {(recipe.protein || recipe.carbs || recipe.fat) && (
+            <p className="mt-2 text-xs text-white/80">
+              {recipe.protein ? `${Math.round(recipe.protein)}g protein` : null}
+              {recipe.carbs ? ` • ${Math.round(recipe.carbs)}g carbs` : null}
+              {recipe.fat ? ` • ${Math.round(recipe.fat)}g fat` : null}
+            </p>
+          )}
         </div>
       </div>
     </motion.div>

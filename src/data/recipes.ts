@@ -14,6 +14,10 @@ export interface Recipe {
   created_by?: string | null;
   is_public?: boolean;
   servings?: number;
+  calories?: number;
+  protein?: number;
+  carbs?: number;
+  fat?: number;
 }
 
 // Legacy compat alias

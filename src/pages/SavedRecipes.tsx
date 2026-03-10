@@ -28,12 +28,14 @@ function RecipeCard({
   recipe,
   view,
   rating,
+  nutrition,
   onCook,
   onUnsave,
 }: {
   recipe: Recipe;
   view: "grid" | "list";
   rating?: number;
+  nutrition?: { calories?: number; protein?: number; carbs?: number; fat?: number };
   onCook: () => void;
   onUnsave: () => void;
 }) {
@@ -72,6 +74,14 @@ function RecipeCard({
             </span>
             <span>{timesCooked}x cooked</span>
           </div>
+          {(nutrition?.calories || nutrition?.protein || nutrition?.carbs || nutrition?.fat) && (
+            <p className="mt-1 text-[11px] text-stone-500 line-clamp-1">
+              {nutrition?.calories ? `${Math.round(nutrition.calories)} cal` : null}
+              {nutrition?.protein ? ` • ${Math.round(nutrition.protein)}g protein` : null}
+              {nutrition?.carbs ? ` • ${Math.round(nutrition.carbs)}g carbs` : null}
+              {nutrition?.fat ? ` • ${Math.round(nutrition.fat)}g fat` : null}
+            </p>
+          )}
           {!!recipe.tags?.length && <p className="mt-1 text-xs text-stone-500 line-clamp-1">{recipe.tags.slice(0, 3).join(" • ")}</p>}
         </div>
         <button
@@ -123,6 +133,14 @@ function RecipeCard({
         <span>{timesCooked}x cooked</span>
         {recipe.cuisine && <><span className="w-1 h-1 rounded-full bg-stone-300" /><span>{recipe.cuisine}</span></>}
       </div>
+      {(nutrition?.calories || nutrition?.protein || nutrition?.carbs || nutrition?.fat) && (
+        <p className="text-[11px] text-stone-500 mt-1 line-clamp-1">
+          {nutrition?.calories ? `${Math.round(nutrition.calories)} cal` : null}
+          {nutrition?.protein ? ` • ${Math.round(nutrition.protein)}g protein` : null}
+          {nutrition?.carbs ? ` • ${Math.round(nutrition.carbs)}g carbs` : null}
+          {nutrition?.fat ? ` • ${Math.round(nutrition.fat)}g fat` : null}
+        </p>
+      )}
       {!!recipe.tags?.length && <p className="text-[11px] text-stone-500 mt-1 line-clamp-1">{recipe.tags.slice(0, 3).join(" • ")}</p>}
     </motion.div>
   );
@@ -133,8 +151,8 @@ export default function MyRecipesScreen() {
   const location = useLocation();
   const {
     likedRecipes, savedApiRecipes, unlikeRecipe,
-    recipeFolders, addFolder, removeFolder,
-    recipeRatings, pantryList, addCustomGroceryItem,
+    recipeFolders, createCookbook, removeFolder,
+    recipeRatings, pantryList, addCustomGroceryItem, cachedNutrition,
   } = useStore();
   const { loaded: exploreLoaded, loadFeed } = useBrowseFeed();
   const [search, setSearch] = useState("");
@@ -171,6 +189,13 @@ export default function MyRecipesScreen() {
   useEffect(() => {
     if (!exploreLoaded) loadFeed();
   }, [exploreLoaded, loadFeed]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get("newCookbook") === "1") {
+      setShowNewFolder(true);
+    }
+  }, [location.search]);
 
   const filtered = useMemo(() => {
     let list = savedRecipes;
@@ -445,6 +470,7 @@ export default function MyRecipesScreen() {
                   recipe={recipe}
                   view={view}
                   rating={recipeRatings?.[recipe.id]}
+                  nutrition={cachedNutrition?.[recipe.id]}
                   onCook={() => openPreview(recipe)}
                   onUnsave={() => handleUnsave(recipe.id)}
                 />
