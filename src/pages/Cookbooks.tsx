@@ -45,34 +45,50 @@ export default function Cookbooks() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {recipeFolders.map((folder) => (
-            <div key={folder.id} className="rounded-2xl bg-white border border-stone-200 overflow-hidden">
-              <button className="w-full text-left" onClick={() => setSelectedId(folder.id)}>
-                <div className="h-36 bg-stone-100 flex items-center justify-center">
-                  {folder.coverImage ? (
-                    <img src={folder.coverImage} alt={folder.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <BookOpen className="text-stone-300" />
-                  )}
-                </div>
-                <div className="p-3">
-                  <p className="font-semibold text-stone-800">{folder.name}</p>
-                  <p className="text-xs text-stone-400 mt-1">{folder.recipeIds.length} recipes</p>
-                </div>
-              </button>
-              <div className="px-3 pb-3 flex items-center gap-2">
-                <label className="text-xs px-2 py-1 rounded-lg border border-stone-200 text-stone-600 cursor-pointer inline-flex items-center gap-1">
-                  <ImagePlus size={12} /> Update Cover
-                  <input type="file" accept="image/*" className="hidden" onChange={(e) => onUploadCover(folder.id, e.target.files?.[0] ?? null)} />
-                </label>
-                <button onClick={() => deleteFolder(folder.id)} className="text-xs px-2 py-1 rounded-lg border border-red-200 text-red-500 inline-flex items-center gap-1">
-                  <Trash2 size={12} /> Delete
-                </button>
-              </div>
+        {recipeFolders.length === 0 ? (
+          <div className="rounded-2xl bg-white border border-dashed border-orange-200 p-8 text-center">
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-orange-50 flex items-center justify-center text-orange-400 mb-3">
+              <BookOpen />
             </div>
-          ))}
-        </div>
+            <p className="text-lg font-semibold text-stone-800">No cookbooks yet</p>
+            <p className="text-sm text-stone-500 mt-1">Create your first cookbook from My Recipes.</p>
+            <button
+              onClick={() => navigate('/saved?newCookbook=1')}
+              className="mt-4 px-4 py-2 rounded-xl text-sm font-semibold bg-orange-500 text-white hover:bg-orange-600"
+            >
+              Create Cookbook
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {recipeFolders.map((folder) => (
+              <div key={folder.id} className="rounded-2xl bg-white border border-stone-200 overflow-hidden">
+                <button className="w-full text-left" onClick={() => setSelectedId(folder.id)}>
+                  <div className="h-36 bg-stone-100 flex items-center justify-center">
+                    {folder.coverImage ? (
+                      <img src={folder.coverImage} alt={folder.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <BookOpen className="text-stone-300" />
+                    )}
+                  </div>
+                  <div className="p-3">
+                    <p className="font-semibold text-stone-800">{folder.name}</p>
+                    <p className="text-xs text-stone-400 mt-1">{folder.recipeIds.length} recipes</p>
+                  </div>
+                </button>
+                <div className="px-3 pb-3 flex items-center gap-2">
+                  <label className="text-xs px-2 py-1 rounded-lg border border-stone-200 text-stone-600 cursor-pointer inline-flex items-center gap-1">
+                    <ImagePlus size={12} /> Update Cover
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => onUploadCover(folder.id, e.target.files?.[0] ?? null)} />
+                  </label>
+                  <button onClick={() => deleteFolder(folder.id)} className="text-xs px-2 py-1 rounded-lg border border-red-200 text-red-500 inline-flex items-center gap-1">
+                    <Trash2 size={12} /> Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {selectedCookbook && (
           <div className="mt-8 rounded-2xl bg-white border border-stone-200 p-4">
