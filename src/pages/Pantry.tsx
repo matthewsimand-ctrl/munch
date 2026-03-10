@@ -1,11 +1,12 @@
 import { useState, useMemo } from "react";
 import {
-  Package, Plus, Search, X, Trash2, Camera,
-  RefreshCw, CheckCircle2, AlertCircle, ChevronDown,
+  Search, X, Trash2, Camera,
+  CheckCircle2, ChevronDown,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "@/lib/store";
 import { toast } from "sonner";
+import { detectCategories } from "@/lib/categorizeItem";
 
 const CATEGORIES = ["All", "Produce", "Dairy", "Meat", "Dry Goods", "Condiments", "Other"];
 const CATEGORY_ICONS: Record<string, string> = {
@@ -89,10 +90,9 @@ export default function PantryScreen() {
   const [newItem, setNewItem] = useState("");
   const [newCategory, setNewCategory] = useState("Other");
   const [newQty, setNewQty] = useState("");
-  const [showAddForm, setShowAddForm] = useState(false);
 
   const filtered = useMemo(() => {
-    let list: PantryItem[] = pantryList ?? [];
+    let list: PantryItem[] = (pantryList ?? []).map((item, idx) => ({ ...item, id: item.id ?? `${item.name}-${idx}` }));
     if (search) list = list.filter((i) => i.name.toLowerCase().includes(search.toLowerCase()));
     if (activeCategory !== "All") list = list.filter((i) => (i.category ?? "Other") === activeCategory);
     return list;
@@ -108,12 +108,15 @@ export default function PantryScreen() {
   }, [pantryList]);
 
   const handleAdd = () => {
-    if (!newItem.trim()) return;
-    addPantryItem({ name: newItem.trim(), category: newCategory, quantity: newQty.trim() || undefined });
-    toast.success(`Added ${newItem.trim()} to pantry`);
+    const itemName = newItem.trim();
+    if (!itemName) return;
+    const detected = detectCategories(itemName);
+    const category = newCategory === "Other" ? detected.pantryCategory : newCategory;
+    addPantryItem({ name: itemName, category, quantity: newQty.trim() || undefined });
+    toast.success(`Added ${itemName} to pantry`);
     setNewItem("");
     setNewQty("");
-    setShowAddForm(false);
+    setNewCategory("Other");
   };
 
   const handleRemove = (id: string, name: string) => {
@@ -149,13 +152,6 @@ export default function PantryScreen() {
               >
                 <Camera size={14} /> Scan Fridge
               </button>
-              <button
-                onClick={() => setShowAddForm((v) => !v)}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90 active:scale-95"
-                style={{ background: "linear-gradient(135deg,#FB923C,#F97316,#EA580C)", boxShadow: "0 4px 16px rgba(249,115,22,0.30)" }}
-              >
-                <Plus size={14} /> Add Item
-              </button>
             </div>
           </div>
 
@@ -177,21 +173,20 @@ export default function PantryScreen() {
       <div className="max-w-4xl mx-auto px-6 py-5 space-y-5">
 
         {/* Add form */}
-        <AnimatePresence>
-          {showAddForm && (
-            <motion.div
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              className="rounded-2xl border p-5"
-              style={{ background: "#fff", borderColor: "rgba(249,115,22,0.20)", boxShadow: "0 4px 20px rgba(249,115,22,0.08)" }}
-            >
+        <motion.div
+          className="rounded-2xl border p-5"
+          style={{ background: "#fff", borderColor: "rgba(249,115,22,0.20)", boxShadow: "0 4px 20px rgba(249,115,22,0.08)" }}
+        >
               <p className="text-sm font-bold text-stone-800 mb-3">Add pantry item</p>
               <div className="flex flex-col sm:flex-row gap-3">
                 <input
                   autoFocus
                   value={newItem}
-                  onChange={(e) => setNewItem(e.target.value)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setNewItem(value);
+                    if (value.trim()) setNewCategory(detectCategories(value).pantryCategory);
+                  }}
                   onKeyDown={(e) => e.key === "Enter" && handleAdd()}
                   placeholder="e.g. Olive oil, Garlic, Pasta…"
                   className="flex-1 px-4 py-2.5 rounded-xl border text-sm text-stone-700 placeholder:text-stone-300 outline-none focus:border-orange-300 transition-colors"
@@ -219,15 +214,13 @@ export default function PantryScreen() {
                 <button
                   onClick={handleAdd}
                   disabled={!newItem.trim()}
-                  className="px-5 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-40 transition-all hover:opacity-90 active:scale-95"
+                  className="w-10 h-10 rounded-xl text-lg font-bold text-white disabled:opacity-40 transition-all hover:opacity-90 active:scale-95"
                   style={{ background: "linear-gradient(135deg,#FB923C,#F97316)", boxShadow: "0 2px 8px rgba(249,115,22,0.25)" }}
                 >
-                  Add
+                  +
                 </button>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        </motion.div>
 
         {/* Search */}
         <div className="relative">

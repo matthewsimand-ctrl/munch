@@ -1,11 +1,12 @@
 import { useState, useMemo } from "react";
 import {
   ShoppingCart, Plus, X, Check, Share2, Trash2,
-  Search, RefreshCw, ChevronDown,
+  Search, ChevronDown,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "@/lib/store";
 import { toast } from "sonner";
+import { detectCategories } from "@/lib/categorizeItem";
 
 const STORE_SECTIONS: Record<string, string> = {
   produce: "🥦 Produce",
@@ -22,6 +23,8 @@ interface GroceryItem {
   id: string;
   name: string;
   section?: string;
+  category?: string;
+  quantity?: string;
   checked?: boolean;
   qty?: string;
   recipeSource?: string;
@@ -120,7 +123,12 @@ export default function GroceryScreen() {
   const [search, setSearch] = useState("");
   const [showChecked, setShowChecked] = useState(true);
 
-  const items: GroceryItem[] = customGroceryItems ?? [];
+  const items: GroceryItem[] = (customGroceryItems ?? []).map((item, idx) => ({
+    ...item,
+    id: item.id ?? `${item.name}-${idx}`,
+    section: item.section ?? item.category,
+    qty: item.qty ?? item.quantity,
+  }));
   const filteredItems = useMemo(() => {
     let list = items;
     if (search) list = list.filter((i) => i.name.toLowerCase().includes(search.toLowerCase()));
@@ -130,7 +138,7 @@ export default function GroceryScreen() {
   const grouped = useMemo(() => {
     const result: Record<string, GroceryItem[]> = {};
     filteredItems.forEach((item) => {
-      const s = item.section ?? "other";
+      const s = item.section ?? item.category ?? "other";
       if (!result[s]) result[s] = [];
       result[s].push(item);
     });
@@ -141,10 +149,14 @@ export default function GroceryScreen() {
   const totalCount = items.length;
 
   const handleAdd = () => {
-    if (!newItem.trim()) return;
-    addCustomGroceryItem(newItem.trim(), { qty: newQty.trim() || undefined, section: newSection });
+    const itemName = newItem.trim();
+    if (!itemName) return;
+    const detected = detectCategories(itemName);
+    const section = newSection === "other" ? detected.grocerySection : newSection;
+    addCustomGroceryItem(itemName, { qty: newQty.trim() || undefined, section });
     setNewItem("");
     setNewQty("");
+    setNewSection("other");
   };
 
   const handleShare = () => {
@@ -157,6 +169,11 @@ export default function GroceryScreen() {
   const handleClearChecked = () => {
     clearCheckedGroceryItems?.();
     toast.success("Cleared checked items");
+  };
+
+  const handleClearAll = () => {
+    items.forEach((item) => removeCustomGroceryItem?.(item.id));
+    toast.success("Cleared grocery list");
   };
 
   return (
@@ -187,6 +204,14 @@ export default function GroceryScreen() {
                   className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-stone-200 text-xs font-semibold text-stone-500 hover:border-red-300 hover:text-red-500 transition-colors"
                 >
                   <Trash2 size={13} /> Clear done
+                </button>
+              )}
+              {totalCount > 0 && (
+                <button
+                  onClick={handleClearAll}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-stone-200 text-xs font-semibold text-stone-500 hover:border-red-300 hover:text-red-500 transition-colors"
+                >
+                  <Trash2 size={13} /> Clear all
                 </button>
               )}
               <button
@@ -231,7 +256,11 @@ export default function GroceryScreen() {
               <ShoppingCart size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-300" />
               <input
                 value={newItem}
-                onChange={(e) => setNewItem(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setNewItem(value);
+                  if (value.trim()) setNewSection(detectCategories(value).grocerySection);
+                }}
                 onKeyDown={(e) => e.key === "Enter" && handleAdd()}
                 placeholder="e.g. Chicken breast, Lemons…"
                 className="w-full pl-9 pr-4 py-2.5 rounded-xl border text-sm text-stone-700 placeholder:text-stone-300 outline-none focus:border-orange-300 transition-colors"

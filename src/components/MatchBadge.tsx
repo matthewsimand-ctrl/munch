@@ -17,7 +17,7 @@ export default function MatchBadge({ percentage, className = "" }: MatchBadgePro
       {percentage}% match
       <span className="relative group inline-flex">
         <Info size={11} className="opacity-90" />
-        <span className="pointer-events-none absolute z-20 hidden group-hover:block left-1/2 -translate-x-1/2 bottom-full mb-1 w-52 max-w-[calc(100vw-2rem)] rounded-md bg-gray-900 px-2 py-1.5 text-[10px] font-medium text-white leading-tight shadow-lg">
+        <span className="pointer-events-none absolute z-20 hidden group-hover:block right-0 bottom-full mb-1 w-52 max-w-[calc(100vw-2rem)] rounded-md bg-gray-900 px-2 py-1.5 text-[10px] font-medium text-white leading-tight shadow-lg">
           Match % compares this recipe against your pantry. 100% means you already have every ingredient.
         </span>
       </span>
