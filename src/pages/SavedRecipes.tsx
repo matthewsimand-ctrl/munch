@@ -9,6 +9,7 @@ import { useStore } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
 import { useDbRecipes } from "@/hooks/useDbRecipes";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -23,6 +24,7 @@ import {
 import { calculateMatch } from "@/lib/matchLogic";
 import { composeIngredientLine, parseIngredientLine, scaleIngredientQuantity } from "@/lib/ingredientText";
 import { normalizeRecipe, normalizeStringArray } from "@/lib/normalizeRecipe";
+import MatchBadge from "@/components/MatchBadge";
 import { toast } from "sonner";
 import type { Recipe } from "@/data/recipes";
 
@@ -566,10 +568,8 @@ export default function SavedRecipes() {
                     )}
 
                     {/* Match badge */}
-                    <div className={`absolute bottom-2.5 right-2.5 px-2 py-0.5 rounded-full text-white text-xs font-bold ${
-                      match.percentage >= 80 ? "bg-green-500" : match.percentage >= 50 ? "bg-yellow-500" : "bg-orange-500"
-                    }`}>
-                      {match.percentage}% match
+                    <div className="absolute bottom-2.5 right-2.5">
+                      <MatchBadge percentage={match.percentage} />
                     </div>
                   </div>
 
@@ -868,10 +868,8 @@ export default function SavedRecipes() {
                         {editingIngredients.length > 0 && (() => {
                           const m = calculateMatch(pantryNames, editingIngredients);
                           return (
-                            <span className={`ml-2 text-xs font-bold px-2 py-0.5 rounded-full text-white ${
-                              m.percentage >= 80 ? "bg-green-500" : m.percentage >= 50 ? "bg-yellow-500" : "bg-orange-500"
-                            }`}>
-                              {m.percentage}% match
+                            <span className="ml-2 align-middle inline-flex">
+                              <MatchBadge percentage={m.percentage} />
                             </span>
                           );
                         })()}
@@ -972,13 +970,15 @@ export default function SavedRecipes() {
                             const recipeForGrocery = { ...selectedRecipe, ingredients: editingIngredients } as Recipe;
                             const alreadyAdded = groceryAddedRecipeIds.includes(recipeForGrocery.id);
                             return (
-                              <button
+                              <Button
                                 onClick={() => handleAddMissingToGrocery(recipeForGrocery)}
                                 disabled={alreadyAdded}
-                                className={`mt-3 flex items-center gap-2 text-sm font-semibold transition-colors ${alreadyAdded ? "text-muted-foreground cursor-not-allowed" : "text-orange-500 hover:text-orange-600"}`}
+                                className="mt-3"
+                                variant={alreadyAdded ? "secondary" : "default"}
+                                size="sm"
                               >
                                 <ShoppingCart size={14} /> {alreadyAdded ? "Already added to grocery list" : `Add ${m.missing.length} missing items to grocery list`}
-                              </button>
+                              </Button>
                             );
                           })()}
                         </>

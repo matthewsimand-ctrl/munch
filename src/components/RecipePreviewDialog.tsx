@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Clock, BarChart3, Check, ShoppingCart, MapPin, ChefHat, Users } from 'lucide-react';
+import MatchBadge from '@/components/MatchBadge';
 
 interface Props {
   recipe: Recipe | null;
@@ -50,7 +51,7 @@ export default function RecipePreviewDialog({ recipe, match, open, onOpenChange,
               <Badge variant="secondary" className="gap-1">
                 <BarChart3 className="h-3 w-3" /> {recipe.difficulty}
               </Badge>
-              <Badge variant="outline" className="font-bold">{match.percentage}% match</Badge>
+              <MatchBadge percentage={match.percentage} />
               {recipe.cuisine && (
                 <Badge variant="outline" className="gap-1">
                   <MapPin className="h-3 w-3" /> {recipe.cuisine}

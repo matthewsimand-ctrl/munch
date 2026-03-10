@@ -13,19 +13,12 @@ import { calculateMatch } from "@/lib/matchLogic";
 import { parseIngredientLine } from "@/lib/ingredientText";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import MatchBadge from "@/components/MatchBadge";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { getLevel } from "@/components/ChefCompanion";
 import type { Recipe } from "@/data/recipes";
 import { useCurrentMealPlan } from "@/hooks/useCurrentMealPlan";
-
-const ACTIVITY = [
-  { type: "saved", text: "Saved Shakshuka with Feta", time: "2h ago", emoji: "🍳" },
-  { type: "cooked", text: "Marked Pasta Carbonara as cooked", time: "Yesterday", emoji: "✅" },
-  { type: "added", text: "Added 6 items to grocery list", time: "Yesterday", emoji: "🛒" },
-  { type: "planned", text: "Planned meals for the week", time: "2 days ago", emoji: "📅" },
-  { type: "saved", text: "Saved Thai Green Curry", time: "3 days ago", emoji: "🍛" },
-];
 
 const MEAL_PLAN = [
   { day: "Mon", meal: "Pasta Carbonara", done: true },
@@ -46,7 +39,7 @@ export default function Dashboard() {
   });
 
   const { recipes: browseRecipes, loading: browseLoading, loadFeed } = useBrowseFeed();
-  const { likedRecipes, likeRecipe, savedApiRecipes, pantryList, addCustomGroceryItem, cookingStreak, totalMealsCooked, cookedRecipeIds, totalXp, earnedBadges, earnBadge, chefAvatarUrl, setChefAvatarUrl } = useStore();
+  const { likedRecipes, likeRecipe, savedApiRecipes, pantryList, addCustomGroceryItem, customGroceryItems, recipeFolders, cookingStreak, totalMealsCooked, cookedRecipeIds, totalXp, earnedBadges, earnBadge, lastCookedDate, chefAvatarUrl, setChefAvatarUrl } = useStore();
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [suggestionOffset, setSuggestionOffset] = useState(0);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -99,6 +92,34 @@ export default function Dashboard() {
   const pantryNames = useMemo(() => pantryList.map(p => p.name), [pantryList]);
   const availableSuggestions = useMemo(() => browseRecipes.filter((recipe) => !likedSet.has(recipe.id)), [browseRecipes, likedSet]);
   const suggestedRecipes = useMemo(() => availableSuggestions.slice(suggestionOffset, suggestionOffset + 3), [availableSuggestions, suggestionOffset]);
+
+  const recentActivity = useMemo(() => {
+    const items = [] as Array<{ text: string; time: string; emoji: string }>;
+
+    if (likedRecipes.length > 0) {
+      const latestSavedId = likedRecipes[likedRecipes.length - 1];
+      const latestSavedName = savedApiRecipes[latestSavedId]?.name || 'a recipe';
+      items.push({ text: `Saved ${latestSavedName}`, time: 'Recently', emoji: '❤️' });
+    }
+
+    if (lastCookedDate) {
+      items.push({ text: `Cooked ${totalMealsCooked} meal${totalMealsCooked === 1 ? '' : 's'} so far`, time: 'Recently', emoji: '👨‍🍳' });
+    }
+
+    if (customGroceryItems.length > 0) {
+      items.push({ text: `${customGroceryItems.length} item${customGroceryItems.length === 1 ? '' : 's'} on your grocery list`, time: 'Live', emoji: '🛒' });
+    }
+
+    if (recipeFolders.length > 0) {
+      items.push({ text: `${recipeFolders.length} cookbook${recipeFolders.length === 1 ? '' : 's'} created`, time: 'Live', emoji: '📚' });
+    }
+
+    if (items.length === 0) {
+      return [{ text: 'No activity yet — save a recipe to get started', time: 'Now', emoji: '✨' }];
+    }
+
+    return items.slice(0, 5);
+  }, [likedRecipes, savedApiRecipes, lastCookedDate, totalMealsCooked, customGroceryItems.length, recipeFolders.length]);
 
   const stats = useMemo(() => [
     { label: "Cooking Streak", value: `${cookingStreak}🔥`, icon: Flame, color: "text-orange-500", bg: "bg-orange-50" },
@@ -301,11 +322,7 @@ export default function Dashboard() {
                           <span className="text-xs text-gray-500 flex items-center gap-1">
                             <Clock size={11} /> {recipe.cook_time}
                           </span>
-                          <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
-                            match.percentage >= 80 ? 'bg-green-100 text-green-700' : match.percentage >= 50 ? 'bg-yellow-100 text-yellow-700' : 'bg-orange-100 text-orange-700'
-                          }`}>
-                            {match.percentage}%
-                          </span>
+                          <MatchBadge percentage={match.percentage} />
                         </div>
                         {recipe.cuisine && (
                           <span className="inline-block text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium">
@@ -392,7 +409,7 @@ export default function Dashboard() {
             <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <h2 className="text-base font-bold text-gray-900 mb-4">Recent activity</h2>
               <div className="space-y-3">
-                {ACTIVITY.map((item, i) => (
+                {recentActivity.map((item, i) => (
                   <div key={i} className="flex items-start gap-3">
                     <div className="w-8 h-8 rounded-xl bg-gray-50 flex items-center justify-center text-base shrink-0">{item.emoji}</div>
                     <div className="min-w-0 flex-1">
@@ -491,7 +508,7 @@ export default function Dashboard() {
                   <div className="flex flex-wrap gap-2">
                     <Badge variant="secondary" className="gap-1"><Clock className="h-3 w-3" /> {selectedRecipe.cook_time}</Badge>
                     <Badge variant="secondary">{selectedRecipe.difficulty}</Badge>
-                    <Badge variant="outline" className="font-bold">{selectedMatch.percentage}% match</Badge>
+                    <MatchBadge percentage={selectedMatch.percentage} />
                     {selectedRecipe.cuisine && <Badge variant="outline" className="gap-1"><MapPin className="h-3 w-3" /> {selectedRecipe.cuisine}</Badge>}
                     {selectedRecipe.servings && <Badge variant="secondary" className="gap-1"><Users className="h-3 w-3" /> Serves {selectedRecipe.servings}</Badge>}
                     {selectedRecipe.source && <Badge variant="outline">Source: {selectedRecipe.source}</Badge>}

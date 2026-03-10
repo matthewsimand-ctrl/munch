@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { motion, useMotionValue, useTransform, PanInfo } from 'framer-motion';
 import { Clock, BarChart3, Check, ShoppingCart, MapPin, ChefHat, Users } from 'lucide-react';
+import MatchBadge from '@/components/MatchBadge';
 import { useNavigate } from 'react-router-dom';
 import type { Recipe } from '@/data/recipes';
 import type { MatchResult } from '@/lib/matchLogic';
@@ -28,9 +29,6 @@ export default function SwipeCard({ recipe, match, onSwipe, onImageTap, isTop, c
     match.status === 'perfect' ? 'border-success' :
     match.status === 'almost' ? 'border-warning' : 'border-border';
 
-  const badgeBg =
-    match.status === 'perfect' ? 'bg-success text-success-foreground' :
-    match.status === 'almost' ? 'bg-warning text-warning-foreground' : 'bg-muted text-muted-foreground';
 
   const handleDragStart = () => {
     isDragging.current = true;
@@ -75,9 +73,7 @@ export default function SwipeCard({ recipe, match, onSwipe, onImageTap, isTop, c
               className="w-full h-full object-cover"
               loading="lazy"
             />
-            <div className={`absolute bottom-3 right-3 ${badgeBg} px-3 py-1.5 rounded-full text-sm font-bold shadow-md`}>
-              {match.percentage}% Match
-            </div>
+            <div className="absolute bottom-3 right-3"><MatchBadge percentage={match.percentage} /></div>
           </div>
           <div className="flex-1 p-5 flex flex-col">
             <h2 className="font-display text-xl font-bold text-card-foreground mb-1">
@@ -132,9 +128,7 @@ export default function SwipeCard({ recipe, match, onSwipe, onImageTap, isTop, c
             NOPE
           </motion.div>
           {/* Match badge */}
-          <div className={`absolute bottom-3 right-3 ${badgeBg} px-3 py-1.5 rounded-full text-sm font-bold shadow-md`}>
-            {match.percentage}% Match
-          </div>
+          <div className="absolute bottom-3 right-3"><MatchBadge percentage={match.percentage} /></div>
         </div>
 
         {/* Content */}

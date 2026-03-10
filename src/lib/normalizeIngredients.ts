@@ -36,10 +36,25 @@ function extractMealDbLines(rawPayload: any): string[] {
 }
 
 export function normalizeIngredients(value: unknown, rawPayload?: unknown): string[] {
+  const fromJsonString = typeof value === 'string' && value.trim().startsWith('[')
+    ? (() => {
+        try {
+          const parsed = JSON.parse(value);
+          return Array.isArray(parsed) ? parsed : null;
+        } catch {
+          return null;
+        }
+      })()
+    : null;
+
   const base = Array.isArray(value)
     ? value.map(toLine).map((v) => v.trim()).filter(Boolean)
+    : Array.isArray(fromJsonString)
+      ? fromJsonString.map(toLine).map((v) => v.trim()).filter(Boolean)
     : typeof value === 'string'
-      ? value.split(/\r?\n/).map((v) => v.trim()).filter(Boolean)
+      ? value.includes('\n')
+        ? value.split(/\r?\n/).map((v) => v.trim()).filter(Boolean)
+        : value.split(',').map((v) => v.trim()).filter(Boolean)
       : [];
 
   const mealDb = extractMealDbLines(rawPayload);
