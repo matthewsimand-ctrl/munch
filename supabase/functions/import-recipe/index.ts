@@ -161,6 +161,100 @@ function normalizeRecipePayload(recipe: Record<string, unknown>): Record<string,
   };
 }
 
+
+function extractRecipeFromMealDbPayload(payload: unknown): Record<string, unknown> | null {
+  if (!payload || typeof payload !== 'object') return null;
+  const data = payload as Record<string, unknown>;
+  const meals = Array.isArray(data.meals) ? data.meals : [];
+  const first = meals[0];
+  if (!first || typeof first !== 'object') return null;
+
+  const meal = first as Record<string, unknown>;
+  if (!meal.idMeal && !meal.strMeal) return null;
+
+  const ingredients: string[] = [];
+  for (let i = 1; i <= 20; i++) {
+    const name = String(meal[`strIngredient${i}`] ?? '').trim();
+    if (!name) continue;
+    const measure = String(meal[`strMeasure${i}`] ?? '').trim();
+    ingredients.push(measure ? `${measure} ${name}`.replace(/\s+/g, ' ').trim() : name);
+  }
+
+  const instructions = String(meal.strInstructions ?? '')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  return {
+    name: String(meal.strMeal || '').trim(),
+    ingredients,
+    instructions,
+    cook_time: '30 min',
+    difficulty: 'Intermediate',
+    cuisine: meal.strArea ? String(meal.strArea) : null,
+    tags: meal.strTags
+      ? String(meal.strTags).split(',').map((t) => t.trim()).filter(Boolean)
+      : [],
+    image: String(meal.strMealThumb || ''),
+    servings: '4',
+  };
+}
+
+function extractRecipeFromJsonPayload(payload: unknown): Record<string, unknown> | null {
+  if (!payload || typeof payload !== 'object') return null;
+
+  const mealDb = extractRecipeFromMealDbPayload(payload);
+  if (mealDb) return mealDb;
+
+  const data = payload as Record<string, unknown>;
+  const ingredients = normalizeIngredients(data.ingredients ?? data.recipeIngredient);
+  const instructions = extractInstructionTexts(data.instructions ?? data.recipeInstructions);
+  const name = String(data.name ?? data.title ?? '').trim();
+
+  if (!name || ingredients.length === 0) return null;
+
+  return {
+    name,
+    ingredients,
+    instructions,
+    cook_time: String(data.cook_time ?? data.totalTime ?? data.cookTime ?? '30 min'),
+    difficulty: String(data.difficulty ?? 'Intermediate'),
+    cuisine: data.cuisine ? String(data.cuisine) : null,
+    tags: Array.isArray(data.tags)
+      ? data.tags.map((t) => String(t).trim()).filter(Boolean)
+      : [],
+    image: String(data.image ?? ''),
+    servings: String(data.servings ?? data.recipeYield ?? '4'),
+  };
+}
+
+function extractRecipeWindow(text: string): string {
+  const normalized = text.replace(/\s+/g, ' ').trim();
+  if (!normalized) return '';
+
+  const recipeSignals = [
+    'ingredients',
+    'instructions',
+    'directions',
+    'method',
+    'prep time',
+    'cook time',
+    'servings',
+    'nutrition',
+  ];
+
+  const lower = normalized.toLowerCase();
+  const firstHit = recipeSignals
+    .map((signal) => lower.indexOf(signal))
+    .filter((idx) => idx >= 0)
+    .sort((a, b) => a - b)[0];
+
+  if (typeof firstHit !== 'number') return normalized.slice(0, 20000);
+
+  const start = Math.max(0, firstHit - 1800);
+  const end = Math.min(normalized.length, firstHit + 15000);
+  return normalized.slice(start, end);
+}
 function cleanHtmlForAi(html: string): string {
   let cleaned = html;
 
@@ -180,7 +274,7 @@ function cleanHtmlForAi(html: string): string {
     .replace(/\s+/g, ' ')
     .trim();
 
-  return cleaned.slice(0, 20000);
+  return extractRecipeWindow(cleaned);
 }
 
 function extractRecipeFromJsonLd(html: string): Record<string, unknown> | null {
@@ -356,14 +450,21 @@ Deno.serve(async (req) => {
         attemptedStatuses.push(`direct:${pageRes.status}`);
 
         if (pageRes.ok) {
-          html = await pageRes.text();
+          const contentType = (pageRes.headers.get('content-type') || '').toLowerCase();
+
+          if (contentType.includes('application/json')) {
+            const jsonPayload = await pageRes.json();
+            recipe = extractRecipeFromJsonPayload(jsonPayload);
+          } else {
+            html = await pageRes.text();
+          }
         }
       } catch (fetchError) {
         console.warn(`Direct fetch failed for ${normalizedUrl}:`, fetchError);
         attemptedStatuses.push('direct:network_error');
       }
 
-      if (!html) {
+      if (!recipe && !html) {
         for (const proxy of PROXY_FETCHERS) {
           try {
             const proxyRes = await fetch(proxy.buildUrl(normalizedUrl));
@@ -378,7 +479,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      if (!html) {
+      if (!recipe && !html) {
         return new Response(
           JSON.stringify({
             success: false,
@@ -388,9 +489,11 @@ Deno.serve(async (req) => {
         );
       }
 
-      recipe = extractRecipeFromJsonLd(html);
+      if (!recipe && html) {
+        recipe = extractRecipeFromJsonLd(html);
+      }
 
-      if (!recipe) {
+      if (!recipe && html) {
         content = cleanHtmlForAi(html);
       }
     }

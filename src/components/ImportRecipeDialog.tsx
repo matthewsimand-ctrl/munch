@@ -329,15 +329,22 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
     const trimmedUrl = url.trim();
     if (!trimmedUrl) return;
 
-    const isValidHttpUrl = /^https?:\/\//i.test(trimmedUrl);
-    if (!isValidHttpUrl) {
-      setLastImportError('Please use a full URL starting with http:// or https://');
+    const normalizedUrl = /^https?:\/\//i.test(trimmedUrl)
+      ? trimmedUrl
+      : `https://${trimmedUrl}`;
+
+    try {
+      // Quick sanity check to avoid sending clearly invalid values to the edge function.
+      // Relative/host-only inputs are allowed as long as they parse as a URL.
+      new URL(normalizedUrl);
+    } catch {
+      setLastImportError('Please enter a valid recipe URL.');
       setShowManualPaste(true);
       toast.error('Invalid URL format. You can paste recipe text instead.');
       return;
     }
 
-    handleExtract({ url: trimmedUrl });
+    handleExtract({ url: normalizedUrl });
   };
 
   const handleManualImport = () => {
