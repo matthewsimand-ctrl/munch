@@ -348,7 +348,7 @@ export default function Dashboard() {
                   <Calendar size={17} className="text-orange-500" />
                   <h2 className="text-base font-bold text-gray-900">This week</h2>
                 </div>
-                <Link to="/mealprep" className="text-xs text-orange-500 font-semibold hover:text-orange-600 flex items-center gap-1">
+                <Link to="/meal-prep" className="text-xs text-orange-500 font-semibold hover:text-orange-600 flex items-center gap-1">
                   Meal Prep <ChevronRight size={13} />
                 </Link>
               </div>
@@ -371,12 +371,15 @@ export default function Dashboard() {
                     </button>
                   )}
                 </div>
-                {MEAL_PLAN.map(({ day, meal, done }) => (
+                {MEAL_PLAN.map(({ day, meal, done }, index) => (
                   <div key={day} className={`flex items-center gap-4 px-3 py-2.5 rounded-xl transition-colors ${done ? "bg-green-50" : "bg-gray-50 hover:bg-gray-100"}`}>
                     <div className={`text-xs font-bold w-8 shrink-0 ${done ? "text-green-600" : "text-gray-500"}`}>{day}</div>
                     <div className={`text-sm flex-1 ${done ? "text-gray-400 line-through" : "text-gray-800 font-medium"}`}>{meal}</div>
-                    {!done && meal === "—" && (
-                      <button className="text-xs text-orange-500 font-semibold hover:text-orange-600 flex items-center gap-1">
+                    {!done && (
+                      <button
+                        onClick={() => navigate('/meal-prep', { state: { selectedDay: index, openAddDialog: true, mealType: 'dinner' } })}
+                        className="text-xs text-orange-500 font-semibold hover:text-orange-600 flex items-center gap-1"
+                      >
                         <Plus size={12} /> Add
                       </button>
                     )}
