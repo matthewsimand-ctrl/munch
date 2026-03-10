@@ -21,45 +21,6 @@ interface NormalizedRecipe {
   cuisine?: string;
 }
 
-function hasQuantityPrefix(line: string): boolean {
-  return /^(?:\d+\s+\d\/\d|\d+\/\d|\d+(?:[.,]\d+)?(?:[a-zA-Z]+)?|[¼½¾⅓⅔⅛⅜⅝⅞]|a|an)\b/i.test(String(line || '').trim());
-}
-
-function ingredientNameForMatch(line: string): string {
-  return String(line || '')
-    .trim()
-    .replace(/^(?:\d+\s+\d\/\d|\d+\/\d|\d+(?:[.,]\d+)?(?:[a-zA-Z]+)?|[¼½¾⅓⅔⅛⅜⅝⅞]|a|an)\b\s*/i, '')
-    .replace(/^(?:cup|cups|tbsp|tablespoon|tablespoons|tsp|teaspoon|teaspoons|oz|ounce|ounces|lb|lbs|pound|pounds|g|gram|grams|kg|ml|l|liter|liters|clove|cloves|can|cans|jar|jars|slice|slices|pinch|dash|sprig|sprigs|package|packages|stick|sticks|bunch|bunches)\b\s*/i, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .toLowerCase();
-}
-
-function upgradeIngredientsFromImportMetadata(ingredients: string[], rawPayload: any): string[] {
-  const fallbackLines = Array.isArray(rawPayload?.extracted_ingredient_lines)
-    ? rawPayload.extracted_ingredient_lines.map((line: unknown) => String(line).trim()).filter(Boolean)
-    : [];
-
-  if (ingredients.length === 0 || fallbackLines.length === 0) return ingredients;
-
-  return ingredients.map((line, index) => {
-    if (hasQuantityPrefix(line)) return line;
-
-    const ingredientName = ingredientNameForMatch(line);
-    const byName = fallbackLines.find((candidate: string) =>
-      hasQuantityPrefix(candidate) && ingredientNameForMatch(candidate) === ingredientName
-    );
-    if (byName) return byName;
-
-    const byIndex = fallbackLines[index];
-    if (byIndex && hasQuantityPrefix(byIndex) && ingredientNameForMatch(byIndex) === ingredientName) {
-      return byIndex;
-    }
-
-    return line;
-  });
-}
-
 async function fetchPublicRecipes(query?: string): Promise<NormalizedRecipe[]> {
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
@@ -80,30 +41,26 @@ async function fetchPublicRecipes(query?: string): Promise<NormalizedRecipe[]> {
       return [];
     }
 
-    const normalized = (data || []).map((recipe: any) => {
-      const ingredients = Array.isArray(recipe.ingredients)
+    const normalized = (data || []).map((recipe: any) => ({
+      id: String(recipe.id),
+      name: String(recipe.name || '').trim(),
+      image: String(recipe.image || ''),
+      cook_time: String(recipe.cook_time || '30 min'),
+      difficulty: String(recipe.difficulty || 'Intermediate') as NormalizedRecipe['difficulty'],
+      ingredients: Array.isArray(recipe.ingredients)
         ? recipe.ingredients.map((item: unknown) => String(item).trim()).filter(Boolean)
-        : [];
-
-      return {
-        id: String(recipe.id),
-        name: String(recipe.name || '').trim(),
-        image: String(recipe.image || ''),
-        cook_time: String(recipe.cook_time || '30 min'),
-        difficulty: String(recipe.difficulty || 'Intermediate') as NormalizedRecipe['difficulty'],
-        ingredients: upgradeIngredientsFromImportMetadata(ingredients, recipe.raw_api_payload),
-        tags: Array.isArray(recipe.tags)
-          ? recipe.tags.map((tag: unknown) => String(tag).trim().toLowerCase()).filter(Boolean)
-          : [],
-        instructions: Array.isArray(recipe.instructions)
-          ? recipe.instructions.map((step: unknown) => String(step).trim()).filter(Boolean)
-          : [],
-        source: String(recipe.source || 'community'),
-        source_url: recipe.source_url ? String(recipe.source_url) : undefined,
-        raw_api_payload: recipe.raw_api_payload ?? undefined,
-        cuisine: recipe.cuisine ? String(recipe.cuisine) : undefined,
-      };
-    });
+        : [],
+      tags: Array.isArray(recipe.tags)
+        ? recipe.tags.map((tag: unknown) => String(tag).trim().toLowerCase()).filter(Boolean)
+        : [],
+      instructions: Array.isArray(recipe.instructions)
+        ? recipe.instructions.map((step: unknown) => String(step).trim()).filter(Boolean)
+        : [],
+      source: String(recipe.source || 'community'),
+      source_url: recipe.source_url ? String(recipe.source_url) : undefined,
+      raw_api_payload: recipe.raw_api_payload ?? undefined,
+      cuisine: recipe.cuisine ? String(recipe.cuisine) : undefined,
+    }));
 
     if (!query) return normalized;
 
@@ -126,12 +83,10 @@ function normalizeInstructionLines(lines: string[]): string[] {
     const line = String(rawLine || '').replace(/\s+/g, ' ').trim();
     if (!line) continue;
 
-    // Some APIs split "Step 1" and the actual sentence into separate lines.
     if (/^step\s*\d+[:.-]?$/i.test(line)) {
       continue;
     }
 
-    // Strip leading numbering/"Step X" prefixes while keeping full text.
     const cleaned = line
       .replace(/^step\s*\d+\s*[:.)-]?\s*/i, '')
       .replace(/^\d+\s*[:.)-]\s*/, '')
@@ -147,37 +102,26 @@ function cleanIngredientPart(value: unknown): string {
   return String(value || '').trim().replace(/\s+/g, ' ');
 }
 
-function normalizeMeasurePart(value: unknown): string {
-  const rawMeasure = String(value ?? '');
-  // MealDB often returns whitespace-only strings for empty measures
-  if (!rawMeasure.trim()) return '';
-
-  const measure = cleanIngredientPart(rawMeasure);
-  if (!measure) return '';
-
-  // TheMealDB sometimes provides compact values like "500g" or "1kg".
-  // Add spacing so downstream quantity parsing/scaling works consistently.
-  return measure
-    .replace(/(\d)([a-zA-Z])/g, '$1 $2')
-    .replace(/([a-zA-Z])(\d)/g, '$1 $2')
-    .trim();
-}
-
 function joinIngredient(measure: unknown, ingredient: unknown): string | null {
-  const measureText = normalizeMeasurePart(measure);
-  const ingredientText = cleanIngredientPart(ingredient);
+  const measureText = String(measure ?? '').replace(/\s+/g, ' ').trim();
+  const ingredientText = String(ingredient ?? '').trim();
   if (!ingredientText) return null;
-  return measureText ? `${measureText} ${ingredientText}`.trim() : ingredientText;
+  return measureText ? `${measureText} ${ingredientText}` : ingredientText;
 }
 
+// ── FIXED: direct string coercion matching import-recipe's extractRecipeFromMealDbPayload.
+// The previous implementation used joinIngredient → normalizeMeasurePart → cleanIngredientPart
+// which silently dropped measures when MealDB returned null/undefined/whitespace-only strings
+// because cleanIngredientPart uses `value || ''` (coerces all falsy values) and
+// normalizeMeasurePart only guarded against a single-space ' ' string.
 function buildMealDbIngredients(meal: Record<string, unknown>): string[] {
   const ingredients: string[] = [];
 
   for (let i = 1; i <= 20; i++) {
-    const ingredient = meal[`strIngredient${i}`];
-    const measure = meal[`strMeasure${i}`];
-    const line = joinIngredient(measure, ingredient);
-    if (line) ingredients.push(line);
+    const name = String(meal[`strIngredient${i}`] ?? '').trim();
+    if (!name) continue;
+    const measure = String(meal[`strMeasure${i}`] ?? '').replace(/\s+/g, ' ').trim();
+    ingredients.push(measure ? `${measure} ${name}` : name);
   }
 
   return ingredients;
@@ -248,11 +192,9 @@ async function browseMealDBByLetter(letter: string): Promise<NormalizedRecipe[]>
 
 async function browseMealDBByCategory(category: string): Promise<NormalizedRecipe[]> {
   try {
-    // This endpoint returns limited data, just id/name/thumb
     const res = await fetch(`https://www.themealdb.com/api/json/v1/1/filter.php?c=${encodeURIComponent(category)}`);
     const data = await res.json();
     if (!data.meals) return [];
-    // Fetch full details for each (limited to 8 per category to stay fast)
     const meals = data.meals.slice(0, 8);
     const detailed = await Promise.allSettled(
       meals.map(async (m: any) => {
@@ -290,12 +232,9 @@ async function browseMealDBByCategory(category: string): Promise<NormalizedRecip
   }
 }
 
-// Infer cuisine from recipe metadata
 function inferCuisine(name: string, tags: string[], ingredients: string[]): string | undefined {
-  const lowerName = name.toLowerCase();
-  const allText = [lowerName, ...tags, ...ingredients].join(' ').toLowerCase();
-  
-  // Cuisine patterns
+  const allText = [name.toLowerCase(), ...tags, ...ingredients].join(' ').toLowerCase();
+
   if (/(thai|pad thai|green curry|tom yum)/i.test(allText)) return 'Thai';
   if (/(italian|pasta|pizza|risotto|carbonara|pesto)/i.test(allText)) return 'Italian';
   if (/(mexican|taco|burrito|enchilada|quesadilla|salsa)/i.test(allText)) return 'Mexican';
@@ -308,7 +247,7 @@ function inferCuisine(name: string, tags: string[], ingredients: string[]): stri
   if (/(korean|kimchi|bibimbap|bulgogi)/i.test(allText)) return 'Korean';
   if (/(vietnamese|pho|banh mi)/i.test(allText)) return 'Vietnamese';
   if (/(spanish|paella|tapas)/i.test(allText)) return 'Spanish';
-  
+
   return undefined;
 }
 
@@ -379,10 +318,10 @@ async function searchSpoonacular(query: string, apiKey: string, number = 5): Pro
           return joinIngredient(amount ? `${amount}${unit ? ` ${unit}` : ''}` : '', i.name || i.originalName || i.original);
         })
         .filter(Boolean);
-      const instructions = normalizeInstructionLines(r.analyzedInstructions?.[0]?.steps
+      const instructions = normalizeInstructionLines((r.analyzedInstructions?.[0]?.steps
         ?.sort((a: any, b: any) => a.number - b.number)
         .map((s: any) => s.step)
-        .filter(Boolean) || []);
+        .filter(Boolean) || []));
       const difficulty = r.readyInMinutes > 60 ? 'Advanced' as const
         : r.readyInMinutes > 30 ? 'Intermediate' as const : 'Beginner' as const;
       return {
@@ -421,10 +360,10 @@ async function browseSpoonacularRandom(apiKey: string, number = 20): Promise<Nor
           return joinIngredient(amount ? `${amount}${unit ? ` ${unit}` : ''}` : '', i.name || i.originalName || i.original);
         })
         .filter(Boolean);
-      const instructions = normalizeInstructionLines(r.analyzedInstructions?.[0]?.steps
+      const instructions = normalizeInstructionLines((r.analyzedInstructions?.[0]?.steps
         ?.sort((a: any, b: any) => a.number - b.number)
         .map((s: any) => s.step)
-        .filter(Boolean) || []);
+        .filter(Boolean) || []));
       const difficulty = r.readyInMinutes > 60 ? 'Advanced' as const
         : r.readyInMinutes > 30 ? 'Intermediate' as const : 'Beginner' as const;
       return {
@@ -448,7 +387,6 @@ async function browseSpoonacularRandom(apiKey: string, number = 20): Promise<Nor
   }
 }
 
-// Dedup by name (case insensitive)
 function dedup(recipes: NormalizedRecipe[]): NormalizedRecipe[] {
   const seen = new Set<string>();
   return recipes.filter(r => {
@@ -469,30 +407,25 @@ serve(async (req) => {
     const RAPIDAPI_KEY = Deno.env.get('RAPIDAPI_KEY') || '';
     const SPOONACULAR_API_KEY = Deno.env.get('SPOONACULAR_API_KEY') || '';
 
-    // "browse" mode: bulk-fetch large catalog
     if (mode === 'browse') {
       console.log('Browse mode: fetching large catalog...');
       const promises: Promise<NormalizedRecipe[]>[] = [];
       promises.push(fetchPublicRecipes());
 
-      // MealDB: fetch by first letter (a-z) to get ~200+ recipes
       const letters = 'abcdefghijklmnopqrstuvwxyz'.split('');
       for (const letter of letters) {
         promises.push(browseMealDBByLetter(letter));
       }
 
-      // MealDB categories for more coverage
       const categories = ['Chicken', 'Beef', 'Seafood', 'Pasta', 'Vegetarian', 'Dessert', 'Breakfast', 'Pork', 'Lamb', 'Vegan', 'Starter', 'Side'];
       for (const cat of categories) {
         promises.push(browseMealDBByCategory(cat));
       }
 
-      // Spoonacular random batches
       if (SPOONACULAR_API_KEY) {
         promises.push(browseSpoonacularRandom(SPOONACULAR_API_KEY, 50));
       }
 
-      // Tasty popular queries
       if (RAPIDAPI_KEY) {
         const tastyQueries = ['popular', 'easy dinner', 'quick lunch', 'healthy', 'comfort food', 'dessert', 'breakfast', 'pasta', 'chicken', 'vegetarian'];
         for (const q of tastyQueries) {
@@ -513,7 +446,6 @@ serve(async (req) => {
       });
     }
 
-    // Regular search mode
     const searchQuery = query || 'chicken';
 
     const promises: Promise<NormalizedRecipe[]>[] = [];
