@@ -61,7 +61,7 @@ const CUISINE_FILTERS = ["All", "Italian", "Asian", "Mexican", "Mediterranean", 
 export default function Browse() {
   const navigate = useNavigate();
   const { recipes, loading, loaded, loadFeed } = useBrowseFeed();
-  const { pantryList, likeRecipe, likedRecipes, addCustomGroceryItem } = useStore();
+  const { pantryList, likeRecipe, likedRecipes, addCustomGroceryItem, recipeRatings, recipeCookCounts } = useStore();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [animating, setAnimating] = useState<"left" | "right" | null>(null);
   const [difficultyFilter, setDifficultyFilter] = useState("All");
@@ -383,7 +383,13 @@ export default function Browse() {
                       <div className="flex items-center gap-4 text-sm text-white/90 mb-2">
                         <span className="flex items-center gap-1"><Clock size={13} /> {currentRecipe.cook_time}</span>
                         {currentRecipe.cuisine && <span className="flex items-center gap-1">🌍 {currentRecipe.cuisine}</span>}
+                        {recipeCookCounts[currentRecipe.id] ? <span>{recipeCookCounts[currentRecipe.id]} cooks</span> : null}
                       </div>
+                      {(recipeRatings[currentRecipe.id] || 0) > 0 && (
+                        <div className="mb-2 inline-flex items-center gap-1 rounded-full bg-amber-100/95 px-2 py-0.5 text-[11px] font-semibold text-amber-800">
+                          <Star size={11} className="fill-current" /> {recipeRatings[currentRecipe.id]}/5
+                        </div>
+                      )}
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {currentRecipe.ingredients.slice(0, 3).map((line) => {
                           const parsed = parseIngredientLine(line);
@@ -471,6 +477,8 @@ export default function Browse() {
                   <span className="flex items-center gap-1.5"><Clock size={16} /> {selectedRecipe.cook_time}</span>
                   <span className="flex items-center gap-1.5"><Star size={16} /> {selectedRecipe.difficulty}</span>
                   {selectedRecipe.cuisine && <span className="flex items-center gap-1.5">🌍 {selectedRecipe.cuisine}</span>}
+                  {recipeCookCounts[selectedRecipe.id] ? <span>Cooked {recipeCookCounts[selectedRecipe.id]}x</span> : null}
+                  {(recipeRatings[selectedRecipe.id] || 0) > 0 ? <span>Rating {recipeRatings[selectedRecipe.id]}/5</span> : null}
                 </div>
 
                 <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3">

@@ -8,7 +8,7 @@ import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis';
 import { useVoiceCommands } from '@/hooks/useVoiceCommands';
 import { Button } from '@/components/ui/button';
 import { ChefPath, CookingXpBar } from '@/components/ChefCompanion';
-import { ArrowLeft, ChevronLeft, ChevronRight, Play, Pause, RotateCcw, Timer, Volume2, VolumeX, Mic, MicOff, FolderPlus } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Play, Pause, RotateCcw, Timer, Volume2, VolumeX, Mic, MicOff, Star } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -86,25 +86,11 @@ export default function CookMode() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: dbRecipes = [] } = useDbRecipes();
-  const { savedApiRecipes, markRecipeCooked, recipeFolders, createFolder, addRecipeToFolder, archiveBehavior } = useStore();
+  const { savedApiRecipes, markRecipeCooked, rateRecipe, cookModeTtsEnabled, setCookModeTtsEnabled, recipeRatings } = useStore();
   const rawRecipe = dbRecipes.find(r => r.id === id) || savedApiRecipes[id || ''];
   const recipe = rawRecipe ? normalizeRecipe(rawRecipe, id) : null;
   const [isDone, setIsDone] = useState(false);
-  const [showArchivePrompt, setShowArchivePrompt] = useState(false);
-
-  const archiveRecipe = useCallback(() => {
-    if (!id) return;
-    let archiveFolder = recipeFolders.find(f => f.name.toLowerCase() === 'archive');
-    if (!archiveFolder) {
-      createFolder('Archive');
-      const folders = useStore.getState().recipeFolders;
-      archiveFolder = folders.find(f => f.name === 'Archive');
-    }
-    if (archiveFolder) {
-      addRecipeToFolder(archiveFolder.id, id);
-      toast.success('Moved to Archive folder');
-    }
-  }, [id, recipeFolders, createFolder, addRecipeToFolder]);
+  const [showRatingPrompt, setShowRatingPrompt] = useState(false);
 
   const [currentStep, setCurrentStep] = useState(0);
   const [timerRunning, setTimerRunning] = useState(false);
@@ -154,11 +140,11 @@ export default function CookMode() {
 
   // Auto-read on step change
   useEffect(() => {
-    if (steps[currentStep]) {
+    if (cookModeTtsEnabled && steps[currentStep]) {
       speak(`Step ${currentStep + 1}. ${steps[currentStep]}`);
     }
     return () => { stopSpeaking(); };
-  }, [currentStep, steps, speak, stopSpeaking]);
+  }, [cookModeTtsEnabled, currentStep, steps, speak, stopSpeaking]);
 
   const goNext = useCallback(() => {
     if (currentStep < totalSteps - 1) setCurrentStep(s => s + 1);
@@ -173,6 +159,22 @@ export default function CookMode() {
       speak(`Step ${currentStep + 1}. ${steps[currentStep]}`);
     }
   }, [currentStep, steps, speak]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        goNext();
+      }
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        goPrev();
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [goNext, goPrev]);
 
   const handleStartTimer = useCallback(() => {
     if (stepTimer && timerRemaining === 0) {
@@ -244,9 +246,20 @@ export default function CookMode() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => isSpeaking ? stopSpeaking() : speak(`Step ${currentStep + 1}. ${steps[currentStep]}`)}
+              onClick={() => {
+                if (cookModeTtsEnabled) {
+                  setCookModeTtsEnabled(false);
+                  stopSpeaking();
+                  return;
+                }
+
+                setCookModeTtsEnabled(true);
+                if (steps[currentStep]) {
+                  speak(`Step ${currentStep + 1}. ${steps[currentStep]}`);
+                }
+              }}
             >
-              {isSpeaking ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+              {cookModeTtsEnabled && isSpeaking ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
             </Button>
           </div>
         </div>
@@ -373,14 +386,7 @@ export default function CookMode() {
               if (id) markRecipeCooked(id);
               setIsDone(true);
               toast.success('🎉 Recipe completed! Great cooking!');
-              if (archiveBehavior === 'always') {
-                archiveRecipe();
-                setTimeout(() => navigate('/saved'), 1000);
-              } else if (archiveBehavior === 'never') {
-                setTimeout(() => navigate('/saved'), 1000);
-              } else {
-                setTimeout(() => setShowArchivePrompt(true), 800);
-              }
+              setTimeout(() => setShowRatingPrompt(true), 700);
             }}>
               🎉 Done!
             </Button>
@@ -392,36 +398,40 @@ export default function CookMode() {
         </div>
       </div>
 
-      {/* Archive prompt dialog */}
-      <Dialog open={showArchivePrompt} onOpenChange={setShowArchivePrompt}>
+      {/* Rating prompt dialog */}
+      <Dialog open={showRatingPrompt} onOpenChange={setShowRatingPrompt}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FolderPlus className="h-5 w-5 text-primary" />
-              {recipeFolders.some(f => f.name.toLowerCase() === 'archive')
-                ? 'Move to Archive?'
-                : 'Create Archive folder?'}
-            </DialogTitle>
+            <DialogTitle>How was this recipe?</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            {recipeFolders.some(f => f.name.toLowerCase() === 'archive')
-              ? <>Move <span className="font-semibold text-foreground">{recipe?.name}</span> to your Archive folder?</>
-              : <>Create an "Archive" folder and move <span className="font-semibold text-foreground">{recipe?.name}</span> into it?</>
-            }
-          </p>
-          <div className="flex gap-2 pt-2">
+          <p className="text-sm text-muted-foreground">Rate this cook from 1 to 5 stars.</p>
+          <div className="flex items-center justify-center gap-2 py-1">
+            {[1, 2, 3, 4, 5].map((value) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => {
+                  if (id) rateRecipe(id, value);
+                  toast.success(`Saved ${value}-star rating`);
+                  setShowRatingPrompt(false);
+                  navigate('/saved');
+                }}
+                className="text-amber-500 hover:scale-110 transition-transform"
+                aria-label={`Rate ${value} stars`}
+              >
+                <Star
+                  className="h-7 w-7"
+                  fill={(recipeRatings[id || ''] || 0) >= value ? 'currentColor' : 'none'}
+                />
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-2 pt-1">
             <Button variant="outline" className="flex-1" onClick={() => {
-              setShowArchivePrompt(false);
+              setShowRatingPrompt(false);
               navigate('/saved');
             }}>
-              Skip
-            </Button>
-            <Button className="flex-1" onClick={() => {
-              archiveRecipe();
-              setShowArchivePrompt(false);
-              navigate('/saved');
-            }}>
-              Archive it
+              Skip for now
             </Button>
           </div>
         </DialogContent>

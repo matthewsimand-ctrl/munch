@@ -52,6 +52,9 @@ interface AppState {
   archiveBehavior: 'ask' | 'always' | 'never';
   chefAvatarUrl: string | null;
   shareCustomRecipesByDefault: boolean;
+  recipeRatings: Record<string, number>;
+  recipeCookCounts: Record<string, number>;
+  cookModeTtsEnabled: boolean;
 
   setUserProfile: (profile: Partial<UserProfile>) => void;
   completeOnboarding: () => void;
@@ -86,6 +89,8 @@ interface AppState {
   setArchiveBehavior: (behavior: 'ask' | 'always' | 'never') => void;
   setChefAvatarUrl: (url: string | null) => void;
   setShareCustomRecipesByDefault: (enabled: boolean) => void;
+  rateRecipe: (recipeId: string, rating: number) => void;
+  setCookModeTtsEnabled: (enabled: boolean) => void;
   resetStore: () => void;
 }
 
@@ -122,6 +127,9 @@ export const useStore = create<AppState>()(
       archiveBehavior: 'ask' as const,
       chefAvatarUrl: null,
       shareCustomRecipesByDefault: true,
+      recipeRatings: {},
+      recipeCookCounts: {},
+      cookModeTtsEnabled: true,
 
       setShowTutorial: (show) => set({ showTutorial: show }),
 
@@ -324,6 +332,10 @@ export const useStore = create<AppState>()(
             cookedRecipeIds: state.cookedRecipeIds.includes(recipeId)
               ? state.cookedRecipeIds
               : [...state.cookedRecipeIds, recipeId],
+            recipeCookCounts: {
+              ...state.recipeCookCounts,
+              [recipeId]: (state.recipeCookCounts[recipeId] || 0) + 1,
+            },
           };
         }),
 
@@ -342,6 +354,16 @@ export const useStore = create<AppState>()(
       setChefAvatarUrl: (url) => set({ chefAvatarUrl: url }),
 
       setShareCustomRecipesByDefault: (enabled) => set({ shareCustomRecipesByDefault: enabled }),
+
+      rateRecipe: (recipeId, rating) =>
+        set((state) => ({
+          recipeRatings: {
+            ...state.recipeRatings,
+            [recipeId]: Math.max(1, Math.min(5, Math.round(rating))),
+          },
+        })),
+
+      setCookModeTtsEnabled: (enabled) => set({ cookModeTtsEnabled: enabled }),
 
       resetStore: () =>
         set({
@@ -367,6 +389,9 @@ export const useStore = create<AppState>()(
           archiveBehavior: 'ask' as const,
           chefAvatarUrl: null,
           shareCustomRecipesByDefault: true,
+          recipeRatings: {},
+          recipeCookCounts: {},
+          cookModeTtsEnabled: true,
         }),
     }),
     { name: 'chefstack-storage' }
