@@ -21,13 +21,23 @@ interface NormalizedRecipe {
   cuisine?: string;
 }
 
-async function fetchPublicRecipes(query?: string): Promise<NormalizedRecipe[]> {
+const EXTERNAL_CACHE_TTL_DAYS = 14;
+
+function getSupabaseClient(useServiceRole = false) {
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
-  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
-  if (!supabaseUrl || !supabaseAnonKey) return [];
+  const key = useServiceRole
+    ? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    : Deno.env.get('SUPABASE_ANON_KEY');
+
+  if (!supabaseUrl || !key) return null;
+  return createClient(supabaseUrl, key);
+}
+
+async function fetchPublicRecipes(query?: string): Promise<NormalizedRecipe[]> {
+  const supabase = getSupabaseClient(false);
+  if (!supabase) return [];
 
   try {
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
     const request = supabase
       .from('recipes')
       .select('id, name, image, cook_time, difficulty, ingredients, tags, instructions, source, source_url, raw_api_payload, cuisine')
@@ -74,6 +84,105 @@ async function fetchPublicRecipes(query?: string): Promise<NormalizedRecipe[]> {
   } catch (error) {
     console.error('Public recipe fetch failure:', error);
     return [];
+  }
+}
+
+async function fetchCachedExternalRecipes(query?: string): Promise<NormalizedRecipe[]> {
+  const supabase = getSupabaseClient(false);
+  if (!supabase) return [];
+
+  try {
+    const { data, error } = await supabase
+      .from('recipe_api_cache')
+      .select('name, image, cook_time, difficulty, ingredients, tags, instructions, source, source_url, raw_api_payload, cuisine, external_id')
+      .gt('expires_at', new Date().toISOString())
+      .order('updated_at', { ascending: false })
+      .limit(query ? 400 : 250);
+
+    if (error) {
+      console.error('External cache read error:', error);
+      return [];
+    }
+
+    const normalized = (data || []).map((recipe: any) => ({
+      id: `${String(recipe.source || 'external').toLowerCase()}-${String(recipe.external_id || recipe.name || '').trim()}`,
+      name: String(recipe.name || '').trim(),
+      image: String(recipe.image || ''),
+      cook_time: String(recipe.cook_time || '30 min'),
+      difficulty: String(recipe.difficulty || 'Intermediate') as NormalizedRecipe['difficulty'],
+      ingredients: Array.isArray(recipe.ingredients)
+        ? recipe.ingredients.map((item: unknown) => String(item).trim()).filter(Boolean)
+        : [],
+      tags: Array.isArray(recipe.tags)
+        ? recipe.tags.map((tag: unknown) => String(tag).trim().toLowerCase()).filter(Boolean)
+        : [],
+      instructions: Array.isArray(recipe.instructions)
+        ? recipe.instructions.map((step: unknown) => String(step).trim()).filter(Boolean)
+        : [],
+      source: String(recipe.source || 'external'),
+      source_url: recipe.source_url ? String(recipe.source_url) : undefined,
+      raw_api_payload: recipe.raw_api_payload ?? undefined,
+      cuisine: recipe.cuisine ? String(recipe.cuisine) : undefined,
+    }));
+
+    if (!query) return normalized;
+
+    const loweredQuery = query.toLowerCase().trim();
+    return normalized.filter((recipe) =>
+      recipe.name.toLowerCase().includes(loweredQuery) ||
+      recipe.ingredients.some((ingredient) => ingredient.toLowerCase().includes(loweredQuery)) ||
+      recipe.tags.some((tag) => tag.toLowerCase().includes(loweredQuery)) ||
+      (recipe.cuisine || '').toLowerCase().includes(loweredQuery)
+    );
+  } catch (error) {
+    console.error('External cache read failure:', error);
+    return [];
+  }
+}
+
+function getExternalRecipeId(recipe: NormalizedRecipe): string {
+  const originalId = String(recipe.id || '').trim();
+  const splitId = originalId.includes('-') ? originalId.split('-').slice(1).join('-') : originalId;
+  return splitId || recipe.source_url || recipe.name.toLowerCase().trim();
+}
+
+async function cacheExternalRecipes(recipes: NormalizedRecipe[]): Promise<void> {
+  const supabase = getSupabaseClient(true);
+  if (!supabase || recipes.length === 0) return;
+
+  const ttlMs = EXTERNAL_CACHE_TTL_DAYS * 24 * 60 * 60 * 1000;
+  const expiresAt = new Date(Date.now() + ttlMs).toISOString();
+
+  const upsertPayload = recipes
+    .filter((recipe) => recipe.source !== 'community')
+    .map((recipe) => {
+      const externalId = getExternalRecipeId(recipe);
+      return {
+        cache_key: `${recipe.source.toLowerCase()}::${externalId}`,
+        external_id: externalId,
+        name: recipe.name,
+        image: recipe.image,
+        cook_time: recipe.cook_time,
+        difficulty: recipe.difficulty,
+        ingredients: recipe.ingredients,
+        tags: recipe.tags,
+        instructions: recipe.instructions,
+        source: recipe.source,
+        source_url: recipe.source_url || null,
+        raw_api_payload: recipe.raw_api_payload ?? null,
+        cuisine: recipe.cuisine || null,
+        expires_at: expiresAt,
+      };
+    });
+
+  if (upsertPayload.length === 0) return;
+
+  const { error } = await supabase
+    .from('recipe_api_cache')
+    .upsert(upsertPayload, { onConflict: 'cache_key' });
+
+  if (error) {
+    console.error('External cache upsert error:', error);
   }
 }
 
@@ -409,34 +518,46 @@ serve(async (req) => {
 
     if (mode === 'browse') {
       console.log('Browse mode: fetching large catalog...');
-      const promises: Promise<NormalizedRecipe[]>[] = [];
-      promises.push(fetchPublicRecipes());
+      const stablePromises: Promise<NormalizedRecipe[]>[] = [];
+      const externalPromises: Promise<NormalizedRecipe[]>[] = [];
+      stablePromises.push(fetchPublicRecipes());
+      stablePromises.push(fetchCachedExternalRecipes());
 
       const letters = 'abcdefghijklmnopqrstuvwxyz'.split('');
       for (const letter of letters) {
-        promises.push(browseMealDBByLetter(letter));
+        externalPromises.push(browseMealDBByLetter(letter));
       }
 
       const categories = ['Chicken', 'Beef', 'Seafood', 'Pasta', 'Vegetarian', 'Dessert', 'Breakfast', 'Pork', 'Lamb', 'Vegan', 'Starter', 'Side'];
       for (const cat of categories) {
-        promises.push(browseMealDBByCategory(cat));
+        externalPromises.push(browseMealDBByCategory(cat));
       }
 
       if (SPOONACULAR_API_KEY) {
-        promises.push(browseSpoonacularRandom(SPOONACULAR_API_KEY, 50));
+        externalPromises.push(browseSpoonacularRandom(SPOONACULAR_API_KEY, 50));
       }
 
       if (RAPIDAPI_KEY) {
         const tastyQueries = ['popular', 'easy dinner', 'quick lunch', 'healthy', 'comfort food', 'dessert', 'breakfast', 'pasta', 'chicken', 'vegetarian'];
         for (const q of tastyQueries) {
-          promises.push(searchTasty(q, RAPIDAPI_KEY, 10));
+          externalPromises.push(searchTasty(q, RAPIDAPI_KEY, 10));
         }
       }
 
-      const results = await Promise.allSettled(promises);
-      const allRecipes = results
+      const stableResults = await Promise.allSettled(stablePromises);
+      const externalResults = await Promise.allSettled(externalPromises);
+
+      const stableRecipes = stableResults
         .filter((r): r is PromiseFulfilledResult<NormalizedRecipe[]> => r.status === 'fulfilled')
         .flatMap(r => r.value);
+
+      const externalRecipes = externalResults
+        .filter((r): r is PromiseFulfilledResult<NormalizedRecipe[]> => r.status === 'fulfilled')
+        .flatMap(r => r.value);
+
+      await cacheExternalRecipes(externalRecipes);
+
+      const allRecipes = [...stableRecipes, ...externalRecipes];
 
       const unique = dedup(allRecipes);
       console.log(`Browse: fetched ${allRecipes.length} total, ${unique.length} unique`);
@@ -448,21 +569,33 @@ serve(async (req) => {
 
     const searchQuery = query || 'chicken';
 
-    const promises: Promise<NormalizedRecipe[]>[] = [];
-    promises.push(fetchPublicRecipes(searchQuery));
-    promises.push(searchMealDB(searchQuery));
+    const stablePromises: Promise<NormalizedRecipe[]>[] = [];
+    const externalPromises: Promise<NormalizedRecipe[]>[] = [];
+    stablePromises.push(fetchPublicRecipes(searchQuery));
+    stablePromises.push(fetchCachedExternalRecipes(searchQuery));
+    externalPromises.push(searchMealDB(searchQuery));
     if (RAPIDAPI_KEY) {
-      promises.push(searchTasty(searchQuery, RAPIDAPI_KEY, 10));
+      externalPromises.push(searchTasty(searchQuery, RAPIDAPI_KEY, 10));
     }
     if (SPOONACULAR_API_KEY) {
-      promises.push(searchSpoonacular(searchQuery, SPOONACULAR_API_KEY, 10));
+      externalPromises.push(searchSpoonacular(searchQuery, SPOONACULAR_API_KEY, 10));
     }
 
-    const results = await Promise.allSettled(promises);
+    const stableResults = await Promise.allSettled(stablePromises);
+    const externalResults = await Promise.allSettled(externalPromises);
+
+    const stableRecipes = stableResults
+      .filter((r): r is PromiseFulfilledResult<NormalizedRecipe[]> => r.status === 'fulfilled')
+      .flatMap(r => r.value);
+
+    const externalRecipes = externalResults
+      .filter((r): r is PromiseFulfilledResult<NormalizedRecipe[]> => r.status === 'fulfilled')
+      .flatMap(r => r.value);
+
+    await cacheExternalRecipes(externalRecipes);
+
     const recipes = dedup(
-      results
-        .filter((r): r is PromiseFulfilledResult<NormalizedRecipe[]> => r.status === 'fulfilled')
-        .flatMap(r => r.value)
+      [...stableRecipes, ...externalRecipes]
     );
 
     return new Response(JSON.stringify({ recipes }), {
