@@ -149,7 +149,8 @@ function cleanIngredientPart(value: unknown): string {
 
 function normalizeMeasurePart(value: unknown): string {
   const rawMeasure = String(value ?? '');
-  if (rawMeasure === ' ') return '';
+  // MealDB often returns whitespace-only strings for empty measures
+  if (!rawMeasure.trim()) return '';
 
   const measure = cleanIngredientPart(rawMeasure);
   if (!measure) return '';
@@ -378,7 +379,7 @@ async function searchSpoonacular(query: string, apiKey: string, number = 5): Pro
           return joinIngredient(amount ? `${amount}${unit ? ` ${unit}` : ''}` : '', i.name || i.originalName || i.original);
         })
         .filter(Boolean);
-      const instructions = normalizeInstructionLines((r.analyzedInstructions?.[0]?.steps
+      const instructions = normalizeInstructionLines(r.analyzedInstructions?.[0]?.steps
         ?.sort((a: any, b: any) => a.number - b.number)
         .map((s: any) => s.step)
         .filter(Boolean) || []);
@@ -420,7 +421,7 @@ async function browseSpoonacularRandom(apiKey: string, number = 20): Promise<Nor
           return joinIngredient(amount ? `${amount}${unit ? ` ${unit}` : ''}` : '', i.name || i.originalName || i.original);
         })
         .filter(Boolean);
-      const instructions = normalizeInstructionLines((r.analyzedInstructions?.[0]?.steps
+      const instructions = normalizeInstructionLines(r.analyzedInstructions?.[0]?.steps
         ?.sort((a: any, b: any) => a.number - b.number)
         .map((s: any) => s.step)
         .filter(Boolean) || []);

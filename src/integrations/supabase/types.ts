@@ -125,8 +125,10 @@ export type Database = {
           instructions: string[]
           is_public: boolean
           name: string
+          raw_api_payload: Json | null
           servings: number
           source: string | null
+          source_url: string | null
           tags: string[]
           updated_at: string
         }
@@ -142,8 +144,10 @@ export type Database = {
           instructions?: string[]
           is_public?: boolean
           name: string
+          raw_api_payload?: Json | null
           servings?: number
           source?: string | null
+          source_url?: string | null
           tags?: string[]
           updated_at?: string
         }
@@ -159,8 +163,10 @@ export type Database = {
           instructions?: string[]
           is_public?: boolean
           name?: string
+          raw_api_payload?: Json | null
           servings?: number
           source?: string | null
+          source_url?: string | null
           tags?: string[]
           updated_at?: string
         }
