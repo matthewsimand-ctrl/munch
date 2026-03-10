@@ -7,7 +7,6 @@ import {
   Package,
   ChevronDown,
   Sparkles,
-  Share2,
   Loader2,
   Pencil,
 } from "lucide-react";
@@ -20,7 +19,6 @@ import { getCategory } from "@/lib/ingredientCategories";
 interface GroceryItem {
   id: number;
   name: string;
-  quantity: string;
   category: string;
   checked: boolean;
   fromRecipe?: string;
@@ -44,7 +42,6 @@ export default function GroceryList() {
     const storeItems: GroceryItem[] = customGroceryItems.map((item, i) => ({
       id: Date.now() + i + 1000,
       name: item.name,
-      quantity: item.quantity || "1",
       category: getCategory(item.name) || "Other",
       checked: false,
     }));
@@ -52,23 +49,20 @@ export default function GroceryList() {
   });
 
   const [newName, setNewName] = useState("");
-  const [newQty, setNewQty] = useState("");
   const [newCat, setNewCat] = useState("Fresh Produce");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [fillingFromPlan, setFillingFromPlan] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingName, setEditingName] = useState('');
-  const [editingQty, setEditingQty] = useState('');
 
   const startEdit = (item: GroceryItem) => {
     setEditingId(item.id);
     setEditingName(item.name);
-    setEditingQty(item.quantity);
   };
 
   const saveEdit = () => {
     if (editingId === null || !editingName.trim()) return;
-    setItems((prev) => prev.map((item) => item.id === editingId ? { ...item, name: editingName.trim(), quantity: editingQty.trim() || '1', category: getCategory(editingName.trim()) || item.category } : item));
+    setItems((prev) => prev.map((item) => item.id === editingId ? { ...item, name: editingName.trim(), category: getCategory(editingName.trim()) || item.category } : item));
     setEditingId(null);
   };
 
@@ -84,13 +78,11 @@ export default function GroceryList() {
     const item: GroceryItem = {
       id: Date.now(),
       name: newName,
-      quantity: newQty || "1",
       category: newCat,
       checked: false,
     };
     setItems((prev) => [...prev, item]);
     setNewName("");
-    setNewQty("");
   };
 
   const handleAutoFill = async () => {
@@ -153,7 +145,6 @@ export default function GroceryList() {
           newItems.push({
             id: Date.now() + addedCount + Math.random() * 10000,
             name: ing.trim(),
-            quantity: "1",
             category: getCategory(ing) || "Other",
             checked: false,
             fromRecipe: recipeName,
@@ -243,12 +234,6 @@ export default function GroceryList() {
                   placeholder="Add an item…"
                   className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-orange-300 transition-colors"
                 />
-                <input
-                  value={newQty}
-                  onChange={(e) => setNewQty(e.target.value)}
-                  placeholder="Qty"
-                  className="w-20 px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-orange-300 transition-colors"
-                />
                 <div className="relative hidden sm:block">
                   <select
                     value={newCat}
@@ -297,9 +282,8 @@ export default function GroceryList() {
 
                       <div className="flex-1 min-w-0">
                         {editingId === item.id ? (
-                          <div className="flex gap-2">
+                          <div className="flex">
                             <input value={editingName} onChange={(e) => setEditingName(e.target.value)} className="flex-1 px-2 py-1 text-sm border border-gray-200 rounded" />
-                            <input value={editingQty} onChange={(e) => setEditingQty(e.target.value)} className="w-16 px-2 py-1 text-sm border border-gray-200 rounded" />
                           </div>
                         ) : (
                           <span className={`text-sm font-medium transition-colors ${item.checked ? "text-gray-400 line-through" : "text-gray-800"}`}>
@@ -310,13 +294,6 @@ export default function GroceryList() {
                           <div className="text-xs text-gray-400 mt-0.5">For: {item.fromRecipe}</div>
                         )}
                       </div>
-
-                      {editingId !== item.id && (
-                        <span className={`text-sm shrink-0 ${item.checked ? "text-gray-400" : "text-gray-600 font-medium"}`}>
-                          {item.quantity}
-                        </span>
-                      )}
-
                       {editingId === item.id ? (
                         <button
                           onClick={saveEdit}
