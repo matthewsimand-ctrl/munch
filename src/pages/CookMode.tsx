@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft, ArrowRight, ChefHat, CheckCircle2, Circle,
-  Clock, Volume2, VolumeX, Trophy, RotateCcw, X, Check,
+  Volume2, VolumeX, RotateCcw, Check, Star,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "@/lib/store";
@@ -11,6 +11,7 @@ import { normalizeRecipe } from "@/lib/normalizeRecipe";
 import { useSpeechSynthesis } from "@/hooks/useSpeechSynthesis";
 import { toast } from "sonner";
 import type { Recipe } from "@/data/recipes";
+import { ChefPath, CookingXpBar } from "@/components/ChefCompanion";
 
 /* ─── Helpers ──────────────────────────────────────────────── */
 function cleanInstruction(raw: string): string {
@@ -48,7 +49,7 @@ function ProgressDots({ total, current }: { total: number; current: number }) {
 export default function CookMode() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { likedRecipes, savedApiRecipes, markRecipeCooked } = useStore();
+  const { savedApiRecipes, markRecipeCooked, rateRecipe, recipeRatings } = useStore();
   const { data: dbRecipes = [] } = useDbRecipes();
   const { isSpeaking, speak, stop } = useSpeechSynthesis();
 
@@ -74,6 +75,8 @@ export default function CookMode() {
   );
   const ingredients = recipe?.ingredients ?? [];
   const isLastStep = stepIndex === steps.length - 1;
+  const sessionXp = Math.max(0, (steps.length - 1) * 15) + 50;
+  const currentRating = recipe && id ? recipeRatings[id] ?? 0 : 0;
 
   /* ── TTS: speak is ONLY called from button click handlers ──
      Never put speak() in a useEffect — browsers block speech
@@ -172,10 +175,16 @@ export default function CookMode() {
   if (done) {
     return (
       <div
-        className="min-h-full flex flex-col items-center justify-center px-6 text-center"
+        className="min-h-full flex flex-col items-center justify-center px-6 py-10"
         style={{ background: "linear-gradient(135deg,#FFF7ED 0%,#FFFAF5 100%)" }}
       >
-        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 200 }}>
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: "spring", stiffness: 200 }}
+          className="w-full max-w-md rounded-3xl border p-7 text-center"
+          style={{ background: "#fff", borderColor: "rgba(249,115,22,0.16)", boxShadow: "0 20px 48px rgba(249,115,22,0.14)" }}
+        >
           <div
             className="w-24 h-24 rounded-3xl flex items-center justify-center text-5xl mx-auto mb-6"
             style={{ background: "linear-gradient(135deg,#FB923C,#F97316)", boxShadow: "0 8px 32px rgba(249,115,22,0.35)" }}
@@ -188,7 +197,41 @@ export default function CookMode() {
           >
             Bon appétit!
           </h2>
-          <p className="text-stone-500 mb-8">You finished cooking <strong>{recipe.name}</strong>. Enjoy!</p>
+          <p className="text-stone-500 mb-5">You finished cooking <strong>{recipe.name}</strong>. Enjoy!</p>
+
+          <div className="rounded-2xl border px-4 py-3 mb-6" style={{ borderColor: "rgba(16,185,129,0.2)", background: "rgba(16,185,129,0.08)" }}>
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-emerald-600 mb-1">XP earned</p>
+            <p className="text-2xl font-black text-emerald-700">+{sessionXp} XP</p>
+          </div>
+
+          <div className="mb-7">
+            <p className="text-xs uppercase tracking-[0.14em] text-stone-400 font-bold mb-2">Rate this recipe</p>
+            <div className="flex items-center justify-center gap-1.5">
+              {Array.from({ length: 5 }).map((_, index) => {
+                const value = index + 1;
+                const active = value <= currentRating;
+
+                return (
+                  <button
+                    key={value}
+                    onClick={() => {
+                      rateRecipe(id!, value);
+                      toast.success(`Saved your ${value}-star rating`);
+                    }}
+                    className="w-10 h-10 rounded-xl border flex items-center justify-center transition-colors"
+                    style={{
+                      borderColor: active ? "rgba(251,191,36,0.45)" : "rgba(0,0,0,0.1)",
+                      background: active ? "rgba(251,191,36,0.18)" : "#fff",
+                    }}
+                    aria-label={`Rate ${value} stars`}
+                  >
+                    <Star size={18} className={active ? "text-amber-500 fill-amber-500" : "text-stone-300"} />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <div className="flex gap-3 justify-center">
             <button
               onClick={() => { setDone(false); setStepIndex(0); }}
@@ -318,6 +361,15 @@ export default function CookMode() {
       {/* Step area */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-8">
         <div className="w-full max-w-2xl space-y-6">
+          <div
+            className="rounded-2xl border px-4 py-3"
+            style={{ background: "#fff", borderColor: "rgba(249,115,22,0.14)", boxShadow: "0 4px 18px rgba(249,115,22,0.08)" }}
+          >
+            <ChefPath currentStep={stepIndex} totalSteps={steps.length} isDone={done} />
+            <div className="mt-2 pt-2 border-t" style={{ borderColor: "rgba(249,115,22,0.12)" }}>
+              <CookingXpBar currentStep={stepIndex} isDone={done} />
+            </div>
+          </div>
 
           {/* Recipe image – shown on step 0 */}
           {stepIndex === 0 && recipe.image && recipe.image !== "/placeholder.svg" && (
