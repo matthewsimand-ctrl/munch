@@ -194,7 +194,7 @@ const FILTERS = ["All", "Quick (<30 min)", "Vegetarian", "High Protein", "Easy",
 
 export default function SwipeScreen() {
   const { recipes, loading, loaded, loadFeed } = useBrowseFeed();
-  const { likedRecipes, likeRecipe, pantryList } = useStore();
+  const { likedRecipes, likeRecipe, pantryList, addCustomGroceryItem } = useStore();
 
   const [cardIndex, setCardIndex] = useState(0);
   const [activeFilter, setActiveFilter] = useState("All");
@@ -430,6 +430,10 @@ export default function SwipeScreen() {
         open={previewOpen}
         onOpenChange={setPreviewOpen}
         mode="explore"
+        onAddMissingToGrocery={(recipe, missingIngredients) => {
+          missingIngredients.forEach((ing) => addCustomGroceryItem(ing));
+          toast.success(`Added ${missingIngredients.length} items from "${recipe.name}" to grocery list`);
+        }}
         onSave={(recipe) => {
           likeRecipe(recipe.id, recipe);
           toast.success(`❤️ Saved "${recipe.name}" to cookbook`);

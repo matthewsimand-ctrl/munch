@@ -1,4 +1,5 @@
 import { Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface MatchBadgeProps {
   percentage: number;
@@ -15,12 +16,18 @@ export default function MatchBadge({ percentage, className = "" }: MatchBadgePro
   return (
     <span className={`inline-flex items-center gap-1.5 text-white text-xs font-bold px-2 py-0.5 rounded-full ${tone} ${className}`}>
       {percentage}% match
-      <span className="relative group inline-flex">
-        <Info size={11} className="opacity-90" />
-        <span className="pointer-events-none absolute z-20 hidden group-hover:block right-0 bottom-full mb-1 w-52 max-w-[calc(100vw-2rem)] rounded-md bg-gray-900 px-2 py-1.5 text-[10px] font-medium text-white leading-tight shadow-lg">
-          Match % compares this recipe against your pantry. 100% means you already have every ingredient.
-        </span>
-      </span>
+      <TooltipProvider delayDuration={120}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button type="button" className="inline-flex" aria-label="Match percentage info">
+              <Info size={11} className="opacity-90" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="max-w-52 text-[10px] leading-tight">
+            Match % compares this recipe against your pantry. 100% means you already have every ingredient.
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     </span>
   );
 }
