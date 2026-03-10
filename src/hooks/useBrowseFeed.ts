@@ -59,9 +59,11 @@ export function useBrowseFeed() {
       });
       if (error) throw error;
 
+      const likedIds = new Set(likedRecipes);
+
       const fetched: BrowseRecipe[] = (data?.recipes || [])
         .map(normalizeRecipe)
-        .filter(Boolean) as BrowseRecipe[];
+        .filter((recipe): recipe is BrowseRecipe => Boolean(recipe) && !likedIds.has(String(recipe.id)));
 
       const pantryNames = pantryList.map(p => p.name);
       const likedRecipesList: Recipe[] = likedRecipes
@@ -69,7 +71,6 @@ export function useBrowseFeed() {
         .filter(Boolean);
 
       if (likedRecipesList.length > 0 || userProfile.cuisinePreferences.length > 0 || userProfile.skillLevel || pantryNames.length > 0) {
-        const likedIds = new Set(likedRecipes);
         const ranked = rankByRecommendation(fetched, likedRecipesList, likedIds, userProfile, pantryNames);
         setRecipes(ranked.map((item) => item.recipe as BrowseRecipe));
       } else {
