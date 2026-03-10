@@ -6,33 +6,20 @@ const corsHeaders = {
 const AI_GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
 const R_JINA_PROXY_PREFIX = 'https://r.jina.ai/';
 
-const BROWSER_HEADERS: Record<string, string> = {
-  'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-  Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-  'Accept-Language': 'en-US,en;q=0.9',
-  'Accept-Encoding': 'gzip, deflate, br',
-  'Cache-Control': 'no-cache',
-  Pragma: 'no-cache',
-  'Sec-Ch-Ua': '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
-  'Sec-Ch-Ua-Mobile': '?0',
-  'Sec-Ch-Ua-Platform': '"macOS"',
-  'Sec-Fetch-Dest': 'document',
-  'Sec-Fetch-Mode': 'navigate',
-  'Sec-Fetch-Site': 'none',
-  'Sec-Fetch-User': '?1',
-  'Upgrade-Insecure-Requests': '1',
-};
-
-const PROXY_FETCHERS: Array<{ label: string; buildUrl: (url: string) => string; headers?: Record<string, string> }> = [
+const PROXY_FETCHERS: Array<{ label: string; buildUrl: (url: string) => string; parseResponse?: (res: Response) => Promise<string> }> = [
+  { label: 'r.jina.ai direct', buildUrl: (url) => `${R_JINA_PROXY_PREFIX}${url}` },
+  { label: 'r.jina.ai encoded', buildUrl: (url) => `${R_JINA_PROXY_PREFIX}http://${encodeURIComponent(url)}` },
   {
-    label: 'jina-reader',
-    buildUrl: (url) => `${R_JINA_PROXY_PREFIX}${url}`,
-    headers: { Accept: 'text/html', 'X-Return-Format': 'html' },
+    label: 'allorigins',
+    buildUrl: (url) => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+    parseResponse: async (res) => {
+      const json = await res.json();
+      return typeof json?.contents === 'string' ? json.contents : '';
+    },
   },
   {
-    label: 'jina-markdown',
-    buildUrl: (url) => `${R_JINA_PROXY_PREFIX}${url}`,
-    headers: { Accept: 'text/markdown' },
+    label: 'corsproxy.io',
+    buildUrl: (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
   },
 ];
 
@@ -403,6 +390,7 @@ function extractRecipeWindow(text: string): string {
   const end = Math.min(normalized.length, firstHit + 15000);
   return normalized.slice(start, end);
 }
+
 function cleanHtmlForAi(html: string): string {
   let cleaned = html;
 
@@ -585,17 +573,26 @@ Deno.serve(async (req) => {
     let previewText = '';
     let structuredText = '';
     let extractedIngredientLines: string[] = [];
+    let wasBlocked = false;
 
     if (normalizedUrl) {
       let html = '';
       const attemptedStatuses: string[] = [];
       try {
         const pageRes = await fetch(normalizedUrl, {
-          headers: { ...BROWSER_HEADERS, Referer: new URL(normalizedUrl).origin + '/' },
-          redirect: 'follow',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+            Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Cache-Control': 'no-cache',
+          },
         });
 
         attemptedStatuses.push(`direct:${pageRes.status}`);
+
+        if (pageRes.status === 403 || pageRes.status === 401 || pageRes.status === 429) {
+          wasBlocked = true;
+        }
 
         if (pageRes.ok) {
           const contentType = (pageRes.headers.get('content-type') || '').toLowerCase();
@@ -615,21 +612,19 @@ Deno.serve(async (req) => {
       if (!recipe && !html) {
         for (const proxy of PROXY_FETCHERS) {
           try {
-            const proxyRes = await fetch(proxy.buildUrl(normalizedUrl), {
-              headers: proxy.headers || {},
-            });
+            const proxyRes = await fetch(proxy.buildUrl(normalizedUrl));
             attemptedStatuses.push(`${proxy.label}:${proxyRes.status}`);
             if (proxyRes.ok) {
-              const body = await proxyRes.text();
-              // Jina markdown mode: use as AI content directly
-              if (proxy.headers?.Accept === 'text/markdown' && body.length > 100) {
-                content = body;
-                break;
+              if (proxy.parseResponse) {
+                html = await proxy.parseResponse(proxyRes);
+              } else {
+                html = await proxyRes.text();
               }
-              html = body;
-              break;
+              if (html && html.length > 100) break;
+              html = '';
             }
-          } catch {
+          } catch (proxyErr) {
+            console.warn(`Proxy ${proxy.label} failed:`, proxyErr);
             attemptedStatuses.push(`${proxy.label}:network_error`);
           }
         }
@@ -640,6 +635,7 @@ Deno.serve(async (req) => {
           JSON.stringify({
             success: false,
             error: `Unable to fetch this URL. Attempts: ${attemptedStatuses.join(', ')}`,
+            blocked: wasBlocked,
           }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         );
