@@ -343,6 +343,7 @@ export default function SwipeScreen() {
               </button>
               <button
                 onClick={() => setShowFilters((v) => !v)}
+                data-tutorial="swipe-filters"
                 className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border text-sm font-semibold text-stone-600 hover:border-orange-300 transition-colors"
                 style={{ borderColor: showFilters ? "#F97316" : "rgba(0,0,0,0.09)" }}
               >
@@ -406,7 +407,7 @@ export default function SwipeScreen() {
               </button>
             </div>
           ) : (
-            <div className="relative" style={{ height: "480px" }}>
+            <div className="relative" style={{ height: "480px" }} data-tutorial="swipe-card-area">
               {/* Background cards (depth effect) */}
               {stack.slice(1, 3).map((recipe, i) => (
                 <div

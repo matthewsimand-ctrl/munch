@@ -180,6 +180,7 @@ export default function PantryScreen() {
         {/* Add form */}
         <motion.div
           className="rounded-2xl border p-5"
+          data-tutorial="pantry-add-form"
           style={{ background: "#fff", borderColor: "rgba(249,115,22,0.20)", boxShadow: "0 4px 20px rgba(249,115,22,0.08)" }}
         >
               <p className="text-sm font-bold text-stone-800 mb-3">Add pantry item</p>
@@ -228,7 +229,7 @@ export default function PantryScreen() {
         </motion.div>
 
         {/* Search */}
-        <div className="relative">
+        <div className="relative" data-tutorial="pantry-search">
           <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-300" />
           <input
             value={search}

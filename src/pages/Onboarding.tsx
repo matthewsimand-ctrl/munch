@@ -56,7 +56,7 @@ const slideVariants = {
 
 export default function Onboarding() {
   const navigate = useNavigate();
-  const { userProfile, setUserProfile, completeOnboarding } = useStore();
+  const { userProfile, setUserProfile, completeOnboarding, setShowTutorial } = useStore();
   const [step, setStep] = useState(0);
   const [direction, setDirection] = useState(1);
   const [displayName, setDisplayName] = useState('');
@@ -126,6 +126,7 @@ export default function Onboarding() {
           .eq('user_id', session.user.id);
       }
       completeOnboarding();
+      setShowTutorial(true);
       navigate('/dashboard');
     }
   };

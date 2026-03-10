@@ -58,18 +58,18 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     route: '/pantry',
-    target: 'pantry-quick-add',
-    title: 'Quick Add',
+    target: 'pantry-search',
+    title: 'Find Pantry Items Fast',
     description:
-      'Tap common ingredients to add them instantly. Great for stocking up your virtual pantry fast!',
+      'Use search to quickly find and edit ingredients when your pantry starts to grow.',
     icon: <UtensilsCrossed className="h-5 w-5" />,
   },
   {
     route: '/swipe',
-    target: 'swipe-search',
-    title: 'Search Recipes',
+    target: 'swipe-filters',
+    title: 'Filter Recipes',
     description:
-      'Search by name, ingredient, or even paste a URL to import a recipe from the web.',
+      'Tap Filter to narrow your feed by cuisine or style so every swipe feels more relevant.',
     icon: <Search className="h-5 w-5" />,
   },
   {
@@ -337,4 +337,3 @@ export default function SpotlightTutorial({ onComplete }: SpotlightTutorialProps
     </div>
   );
 }
-
