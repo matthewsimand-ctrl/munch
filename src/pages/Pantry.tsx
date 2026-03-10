@@ -122,7 +122,7 @@ export default function Pantry() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-4">
             <div data-tour-id="pantry-add-form" className="bg-white rounded-2xl border border-orange-200 shadow-sm p-5">
-              <h3 className="text-sm font-bold text-gray-800 mb-3">Quick add (always on)</h3>
+              <h3 className="text-sm font-bold text-gray-800 mb-3">Add items to your pantry</h3>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                 <input
                   value={newItem.name}
