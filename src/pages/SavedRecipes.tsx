@@ -22,38 +22,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { calculateMatch } from "@/lib/matchLogic";
 import { composeIngredientLine, parseIngredientLine, scaleIngredientQuantity } from "@/lib/ingredientText";
+import { normalizeRecipe, normalizeStringArray } from "@/lib/normalizeRecipe";
 import { toast } from "sonner";
 import type { Recipe } from "@/data/recipes";
 
 type SortOption = "newest" | "time" | "name";
 type ViewMode = "recipes" | "cookbooks";
 
-function normalizeStringArray(value: unknown): string[] {
-  if (Array.isArray(value)) return value.map((v) => String(v).trim()).filter(Boolean);
-  if (typeof value === "string") {
-    return value
-      .split(/\r?\n/)
-      .map((s) => s.trim())
-      .filter(Boolean);
-  }
-  return [];
-}
-
-function normalizeRecipeData(recipe: any, idFallback: string): Recipe {
-  return {
-    ...recipe,
-    id: String(recipe?.id || idFallback),
-    name: String(recipe?.name || 'Untitled Recipe'),
-    image: String(recipe?.image || '/placeholder.svg'),
-    cook_time: String(recipe?.cook_time || '30 min'),
-    difficulty: String(recipe?.difficulty || 'Intermediate'),
-    ingredients: normalizeStringArray(recipe?.ingredients),
-    instructions: normalizeStringArray(recipe?.instructions),
-    tags: normalizeStringArray(recipe?.tags),
-    cuisine: recipe?.cuisine || null,
-    servings: Number(recipe?.servings || 4),
-  };
-}
 export default function SavedRecipes() {
   const navigate = useNavigate();
   const {
@@ -98,13 +73,13 @@ export default function SavedRecipes() {
       .map((id) => {
         const dbRecipe = dbRecipes.find((r) => r.id === id);
         if (dbRecipe) {
-          const normalized = normalizeRecipeData(dbRecipe, id);
+          const normalized = normalizeRecipe(dbRecipe, id);
           return recipeIngredientOverrides[id] ? { ...normalized, ingredients: recipeIngredientOverrides[id] } : normalized;
         }
 
         const apiRecipe = savedApiRecipes[id];
         if (apiRecipe) {
-          const normalized = normalizeRecipeData(apiRecipe, id);
+          const normalized = normalizeRecipe(apiRecipe, id);
           return recipeIngredientOverrides[id] ? { ...normalized, ingredients: recipeIngredientOverrides[id] } : normalized;
         }
 

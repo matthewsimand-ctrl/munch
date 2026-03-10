@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { normalizeIngredients } from '@/lib/normalizeIngredients';
 
 export interface UserProfile {
   dietaryRestrictions: string[];
@@ -168,7 +169,13 @@ export const useStore = create<AppState>()(
             ? state.likedRecipes
             : [...state.likedRecipes, id],
           savedApiRecipes: recipeData
-            ? { ...state.savedApiRecipes, [id]: recipeData }
+            ? {
+                ...state.savedApiRecipes,
+                [id]: {
+                  ...recipeData,
+                  ingredients: normalizeIngredients(recipeData.ingredients, recipeData.raw_api_payload),
+                },
+              }
             : state.savedApiRecipes,
         })),
 

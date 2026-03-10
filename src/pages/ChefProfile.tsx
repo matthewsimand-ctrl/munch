@@ -6,6 +6,7 @@ import BottomNav from '@/components/BottomNav';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, ChefHat } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { normalizeRecipe } from '@/lib/normalizeRecipe';
 
 export default function ChefProfile() {
   const { userId } = useParams<{ userId: string }>();
@@ -35,20 +36,7 @@ export default function ChefProfile() {
         .eq('is_public', true)
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return (data || []).map((r: any) => ({
-        id: r.id,
-        name: r.name,
-        image: r.image,
-        cook_time: r.cook_time,
-        difficulty: r.difficulty,
-        ingredients: r.ingredients || [],
-        tags: r.tags || [],
-        instructions: r.instructions || [],
-        cuisine: r.cuisine || null,
-        source: r.source || 'community',
-        created_by: r.created_by,
-        is_public: r.is_public,
-      }));
+      return (data || []).map((r: any) => normalizeRecipe(r));
     },
     enabled: !!userId,
   });

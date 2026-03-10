@@ -6,27 +6,7 @@ import { useDbRecipes } from "@/hooks/useDbRecipes";
 import { useCurrentMealPlan } from "@/hooks/useCurrentMealPlan";
 import { Button } from "@/components/ui/button";
 import type { Recipe } from "@/data/recipes";
-
-function normalizeStringArray(value: unknown): string[] {
-  if (Array.isArray(value)) return value.map((v) => String(v).trim()).filter(Boolean);
-  if (typeof value === "string") return value.split(/\r?\n/).map((v) => v.trim()).filter(Boolean);
-  return [];
-}
-
-function normalizeRecipe(recipe: any, id: string): Recipe {
-  return {
-    ...recipe,
-    id: String(recipe?.id || id),
-    name: String(recipe?.name || "Untitled Recipe"),
-    image: String(recipe?.image || "/placeholder.svg"),
-    cook_time: String(recipe?.cook_time || "30 min"),
-    difficulty: String(recipe?.difficulty || "Intermediate"),
-    ingredients: normalizeStringArray(recipe?.ingredients),
-    instructions: normalizeStringArray(recipe?.instructions),
-    tags: normalizeStringArray(recipe?.tags),
-    servings: Number(recipe?.servings || 4),
-  };
-}
+import { normalizeRecipe } from "@/lib/normalizeRecipe";
 
 export default function LetMeCook() {
   const navigate = useNavigate();

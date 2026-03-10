@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { buildDictionaryRegex, lookupTerm } from '@/lib/cookingDictionary';
+import { normalizeRecipe } from '@/lib/normalizeRecipe';
 
 function parseTimerFromStep(step: string): number | null {
   const patterns = [
@@ -86,7 +87,8 @@ export default function CookMode() {
   const navigate = useNavigate();
   const { data: dbRecipes = [] } = useDbRecipes();
   const { savedApiRecipes, markRecipeCooked, recipeFolders, createFolder, addRecipeToFolder, archiveBehavior } = useStore();
-  const recipe = dbRecipes.find(r => r.id === id) || savedApiRecipes[id || ''];
+  const rawRecipe = dbRecipes.find(r => r.id === id) || savedApiRecipes[id || ''];
+  const recipe = rawRecipe ? normalizeRecipe(rawRecipe, id) : null;
   const [isDone, setIsDone] = useState(false);
   const [showArchivePrompt, setShowArchivePrompt] = useState(false);
 

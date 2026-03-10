@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
+import { normalizeRecipe } from '@/lib/normalizeRecipe';
 
 import { format, startOfWeek, addDays, addWeeks, subWeeks } from 'date-fns';
 
@@ -125,8 +126,9 @@ export default function MealPrep() {
   const openRecipePreview = (item: MealItem) => {
     const dbRecipe = dbRecipes.find((r) => r.id === item.recipe_id);
     const apiRecipe = savedApiRecipes[item.recipe_id];
-    const sourceUrl = dbRecipe?.source_url || apiRecipe?.source_url;
-    const instructions = (dbRecipe?.instructions || apiRecipe?.instructions || []).filter(Boolean);
+    const recipe = dbRecipe ? normalizeRecipe(dbRecipe) : apiRecipe ? normalizeRecipe(apiRecipe, item.recipe_id) : null;
+    const sourceUrl = recipe?.source_url;
+    const instructions = recipe?.instructions || [];
 
     if (!sourceUrl && instructions.length === 0) {
       toast({ title: 'No recipe details yet', description: 'This meal does not have a source link or instructions.' });
@@ -368,7 +370,7 @@ export default function MealPrep() {
           dayMeals.forEach((meal) => {
             const recipe = recipeMap.get(meal.recipe_id);
             const apiRecipe = savedApiRecipes[meal.recipe_id];
-            const recipeData = recipe || apiRecipe;
+            const recipeData = recipe ? normalizeRecipe(recipe) : apiRecipe ? normalizeRecipe(apiRecipe, meal.recipe_id) : null;
             
             checkAddPage(15);
             doc.setFontSize(10);

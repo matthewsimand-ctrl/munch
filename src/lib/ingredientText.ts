@@ -1,6 +1,6 @@
 const LEADING_BULLET = /^▢\s*/;
 
-const QUANTITY_PREFIX = /^\s*((?:\d+\s+\d\/\d|\d+\/\d|\d+(?:[.,]\d+)?|[¼½¾⅓⅔⅛⅜⅝⅞]|a|an)\b(?:\s*-\s*(?:\d+\s+\d\/\d|\d+\/\d|\d+(?:[.,]\d+)?|[¼½¾⅓⅔⅛⅜⅝⅞]))?)(.*)$/i;
+const QUANTITY_PREFIX = /^\s*((?:\d+\s+\d\/\d|\d+\/\d|\d+(?:[.,]\d+)?(?:[a-zA-Z]+)?|[¼½¾⅓⅔⅛⅜⅝⅞]|a|an)\b(?:\s*-\s*(?:\d+\s+\d\/\d|\d+\/\d|\d+(?:[.,]\d+)?(?:[a-zA-Z]+)?|[¼½¾⅓⅔⅛⅜⅝⅞]))?)(.*)$/i;
 const UNIT_WORDS = new Set([
   'cup', 'cups', 'tbsp', 'tablespoon', 'tablespoons', 'tsp', 'teaspoon', 'teaspoons',
   'oz', 'ounce', 'ounces', 'lb', 'lbs', 'pound', 'pounds', 'g', 'gram', 'grams',
