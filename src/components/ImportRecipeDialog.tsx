@@ -7,7 +7,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { Link2, FileText, Loader2, Import, ClipboardPaste, X, Plus, Globe, Lock, Camera, Upload, Brain } from 'lucide-react';
@@ -650,8 +649,8 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
         </DialogHeader>
 
         {websitePreview ? (
-          <ScrollArea className="flex-1 min-h-0 h-full px-6 pb-6">
-            <div className="space-y-5 pr-2">
+          <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-6">
+            <div className="space-y-5">
               {websitePreview.image && websitePreview.image !== '/placeholder.svg' && (
                 <img src={websitePreview.image} alt={websitePreview.name} className="h-44 w-full rounded-xl object-cover" />
               )}
@@ -734,28 +733,32 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
                 />
               </div>
 
-              <div className="flex gap-2 pt-1">
+              <div className="rounded-lg border border-violet-200/70 bg-violet-50/60 p-3 text-sm text-violet-900 dark:border-violet-800 dark:bg-violet-950/20 dark:text-violet-200">
+                Imported recipes can be edited before saving. Use <span className="font-medium">Review &amp; Edit</span> to adjust ingredients, steps, or details.
+              </div>
+
+              <div className="flex flex-col gap-2 pt-1 sm:flex-row">
                 <Button variant="outline" className="flex-1" onClick={() => setWebsitePreview(null)} disabled={saving}>
                   Back
                 </Button>
-                <Button variant="outline" className="flex-1" onClick={openReviewForWebsitePreview} disabled={saving}>
-                  Review & Edit
+                <Button className="flex-1" onClick={openReviewForWebsitePreview} disabled={saving}>
+                  Review & Edit Before Saving
                 </Button>
-                <Button className="flex-1" onClick={saveWebsitePreview} disabled={saving}>
+                <Button variant="outline" className="flex-1" onClick={saveWebsitePreview} disabled={saving}>
                   {saving ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving...
                     </>
                   ) : (
-                    'Save Recipe'
+                    'Quick Save'
                   )}
                 </Button>
               </div>
             </div>
-          </ScrollArea>
+          </div>
         ) : reviewMode && reviewData ? (
-          <ScrollArea className="flex-1 min-h-0 h-full px-6 pb-6">
-            <div className="space-y-4 pr-2">
+          <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-6">
+            <div className="space-y-4">
               {/* Recipe Name */}
               <div>
                 <label className="text-sm font-medium text-foreground">Recipe Name *</label>
@@ -977,10 +980,10 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
                 </Button>
               </div>
             </div>
-          </ScrollArea>
+          </div>
         ) : (
           // Import Mode (URL/PDF/Paste)
-          <div className="px-6 pb-6">
+          <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-6">
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ImportTab)} className="w-full">
               <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="url" className="flex items-center gap-1.5">
