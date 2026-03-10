@@ -1,12 +1,13 @@
 import { useState, useMemo } from "react";
 import {
-  Search, X, Trash2, Camera,
+  Search, X, Trash2, Camera, Upload,
   CheckCircle2, ChevronDown,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "@/lib/store";
 import { toast } from "sonner";
 import { detectCategories } from "@/lib/categorizeItem";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const CATEGORIES = ["All", "Produce", "Dairy", "Meat", "Dry Goods", "Condiments", "Other"];
 const CATEGORY_ICONS: Record<string, string> = {
@@ -91,6 +92,7 @@ export default function PantryScreen() {
   const [newItem, setNewItem] = useState("");
   const [newCategory, setNewCategory] = useState("Other");
   const [newQty, setNewQty] = useState("");
+  const [scanDialogOpen, setScanDialogOpen] = useState(false);
 
   const filtered = useMemo(() => {
     let list: PantryItem[] = (pantryList ?? []).map((item, idx) => ({
@@ -152,7 +154,8 @@ export default function PantryScreen() {
             </div>
             <div className="flex items-center gap-2">
               <button
-                title="Scan fridge (coming soon)"
+                title="Scan fridge"
+                onClick={() => setScanDialogOpen(true)}
                 className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-stone-200 text-sm font-semibold text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
               >
                 <Camera size={14} /> Scan Fridge
@@ -174,6 +177,43 @@ export default function PantryScreen() {
           </div>
         </div>
       </div>
+
+      <Dialog open={scanDialogOpen} onOpenChange={setScanDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Scan your fridge</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <button
+              onClick={() => {
+                const liveInput = document.createElement("input");
+                liveInput.type = "file";
+                liveInput.accept = "image/*";
+                liveInput.setAttribute("capture", "environment");
+                liveInput.click();
+                setScanDialogOpen(false);
+                toast.info("Fridge scanning is coming soon — live photo support is ready.");
+              }}
+              className="w-full flex items-center justify-center gap-2 text-sm font-semibold border border-orange-200 bg-orange-50 text-orange-600 rounded-xl py-2.5 hover:bg-orange-100"
+            >
+              <Camera size={14} /> Take live photo
+            </button>
+            <button
+              onClick={() => {
+                const uploadInput = document.createElement("input");
+                uploadInput.type = "file";
+                uploadInput.accept = "image/*";
+                uploadInput.click();
+                setScanDialogOpen(false);
+                toast.info("Fridge scanning is coming soon — upload support is ready.");
+              }}
+              className="w-full flex items-center justify-center gap-2 text-sm font-semibold border border-stone-200 bg-white text-stone-700 rounded-xl py-2.5 hover:border-orange-300 hover:text-orange-600"
+            >
+              <Upload size={14} /> Upload photo
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <div className="max-w-4xl mx-auto px-6 py-5 space-y-5">
 

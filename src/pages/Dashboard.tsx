@@ -23,6 +23,7 @@ import { useCurrentMealPlan } from "@/hooks/useCurrentMealPlan";
 import { getMealPlanWeekStart } from "@/lib/mealPlanUtils";
 
 const WEEK_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const MEAL_PREP_TYPES = new Set(["Breakfast", "Lunch", "Dinner"]);
 
 interface StatDef {
   label: string;
@@ -256,7 +257,7 @@ export default function Dashboard() {
   const thisWeekMealRows = useMemo(() => {
     const weekStart = getMealPlanWeekStart();
     return WEEK_DAYS.map((day) => {
-      const dayMeals = (mealPlan || []).filter((item) => (item.weekStart ?? weekStart) === weekStart && item.day === day);
+      const dayMeals = (mealPlan || []).filter((item) => (item.weekStart ?? weekStart) === weekStart && item.day === day && MEAL_PREP_TYPES.has(item.mealType));
       if (dayMeals.length === 0) return { day, meal: "—", recipeId: null, done: false };
 
       const sortedDayMeals = [...dayMeals].sort((a, b) => {
@@ -371,6 +372,21 @@ export default function Dashboard() {
             <p className="text-sm text-stone-500 mt-1">Here's what's cooking this week</p>
           </div>
           <div className="flex items-center gap-4">
+            <div className="hidden md:block min-w-[220px] rounded-xl border px-3 py-2" style={{ background: "rgba(255,255,255,0.72)", borderColor: "rgba(249,115,22,0.20)" }}>
+              <div className="flex items-center justify-between text-[11px] font-bold text-stone-600 mb-1">
+                <span className="inline-flex items-center gap-1"><Star size={11} className="text-amber-500 fill-amber-500" /> Level {levelInfo.level}</span>
+                <span>{totalXp} XP</span>
+              </div>
+              <div className="relative h-1.5 bg-amber-100 rounded-full overflow-hidden">
+                <motion.div
+                  className="absolute inset-y-0 left-0 rounded-full"
+                  style={{ background: "linear-gradient(90deg,#FBBF24,#F59E0B)" }}
+                  initial={{ width: 0 }}
+                  animate={{ width: `${(levelInfo.current / levelInfo.needed) * 100}%` }}
+                  transition={{ type: "spring", stiffness: 60, delay: 0.3 }}
+                />
+              </div>
+            </div>
             <button
               onClick={() => setAvatarDialogOpen(true)}
               className="relative w-12 h-12 rounded-full overflow-hidden ring-2 ring-orange-200 ring-offset-2 group shrink-0"
@@ -553,75 +569,47 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* XP + Badges */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <section className="rounded-2xl border p-5" style={{ background: "linear-gradient(135deg,#FFF7ED 0%,#FFFAF5 100%)", borderColor: "rgba(249,115,22,0.15)", boxShadow: "0 2px 12px rgba(249,115,22,0.06)" }}>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center">
-                <Star size={16} className="text-amber-500 fill-amber-500" />
+        {/* Badges */}
+        <section className="rounded-2xl border p-5" style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-violet-50 flex items-center justify-center">
+                <Award size={14} className="text-violet-500" />
               </div>
-              <div className="flex-1">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-[15px] font-bold text-stone-800">Cooking XP</h2>
-                  <span className="text-sm font-bold text-amber-600 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-100">Level {levelInfo.level}</span>
-                </div>
-                <p className="text-xs text-stone-400 mt-0.5">{totalXp} total XP earned</p>
-              </div>
+              <h2 className="text-[15px] font-bold text-stone-800">Badges</h2>
             </div>
-            <div className="relative h-2.5 bg-amber-100 rounded-full overflow-hidden">
-              <motion.div
-                className="absolute inset-y-0 left-0 rounded-full"
-                style={{ background: "linear-gradient(90deg,#FBBF24,#F59E0B)" }}
-                initial={{ width: 0 }}
-                animate={{ width: `${(levelInfo.current / levelInfo.needed) * 100}%` }}
-                transition={{ type: "spring", stiffness: 60, delay: 0.3 }}
-              />
+            <span className="text-[11px] text-stone-400 font-bold bg-stone-100 px-2.5 py-1 rounded-full">
+              {BADGES.filter((b) => b.unlocked).length} / {BADGES.length}
+            </span>
+          </div>
+          <TooltipProvider>
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+              {BADGES.map((b) => (
+                <Tooltip key={b.id}>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      title={`${b.label}: ${b.desc}`}
+                      className={`w-full flex flex-col items-center gap-1 p-2.5 rounded-xl border transition-all cursor-help ${
+                        b.unlocked ? "border-amber-100 bg-gradient-to-br from-amber-50 to-orange-50" : "border-stone-100 bg-stone-50 opacity-40 grayscale"
+                      }`}
+                    >
+                      <span className="text-xl leading-none">{b.emoji}</span>
+                      <span className="text-[9px] font-semibold text-stone-600 text-center leading-tight">{b.label}</span>
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-[220px] bg-stone-900 text-stone-100 border-stone-800">
+                    <p className="text-xs font-semibold">{b.label}</p>
+                    <p className="text-[11px] text-stone-300 mt-1">{b.desc}</p>
+                    <p className="text-[11px] text-orange-300 mt-1.5">
+                      {b.unlocked ? "Unlocked" : `Progress: ${Math.min(b.current, b.target)} / ${b.target}`}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              ))}
             </div>
-            <div className="flex justify-between text-[10px] text-stone-400 mt-2 font-medium">
-              <span>{levelInfo.current} XP</span>
-              <span>{levelInfo.needed} to next level</span>
-            </div>
-          </section>
-
-          <section className="rounded-2xl border p-5" style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-violet-50 flex items-center justify-center">
-                  <Award size={14} className="text-violet-500" />
-                </div>
-                <h2 className="text-[15px] font-bold text-stone-800">Badges</h2>
-              </div>
-              <span className="text-[11px] text-stone-400 font-bold bg-stone-100 px-2.5 py-1 rounded-full">
-                {BADGES.filter((b) => b.unlocked).length} / {BADGES.length}
-              </span>
-            </div>
-            <TooltipProvider>
-              <div className="grid grid-cols-4 gap-2">
-                {BADGES.map((b) => (
-                  <Tooltip key={b.id}>
-                    <TooltipTrigger asChild>
-                      <div
-                        className={`flex flex-col items-center gap-1 p-2.5 rounded-xl border transition-all cursor-help ${
-                          b.unlocked ? "border-amber-100 bg-gradient-to-br from-amber-50 to-orange-50" : "border-stone-100 bg-stone-50 opacity-40 grayscale"
-                        }`}
-                      >
-                        <span className="text-xl leading-none">{b.emoji}</span>
-                        <span className="text-[9px] font-semibold text-stone-600 text-center leading-tight">{b.label}</span>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-[220px] bg-stone-900 text-stone-100 border-stone-800">
-                      <p className="text-xs font-semibold">{b.label}</p>
-                      <p className="text-[11px] text-stone-300 mt-1">{b.desc}</p>
-                      <p className="text-[11px] text-orange-300 mt-1.5">
-                        {b.unlocked ? "Unlocked" : `Progress: ${Math.min(b.current, b.target)} / ${b.target}`}
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                ))}
-              </div>
-            </TooltipProvider>
-          </section>
-        </div>
+          </TooltipProvider>
+        </section>
       </div>
 
       <Dialog open={avatarDialogOpen} onOpenChange={setAvatarDialogOpen}>
