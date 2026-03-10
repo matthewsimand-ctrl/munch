@@ -10,6 +10,7 @@ import Onboarding from "./pages/Onboarding";
 import Pantry from "./pages/Pantry";
 import Swipe from "./pages/Swipe";
 import SavedRecipes from "./pages/SavedRecipes";
+import Cookbooks from "./pages/Cookbooks";
 import CookMode from "./pages/CookMode";
 import GroceryList from "./pages/GroceryList";
 import MealPrep from "./pages/MealPrep";
@@ -46,6 +47,7 @@ function AppRoutes() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/swipe" element={<Swipe />} />
           <Route path="/saved" element={<SavedRecipes />} />
+          <Route path="/cookbooks" element={<Cookbooks />} />
           <Route path="/let-me-cook" element={<LetMeCook />} />
           <Route path="/pantry" element={<Pantry />} />
           <Route path="/grocery" element={<GroceryList />} />
