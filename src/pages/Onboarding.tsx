@@ -278,12 +278,6 @@ export default function Onboarding() {
                       />
                     ))}
                   </div>
-                  <div className="p-3 rounded-xl bg-muted/50 border border-border">
-                    <p className="text-xs font-semibold text-foreground mb-1">💡 What is match %?</p>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      Each recipe shows a <span className="font-semibold text-primary">match %</span> based on how many of the required ingredients you already have in your pantry. 100% means you're ready to cook — no shopping needed!
-                    </p>
-                  </div>
                 </div>
               )}
             </motion.div>

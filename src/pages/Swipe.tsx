@@ -28,6 +28,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import NutritionCard from "@/components/NutritionCard";
 import { toast } from "sonner";
+import MatchBadge from "@/components/MatchBadge";
 
 interface Recipe {
   id: string;
@@ -183,12 +184,6 @@ export default function Browse() {
     );
   }
 
-  const matchBadgeColor = (percentage: number) => {
-    if (percentage >= 80) return "bg-green-500";
-    if (percentage >= 50) return "bg-yellow-500";
-    return "bg-orange-500";
-  };
-
   const formatIngredientDisplay = (ingredientLine: string, quantity?: string) => {
     const parsed = parseIngredientLine(ingredientLine);
     const resolvedQuantity = quantity ?? parsed.quantity;
@@ -342,8 +337,8 @@ export default function Browse() {
                     <h3 className="text-xl font-bold">{nextRecipe.name}</h3>
                   </div>
                   {nextMatch && (
-                    <div className={`absolute bottom-4 right-4 ${matchBadgeColor(nextMatch.percentage)} text-white px-3 py-1 rounded-full text-sm font-bold shadow-md`}>
-                      {nextMatch.percentage}% Match
+                    <div className="absolute bottom-4 right-4">
+                      <MatchBadge percentage={nextMatch.percentage} />
                     </div>
                   )}
                 </div>
@@ -380,8 +375,8 @@ export default function Browse() {
                       <div className="max-w-[80%]">
                       {/* Match Badge */}
                       {currentMatch && (
-                        <div className={`inline-flex items-center gap-1.5 ${matchBadgeColor(currentMatch.percentage)} text-white px-3 py-1.5 rounded-full text-sm font-bold shadow-md mb-3`}>
-                          <Check size={14} /> {currentMatch.percentage}% Match
+                        <div className="mb-3 inline-flex">
+                          <MatchBadge percentage={currentMatch.percentage} />
                         </div>
                       )}
                       <h2 className="text-3xl font-bold leading-tight mb-2">{currentRecipe.name}</h2>
@@ -465,8 +460,8 @@ export default function Browse() {
                 {selectedRecipe.image && (
                   <div className="relative rounded-xl overflow-hidden aspect-video">
                     <img src={selectedRecipe.image} alt={selectedRecipe.name} className="w-full h-full object-cover" />
-                    <div className={`absolute bottom-3 right-3 ${matchBadgeColor(selectedMatch.percentage)} text-white px-3 py-1.5 rounded-full text-sm font-bold shadow-md`}>
-                      {selectedMatch.percentage}% Match
+                    <div className="absolute bottom-3 right-3">
+                      <MatchBadge percentage={selectedMatch.percentage} />
                     </div>
                   </div>
                 )}
@@ -528,7 +523,7 @@ export default function Browse() {
                   </ul>
                   {/* Add missing to grocery */}
                   {selectedMatch.missing.length > 0 && (
-                    <button
+                    <Button
                       onClick={() => {
                         selectedMatch.missing.forEach((ing) => {
                           const parsed = parseIngredientLine(ing);
@@ -539,10 +534,12 @@ export default function Browse() {
                         toast.success(`Added ${selectedMatch.missing.length} items to grocery list`);
                       }}
                       disabled={isSelectedRecipeAddedToGrocery}
-                      className={`mt-3 flex items-center gap-2 text-sm font-semibold transition-colors ${isSelectedRecipeAddedToGrocery ? "text-muted-foreground cursor-not-allowed" : "text-primary hover:text-primary/80"}`}
+                      className="mt-3"
+                      variant={isSelectedRecipeAddedToGrocery ? "secondary" : "default"}
+                      size="sm"
                     >
                       <ShoppingCart size={14} /> {isSelectedRecipeAddedToGrocery ? "Already added to grocery list" : `Add ${selectedMatch.missing.length} missing items to grocery list`}
-                    </button>
+                    </Button>
                   )}
                 </div>
 
