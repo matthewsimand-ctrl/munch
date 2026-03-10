@@ -26,11 +26,13 @@ export interface CustomGroceryItem {
 
 export interface MealPlanItem {
   id: string;
+  weekStart: string;
   day: string;
   mealType: string;
   recipeName: string;
   recipeId: string;
   cookTime?: string;
+  recipeSnapshot?: any;
 }
 
 export interface RecipeFolder {
@@ -90,6 +92,7 @@ interface AppState {
   clearCheckedGroceryItems: () => void;
   addMealPlanItem: (item: Omit<MealPlanItem, 'id'>) => void;
   removeMealPlanItem: (id: string) => void;
+  clearMealPlanWeek: (weekStart: string) => void;
   setRecipeMealTag: (recipeId: string, tag: string) => void;
   setRecipeTags: (recipeId: string, tags: string[]) => void;
   addRecipeTag: (recipeId: string, tag: string) => void;
@@ -321,7 +324,7 @@ export const useStore = create<AppState>()(
       addMealPlanItem: (item) =>
         set((state) => {
           const existingIndex = state.mealPlan.findIndex(
-            (m) => m.day === item.day && m.mealType === item.mealType
+            (m) => m.weekStart === item.weekStart && m.day === item.day && m.mealType === item.mealType
           );
           if (existingIndex >= 0) {
             return {
@@ -336,6 +339,11 @@ export const useStore = create<AppState>()(
       removeMealPlanItem: (id) =>
         set((state) => ({
           mealPlan: state.mealPlan.filter((item) => item.id !== id),
+        })),
+
+      clearMealPlanWeek: (weekStart) =>
+        set((state) => ({
+          mealPlan: state.mealPlan.filter((item) => item.weekStart !== weekStart),
         })),
 
       setRecipeMealTag: (recipeId, tag) =>
