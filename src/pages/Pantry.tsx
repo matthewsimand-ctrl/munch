@@ -8,10 +8,10 @@ import { useStore } from "@/lib/store";
 import { toast } from "sonner";
 import { detectCategories } from "@/lib/categorizeItem";
 
-const CATEGORIES = ["All", "Produce", "Dairy", "Meat", "Dry Goods", "Condiments", "Other"];
+const CATEGORIES = ["All", "Produce", "Dairy", "Meat", "Dry Goods", "Pasta / Noodles", "Condiments", "Other"];
 const CATEGORY_ICONS: Record<string, string> = {
   Produce: "🥦", Dairy: "🧀", Meat: "🥩", "Dry Goods": "🌾",
-  Condiments: "🫙", Other: "📦", All: "🛒",
+  "Pasta / Noodles": "🍝", Condiments: "🫙", Other: "📦", All: "🛒",
 };
 
 interface PantryItem {

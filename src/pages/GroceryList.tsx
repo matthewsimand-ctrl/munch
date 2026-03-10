@@ -13,6 +13,7 @@ const STORE_SECTIONS: Record<string, string> = {
   dairy: "🧀 Dairy",
   meat: "🥩 Meat & Fish",
   "dry goods": "🌾 Dry Goods",
+  "pasta / noodles": "🍝 Pasta / Noodles",
   condiments: "🫙 Condiments",
   bakery: "🍞 Bakery",
   frozen: "🧊 Frozen",
