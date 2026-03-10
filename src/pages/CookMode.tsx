@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft, ArrowRight, ChefHat, CheckCircle2, Circle,
-  Volume2, VolumeX, RotateCcw, Check, Star,
+  Volume2, VolumeX, RotateCcw, Check, Star, CircleHelp,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "@/lib/store";
@@ -12,6 +12,8 @@ import { useSpeechSynthesis } from "@/hooks/useSpeechSynthesis";
 import { toast } from "sonner";
 import type { Recipe } from "@/data/recipes";
 import { ChefPath, CookingXpBar } from "@/components/ChefCompanion";
+import { buildDictionaryRegex, lookupTerm } from "@/lib/cookingDictionary";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 /* ─── Helpers ──────────────────────────────────────────────── */
 function cleanInstruction(raw: string): string {
@@ -19,6 +21,63 @@ function cleanInstruction(raw: string): string {
     .replace(/^step\s*\d+\s*[:.)\-]?\s*/i, "")
     .replace(/^\d+\s*[:.)\-]\s*/, "")
     .trim();
+}
+
+const dictionaryRegex = buildDictionaryRegex();
+
+function renderInstructionWithDefinitions(step: string) {
+  const matches = Array.from(step.matchAll(dictionaryRegex));
+
+  if (!matches.length) return step;
+
+  const nodes: Array<JSX.Element | string> = [];
+  let lastIndex = 0;
+
+  matches.forEach((match, index) => {
+    const matchedText = match[0];
+    const matchIndex = match.index ?? 0;
+
+    if (matchIndex > lastIndex) {
+      nodes.push(step.slice(lastIndex, matchIndex));
+    }
+
+    const entry = lookupTerm(matchedText);
+
+    if (!entry) {
+      nodes.push(matchedText);
+    } else {
+      nodes.push(
+        <span key={`${matchedText}-${matchIndex}-${index}`} className="inline-flex items-baseline gap-1">
+          <span className="rounded px-1 py-0.5 bg-orange-100 text-orange-700 font-semibold">
+            {matchedText}
+          </span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="inline-flex items-center justify-center text-orange-500 hover:text-orange-600 transition-colors"
+                aria-label={`Definition for ${matchedText}`}
+              >
+                <CircleHelp size={14} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs">
+              <p className="font-semibold text-xs text-orange-600 mb-1">{entry.term}</p>
+              <p className="text-xs leading-relaxed">{entry.definition}</p>
+            </TooltipContent>
+          </Tooltip>
+        </span>,
+      );
+    }
+
+    lastIndex = matchIndex + matchedText.length;
+  });
+
+  if (lastIndex < step.length) {
+    nodes.push(step.slice(lastIndex));
+  }
+
+  return nodes;
 }
 
 /* ─── Sub-components ───────────────────────────────────────── */
@@ -433,12 +492,14 @@ export default function CookMode() {
                 </button>
               </div>
 
-              <p
-                className="text-xl font-medium text-stone-800 leading-relaxed"
-                style={{ fontFamily: "'Fraunces', Georgia, serif" }}
-              >
-                {steps[stepIndex]}
-              </p>
+              <TooltipProvider delayDuration={120}>
+                <p
+                  className="text-xl font-medium text-stone-800 leading-relaxed"
+                  style={{ fontFamily: "'Fraunces', Georgia, serif" }}
+                >
+                  {renderInstructionWithDefinitions(steps[stepIndex])}
+                </p>
+              </TooltipProvider>
             </motion.div>
           </AnimatePresence>
 
