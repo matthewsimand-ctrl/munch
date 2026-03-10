@@ -133,7 +133,7 @@ export default function MyRecipesScreen() {
   const {
     likedRecipes, savedApiRecipes, unlikeRecipe,
     recipeFolders, addFolder, removeFolder,
-    recipeRatings, pantryList,
+    recipeRatings, pantryList, addCustomGroceryItem,
   } = useStore();
   const { loaded: exploreLoaded, loadFeed } = useBrowseFeed();
   const [search, setSearch] = useState("");
@@ -399,6 +399,10 @@ export default function MyRecipesScreen() {
         match={previewMatch}
         open={previewOpen}
         onOpenChange={setPreviewOpen}
+        onAddMissingToGrocery={(recipe, missingIngredients) => {
+          missingIngredients.forEach((ing) => addCustomGroceryItem(ing));
+          toast.success(`Added ${missingIngredients.length} items from "${recipe.name}" to grocery list`);
+        }}
       />
 
       <Dialog open={showManualRecipeDialog} onOpenChange={setShowManualRecipeDialog}>

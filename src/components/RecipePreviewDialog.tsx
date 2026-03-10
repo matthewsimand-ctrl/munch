@@ -18,6 +18,7 @@ interface Props {
   chefId?: string | null;
   mode?: 'default' | 'explore';
   onSave?: (recipe: Recipe) => void;
+  onAddMissingToGrocery?: (recipe: Recipe, missingIngredients: string[]) => void;
 }
 
 const SCALE_OPTIONS = [
@@ -34,7 +35,17 @@ function scaleIngredient(ingredient: string, factor: number) {
   return `${scaled}${match[2]}`;
 }
 
-export default function RecipePreviewDialog({ recipe, match, open, onOpenChange, chefName, chefId, mode = 'default', onSave }: Props) {
+export default function RecipePreviewDialog({
+  recipe,
+  match,
+  open,
+  onOpenChange,
+  chefName,
+  chefId,
+  mode = 'default',
+  onSave,
+  onAddMissingToGrocery,
+}: Props) {
   const navigate = useNavigate();
   const [portionFactor, setPortionFactor] = useState(1);
   const [showNutrition, setShowNutrition] = useState(false);
@@ -52,7 +63,7 @@ export default function RecipePreviewDialog({ recipe, match, open, onOpenChange,
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-md max-h-[90vh] p-0 overflow-hidden">
+        <DialogContent className="max-w-md h-[90vh] p-0 overflow-hidden flex flex-col">
           <div className="relative h-48 overflow-hidden">
             <img src={recipe.image} alt={recipe.name} className="w-full h-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-background/90 to-transparent" />
@@ -71,7 +82,7 @@ export default function RecipePreviewDialog({ recipe, match, open, onOpenChange,
             )}
           </div>
 
-          <ScrollArea className="max-h-[58vh] px-4 pb-4">
+          <ScrollArea className="flex-1 min-h-0 px-4 pb-4">
             <div className="space-y-4">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="secondary" className="gap-1"><Clock className="h-3 w-3" /> {recipe.cook_time}</Badge>
@@ -130,6 +141,15 @@ export default function RecipePreviewDialog({ recipe, match, open, onOpenChange,
                     ))}
                   </ol>
                 </div>
+              )}
+
+              {displayMatch.missing.length > 0 && onAddMissingToGrocery && (
+                <button
+                  onClick={() => onAddMissingToGrocery(recipe, displayMatch.missing)}
+                  className="w-full px-3 py-2 rounded-lg border text-sm font-semibold inline-flex items-center justify-center gap-1.5"
+                >
+                  <ShoppingCart className="h-4 w-4" /> Add {displayMatch.missing.length} missing items
+                </button>
               )}
 
               {showNutrition && (
