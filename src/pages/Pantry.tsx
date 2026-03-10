@@ -1,227 +1,333 @@
-import { useRef, useMemo, useState } from "react";
-import { Package, Search, Trash2, Camera, ChefHat, ShoppingCart } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useState, useMemo } from "react";
+import {
+  Package, Plus, Search, X, Trash2, Camera,
+  RefreshCw, CheckCircle2, AlertCircle, ChevronDown,
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "@/lib/store";
-import { getCategory, getAllCategories } from "@/lib/ingredientCategories";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
-const PANTRY_CATEGORIES = ["All", ...getAllCategories()];
-
-const DEFAULT_QUANTITY_BY_CATEGORY: Record<string, string> = {
-  Produce: "1 piece",
-  "Meat & Seafood": "500g",
-  "Dairy & Eggs": "1 pack",
-  "Grains & Pasta": "500g",
-  "Canned & Jarred": "1 can",
-  "Oils & Condiments": "250ml",
-  "Spices & Seasonings": "1 jar",
-  Baking: "500g",
-  Beverages: "1 bottle",
-  Other: "1",
+const CATEGORIES = ["All", "Produce", "Dairy", "Meat", "Dry Goods", "Condiments", "Other"];
+const CATEGORY_ICONS: Record<string, string> = {
+  Produce: "🥦", Dairy: "🧀", Meat: "🥩", "Dry Goods": "🌾",
+  Condiments: "🫙", Other: "📦", All: "🛒",
 };
 
-const KEYWORD_QUANTITY_HINTS: { keywords: string[]; quantity: string }[] = [
-  { keywords: ["milk", "stock", "broth", "juice", "sauce", "oil", "vinegar"], quantity: "500ml" },
-  { keywords: ["rice", "pasta", "lentil", "flour", "sugar", "quinoa", "oats"], quantity: "500g" },
-  { keywords: ["egg"], quantity: "12" },
-  { keywords: ["garlic", "onion", "lemon", "lime", "apple", "tomato", "potato"], quantity: "1 piece" },
-  { keywords: ["salt", "pepper", "paprika", "cumin", "oregano", "cinnamon"], quantity: "1 jar" },
-  { keywords: ["bean", "chickpea", "tomato paste", "coconut milk"], quantity: "1 can" },
-];
-
-function detectMetaFromName(name: string) {
-  const lower = name.toLowerCase().trim();
-  const category = getCategory(lower);
-  const quantity =
-    KEYWORD_QUANTITY_HINTS.find((hint) => hint.keywords.some((keyword) => lower.includes(keyword)))?.quantity ||
-    DEFAULT_QUANTITY_BY_CATEGORY[category] ||
-    "1";
-  return { category, quantity };
+interface PantryItem {
+  id: string;
+  name: string;
+  category?: string;
+  quantity?: string;
+  addedAt?: number;
 }
 
-export default function Pantry() {
-  const navigate = useNavigate();
-  const { pantryList, addPantryItem, removePantryItem, addCustomGroceryItem } = useStore();
+function PantryItemRow({
+  item,
+  onRemove,
+  onEdit,
+}: {
+  item: PantryItem;
+  onRemove: () => void;
+  onEdit: (field: "quantity", value: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [qty, setQty] = useState(item.quantity ?? "");
+
+  const cat = item.category ?? "Other";
+  const catIcon = CATEGORY_ICONS[cat] ?? "📦";
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: -4 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, x: 16 }}
+      className="flex items-center gap-3 px-4 py-3 rounded-xl group hover:bg-orange-50/50 transition-colors"
+    >
+      <span className="text-xl w-8 text-center">{catIcon}</span>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-stone-800 truncate">{item.name}</p>
+        {editing ? (
+          <input
+            autoFocus
+            value={qty}
+            onChange={(e) => setQty(e.target.value)}
+            onBlur={() => { setEditing(false); onEdit("quantity", qty); }}
+            onKeyDown={(e) => { if (e.key === "Enter") { setEditing(false); onEdit("quantity", qty); } }}
+            className="text-xs text-stone-500 outline-none border-b border-orange-300 bg-transparent w-20 mt-0.5"
+            placeholder="qty"
+          />
+        ) : (
+          <button
+            onClick={() => setEditing(true)}
+            className="text-xs text-stone-400 hover:text-orange-500 transition-colors mt-0.5 text-left"
+          >
+            {item.quantity || "tap to add quantity"}
+          </button>
+        )}
+      </div>
+      <span
+        className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+        style={{ background: "rgba(249,115,22,0.08)", color: "#C2410C" }}
+      >
+        {cat}
+      </span>
+      <button
+        onClick={onRemove}
+        className="w-7 h-7 rounded-lg flex items-center justify-center text-stone-200 hover:text-red-400 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+      >
+        <Trash2 size={13} />
+      </button>
+    </motion.div>
+  );
+}
+
+export default function PantryScreen() {
+  const { pantryList, addPantryItem, removePantryItem, updatePantryItem } = useStore();
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
-  const [newItem, setNewItem] = useState({ name: "", quantity: "", category: "Other" });
-  const [isPremium] = useState(true);
-  const [scanDialogOpen, setScanDialogOpen] = useState(false);
-  const uploadInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const [newItem, setNewItem] = useState("");
+  const [newCategory, setNewCategory] = useState("Other");
+  const [newQty, setNewQty] = useState("");
+  const [showAddForm, setShowAddForm] = useState(false);
 
-  const items = useMemo(() => pantryList, [pantryList]);
+  const filtered = useMemo(() => {
+    let list: PantryItem[] = pantryList ?? [];
+    if (search) list = list.filter((i) => i.name.toLowerCase().includes(search.toLowerCase()));
+    if (activeCategory !== "All") list = list.filter((i) => (i.category ?? "Other") === activeCategory);
+    return list;
+  }, [pantryList, search, activeCategory]);
 
-  const filtered = items
-    .filter((i) => activeCategory === "All" || (i.category || "Other") === activeCategory)
-    .filter((i) => i.name.toLowerCase().includes(search.toLowerCase()));
-
-  const handleNameChange = (name: string) => {
-    const detected = detectMetaFromName(name);
-    setNewItem((prev) => ({
-      ...prev,
-      name,
-      category: detected.category,
-      quantity: prev.quantity.trim() ? prev.quantity : detected.quantity,
-    }));
-  };
+  const groupedCounts = useMemo(() => {
+    const counts: Record<string, number> = { All: pantryList?.length ?? 0 };
+    (pantryList ?? []).forEach((i: PantryItem) => {
+      const c = i.category ?? "Other";
+      counts[c] = (counts[c] || 0) + 1;
+    });
+    return counts;
+  }, [pantryList]);
 
   const handleAdd = () => {
-    const name = newItem.name.trim();
-    if (!name) return;
-    const detected = detectMetaFromName(name);
-    addPantryItem(name, newItem.quantity.trim() || detected.quantity, newItem.category || detected.category);
-    setNewItem({ name: "", quantity: "", category: "Other" });
+    if (!newItem.trim()) return;
+    addPantryItem({ name: newItem.trim(), category: newCategory, quantity: newQty.trim() || undefined });
+    toast.success(`Added ${newItem.trim()} to pantry`);
+    setNewItem("");
+    setNewQty("");
+    setShowAddForm(false);
   };
 
-  const handleAddToGrocery = (name: string, quantity?: string) => {
-    addCustomGroceryItem(name, quantity || "1");
-  };
-
-  const handleScanOption = (mode: 'upload' | 'camera') => {
-    const input = mode === 'upload' ? uploadInputRef.current : cameraInputRef.current;
-    input?.click();
-  };
-
-  const handleScanFilePicked = (file?: File) => {
-    if (!file) return;
-    toast.success(`Selected ${file.name}. Fridge scanning is coming soon!`);
-    setScanDialogOpen(false);
+  const handleRemove = (id: string, name: string) => {
+    removePantryItem(id);
+    toast.success(`Removed ${name}`);
   };
 
   return (
-    <div className="min-h-full bg-gray-50">
-      <div className="bg-white border-b border-gray-100 px-6 py-5">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/dashboard')} className="flex items-center gap-2 shrink-0">
-              <div className="w-7 h-7 bg-orange-500 rounded-lg flex items-center justify-center">
-                <ChefHat className="text-white" size={14} />
-              </div>
-            </button>
+    <div className="min-h-full" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", background: "#FFFAF5" }}>
+
+      {/* Header */}
+      <div
+        className="relative border-b overflow-hidden"
+        style={{ background: "linear-gradient(135deg,#FFF7ED 0%,#FFFAF5 100%)", borderColor: "rgba(249,115,22,0.12)" }}
+      >
+        <div
+          className="absolute inset-0 opacity-20"
+          style={{ backgroundImage: "radial-gradient(circle, #FDA97440 1px, transparent 1px)", backgroundSize: "20px 20px" }}
+        />
+        <div className="relative max-w-4xl mx-auto px-6 py-6">
+          <div className="flex items-start justify-between mb-4">
             <div>
-              <h1 className="text-2xl font-bold text-orange-500">Pantry</h1>
-              <p className="text-sm text-gray-500 mt-0.5">{items.length} items tracked</p>
+              <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1">Your kitchen</p>
+              <h1 className="text-2xl font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+                Pantry
+              </h1>
+              <p className="text-xs text-stone-400 mt-1">{pantryList?.length ?? 0} items stocked</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                title="Scan fridge (coming soon)"
+                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-stone-200 text-sm font-semibold text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
+              >
+                <Camera size={14} /> Scan Fridge
+              </button>
+              <button
+                onClick={() => setShowAddForm((v) => !v)}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90 active:scale-95"
+                style={{ background: "linear-gradient(135deg,#FB923C,#F97316,#EA580C)", boxShadow: "0 4px 16px rgba(249,115,22,0.30)" }}
+              >
+                <Plus size={14} /> Add Item
+              </button>
             </div>
           </div>
-          {isPremium && (
-            <button
-              onClick={() => setScanDialogOpen(true)}
-              className="flex items-center gap-2 bg-white hover:bg-gray-50 text-gray-700 text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-sm border border-gray-200"
+
+          {/* Stat row */}
+          <div className="flex items-center gap-4">
+            {[
+              { label: "In stock", value: pantryList?.length ?? 0, color: "#10B981" },
+              { label: "Categories", value: Object.keys(groupedCounts).length - 1, color: "#F97316" },
+            ].map(({ label, value, color }) => (
+              <div key={label} className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full" style={{ background: color }} />
+                <span className="text-xs font-semibold text-stone-500">{value} {label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-4xl mx-auto px-6 py-5 space-y-5">
+
+        {/* Add form */}
+        <AnimatePresence>
+          {showAddForm && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              className="rounded-2xl border p-5"
+              style={{ background: "#fff", borderColor: "rgba(249,115,22,0.20)", boxShadow: "0 4px 20px rgba(249,115,22,0.08)" }}
             >
-              <Camera size={16} /> Scan Fridge
+              <p className="text-sm font-bold text-stone-800 mb-3">Add pantry item</p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  autoFocus
+                  value={newItem}
+                  onChange={(e) => setNewItem(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+                  placeholder="e.g. Olive oil, Garlic, Pasta…"
+                  className="flex-1 px-4 py-2.5 rounded-xl border text-sm text-stone-700 placeholder:text-stone-300 outline-none focus:border-orange-300 transition-colors"
+                  style={{ borderColor: "rgba(0,0,0,0.09)" }}
+                />
+                <input
+                  value={newQty}
+                  onChange={(e) => setNewQty(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+                  placeholder="Quantity (optional)"
+                  className="w-40 px-4 py-2.5 rounded-xl border text-sm text-stone-700 placeholder:text-stone-300 outline-none focus:border-orange-300 transition-colors"
+                  style={{ borderColor: "rgba(0,0,0,0.09)" }}
+                />
+                <div className="relative">
+                  <select
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value)}
+                    className="appearance-none pl-3 pr-8 py-2.5 rounded-xl border text-sm font-medium text-stone-600 outline-none cursor-pointer"
+                    style={{ background: "#fff", borderColor: "rgba(0,0,0,0.09)" }}
+                  >
+                    {CATEGORIES.filter((c) => c !== "All").map((c) => <option key={c}>{c}</option>)}
+                  </select>
+                  <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
+                </div>
+                <button
+                  onClick={handleAdd}
+                  disabled={!newItem.trim()}
+                  className="px-5 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-40 transition-all hover:opacity-90 active:scale-95"
+                  style={{ background: "linear-gradient(135deg,#FB923C,#F97316)", boxShadow: "0 2px 8px rgba(249,115,22,0.25)" }}
+                >
+                  Add
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Search */}
+        <div className="relative">
+          <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-300" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search your pantry…"
+            className="w-full pl-10 pr-4 py-3 rounded-xl border text-sm text-stone-700 placeholder:text-stone-300 outline-none focus:border-orange-300 transition-colors"
+            style={{ background: "#fff", borderColor: "rgba(0,0,0,0.09)" }}
+          />
+          {search && (
+            <button onClick={() => setSearch("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-300 hover:text-stone-500">
+              <X size={13} />
             </button>
           )}
         </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-6">
-        <div className="space-y-4">
-          <div className="space-y-4">
-            <div data-tour-id="pantry-add-form" className="bg-white rounded-2xl border border-orange-200 shadow-sm p-5">
-              <h3 className="text-sm font-bold text-gray-800 mb-3">Add items to your pantry</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                <input
-                  value={newItem.name}
-                  onChange={(e) => handleNameChange(e.target.value)}
-                  placeholder="e.g. coconut milk"
-                  className="sm:col-span-1 px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-orange-300"
-                />
-                <input
-                  value={newItem.quantity}
-                  onChange={(e) => setNewItem((p) => ({ ...p, quantity: e.target.value }))}
-                  placeholder="Auto-detected"
-                  className="sm:col-span-1 px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-orange-300"
-                />
-                <select
-                  value={newItem.category}
-                  onChange={(e) => setNewItem((p) => ({ ...p, category: e.target.value }))}
-                  className="sm:col-span-1 px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-orange-300"
+        {/* Category tabs */}
+        <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
+          {CATEGORIES.map((c) => (
+            <button
+              key={c}
+              onClick={() => setActiveCategory(c)}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all"
+              style={
+                activeCategory === c
+                  ? { background: "linear-gradient(135deg,#FB923C,#F97316)", color: "#fff", boxShadow: "0 2px 8px rgba(249,115,22,0.25)" }
+                  : { background: "#fff", color: "#57534E", border: "1px solid rgba(0,0,0,0.08)" }
+              }
+            >
+              <span>{CATEGORY_ICONS[c]}</span>
+              {c}
+              {groupedCounts[c] > 0 && (
+                <span
+                  className="px-1.5 py-0.5 rounded-full text-[9px] font-bold"
+                  style={{ background: activeCategory === c ? "rgba(255,255,255,0.25)" : "rgba(249,115,22,0.10)", color: activeCategory === c ? "#fff" : "#EA580C" }}
                 >
-                  {PANTRY_CATEGORIES.filter((c) => c !== "All").map((c) => <option key={c}>{c}</option>)}
-                </select>
-              </div>
-              <div className="flex items-center justify-between mt-3">
-                <p className="text-xs text-gray-500">Food type, category, and quantity are auto-detected as you type.</p>
-                <button onClick={handleAdd} className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold rounded-xl">Add to Pantry</button>
-              </div>
-            </div>
-
-            <div className="relative">
-              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search pantry…" className="w-full pl-10 pr-4 py-3 text-sm bg-white border border-gray-100 rounded-xl shadow-sm" />
-            </div>
-
-            <div className="flex gap-2 overflow-x-auto scrollbar-hide">
-              {PANTRY_CATEGORIES.map((cat) => (
-                <button key={cat} onClick={() => setActiveCategory(cat)} className={`shrink-0 text-xs font-semibold px-3.5 py-1.5 rounded-full border ${activeCategory === cat ? "bg-orange-500 text-white border-orange-500" : "bg-white text-gray-600 border-gray-200"}`}>{cat}</button>
-              ))}
-            </div>
-
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm divide-y divide-gray-100 overflow-hidden">
-              {filtered.length === 0 ? <div className="py-16 text-center"><Package size={32} className="mx-auto text-gray-300 mb-3" /><p className="text-sm text-gray-500">No items found</p></div> : filtered.map((item) => {
-                return (
-                  <div key={item.name} className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 group">
-                    <div className="w-8 h-8 rounded-xl bg-orange-50 flex items-center justify-center shrink-0"><Package size={14} className="text-orange-500" /></div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-gray-800">{item.name}</div>
-                      <div className="text-xs text-gray-400">{item.category || "Other"}</div>
-                    </div>
-                    <div className="text-sm text-gray-600 font-medium shrink-0 hidden sm:block">{item.quantity || "1"}</div>
-                    <button
-                      onClick={() => handleAddToGrocery(item.name, item.quantity)}
-                      className="text-xs font-semibold px-2.5 py-1 rounded-full border border-orange-200 text-orange-600 hover:bg-orange-50 transition-colors shrink-0 hidden md:flex items-center gap-1"
-                    >
-                      <ShoppingCart size={12} /> Add to Grocery
-                    </button>
-                    <button onClick={() => removePantryItem(item.name)} className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400"><Trash2 size={14} /></button>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+                  {groupedCounts[c]}
+                </span>
+              )}
+            </button>
+          ))}
         </div>
-      </div>
 
+        {/* Items list */}
+        <div
+          className="rounded-2xl border overflow-hidden"
+          style={{ background: "#fff", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}
+        >
+          {filtered.length === 0 ? (
+            <div className="py-16 text-center">
+              {(pantryList?.length ?? 0) === 0 ? (
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-16 h-16 rounded-2xl bg-orange-50 flex items-center justify-center text-3xl">📦</div>
+                  <div>
+                    <p className="font-bold text-stone-700" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+                      Your pantry is empty
+                    </p>
+                    <p className="text-xs text-stone-400 mt-1">Add items to get ingredient match suggestions</p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-stone-400">No items match your search</p>
+              )}
+            </div>
+          ) : (
+            <div className="divide-y" style={{ divideColor: "rgba(0,0,0,0.04)" }}>
+              <AnimatePresence>
+                {filtered.map((item) => (
+                  <PantryItemRow
+                    key={item.id}
+                    item={item}
+                    onRemove={() => handleRemove(item.id, item.name)}
+                    onEdit={(field, value) => updatePantryItem?.(item.id, { [field]: value })}
+                  />
+                ))}
+              </AnimatePresence>
+            </div>
+          )}
+        </div>
 
-      <Dialog open={scanDialogOpen} onOpenChange={setScanDialogOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Scan Fridge</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-2">
-            <button
-              onClick={() => handleScanOption('upload')}
-              className="w-full text-left px-4 py-3 rounded-xl border border-gray-200 hover:bg-gray-50 text-sm font-semibold"
-            >
-              Upload a picture
-            </button>
-            <button
-              onClick={() => handleScanOption('camera')}
-              className="w-full text-left px-4 py-3 rounded-xl border border-gray-200 hover:bg-gray-50 text-sm font-semibold"
-            >
-              Take a live picture
-            </button>
+        {/* Tips */}
+        {(pantryList?.length ?? 0) > 0 && (
+          <div
+            className="rounded-2xl border p-4 flex items-start gap-3"
+            style={{ background: "linear-gradient(135deg,#FFF7ED,#FFF3E4)", borderColor: "rgba(249,115,22,0.15)" }}
+          >
+            <div className="w-8 h-8 rounded-xl bg-orange-100 flex items-center justify-center shrink-0">
+              <CheckCircle2 size={15} className="text-orange-500" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-orange-800 mb-0.5">Pantry tip</p>
+              <p className="text-xs text-orange-700/70">
+                Recipes on the Discover page now show how many ingredients you already have. Look for the green match badge!
+              </p>
+            </div>
           </div>
-        </DialogContent>
-      </Dialog>
-
-      <input
-        ref={uploadInputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(e) => handleScanFilePicked(e.target.files?.[0])}
-      />
-      <input
-        ref={cameraInputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-        onChange={(e) => handleScanFilePicked(e.target.files?.[0])}
-      />
+        )}
+      </div>
     </div>
   );
 }
