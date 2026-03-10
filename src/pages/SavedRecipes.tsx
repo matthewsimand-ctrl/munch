@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import {
-  Search, FolderPlus, Folder, Clock,
+  Search, Folder, Clock,
   Filter, Grid3X3, List, Star, BookOpen, X, Trash2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -151,7 +151,7 @@ export default function MyRecipesScreen() {
   const location = useLocation();
   const {
     likedRecipes, savedApiRecipes, unlikeRecipe,
-    recipeFolders, createCookbook, removeFolder,
+    recipeFolders, removeFolder,
     recipeRatings, pantryList, addCustomGroceryItem, cachedNutrition,
   } = useStore();
   const { loaded: exploreLoaded, loadFeed } = useBrowseFeed();
@@ -160,10 +160,6 @@ export default function MyRecipesScreen() {
   const [sortBy, setSortBy] = useState(SORT_OPTIONS[0]);
   const [activeCuisine, setActiveCuisine] = useState("All");
   const [activeFolder, setActiveFolder] = useState<string | null>(null);
-  const [showNewFolder, setShowNewFolder] = useState(false);
-  const [newFolderName, setNewFolderName] = useState("");
-  const [newCookbookRecipeIds, setNewCookbookRecipeIds] = useState<string[]>([]);
-  const [newCookbookCover, setNewCookbookCover] = useState<string | undefined>();
   const [displayName, setDisplayName] = useState<string>("My");
   const [previewRecipe, setPreviewRecipe] = useState<Recipe | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -190,12 +186,6 @@ export default function MyRecipesScreen() {
     if (!exploreLoaded) loadFeed();
   }, [exploreLoaded, loadFeed]);
 
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    if (params.get("newCookbook") === "1") {
-      setShowNewFolder(true);
-    }
-  }, [location.search]);
 
   const filtered = useMemo(() => {
     let list = savedRecipes;
@@ -212,22 +202,7 @@ export default function MyRecipesScreen() {
     return list;
   }, [savedRecipes, activeFolder, recipeFolders, search, activeCuisine, sortBy, recipeRatings]);
 
-  const handleAddFolder = () => {
-    if (!newFolderName.trim()) return;
-    createCookbook(newFolderName.trim(), newCookbookRecipeIds, newCookbookCover);
-    setNewFolderName("");
-    setNewCookbookRecipeIds([]);
-    setNewCookbookCover(undefined);
-    setShowNewFolder(false);
-    toast.success(`Created cookbook "${newFolderName.trim()}"`);
-  };
 
-  const handleCoverUpload = (file: File | null) => {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setNewCookbookCover(typeof reader.result === "string" ? reader.result : undefined);
-    reader.readAsDataURL(file);
-  };
 
   const handleUnsave = (id: string) => {
     unlikeRecipe(id);
@@ -329,58 +304,7 @@ export default function MyRecipesScreen() {
                 </span>
               </button>
             ))}
-            {showNewFolder ? (
-              <div className="flex items-center gap-1.5 bg-white border border-orange-300 rounded-full px-2 py-1">
-                <input
-                  autoFocus
-                  value={newFolderName}
-                  onChange={(e) => setNewFolderName(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") handleAddFolder(); if (e.key === "Escape") setShowNewFolder(false); }}
-                  placeholder="Cookbook name…"
-                  className="text-xs outline-none w-24 text-stone-700 placeholder:text-stone-300"
-                />
-                <button onClick={handleAddFolder} className="text-orange-500 font-bold text-xs">Add</button>
-                <label className="text-[10px] font-semibold text-stone-500 cursor-pointer">
-                  Cover
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => handleCoverUpload(e.target.files?.[0] ?? null)}
-                  />
-                </label>
-              </div>
-            ) : (
-              <button
-                onClick={() => setShowNewFolder(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-stone-400 border border-dashed border-stone-300 hover:border-orange-300 hover:text-orange-500 transition-colors whitespace-nowrap"
-              >
-                <FolderPlus size={11} /> Add Cookbook
-              </button>
-            )}
           </div>
-          {showNewFolder && (
-            <div className="pb-4 rounded-2xl border border-orange-100 bg-white/80 p-3">
-              <p className="text-xs font-semibold text-stone-600 mb-2">Select recipes for this cookbook</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 max-h-32 overflow-y-auto">
-                {savedRecipes.map((recipe) => {
-                  const checked = newCookbookRecipeIds.includes(recipe.id);
-                  return (
-                    <label key={recipe.id} className="flex items-center gap-2 text-xs text-stone-600">
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => setNewCookbookRecipeIds((prev) =>
-                          checked ? prev.filter((id) => id !== recipe.id) : [...prev, recipe.id]
-                        )}
-                      />
-                      <span className="truncate">{recipe.name}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-          )}
 
         </div>
       </div>

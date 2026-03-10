@@ -68,7 +68,8 @@ export default function Cookbooks() {
 
         {(showNewCookbook || recipeFolders.length === 0) && (
           <div className="rounded-2xl bg-white border border-orange-200 p-4 mb-6">
-            <p className="text-sm font-semibold text-stone-700 mb-3">Create a cookbook</p>
+            <p className="text-sm font-semibold text-stone-700 mb-1">Create a cookbook</p>
+            <p className="text-xs text-stone-500 mb-3">Pick recipes from your saved list using the checkboxes below to build this cookbook.</p>
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-3">
               <input
                 value={newFolderName}
