@@ -6,8 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ChefHat, ArrowRight, ArrowLeft, Users } from 'lucide-react';
+import { ChefHat, ArrowRight, ArrowLeft } from 'lucide-react';
 
 const DIETARY_OPTIONS = ['Vegetarian', 'Vegan', 'Gluten-Free', 'Dairy-Free', 'Nut-Free', 'None'];
 const SKILL_OPTIONS = ['Beginner', 'Intermediate', 'Advanced'];
@@ -20,10 +19,10 @@ const CUISINE_OPTIONS = [
   NO_PREFERENCE_OPTION,
 ];
 const COOKING_FOR_OPTIONS = [
-  { value: '1', label: 'Solo', description: 'Just me' },
-  { value: '2', label: 'Partner', description: 'Two servings' },
-  { value: '4', label: 'Family', description: 'About four servings' },
-  { value: '8', label: 'Party', description: 'Cooking for a crowd' },
+  { value: '1', label: 'Solo', description: 'Just me', emoji: '🧑‍🍳' },
+  { value: '2', label: 'Partner', description: 'Two servings', emoji: '💑' },
+  { value: '4', label: 'Family', description: 'About four servings', emoji: '👨‍👩‍👧‍👦' },
+  { value: '8', label: 'Party', description: 'Cooking for a crowd', emoji: '🎉' },
 ];
 const TOTAL_STEPS = 6;
 
@@ -187,19 +186,29 @@ export default function Onboarding() {
                   <p className="text-muted-foreground mb-8">
                     We'll set this as your default serving size.
                   </p>
-                  <Select value={defaultServings} onValueChange={setDefaultServings}>
-                    <SelectTrigger className="w-full h-14 text-lg">
-                      <Users className="h-5 w-5 mr-2 text-muted-foreground" />
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {COOKING_FOR_OPTIONS.map((option) => (
-                        <SelectItem key={option.label} value={option.value}>
-                          {option.label} · {option.description}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {COOKING_FOR_OPTIONS.map((option) => {
+                      const isSelected = defaultServings === option.value;
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => setDefaultServings(option.value)}
+                          className={`p-4 rounded-xl text-left transition-all border group ${
+                            isSelected
+                              ? 'bg-primary text-primary-foreground border-primary shadow-md scale-[1.02]'
+                              : 'bg-card text-foreground border-border hover:border-primary/50 hover:shadow-sm'
+                          }`}
+                        >
+                          <span className="text-2xl mb-2 block">{option.emoji}</span>
+                          <span className="font-semibold text-base block">{option.label}</span>
+                          <span className={`text-sm block mt-0.5 ${isSelected ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
+                            {option.description}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 
