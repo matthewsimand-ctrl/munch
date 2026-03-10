@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import {
-  Heart, X, Plus, Clock, ChefHat, Flame, Filter,
-  ChevronDown, Sparkles, BookOpen, Zap,
+  Heart, X, Clock, ChefHat, Flame, Filter,
+  ChevronDown, Sparkles,
 } from "lucide-react";
 import { motion, AnimatePresence, useMotionValue, useTransform } from "framer-motion";
 import { useStore } from "@/lib/store";
@@ -10,6 +10,7 @@ import { calculateMatch } from "@/lib/matchLogic";
 import MatchBadge from "@/components/MatchBadge";
 import { toast } from "sonner";
 import type { Recipe } from "@/data/recipes";
+import RecipePreviewDialog from "@/components/RecipePreviewDialog";
 
 /* ── Filter pill ───────────────────────────────────────────── */
 function FilterPill({
@@ -50,25 +51,23 @@ function SwipeCard({
   matchPercent,
   onSwipeLeft,
   onSwipeRight,
-  onSwipeUp,
   isTop,
+  onOpenDetails,
 }: {
   recipe: Recipe;
   matchPercent: number;
   onSwipeLeft: () => void;
   onSwipeRight: () => void;
-  onSwipeUp: () => void;
   isTop: boolean;
+  onOpenDetails: () => void;
 }) {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const rotate = useTransform(x, [-200, 200], [-18, 18]);
   const likeOpacity = useTransform(x, [20, 100], [0, 1]);
   const nopeOpacity = useTransform(x, [-100, -20], [1, 0]);
-  const saveOpacity = useTransform(y, [-100, -30], [1, 0]);
 
   const handleDragEnd = (_: unknown, info: { offset: { x: number; y: number } }) => {
-    if (info.offset.y < -80) { onSwipeUp(); return; }
     if (info.offset.x > 100) { onSwipeRight(); return; }
     if (info.offset.x < -100) { onSwipeLeft(); return; }
   };
@@ -88,6 +87,7 @@ function SwipeCard({
       style={{ x, y, rotate, touchAction: "none" }}
       className="absolute inset-0 cursor-grab active:cursor-grabbing select-none"
       whileDrag={{ scale: 1.02 }}
+      onTap={() => { if (isTop) onOpenDetails(); }}
     >
       {/* Card */}
       <div
@@ -135,12 +135,6 @@ function SwipeCard({
               className="absolute top-8 right-6 px-4 py-2 rounded-xl border-4 border-red-400 text-red-400 font-black text-2xl rotate-[15deg]"
             >
               SKIP
-            </motion.div>
-            <motion.div
-              style={{ opacity: saveOpacity }}
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 px-4 py-2 rounded-xl border-4 border-sky-400 text-sky-400 font-black text-xl"
-            >
-              PLAN IT
             </motion.div>
           </>
         )}
@@ -200,12 +194,15 @@ const FILTERS = ["All", "Quick (<30 min)", "Vegetarian", "High Protein", "Easy",
 
 export default function SwipeScreen() {
   const { recipes, loading, loaded, loadFeed } = useBrowseFeed();
-  const { likedRecipes, likeRecipe, pantryList, addMealPlanItem } = useStore();
+  const { likedRecipes, likeRecipe, pantryList } = useStore();
 
   const [cardIndex, setCardIndex] = useState(0);
   const [activeFilter, setActiveFilter] = useState("All");
   const [showFilters, setShowFilters] = useState(false);
   const [swipeHistory, setSwipeHistory] = useState<string[]>([]);
+  const [previewRecipe, setPreviewRecipe] = useState<Recipe | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [swipeFeedback, setSwipeFeedback] = useState<"saved" | "skipped" | null>(null);
 
   const pantryNames = useMemo(() => pantryList.map((p) => p.name), [pantryList]);
   const likedSet = useMemo(() => new Set(likedRecipes), [likedRecipes]);
@@ -235,6 +232,8 @@ export default function SwipeScreen() {
     if (!current) return;
     likeRecipe(current.id, current);
     setSwipeHistory((h) => [...h, current.id]);
+    setSwipeFeedback("saved");
+    setTimeout(() => setSwipeFeedback(null), 420);
     toast.success(`❤️ Saved "${current.name}" to cookbook`);
     advance();
   }, [current, likeRecipe, advance]);
@@ -242,22 +241,10 @@ export default function SwipeScreen() {
   const handleSkip = useCallback(() => {
     if (!current) return;
     setSwipeHistory((h) => [...h, current.id]);
+    setSwipeFeedback("skipped");
+    setTimeout(() => setSwipeFeedback(null), 420);
     advance();
   }, [current, advance]);
-
-  const handlePlan = useCallback(() => {
-    if (!current) return;
-    addMealPlanItem?.({
-      day: "Mon",
-      mealType: "Dinner",
-      recipeName: current.name,
-      recipeId: current.id,
-      cookTime: current.cook_time,
-    });
-    toast.success(`📅 Added "${current.name}" to your meal plan`);
-    setSwipeHistory((h) => [...h, current.id]);
-    advance();
-  }, [current, addMealPlanItem, advance]);
 
 
   useEffect(() => {
@@ -376,6 +363,17 @@ export default function SwipeScreen() {
               {/* Top card */}
               <div className="absolute inset-0" style={{ zIndex: 10 }}>
                 <AnimatePresence mode="popLayout">
+                  {swipeFeedback && (
+                    <motion.div
+                      key={swipeFeedback}
+                      initial={{ opacity: 0, scale: 0.8, y: 12 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.9, y: -6 }}
+                      className={`absolute top-6 left-1/2 -translate-x-1/2 z-20 px-4 py-2 rounded-full text-sm font-bold ${swipeFeedback === "saved" ? "bg-emerald-500 text-white" : "bg-red-500 text-white"}`}
+                    >
+                      {swipeFeedback === "saved" ? "Saved" : "Skipped"}
+                    </motion.div>
+                  )}
                   {current && (
                     <SwipeCard
                       key={current.id}
@@ -383,8 +381,8 @@ export default function SwipeScreen() {
                       matchPercent={currentMatch?.percentage ?? 0}
                       onSwipeLeft={handleSkip}
                       onSwipeRight={handleSave}
-                      onSwipeUp={handlePlan}
                       isTop
+                      onOpenDetails={() => { setPreviewRecipe(current); setPreviewOpen(true); }}
                     />
                   )}
                 </AnimatePresence>
@@ -401,14 +399,6 @@ export default function SwipeScreen() {
                 className="w-14 h-14 rounded-full bg-white border border-stone-200 flex items-center justify-center text-stone-400 hover:border-red-300 hover:text-red-400 transition-all active:scale-90 shadow-sm hover:shadow-md"
               >
                 <X size={22} />
-              </button>
-
-              {/* Plan */}
-              <button
-                onClick={handlePlan}
-                className="w-12 h-12 rounded-full bg-white border border-stone-200 flex items-center justify-center text-stone-400 hover:border-sky-300 hover:text-sky-500 transition-all active:scale-90 shadow-sm"
-              >
-                <BookOpen size={18} />
               </button>
 
               {/* Save */}
@@ -428,11 +418,23 @@ export default function SwipeScreen() {
           {/* Swipe hint */}
           {stack.length > 0 && !loading && (
             <p className="text-center text-[10px] text-stone-300 mt-4 font-medium">
-              ← Skip &nbsp;·&nbsp; ❤ Save &nbsp;·&nbsp; ↑ Plan meal
+              ← Skip &nbsp;·&nbsp; ❤ Save
             </p>
           )}
         </div>
       </div>
+
+      <RecipePreviewDialog
+        recipe={previewRecipe}
+        match={previewRecipe ? calculateMatch(pantryNames, previewRecipe.ingredients || []) : null}
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        mode="explore"
+        onSave={(recipe) => {
+          likeRecipe(recipe.id, recipe);
+          toast.success(`❤️ Saved "${recipe.name}" to cookbook`);
+        }}
+      />
     </div>
   );
 }

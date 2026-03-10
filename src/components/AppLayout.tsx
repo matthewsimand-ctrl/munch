@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Outlet } from "react-router-dom";
 import { NavLink } from "react-router-dom";
 import {
@@ -14,6 +14,7 @@ import {
   BookMarked,
   CookingPot,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 const NAV_ITEMS = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -28,6 +29,35 @@ const NAV_ITEMS = [
 
 export default function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
+  const [displayName, setDisplayName] = useState("My");
+  const [planType, setPlanType] = useState("Free Plan");
+
+  useEffect(() => {
+    const hydrateFooterProfile = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("display_name")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      const persistedName = profile?.display_name?.trim();
+      const fallbackName = user.user_metadata?.display_name?.trim();
+      if (persistedName || fallbackName) {
+        setDisplayName((persistedName || fallbackName) as string);
+      }
+
+      const metadataPlan = user.user_metadata?.plan_type || user.user_metadata?.plan || user.user_metadata?.subscription;
+      if (typeof metadataPlan === "string" && metadataPlan.trim()) {
+        setPlanType(metadataPlan.trim());
+      }
+    };
+
+    hydrateFooterProfile();
+  }, []);
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-orange-50/50 via-background to-background overflow-hidden">
@@ -115,8 +145,8 @@ export default function AppLayout() {
             </div>
             {!collapsed && (
               <div className="min-w-0">
-                <div className="text-xs font-semibold text-gray-800 truncate">My Kitchen</div>
-                <div className="text-xs text-gray-400 truncate">Free Plan</div>
+                <div className="text-xs font-semibold text-gray-800 truncate">{displayName}&apos;s Kitchen.</div>
+                <div className="text-xs text-gray-400 truncate">Settings | {planType}</div>
               </div>
             )}
           </NavLink>

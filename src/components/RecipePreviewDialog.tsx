@@ -1,11 +1,13 @@
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Recipe } from '@/data/recipes';
 import type { MatchResult } from '@/lib/matchLogic';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Clock, BarChart3, Check, ShoppingCart, MapPin, ChefHat, Users } from 'lucide-react';
+import { Clock, BarChart3, Check, ShoppingCart, MapPin, ChefHat, Users, Heart, Play, Sparkles, ChevronDown } from 'lucide-react';
 import MatchBadge from '@/components/MatchBadge';
+import RecipeTweakDialog from '@/components/RecipeTweakDialog';
 
 interface Props {
   recipe: Recipe | null;
@@ -14,101 +16,159 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   chefName?: string | null;
   chefId?: string | null;
+  mode?: 'default' | 'explore';
+  onSave?: (recipe: Recipe) => void;
 }
 
-export default function RecipePreviewDialog({ recipe, match, open, onOpenChange, chefName, chefId }: Props) {
+const SCALE_OPTIONS = [
+  { label: '1/2x', factor: 0.5 },
+  { label: '1x', factor: 1 },
+  { label: '2x', factor: 2 },
+] as const;
+
+function scaleIngredient(ingredient: string, factor: number) {
+  if (factor === 1) return ingredient;
+  const match = ingredient.match(/^(\d+(?:\.\d+)?)(.*)$/);
+  if (!match) return ingredient;
+  const scaled = (Number(match[1]) * factor).toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1');
+  return `${scaled}${match[2]}`;
+}
+
+export default function RecipePreviewDialog({ recipe, match, open, onOpenChange, chefName, chefId, mode = 'default', onSave }: Props) {
   const navigate = useNavigate();
-  if (!recipe || !match) return null;
+  const [portionFactor, setPortionFactor] = useState(1);
+  const [showNutrition, setShowNutrition] = useState(false);
+  const [tweakOpen, setTweakOpen] = useState(false);
+
+  const fallbackMatch: MatchResult = useMemo(() => ({
+    percentage: 0,
+    matched: [],
+    missing: recipe?.ingredients ?? [],
+  }), [recipe]);
+
+  if (!recipe) return null;
+  const displayMatch = match ?? fallbackMatch;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[90vh] p-0 overflow-hidden">
-        <div className="relative h-48 overflow-hidden">
-          <img src={recipe.image} alt={recipe.name} className="w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-background/90 to-transparent" />
-          <div className="absolute bottom-3 left-4 right-4">
-            <DialogHeader>
-              <DialogTitle className="text-xl text-foreground">{recipe.name}</DialogTitle>
-            </DialogHeader>
-          </div>
-          {chefName && chefId && (
-            <button
-              onClick={() => { onOpenChange(false); navigate(`/chef/${chefId}`); }}
-              className="absolute top-3 left-3 inline-flex items-center gap-1 text-[11px] text-white/90 hover:text-white font-medium bg-black/30 backdrop-blur-sm px-2.5 py-1 rounded-full transition-colors"
-            >
-              <ChefHat className="h-3 w-3" /> by {chefName}
-            </button>
-          )}
-        </div>
-
-        <ScrollArea className="max-h-[50vh] px-4 pb-4">
-          <div className="space-y-4">
-            {/* Meta */}
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="secondary" className="gap-1">
-                <Clock className="h-3 w-3" /> {recipe.cook_time}
-              </Badge>
-              <Badge variant="secondary" className="gap-1">
-                <BarChart3 className="h-3 w-3" /> {recipe.difficulty}
-              </Badge>
-              <MatchBadge percentage={match.percentage} />
-              {recipe.cuisine && (
-                <Badge variant="outline" className="gap-1">
-                  <MapPin className="h-3 w-3" /> {recipe.cuisine}
-                </Badge>
-              )}
-              {recipe.servings && (
-                <Badge variant="secondary" className="gap-1">
-                  <Users className="h-3 w-3" /> Serves {recipe.servings}
-                </Badge>
-              )}
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-md max-h-[90vh] p-0 overflow-hidden">
+          <div className="relative h-48 overflow-hidden">
+            <img src={recipe.image} alt={recipe.name} className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-background/90 to-transparent" />
+            <div className="absolute bottom-3 left-4 right-4">
+              <DialogHeader>
+                <DialogTitle className="text-xl text-foreground">{recipe.name}</DialogTitle>
+              </DialogHeader>
             </div>
-
-            {/* Tags */}
-            {recipe.tags.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {recipe.tags.map(tag => (
-                  <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>
-                ))}
-              </div>
+            {chefName && chefId && (
+              <button
+                onClick={() => { onOpenChange(false); navigate(`/chef/${chefId}`); }}
+                className="absolute top-3 left-3 inline-flex items-center gap-1 text-[11px] text-white/90 hover:text-white font-medium bg-black/30 backdrop-blur-sm px-2.5 py-1 rounded-full transition-colors"
+              >
+                <ChefHat className="h-3 w-3" /> by {chefName}
+              </button>
             )}
+          </div>
 
-            {/* Ingredients */}
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Ingredients</p>
-              <div className="flex flex-wrap gap-1.5">
-                {match.matched.map(ing => (
-                  <span key={ing} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-success/10 text-success font-medium">
-                    <Check className="h-3 w-3" />{ing}
-                  </span>
-                ))}
-                {match.missing.map(ing => (
-                  <span key={ing} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-destructive/10 text-destructive font-medium">
-                    <ShoppingCart className="h-3 w-3" />{ing}
-                  </span>
-                ))}
+          <ScrollArea className="max-h-[58vh] px-4 pb-4">
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="secondary" className="gap-1"><Clock className="h-3 w-3" /> {recipe.cook_time}</Badge>
+                <Badge variant="secondary" className="gap-1"><BarChart3 className="h-3 w-3" /> {recipe.difficulty}</Badge>
+                <MatchBadge percentage={displayMatch.percentage} />
+                {recipe.cuisine && <Badge variant="outline" className="gap-1"><MapPin className="h-3 w-3" /> {recipe.cuisine}</Badge>}
+                {recipe.servings && <Badge variant="secondary" className="gap-1"><Users className="h-3 w-3" /> Serves {recipe.servings}</Badge>}
               </div>
-            </div>
 
-            {/* Instructions */}
-            {recipe.instructions.length > 0 && (
+              {!!recipe.tags?.length && (
+                <div className="flex flex-wrap gap-1.5">
+                  {recipe.tags.slice(0, 4).map((tag) => <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>)}
+                </div>
+              )}
+
               <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Instructions</p>
-                <ol className="space-y-2">
-                  {recipe.instructions.map((step, i) => (
-                    <li key={i} className="flex gap-2 text-sm text-foreground">
-                      <span className="flex-shrink-0 h-5 w-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold">
-                        {i + 1}
-                      </span>
-                      {step}
-                    </li>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Portion Size</p>
+                <div className="inline-flex rounded-lg border p-1 gap-1">
+                  {SCALE_OPTIONS.map((option) => (
+                    <button
+                      key={option.label}
+                      onClick={() => setPortionFactor(option.factor)}
+                      className={`px-3 py-1.5 text-xs rounded-md font-semibold ${portionFactor === option.factor ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
+                    >
+                      {option.label}
+                    </button>
                   ))}
-                </ol>
+                </div>
               </div>
+
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Ingredients</p>
+                <ul className="space-y-2">
+                  {recipe.ingredients.map((ing) => {
+                    const scaledIngredient = scaleIngredient(ing, portionFactor);
+                    const hasIngredient = displayMatch.matched.some((m) => m.toLowerCase() === ing.toLowerCase());
+                    return (
+                      <li key={ing} className="text-sm flex items-start gap-2 text-foreground">
+                        {hasIngredient ? <Check className="h-4 w-4 mt-0.5 text-emerald-600" /> : <ShoppingCart className="h-4 w-4 mt-0.5 text-orange-500" />}
+                        <span>{scaledIngredient}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+
+              {recipe.instructions.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Instructions</p>
+                  <ol className="space-y-2">
+                    {recipe.instructions.map((step, i) => (
+                      <li key={i} className="flex gap-2 text-sm text-foreground">
+                        <span className="flex-shrink-0 h-5 w-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold">{i + 1}</span>
+                        {step}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
+
+              {showNutrition && (
+                <div className="rounded-lg border p-3 bg-muted/30 text-sm">
+                  <p className="font-semibold mb-1">Nutrition Facts</p>
+                  <p className="text-muted-foreground">Calories: {(recipe.servings ?? 2) * 180} · Protein: {(recipe.servings ?? 2) * 9}g · Carbs: {(recipe.servings ?? 2) * 18}g</p>
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+
+          <div className="px-4 pb-4 pt-2 border-t grid grid-cols-2 gap-2">
+            <button onClick={() => setShowNutrition((v) => !v)} className="px-3 py-2 rounded-lg border text-sm font-medium inline-flex items-center justify-center gap-1.5">
+              Nutrition <ChevronDown className={`h-4 w-4 transition-transform ${showNutrition ? 'rotate-180' : ''}`} />
+            </button>
+            {mode === 'default' ? (
+              <button onClick={() => setTweakOpen(true)} className="px-3 py-2 rounded-lg border text-sm font-medium inline-flex items-center justify-center gap-1.5">
+                <Sparkles className="h-4 w-4" /> AI Tools
+              </button>
+            ) : (
+              <button onClick={() => onSave?.(recipe)} className="px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold inline-flex items-center justify-center gap-1.5">
+                <Heart className="h-4 w-4" /> Save Recipe
+              </button>
+            )}
+            {mode === 'default' && (
+              <button
+                onClick={() => navigate(`/cook/${recipe.id}`)}
+                className="col-span-2 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold inline-flex items-center justify-center gap-1.5"
+              >
+                <Play className="h-4 w-4" /> Start Cooking
+              </button>
             )}
           </div>
-        </ScrollArea>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+
+      {mode === 'default' && (
+        <RecipeTweakDialog recipe={recipe} open={tweakOpen} onOpenChange={setTweakOpen} />
+      )}
+    </>
   );
 }

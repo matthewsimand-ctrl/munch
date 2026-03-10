@@ -1,12 +1,13 @@
 import { useState, useMemo } from "react";
 import {
   Calendar, Plus, X, ChevronLeft, ChevronRight,
-  Clock, Shuffle, ShoppingCart, Check, Trash2, Utensils,
+  Clock, Shuffle, ShoppingCart, Utensils, Download,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "@/lib/store";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { jsPDF } from "jspdf";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MEAL_TYPES = ["Breakfast", "Lunch", "Dinner"] as const;
@@ -33,23 +34,33 @@ function MealSlot({
   meal,
   onAdd,
   onRemove,
-  onCook,
+  onMealClick,
+  onDropMeal,
+  onDragMeal,
+  isDropTarget,
 }: {
   day: string;
   mealType: MealType;
   meal?: PlannedMeal;
   onAdd: () => void;
   onRemove: () => void;
-  onCook: () => void;
+  onMealClick: () => void;
+  onDropMeal: () => void;
+  onDragMeal: () => void;
+  isDropTarget: boolean;
 }) {
   const colors = MEAL_COLORS[mealType];
 
   if (meal) {
     return (
       <div
-        className="group relative rounded-xl px-3 py-2.5 border transition-all cursor-pointer hover:shadow-md"
+        draggable
+        onDragStart={onDragMeal}
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => { e.preventDefault(); onDropMeal(); }}
+        className="group relative rounded-full px-3 py-2 border transition-all cursor-grab active:cursor-grabbing hover:shadow-md"
         style={{ background: colors.bg, borderColor: colors.border }}
-        onClick={onCook}
+        onClick={onMealClick}
       >
         <div className="flex items-start justify-between gap-1">
           <div className="min-w-0 flex-1">
@@ -73,10 +84,12 @@ function MealSlot({
   }
 
   return (
-    <button
+      <button
       onClick={onAdd}
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={(e) => { e.preventDefault(); onDropMeal(); }}
       className="w-full rounded-xl px-3 py-2.5 border border-dashed text-stone-300 hover:border-orange-300 hover:text-orange-400 hover:bg-orange-50/50 transition-all group"
-      style={{ borderColor: "rgba(0,0,0,0.08)" }}
+      style={{ borderColor: isDropTarget ? "rgba(251,146,60,0.75)" : "rgba(0,0,0,0.08)", background: isDropTarget ? "rgba(255,237,213,0.55)" : undefined }}
     >
       <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5 text-left" style={{ color: "rgba(0,0,0,0.20)" }}>{mealType}</p>
       <div className="flex items-center gap-1">
@@ -93,6 +106,10 @@ export default function MealPrepScreen() {
 
   const [weekOffset, setWeekOffset] = useState(0);
   const [showAddModal, setShowAddModal] = useState<{ day: string; mealType: MealType } | null>(null);
+  const [showMealActionModal, setShowMealActionModal] = useState<PlannedMeal | null>(null);
+  const [draggedMealId, setDraggedMealId] = useState<string | null>(null);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportSettings, setExportSettings] = useState({ pdf: true, excel: false, calendar: false });
   const [searchRecipe, setSearchRecipe] = useState("");
 
   // Get week label
@@ -175,6 +192,122 @@ export default function MealPrepScreen() {
   const plannedCount = plannedMeals.length;
   const totalSlots = DAYS.length * MEAL_TYPES.length;
 
+  const moveMeal = (targetDay: string, targetMealType: MealType) => {
+    if (!draggedMealId) return;
+    const draggedMeal = plannedMeals.find((meal) => meal.id === draggedMealId);
+    if (!draggedMeal) return;
+
+    const existingTargetMeal = getMeal(targetDay, targetMealType);
+    addMealPlanItem?.({
+      day: targetDay,
+      mealType: targetMealType,
+      recipeId: draggedMeal.recipeId,
+      recipeName: draggedMeal.recipeName,
+      cookTime: draggedMeal.cookTime,
+    });
+
+    if (existingTargetMeal && existingTargetMeal.id !== draggedMeal.id) {
+      removeMealPlanItem?.(existingTargetMeal.id);
+    }
+    removeMealPlanItem?.(draggedMeal.id);
+    setDraggedMealId(null);
+    toast.success(`Moved ${draggedMeal.recipeName} to ${targetDay} ${targetMealType}`);
+  };
+
+  const buildDateForDay = (day: string) => {
+    const base = new Date();
+    base.setDate(base.getDate() + weekOffset * 7);
+    const monday = new Date(base);
+    monday.setHours(0, 0, 0, 0);
+    monday.setDate(base.getDate() - ((base.getDay() + 6) % 7));
+    const dayIndex = DAYS.indexOf(day);
+    const target = new Date(monday);
+    target.setDate(monday.getDate() + dayIndex);
+    return target;
+  };
+
+  const downloadTextFile = (name: string, content: string, mimeType: string) => {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = name;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportMealPlan = () => {
+    if (plannedMeals.length === 0) {
+      toast.info("Add meals to your plan before exporting.");
+      return;
+    }
+
+    const orderedMeals = [...plannedMeals].sort((a, b) => {
+      const dayDiff = DAYS.indexOf(a.day) - DAYS.indexOf(b.day);
+      if (dayDiff !== 0) return dayDiff;
+      return MEAL_TYPES.indexOf(a.mealType) - MEAL_TYPES.indexOf(b.mealType);
+    });
+
+    if (exportSettings.pdf) {
+      const doc = new jsPDF();
+      doc.setFontSize(16);
+      doc.text("Meal Prep Plan", 14, 16);
+      doc.setFontSize(10);
+      doc.text(`Week: ${weekOffset === 0 ? "This Week" : weekLabel}`, 14, 23);
+      let y = 34;
+      orderedMeals.forEach((meal) => {
+        doc.text(`${meal.day} • ${meal.mealType} • ${meal.recipeName}${meal.cookTime ? ` (${meal.cookTime})` : ""}`, 14, y);
+        y += 7;
+        if (y > 280) {
+          doc.addPage();
+          y = 20;
+        }
+      });
+      doc.save("meal-plan.pdf");
+    }
+
+    if (exportSettings.excel) {
+      const csv = [
+        ["Day", "Meal Type", "Recipe", "Cook Time"],
+        ...orderedMeals.map((meal) => [meal.day, meal.mealType, meal.recipeName, meal.cookTime ?? ""]),
+      ]
+        .map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(","))
+        .join("\n");
+      downloadTextFile("meal-plan.csv", csv, "text/csv;charset=utf-8;");
+    }
+
+    if (exportSettings.calendar) {
+      const icsEvents = orderedMeals
+        .map((meal, index) => {
+          const date = buildDateForDay(meal.day);
+          const dateStamp = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, "0")}${String(date.getDate()).padStart(2, "0")}`;
+          return [
+            "BEGIN:VEVENT",
+            `UID:meal-${meal.id}-${index}@munch`,
+            `DTSTAMP:${dateStamp}T090000Z`,
+            `DTSTART;VALUE=DATE:${dateStamp}`,
+            `DTEND;VALUE=DATE:${dateStamp}`,
+            `SUMMARY:${meal.mealType}: ${meal.recipeName}`,
+            "END:VEVENT",
+          ].join("\n");
+        })
+        .join("\n");
+
+      const ics = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//Munch//Meal Plan//EN",
+        icsEvents,
+        "END:VCALENDAR",
+      ].join("\n");
+
+      downloadTextFile("meal-plan.ics", ics, "text/calendar;charset=utf-8;");
+    }
+
+    toast.success("Meal plan exported.");
+    setShowExportModal(false);
+  };
+
   return (
     <div className="min-h-full" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", background: "#FFFAF5" }}>
 
@@ -193,6 +326,12 @@ export default function MealPrepScreen() {
               <p className="text-xs text-stone-400 mt-1">{plannedCount} of {totalSlots} slots filled</p>
             </div>
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowExportModal(true)}
+                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-stone-200 text-sm font-semibold text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
+              >
+                <Download size={14} /> Export
+              </button>
               <button
                 onClick={handleSurpriseMe}
                 className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-stone-200 text-sm font-semibold text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
@@ -265,7 +404,10 @@ export default function MealPrepScreen() {
                     meal={meal}
                     onAdd={() => setShowAddModal({ day, mealType })}
                     onRemove={() => { removeMealPlanItem?.(meal!.id); toast.success("Removed from plan"); }}
-                    onCook={() => meal && navigate(`/cook/${meal.recipeId}`)}
+                    onMealClick={() => meal && setShowMealActionModal(meal)}
+                    onDragMeal={() => meal && setDraggedMealId(meal.id)}
+                    onDropMeal={() => moveMeal(day, mealType)}
+                    isDropTarget={!!draggedMealId && (!meal || meal.id !== draggedMealId)}
                   />
                 );
               })}
@@ -375,6 +517,110 @@ export default function MealPrepScreen() {
                     ))
                   )}
                 </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Meal action modal */}
+      <AnimatePresence>
+        {showMealActionModal && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
+              onClick={() => setShowMealActionModal(null)}
+            />
+            <motion.div
+              initial={{ opacity: 0, y: 20, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.97 }}
+              className="fixed bottom-0 left-0 right-0 sm:bottom-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:max-w-sm z-50 rounded-t-3xl sm:rounded-3xl overflow-hidden"
+              style={{ background: "#fff", boxShadow: "0 -8px 40px rgba(0,0,0,0.15)" }}
+            >
+              <div className="p-6">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-orange-500 mb-1">Planned Meal</p>
+                <h3 className="text-lg font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>{showMealActionModal.recipeName}</h3>
+                <p className="text-xs text-stone-500 mt-1">What would you like to do?</p>
+                <div className="grid grid-cols-2 gap-2 mt-5">
+                  <button
+                    onClick={() => {
+                      navigate("/saved");
+                      setShowMealActionModal(null);
+                    }}
+                    className="rounded-xl border border-stone-200 py-2 text-sm font-semibold text-stone-600 hover:border-orange-300 hover:text-orange-600"
+                  >
+                    View recipe
+                  </button>
+                  <button
+                    onClick={() => {
+                      navigate(`/cook/${showMealActionModal.recipeId}`);
+                      setShowMealActionModal(null);
+                    }}
+                    className="rounded-xl py-2 text-sm font-semibold text-white"
+                    style={{ background: "linear-gradient(135deg,#FB923C,#F97316,#EA580C)" }}
+                  >
+                    Start cooking
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Export modal */}
+      <AnimatePresence>
+        {showExportModal && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
+              onClick={() => setShowExportModal(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, y: 20, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.97 }}
+              className="fixed bottom-0 left-0 right-0 sm:bottom-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:max-w-sm z-50 rounded-t-3xl sm:rounded-3xl overflow-hidden"
+              style={{ background: "#fff", boxShadow: "0 -8px 40px rgba(0,0,0,0.15)" }}
+            >
+              <div className="p-6">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>Export Settings</h3>
+                  <button onClick={() => setShowExportModal(false)} className="w-7 h-7 rounded-lg bg-stone-100 text-stone-500 flex items-center justify-center">
+                    <X size={14} />
+                  </button>
+                </div>
+                <p className="text-xs text-stone-500 mt-1">Choose one or more formats.</p>
+                <div className="space-y-2 mt-4">
+                  {[
+                    { key: "pdf", label: "PDF" },
+                    { key: "excel", label: "Excel (.csv)" },
+                    { key: "calendar", label: "Calendar (.ics)" },
+                  ].map((option) => (
+                    <label key={option.key} className="flex items-center gap-3 rounded-xl border border-stone-200 px-3 py-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={exportSettings[option.key as keyof typeof exportSettings]}
+                        onChange={(e) => setExportSettings((prev) => ({ ...prev, [option.key]: e.target.checked }))}
+                      />
+                      <span className="text-sm font-medium text-stone-700">{option.label}</span>
+                    </label>
+                  ))}
+                </div>
+                <button
+                  onClick={exportMealPlan}
+                  className="w-full mt-5 rounded-xl py-2.5 text-sm font-semibold text-white"
+                  style={{ background: "linear-gradient(135deg,#FB923C,#F97316,#EA580C)" }}
+                >
+                  Export plan
+                </button>
               </div>
             </motion.div>
           </>
