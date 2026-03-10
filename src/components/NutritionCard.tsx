@@ -34,6 +34,10 @@ export default function NutritionCard({ recipeId, recipeName, ingredients, servi
   const [nutrition, setNutrition] = useState<NutritionData | null>(cachedNutrition[recipeId] || null);
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    setNutrition(cachedNutrition[recipeId] || null);
+  }, [recipeId, cachedNutrition]);
+
   const analyze = async () => {
     setLoading(true);
     try {
@@ -100,7 +104,7 @@ export default function NutritionCard({ recipeId, recipeName, ingredients, servi
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-amber-500" />
-          <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">AI Nutrition Facts</span>
+          <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Nutrition Facts</span>
         </div>
         <div className={`flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${healthBg} ${healthColor}`}>
           <Heart className="h-3 w-3" />

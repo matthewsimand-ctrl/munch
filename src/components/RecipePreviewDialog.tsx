@@ -175,7 +175,7 @@ export default function RecipePreviewDialog({
               )}
 
               <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">AI Nutrition Dashboard</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Nutrition Dashboard</p>
                 <NutritionCard
                   recipeId={recipe.id}
                   recipeName={recipe.name}
