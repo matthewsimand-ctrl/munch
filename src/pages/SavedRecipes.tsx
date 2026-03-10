@@ -5,7 +5,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "@/lib/store";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useBrowseFeed } from "@/hooks/useBrowseFeed";
 import { calculateMatch } from "@/lib/matchLogic";
@@ -130,6 +130,7 @@ function RecipeCard({
 
 export default function MyRecipesScreen() {
   const navigate = useNavigate();
+  const location = useLocation();
   const {
     likedRecipes, savedApiRecipes, unlikeRecipe,
     recipeFolders, addFolder, removeFolder,
@@ -198,6 +199,7 @@ export default function MyRecipesScreen() {
   };
 
   const previewMatch = previewRecipe ? calculateMatch(pantryNames, previewRecipe.ingredients || []) : null;
+  const activeTab = location.pathname.startsWith("/swipe") ? "explore" : "mine";
 
   return (
     <div className="min-h-full" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", background: "#FFFAF5" }}>
@@ -218,13 +220,13 @@ export default function MyRecipesScreen() {
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setActiveTab("explore")}
+                onClick={() => navigate("/swipe")}
                 className={`px-3 py-2 rounded-xl text-xs font-semibold ${activeTab === "explore" ? "bg-orange-500 text-white" : "bg-white border border-stone-200 text-stone-600"}`}
               >
                 Find Recipes
               </button>
               <button
-                onClick={() => setActiveTab("mine")}
+                onClick={() => navigate("/saved")}
                 className={`px-3 py-2 rounded-xl text-xs font-semibold ${activeTab === "mine" ? "bg-orange-500 text-white" : "bg-white border border-stone-200 text-stone-600"}`}
               >
                 My Recipes
