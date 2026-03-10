@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Play, ChefHat, Clock, Users, Grid3X3, List } from "lucide-react";
 import { useStore } from "@/lib/store";
+import { toast } from "sonner";
 import { useDbRecipes } from "@/hooks/useDbRecipes";
 import { useCurrentMealPlan } from "@/hooks/useCurrentMealPlan";
 import { Button } from "@/components/ui/button";
@@ -10,10 +11,31 @@ import { normalizeRecipe } from "@/lib/normalizeRecipe";
 
 export default function LetMeCook() {
   const navigate = useNavigate();
-  const { likedRecipes, savedApiRecipes } = useStore();
+  const { likedRecipes, savedApiRecipes, likeRecipe } = useStore();
   const [view, setView] = useState<"grid" | "list">("grid");
   const { data: dbRecipes = [] } = useDbRecipes();
   const { meal: currentPlannedMeal, nextMeal, loading: currentMealLoading } = useCurrentMealPlan();
+
+
+  const handleStartPlannedMeal = () => {
+    const plannedMeal = nextMeal || currentPlannedMeal;
+    if (!plannedMeal) return;
+
+    const recipeId = plannedMeal.recipe_id;
+    const hasRecipeLocally = Boolean(dbRecipes.find((r) => r.id === recipeId) || savedApiRecipes[recipeId]);
+
+    if (!hasRecipeLocally && plannedMeal.recipe_data) {
+      likeRecipe(recipeId, plannedMeal.recipe_data);
+    }
+
+    const canStart = hasRecipeLocally || Boolean(plannedMeal.recipe_data);
+    if (!canStart) {
+      toast.info("We couldn't load this planned recipe yet. Save it first, then try again.");
+      return;
+    }
+
+    navigate(`/cook/${recipeId}`);
+  };
 
   const recipes = useMemo(() => likedRecipes.map((id) => {
     const dbRecipe = dbRecipes.find((r) => r.id === id);
@@ -45,7 +67,7 @@ export default function LetMeCook() {
               </h2>
             </div>
             {(nextMeal || currentPlannedMeal) && (
-              <Button size="sm" onClick={() => navigate(`/cook/${(nextMeal || currentPlannedMeal)!.recipe_id}`)}>
+              <Button size="sm" onClick={handleStartPlannedMeal}>
                 <Play className="h-3.5 w-3.5 mr-1.5" /> Start Planned Meal
               </Button>
             )}
