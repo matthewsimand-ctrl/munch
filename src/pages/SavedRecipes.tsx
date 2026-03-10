@@ -7,6 +7,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "@/lib/store";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useBrowseFeed } from "@/hooks/useBrowseFeed";
+import { calculateMatch } from "@/lib/matchLogic";
+import RecipePreviewDialog from "@/components/RecipePreviewDialog";
+import ImportRecipeDialog from "@/components/ImportRecipeDialog";
+import CreateRecipeForm from "@/components/CreateRecipeForm";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import type { Recipe } from "@/data/recipes";
 
@@ -118,9 +124,11 @@ export default function MyRecipesScreen() {
   const {
     likedRecipes, savedApiRecipes, unlikeRecipe,
     recipeFolders, addFolder, removeFolder,
-    recipeRatings,
+    recipeRatings, pantryList, likeRecipe,
   } = useStore();
+  const { recipes: exploreRecipes, loading: exploreLoading, loaded: exploreLoaded, loadFeed } = useBrowseFeed();
 
+  const [activeTab, setActiveTab] = useState<"explore" | "mine">("mine");
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"grid" | "list">("grid");
   const [sortBy, setSortBy] = useState(SORT_OPTIONS[0]);
@@ -129,6 +137,9 @@ export default function MyRecipesScreen() {
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [displayName, setDisplayName] = useState<string>("My");
+  const [previewRecipe, setPreviewRecipe] = useState<Recipe | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [showManualRecipeDialog, setShowManualRecipeDialog] = useState(false);
 
   useEffect(() => {
     const loadName = async () => {
@@ -145,6 +156,11 @@ export default function MyRecipesScreen() {
     () => likedRecipes.map((id) => savedApiRecipes[id]).filter(Boolean),
     [likedRecipes, savedApiRecipes],
   );
+  const pantryNames = useMemo(() => pantryList.map((item) => item.name), [pantryList]);
+
+  useEffect(() => {
+    if (!exploreLoaded) loadFeed();
+  }, [exploreLoaded, loadFeed]);
 
   const filtered = useMemo(() => {
     let list = savedRecipes;
@@ -169,6 +185,13 @@ export default function MyRecipesScreen() {
     toast.success("Removed from cookbook");
   };
 
+  const openPreview = (recipe: Recipe) => {
+    setPreviewRecipe(recipe);
+    setPreviewOpen(true);
+  };
+
+  const previewMatch = previewRecipe ? calculateMatch(pantryNames, previewRecipe.ingredients || []) : null;
+
   return (
     <div className="min-h-full" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", background: "#FFFAF5" }}>
 
@@ -187,6 +210,29 @@ export default function MyRecipesScreen() {
               <p className="text-xs text-stone-400 mt-1">{savedRecipes.length} saved recipe{savedRecipes.length !== 1 ? "s" : ""}</p>
             </div>
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => setActiveTab("explore")}
+                className={`px-3 py-2 rounded-xl text-xs font-semibold ${activeTab === "explore" ? "bg-orange-500 text-white" : "bg-white border border-stone-200 text-stone-600"}`}
+              >
+                Explore
+              </button>
+              <button
+                onClick={() => setActiveTab("mine")}
+                className={`px-3 py-2 rounded-xl text-xs font-semibold ${activeTab === "mine" ? "bg-orange-500 text-white" : "bg-white border border-stone-200 text-stone-600"}`}
+              >
+                My Recipes
+              </button>
+              <ImportRecipeDialog>
+                <button className="px-3 py-2 rounded-xl bg-white border border-stone-200 text-xs font-semibold text-stone-600 hover:border-orange-300">
+                  Import
+                </button>
+              </ImportRecipeDialog>
+              <button
+                onClick={() => setShowManualRecipeDialog(true)}
+                className="px-3 py-2 rounded-xl bg-white border border-stone-200 text-xs font-semibold text-stone-600 hover:border-orange-300"
+              >
+                Add Manual
+              </button>
               <button
                 onClick={() => setView(view === "grid" ? "list" : "grid")}
                 className="w-9 h-9 rounded-xl bg-white border border-stone-200 flex items-center justify-center text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
@@ -248,6 +294,7 @@ export default function MyRecipesScreen() {
       </div>
 
       {/* Controls */}
+      {activeTab === "mine" && (
       <div className="max-w-6xl mx-auto px-6 py-4">
         <div className="flex items-center gap-3 mb-4">
           {/* Search */}
@@ -299,10 +346,36 @@ export default function MyRecipesScreen() {
           ))}
         </div>
       </div>
+      )}
 
       {/* Content */}
       <div className="max-w-6xl mx-auto px-6 pb-10">
-        {savedRecipes.length === 0 ? (
+        {activeTab === "explore" ? (
+          <AnimatePresence>
+            {exploreLoading ? (
+              <div className="py-16 text-center text-stone-400 text-sm">Loading recipes…</div>
+            ) : (
+              <div className={view === "grid" ? "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5" : "space-y-1"}>
+                {exploreRecipes.map((recipe) => {
+                  const match = calculateMatch(pantryNames, recipe.ingredients || []);
+                  return (
+                    <RecipeCard
+                      key={recipe.id}
+                      recipe={recipe}
+                      view={view}
+                      onCook={() => openPreview(recipe)}
+                      onUnsave={() => {
+                        likeRecipe(recipe.id, recipe);
+                        toast.success(`Saved ${recipe.name}`);
+                      }}
+                      rating={match.percentage}
+                    />
+                  );
+                })}
+              </div>
+            )}
+          </AnimatePresence>
+        ) : savedRecipes.length === 0 ? (
           <div className="py-20 flex flex-col items-center gap-4 text-center">
             <div className="w-20 h-20 rounded-2xl bg-orange-50 flex items-center justify-center text-4xl">📖</div>
             <div>
@@ -332,7 +405,7 @@ export default function MyRecipesScreen() {
                   recipe={recipe}
                   view={view}
                   rating={recipeRatings?.[recipe.id]}
-                  onCook={() => navigate(`/cook/${recipe.id}`)}
+                  onCook={() => openPreview(recipe)}
                   onUnsave={() => handleUnsave(recipe.id)}
                 />
               ))}
@@ -340,6 +413,22 @@ export default function MyRecipesScreen() {
           </AnimatePresence>
         )}
       </div>
+
+      <RecipePreviewDialog
+        recipe={previewRecipe}
+        match={previewMatch}
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+      />
+
+      <Dialog open={showManualRecipeDialog} onOpenChange={setShowManualRecipeDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add Manual Recipe</DialogTitle>
+          </DialogHeader>
+          <CreateRecipeForm onClose={() => setShowManualRecipeDialog(false)} />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
