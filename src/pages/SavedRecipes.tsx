@@ -268,14 +268,14 @@ export default function MyRecipesScreen() {
       >
         <div className="max-w-6xl mx-auto">
           <div className="flex items-start justify-between mb-5">
-            <div data-tutorial="saved-header">
+            <div>
               <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1">Your collection</p>
               <h1 className="text-2xl font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
                 {displayName}'s Recipes
               </h1>
               <p className="text-xs text-stone-400 mt-1">{savedRecipes.length} saved recipe{savedRecipes.length !== 1 ? "s" : ""}</p>
             </div>
-            <div className="flex items-center gap-2" data-tutorial="saved-actions">
+            <div className="flex items-center gap-2">
               <button
                 onClick={() => navigate("/saved")}
                 className={`px-3 py-2 rounded-xl text-xs font-semibold ${activeTab === "mine" ? "bg-orange-500 text-white" : "bg-white border border-stone-200 text-stone-600"}`}

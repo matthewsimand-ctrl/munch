@@ -205,7 +205,7 @@ export default function GroceryScreen() {
         className="border-b"
         style={{ background: "linear-gradient(135deg,#FFF7ED 0%,#FFFAF5 100%)", borderColor: "rgba(249,115,22,0.12)" }}
       >
-        <div className="max-w-3xl mx-auto px-6 py-6" data-tutorial="grocery-header">
+        <div className="max-w-3xl mx-auto px-6 py-6">
           <div className="flex items-start justify-between mb-4">
             <div>
               <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1">Shopping</p>
