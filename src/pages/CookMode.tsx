@@ -14,6 +14,7 @@ import type { Recipe } from "@/data/recipes";
 import { ChefPath, CookingXpBar } from "@/components/ChefCompanion";
 import { buildDictionaryRegex, lookupTerm } from "@/lib/cookingDictionary";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useCookedMeals } from "@/hooks/useCookedMeals";
 
 /* ─── Helpers ──────────────────────────────────────────────── */
 function cleanInstruction(raw: string): string {
@@ -111,6 +112,7 @@ export default function CookMode() {
   const { savedApiRecipes, markRecipeCooked, rateRecipe, recipeRatings } = useStore();
   const { data: dbRecipes = [] } = useDbRecipes();
   const { isSpeaking, speak, stop } = useSpeechSynthesis();
+  const { trackCookedMeal } = useCookedMeals(1);
 
   const [stepIndex, setStepIndex] = useState(0);
   const [checkedIngredients, setCheckedIngredients] = useState<Set<number>>(new Set());
@@ -165,6 +167,12 @@ export default function CookMode() {
     if (isLastStep) {
       setDone(true);
       markRecipeCooked?.(id!);
+      void trackCookedMeal({
+        recipeId: id!,
+        recipeName: recipe.name,
+        cookTime: recipe.cook_time,
+        ingredientCount: ingredients.length,
+      });
       return;
     }
     const next = stepIndex + 1;
@@ -173,7 +181,7 @@ export default function CookMode() {
     if (ttsEnabled && steps[next]) {
       speak(steps[next]);
     }
-  }, [stop, isLastStep, stepIndex, ttsEnabled, steps, speak, markRecipeCooked, id]);
+  }, [stop, isLastStep, stepIndex, ttsEnabled, steps, speak, markRecipeCooked, id, trackCookedMeal, recipe?.name, recipe?.cook_time, ingredients.length]);
 
   const goPrev = useCallback(() => {
     stop();

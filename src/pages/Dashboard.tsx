@@ -21,6 +21,7 @@ import { getLevel } from "@/components/ChefCompanion";
 import type { Recipe } from "@/data/recipes";
 import { useCurrentMealPlan } from "@/hooks/useCurrentMealPlan";
 import { getMealPlanWeekStart } from "@/lib/mealPlanUtils";
+import { useCookedMeals } from "@/hooks/useCookedMeals";
 
 const WEEK_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -174,6 +175,8 @@ export default function Dashboard() {
   const [avatarAccessory, setAvatarAccessory] = useState("none");
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const { meal: currentPlannedMeal, loading: currentMealLoading } = useCurrentMealPlan();
+  const { meals: cookedMeals, loading: cookedMealsLoading, estimateMealSavings } = useCookedMeals();
+  const [estimatingMealId, setEstimatingMealId] = useState<string | null>(null);
 
   const AVATAR_PRESETS = [
     defaultChefAvatar,
@@ -341,6 +344,23 @@ export default function Dashboard() {
 
   const selectedMatch = selectedRecipe ? calculateMatch(pantryNames, selectedRecipe.ingredients || []) : null;
   const formatIngredient = (s: string) => { const p = parseIngredientLine(s); return p.quantity ? `${p.name} (${p.quantity})` : p.name; };
+
+  const formatCookedAt = (dateString: string) =>
+    new Date(dateString).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+  const handleEstimateSavings = async (mealId: string) => {
+    const meal = cookedMeals.find((item) => item.id === mealId);
+    if (!meal) return;
+
+    setEstimatingMealId(mealId);
+    const updated = await estimateMealSavings(meal);
+    if (updated?.estimated_savings != null) {
+      toast.success(`AI estimate: about $${updated.estimated_savings.toFixed(2)} saved`);
+    } else {
+      toast.error("Could not estimate savings right now");
+    }
+    setEstimatingMealId(null);
+  };
 
   const QUICK_ACTIONS = [
     { label: "Find Recipe",   to: "/swipe",     emoji: "🔍", color: "from-orange-50 to-amber-50" },
@@ -533,6 +553,42 @@ export default function Dashboard() {
                   </Link>
                 ))}
               </div>
+            </section>
+
+            {/* Cooked history */}
+            <section className="rounded-2xl border p-5" style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}>
+              <SectionHeader icon={Sparkles} title="Cooked history" />
+              {cookedMealsLoading ? (
+                <p className="text-xs text-stone-400">Loading meals...</p>
+              ) : cookedMeals.length === 0 ? (
+                <p className="text-xs text-stone-400">Cook your first meal to start your history.</p>
+              ) : (
+                <div className="space-y-2.5">
+                  {cookedMeals.slice(0, 6).map((meal) => (
+                    <div key={meal.id} className="rounded-xl border border-stone-100 px-3 py-2.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-stone-800 truncate">{meal.recipe_name}</p>
+                          <p className="text-[10px] text-stone-400 mt-0.5">Cooked {formatCookedAt(meal.cooked_at)}</p>
+                        </div>
+                        {meal.estimated_savings != null ? (
+                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full whitespace-nowrap">
+                            Saved ≈ ${meal.estimated_savings.toFixed(2)}
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => handleEstimateSavings(meal.id)}
+                            disabled={estimatingMealId === meal.id}
+                            className="text-[10px] font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 px-2 py-1 rounded-full disabled:opacity-60"
+                          >
+                            ✨ AI savings
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
 
             {/* Recent activity */}
