@@ -142,13 +142,24 @@ export default function CookMode() {
 
   // Auto-read on step change
   const currentStepInstruction = steps[currentStep];
+  const ttsJustEnabled = useRef(false);
 
   useEffect(() => {
+    // Skip if TTS was just enabled via button click (it already called speak)
+    if (ttsJustEnabled.current) {
+      ttsJustEnabled.current = false;
+      return;
+    }
     if (cookModeTtsEnabled && currentStepInstruction) {
       speak(`Step ${currentStep + 1}. ${currentStepInstruction}`);
     }
+  }, [currentStep, currentStepInstruction]);
+
+  // Stop speaking when TTS is disabled or component unmounts
+  useEffect(() => {
+    if (!cookModeTtsEnabled) stopSpeaking();
     return () => { stopSpeaking(); };
-  }, [cookModeTtsEnabled, currentStep, currentStepInstruction, speak, stopSpeaking]);
+  }, [cookModeTtsEnabled, stopSpeaking]);
 
   const goNext = useCallback(() => {
     if (currentStep < totalSteps - 1) setCurrentStep(s => s + 1);
@@ -259,7 +270,10 @@ export default function CookMode() {
                   return;
                 }
 
+                // Mark so the effect doesn't double-speak
+                ttsJustEnabled.current = true;
                 setCookModeTtsEnabled(true);
+                // Speak directly from click handler (required for mobile user gesture)
                 if (steps[currentStep]) {
                   speak(`Step ${currentStep + 1}. ${steps[currentStep]}`);
                 }
