@@ -1,613 +1,424 @@
-import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import {
-  X,
-  Heart,
-  Clock,
-  Users,
-  Star,
-  ChefHat,
-  Filter,
-  Loader2,
-  Check,
-  ShoppingCart,
-  Play,
+  Heart, X, Plus, Clock, ChefHat, Flame, Filter,
+  ChevronDown, Sparkles, BookOpen, Zap,
 } from "lucide-react";
-import { useBrowseFeed } from "@/hooks/useBrowseFeed";
-import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence, useMotionValue, useTransform } from "framer-motion";
 import { useStore } from "@/lib/store";
+import { useBrowseFeed } from "@/hooks/useBrowseFeed";
 import { calculateMatch } from "@/lib/matchLogic";
-import { parseIngredientLine, scaleIngredientQuantity } from "@/lib/ingredientText";
-import { AnimatePresence, motion } from "framer-motion";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Button } from "@/components/ui/button";
-import NutritionCard from "@/components/NutritionCard";
-import { toast } from "sonner";
 import MatchBadge from "@/components/MatchBadge";
+import { toast } from "sonner";
+import type { Recipe } from "@/data/recipes";
 
-interface Recipe {
-  id: string;
-  name: string;
-  image: string;
-  cook_time: string;
-  difficulty: string;
-  ingredients: string[];
-  tags: string[];
-  instructions: string[];
-  cuisine?: string;
-  servings?: number;
+/* ── Filter pill ───────────────────────────────────────────── */
+function FilterPill({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap"
+      style={
+        active
+          ? {
+              background: "linear-gradient(135deg,#FB923C,#F97316)",
+              color: "#fff",
+              boxShadow: "0 2px 8px rgba(249,115,22,0.30)",
+            }
+          : {
+              background: "#fff",
+              color: "#57534E",
+              border: "1px solid rgba(0,0,0,0.08)",
+            }
+      }
+    >
+      {label}
+    </button>
+  );
 }
 
-function normalizeStringArray(value: unknown): string[] {
-  if (Array.isArray(value)) return value.map((v) => String(v).trim()).filter(Boolean);
-  if (typeof value === "string") {
-    return value
-      .split(/\r?\n/)
-      .map((s) => s.trim())
-      .filter(Boolean);
-  }
-  return [];
+/* ── Swipe card ────────────────────────────────────────────── */
+function SwipeCard({
+  recipe,
+  matchPercent,
+  onSwipeLeft,
+  onSwipeRight,
+  onSwipeUp,
+  isTop,
+}: {
+  recipe: Recipe;
+  matchPercent: number;
+  onSwipeLeft: () => void;
+  onSwipeRight: () => void;
+  onSwipeUp: () => void;
+  isTop: boolean;
+}) {
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  const rotate = useTransform(x, [-200, 200], [-18, 18]);
+  const likeOpacity = useTransform(x, [20, 100], [0, 1]);
+  const nopeOpacity = useTransform(x, [-100, -20], [1, 0]);
+  const saveOpacity = useTransform(y, [-100, -30], [1, 0]);
+
+  const handleDragEnd = (_: unknown, info: { offset: { x: number; y: number } }) => {
+    if (info.offset.y < -80) { onSwipeUp(); return; }
+    if (info.offset.x > 100) { onSwipeRight(); return; }
+    if (info.offset.x < -100) { onSwipeLeft(); return; }
+  };
+
+  const diffBadge =
+    recipe.difficulty === "easy"
+      ? { label: "Easy", color: "#059669", bg: "#ECFDF5" }
+      : recipe.difficulty === "medium"
+      ? { label: "Med", color: "#D97706", bg: "#FFF3C4" }
+      : { label: "Hard", color: "#DC2626", bg: "#FEF2F2" };
+
+  return (
+    <motion.div
+      drag={isTop}
+      dragElastic={0.12}
+      onDragEnd={handleDragEnd}
+      style={{ x, y, rotate, touchAction: "none" }}
+      className="absolute inset-0 cursor-grab active:cursor-grabbing select-none"
+      whileDrag={{ scale: 1.02 }}
+    >
+      {/* Card */}
+      <div
+        className="w-full h-full rounded-3xl overflow-hidden relative"
+        style={{ boxShadow: "0 20px 60px rgba(28,25,23,0.20), 0 4px 16px rgba(28,25,23,0.10)" }}
+      >
+        {/* Hero image */}
+        {recipe.image && recipe.image !== "/placeholder.svg" ? (
+          <img src={recipe.image} alt={recipe.name} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-8xl bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50">
+            🍽️
+          </div>
+        )}
+
+        {/* Gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
+
+        {/* Top badges */}
+        <div className="absolute top-4 left-4 right-4 flex items-start justify-between">
+          <div className="flex flex-col gap-2">
+            {matchPercent >= 80 && (
+              <span
+                className="px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1"
+                style={{ background: "rgba(249,115,22,0.90)", color: "#fff", backdropFilter: "blur(8px)" }}
+              >
+                <Sparkles size={10} /> Great match!
+              </span>
+            )}
+          </div>
+          <MatchBadge percentage={matchPercent} />
+        </div>
+
+        {/* Swipe indicators */}
+        {isTop && (
+          <>
+            <motion.div
+              style={{ opacity: likeOpacity }}
+              className="absolute top-8 left-6 px-4 py-2 rounded-xl border-4 border-emerald-400 text-emerald-400 font-black text-2xl rotate-[-15deg]"
+            >
+              SAVE
+            </motion.div>
+            <motion.div
+              style={{ opacity: nopeOpacity }}
+              className="absolute top-8 right-6 px-4 py-2 rounded-xl border-4 border-red-400 text-red-400 font-black text-2xl rotate-[15deg]"
+            >
+              SKIP
+            </motion.div>
+            <motion.div
+              style={{ opacity: saveOpacity }}
+              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 px-4 py-2 rounded-xl border-4 border-sky-400 text-sky-400 font-black text-xl"
+            >
+              PLAN IT
+            </motion.div>
+          </>
+        )}
+
+        {/* Bottom info */}
+        <div className="absolute bottom-0 left-0 right-0 p-5">
+          <div className="flex items-center gap-2 mb-2">
+            {recipe.cuisine && (
+              <span
+                className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                style={{ background: "rgba(255,255,255,0.15)", color: "#fff", backdropFilter: "blur(4px)" }}
+              >
+                {recipe.cuisine}
+              </span>
+            )}
+            <span
+              className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
+              style={{ background: diffBadge.bg, color: diffBadge.color }}
+            >
+              {diffBadge.label}
+            </span>
+          </div>
+
+          <h2
+            className="text-white text-2xl font-bold leading-tight mb-3"
+            style={{ fontFamily: "'Fraunces', Georgia, serif", textShadow: "0 1px 8px rgba(0,0,0,0.4)" }}
+          >
+            {recipe.name}
+          </h2>
+
+          <div className="flex items-center gap-4 text-white/80 text-sm">
+            <span className="flex items-center gap-1.5">
+              <Clock size={13} />
+              {recipe.cook_time}
+            </span>
+            {recipe.servings && (
+              <span className="flex items-center gap-1.5">
+                <ChefHat size={13} />
+                Serves {recipe.servings}
+              </span>
+            )}
+            {recipe.calories && (
+              <span className="flex items-center gap-1.5">
+                <Flame size={13} />
+                {recipe.calories} cal
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
 }
 
-const DIFFICULTY_FILTERS = ["All", "Beginner", "Intermediate", "Advanced"];
-const TIME_FILTERS = ["All", "< 30 min", "30-60 min", "> 60 min"];
-const CUISINE_FILTERS = ["All", "Italian", "Asian", "Mexican", "Mediterranean", "American"];
+/* ── Main ──────────────────────────────────────────────────── */
+const FILTERS = ["All", "Quick (<30 min)", "Vegetarian", "High Protein", "Easy", "Asian", "Italian", "Mexican"];
 
-export default function Browse() {
-  const navigate = useNavigate();
-  const { recipes, loading, loaded, loadFeed } = useBrowseFeed();
-  const { pantryList, likeRecipe, likedRecipes, addCustomGroceryItem, recipeRatings, recipeCookCounts } = useStore();
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [animating, setAnimating] = useState<"left" | "right" | null>(null);
-  const [difficultyFilter, setDifficultyFilter] = useState("All");
-  const [timeFilter, setTimeFilter] = useState("All");
-  const [cuisineFilter, setCuisineFilter] = useState("All");
+export default function SwipeScreen() {
+  const { recipes, loading } = useBrowseFeed();
+  const { likedRecipes, likeRecipe, pantryList, addMealPlanItem } = useStore();
+
+  const [cardIndex, setCardIndex] = useState(0);
+  const [activeFilter, setActiveFilter] = useState("All");
   const [showFilters, setShowFilters] = useState(false);
-  const [swipeIndicator, setSwipeIndicator] = useState<"saved" | "passed" | null>(null);
-  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
-  const [servingMultiplier, setServingMultiplier] = useState(1);
-  const [groceryAddedRecipeIds, setGroceryAddedRecipeIds] = useState<string[]>([]);
-  const constraintsRef = useRef(null);
+  const [swipeHistory, setSwipeHistory] = useState<string[]>([]);
 
-  useEffect(() => {
-    loadFeed();
-  }, [loadFeed]);
+  const pantryNames = useMemo(() => pantryList.map((p) => p.name), [pantryList]);
+  const likedSet = useMemo(() => new Set(likedRecipes), [likedRecipes]);
 
-  // Apply filters
-  const filteredRecipes = recipes.filter((r) => {
-    if (difficultyFilter !== "All" && r.difficulty !== difficultyFilter) return false;
-    if (cuisineFilter !== "All" && r.cuisine !== cuisineFilter) return false;
-    if (timeFilter !== "All") {
-      const time = parseInt(r.cook_time);
-      if (timeFilter === "< 30 min" && time >= 30) return false;
-      if (timeFilter === "30-60 min" && (time < 30 || time >= 60)) return false;
-      if (timeFilter === "> 60 min" && time < 60) return false;
-    }
-    return true;
-  }) as Recipe[];
+  const filtered = useMemo(() => {
+    if (activeFilter === "All") return recipes;
+    if (activeFilter === "Quick (<30 min)")
+      return recipes.filter((r) => {
+        const m = parseInt(r.cook_time || "99");
+        return m <= 30;
+      });
+    if (activeFilter === "Easy") return recipes.filter((r) => r.difficulty === "easy");
+    return recipes.filter(
+      (r) =>
+        r.tags?.some((t: string) => t.toLowerCase().includes(activeFilter.toLowerCase())) ||
+        r.cuisine?.toLowerCase().includes(activeFilter.toLowerCase()),
+    );
+  }, [recipes, activeFilter]);
 
-  const currentRecipe = filteredRecipes[currentIndex];
-  const nextRecipe = filteredRecipes[currentIndex + 1];
+  const stack = useMemo(() => filtered.slice(cardIndex, cardIndex + 3), [filtered, cardIndex]);
+  const current = stack[0];
+  const currentMatch = current ? calculateMatch(pantryNames, current.ingredients || []) : null;
 
-  // Calculate match for current recipe
-  const pantryNames = pantryList.map((p) => p.name);
-  const currentMatch = currentRecipe ? calculateMatch(pantryNames, currentRecipe.ingredients) : null;
-  const nextMatch = nextRecipe ? calculateMatch(pantryNames, nextRecipe.ingredients) : null;
-  const selectedIngredients = selectedRecipe ? normalizeStringArray((selectedRecipe as any).ingredients) : [];
-  const selectedMatch = selectedRecipe ? calculateMatch(pantryNames, selectedIngredients) : null;
-  const scaledServings = selectedRecipe ? Math.max(1, Math.round((selectedRecipe.servings || 4) * servingMultiplier)) : 1;
-  const selectedInstructions = selectedRecipe ? normalizeStringArray((selectedRecipe as any).instructions) : [];
-  const selectedSource = selectedRecipe ? String((selectedRecipe as any).source || "Unknown source") : null;
-  const selectedSourceUrl = selectedRecipe ? String((selectedRecipe as any).source_url || "").trim() : "";
-  const selectedRawPayload = selectedRecipe ? ((selectedRecipe as any).raw_api_payload ?? selectedRecipe) : null;
-  const isSelectedRecipeAddedToGrocery = useMemo(() => (
-    selectedRecipe ? groceryAddedRecipeIds.includes(selectedRecipe.id) : false
-  ), [groceryAddedRecipeIds, selectedRecipe]);
-
-
-  useEffect(() => {
-    if (!selectedRecipe) return;
-    setServingMultiplier(1);
-  }, [selectedRecipe?.id]);
-  // Count saved recipes
-  const savedCount = likedRecipes.length;
-
-  const handlePass = useCallback(() => {
-    if (animating || !filteredRecipes.length) return;
-    setAnimating("left");
-    setSwipeIndicator("passed");
-    setTimeout(() => {
-      setCurrentIndex((i) => Math.min(i + 1, filteredRecipes.length - 1));
-      setAnimating(null);
-      setSwipeIndicator(null);
-    }, 500);
-  }, [animating, filteredRecipes.length]);
+  const advance = useCallback(() => setCardIndex((i) => i + 1), []);
 
   const handleSave = useCallback(() => {
-    if (animating || !currentRecipe) return;
-    likeRecipe(currentRecipe.id, currentRecipe);
-    setAnimating("right");
-    setSwipeIndicator("saved");
-    setTimeout(() => {
-      setCurrentIndex((i) => Math.min(i + 1, filteredRecipes.length - 1));
-      setAnimating(null);
-      setSwipeIndicator(null);
-    }, 500);
-  }, [animating, currentRecipe, filteredRecipes.length, likeRecipe]);
+    if (!current) return;
+    likeRecipe(current.id, current);
+    setSwipeHistory((h) => [...h, current.id]);
+    toast.success(`❤️ Saved "${current.name}" to cookbook`);
+    advance();
+  }, [current, likeRecipe, advance]);
 
-  // Keyboard support
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "ArrowLeft" || e.key === "x") handlePass();
-      if (e.key === "ArrowRight" || e.key === "s") handleSave();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [handlePass, handleSave]);
+  const handleSkip = useCallback(() => {
+    if (!current) return;
+    setSwipeHistory((h) => [...h, current.id]);
+    advance();
+  }, [current, advance]);
 
-  const isSaved = currentRecipe ? likedRecipes.includes(currentRecipe.id) : false;
+  const handlePlan = useCallback(() => {
+    if (!current) return;
+    toast.success(`📅 Added "${current.name}" to your meal plan`);
+    setSwipeHistory((h) => [...h, current.id]);
+    advance();
+  }, [current, advance]);
 
-  if (loading || !loaded) {
-    return (
-      <div className="min-h-full bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-orange-500 mx-auto mb-3" />
-          <p className="text-sm text-gray-500">Loading recipes...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!filteredRecipes.length) {
-    return (
-      <div className="min-h-full bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <ChefHat className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-sm text-gray-500">No recipes match your filters</p>
-          <button
-            onClick={() => {
-              setDifficultyFilter("All");
-              setTimeFilter("All");
-              setCuisineFilter("All");
-            }}
-            className="mt-3 text-sm text-orange-500 hover:text-orange-600 font-semibold"
-          >
-            Clear filters
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const formatIngredientDisplay = (ingredientLine: string, quantity?: string) => {
-    const parsed = parseIngredientLine(ingredientLine);
-    const resolvedQuantity = quantity ?? parsed.quantity;
-    return resolvedQuantity ? `${resolvedQuantity} ${parsed.name}` : parsed.name;
+  const handleUndo = () => {
+    if (swipeHistory.length === 0) { toast.info("Nothing to undo"); return; }
+    setCardIndex((i) => Math.max(0, i - 1));
+    setSwipeHistory((h) => h.slice(0, -1));
+    toast.success("Brought back that recipe");
   };
 
   return (
-    <div className="min-h-full bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-6 py-4">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/dashboard')} className="flex items-center gap-2 shrink-0">
-              <div className="w-7 h-7 bg-orange-500 rounded-lg flex items-center justify-center">
-                <ChefHat className="text-white" size={14} />
-              </div>
-            </button>
-            <div>
-              <h1 className="text-xl font-bold text-orange-500">Explore</h1>
-              <p className="text-xs text-gray-500 mt-0.5">{filteredRecipes.length} to browse</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <Filter size={14} /> Filters
-            </button>
-            <div className="flex items-center gap-2 text-sm text-gray-500 bg-gray-50 rounded-lg px-3 py-2">
-              <Heart size={14} className="text-rose-400 fill-rose-400" />
-              <span className="font-semibold text-gray-700">{savedCount}</span> saved
-            </div>
-          </div>
-        </div>
+    <div className="min-h-full flex flex-col" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", background: "#FFFAF5" }}>
 
-        {/* Filters panel */}
-        {showFilters && (
-          <div className="max-w-5xl mx-auto mt-4 p-4 bg-gray-50 rounded-xl space-y-3">
+      {/* Header */}
+      <div
+        className="border-b px-6 py-4"
+        style={{ background: "linear-gradient(135deg,#FFF7ED 0%,#FFFAF5 100%)", borderColor: "rgba(249,115,22,0.12)" }}
+      >
+        <div className="max-w-2xl mx-auto">
+          <div className="flex items-center justify-between mb-3">
             <div>
-              <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5 block">Difficulty</label>
-              <div className="flex gap-2 flex-wrap">
-                {DIFFICULTY_FILTERS.map((f) => (
-                  <button
-                    key={f}
-                    onClick={() => setDifficultyFilter(f)}
-                    className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-all ${
-                      difficultyFilter === f
-                        ? "bg-orange-500 text-white border-orange-500"
-                        : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"
-                    }`}
-                  >
-                    {f}
-                  </button>
-                ))}
-              </div>
+              <h1 className="text-xl font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+                Discover Recipes
+              </h1>
+              <p className="text-xs text-stone-400 mt-0.5">
+                {filtered.length - cardIndex} recipes left to explore
+              </p>
             </div>
-            <div>
-              <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5 block">Cook Time</label>
-              <div className="flex gap-2 flex-wrap">
-                {TIME_FILTERS.map((f) => (
-                  <button
-                    key={f}
-                    onClick={() => setTimeFilter(f)}
-                    className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-all ${
-                      timeFilter === f
-                        ? "bg-orange-500 text-white border-orange-500"
-                        : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"
-                    }`}
-                  >
-                    {f}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5 block">Cuisine</label>
-              <div className="flex gap-2 flex-wrap">
-                {CUISINE_FILTERS.map((f) => (
-                  <button
-                    key={f}
-                    onClick={() => setCuisineFilter(f)}
-                    className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-all ${
-                      cuisineFilter === f
-                        ? "bg-orange-500 text-white border-orange-500"
-                        : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"
-                    }`}
-                  >
-                    {f}
-                  </button>
-                ))}
-              </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleUndo}
+                className="w-9 h-9 rounded-xl bg-white border border-stone-200 flex items-center justify-center text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
+                title="Undo"
+              >
+                ↩
+              </button>
+              <button
+                onClick={() => setShowFilters((v) => !v)}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border text-sm font-semibold text-stone-600 hover:border-orange-300 transition-colors"
+                style={{ borderColor: showFilters ? "#F97316" : "rgba(0,0,0,0.09)" }}
+              >
+                <Filter size={13} /> Filter
+                <ChevronDown size={12} className={`transition-transform ${showFilters ? "rotate-180" : ""}`} />
+              </button>
             </div>
           </div>
-        )}
+
+          {/* Filters */}
+          <AnimatePresence>
+            {showFilters && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="flex gap-2 pb-1 overflow-x-auto scrollbar-hide">
+                  {FILTERS.map((f) => (
+                    <FilterPill key={f} label={f} active={activeFilter === f} onClick={() => setActiveFilter(f)} />
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
 
-      {/* Body */}
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-        <div className="flex flex-col items-center justify-center">
-
-          {/* ── Card stack (centered) ─────────────────────────────────────── */}
-          <div className="w-full flex flex-col items-center gap-5">
-            {/* Card area */}
-            <div
-              ref={constraintsRef}
-              className="relative w-full max-w-md"
-              style={{ height: 560 }}
-            >
-              {/* Swipe Indicator Overlay */}
-              <AnimatePresence>
-                {swipeIndicator && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.5 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.8 }}
-                    className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none"
-                  >
-                    {swipeIndicator === "saved" ? (
-                      <div className="bg-green-500 text-white px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-3 text-2xl font-bold">
-                        <Heart className="fill-white" size={32} />
-                        SAVED
-                      </div>
-                    ) : (
-                      <div className="bg-red-500 text-white px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-3 text-2xl font-bold">
-                        <X size={32} strokeWidth={3} />
-                        PASS
-                      </div>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Stack: next card (static, no animation) */}
-              {nextRecipe && !animating && (
+      {/* Card stack area */}
+      <div className="flex-1 flex flex-col items-center justify-center px-6 py-8">
+        <div className="w-full max-w-sm">
+          {loading ? (
+            <div className="aspect-[3/4] rounded-3xl bg-stone-100 animate-pulse" />
+          ) : stack.length === 0 ? (
+            <div className="aspect-[3/4] rounded-3xl flex flex-col items-center justify-center gap-4 border-2 border-dashed border-stone-200">
+              <span className="text-6xl">🍳</span>
+              <div className="text-center">
+                <p className="font-bold text-stone-700" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+                  You've seen everything!
+                </p>
+                <p className="text-sm text-stone-400 mt-1">Try a different filter or check back soon</p>
+              </div>
+              <button
+                onClick={() => { setCardIndex(0); setActiveFilter("All"); }}
+                className="mt-2 px-5 py-2.5 rounded-full text-sm font-bold text-white"
+                style={{ background: "linear-gradient(135deg,#FB923C,#F97316,#EA580C)", boxShadow: "0 4px 16px rgba(249,115,22,0.30)" }}
+              >
+                Start Over
+              </button>
+            </div>
+          ) : (
+            <div className="relative" style={{ height: "480px" }}>
+              {/* Background cards (depth effect) */}
+              {stack.slice(1, 3).map((recipe, i) => (
                 <div
-                  className="absolute inset-0 rounded-3xl overflow-hidden shadow-lg pointer-events-none"
+                  key={recipe.id}
+                  className="absolute inset-0 rounded-3xl overflow-hidden"
                   style={{
-                    transform: "scale(0.95) translateY(12px)",
-                    opacity: 0.5,
-                    zIndex: 0,
+                    transform: `scale(${0.95 - i * 0.04}) translateY(${(i + 1) * 12}px)`,
+                    zIndex: 2 - i,
+                    opacity: 0.7 - i * 0.2,
                   }}
                 >
-                  {nextRecipe.image ? (
-                    <img src={nextRecipe.image} alt={nextRecipe.name} className="absolute inset-0 w-full h-full object-cover" />
+                  {recipe.image && recipe.image !== "/placeholder.svg" ? (
+                    <img src={recipe.image} alt="" className="w-full h-full object-cover" />
                   ) : (
-                    <div className="absolute inset-0 bg-gradient-to-br from-orange-400 to-pink-400 opacity-90" />
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
-                  <div className="absolute bottom-4 left-4 right-4 text-white">
-                    <h3 className="text-xl font-bold">{nextRecipe.name}</h3>
-                  </div>
-                  {nextMatch && (
-                    <div className="absolute bottom-4 right-4">
-                      <MatchBadge percentage={nextMatch.percentage} />
-                    </div>
+                    <div className="w-full h-full bg-gradient-to-br from-orange-50 to-amber-50" />
                   )}
                 </div>
-              )}
+              ))}
 
               {/* Top card */}
-              {currentRecipe && (
-                <div
-                  onClick={() => setSelectedRecipe(currentRecipe)}
-                  className="absolute inset-0 rounded-3xl overflow-hidden shadow-2xl cursor-pointer"
-                  style={{
-                    transform: `
-                      translateX(${animating === "left" ? -300 : animating === "right" ? 300 : 0}px)
-                      rotate(${animating === "left" ? -15 : animating === "right" ? 15 : 0}deg)
-                      scale(1)
-                    `,
-                    opacity: animating ? 0 : 1,
-                    transition: "transform 0.4s cubic-bezier(.34,1.56,.64,1), opacity 0.3s ease",
-                    zIndex: 10,
-                  }}
-                >
-                  {currentRecipe.image ? (
-                    <img src={currentRecipe.image} alt={currentRecipe.name} className="absolute inset-0 w-full h-full object-cover" />
-                  ) : (
-                    <div className="absolute inset-0 bg-gradient-to-br from-orange-400 to-pink-400 opacity-90" />
+              <div className="absolute inset-0" style={{ zIndex: 10 }}>
+                <AnimatePresence mode="popLayout">
+                  {current && (
+                    <SwipeCard
+                      key={current.id}
+                      recipe={current}
+                      matchPercent={currentMatch?.percentage ?? 0}
+                      onSwipeLeft={handleSkip}
+                      onSwipeRight={handleSave}
+                      onSwipeUp={handlePlan}
+                      isTop
+                    />
                   )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
-                  <div className="relative h-full flex flex-col justify-between p-6 text-white">
-                    <div className="flex items-start justify-end">
-                      <div className="flex items-center gap-1 bg-white/20 backdrop-blur-sm px-2.5 py-0.5 rounded-full text-xs font-semibold">
-                        <Star size={11} className="fill-white" /> {currentRecipe.difficulty}
-                      </div>
-                    </div>
-                      <div className="max-w-[80%]">
-                      {/* Match Badge */}
-                      {currentMatch && (
-                        <div className="mb-3 inline-flex">
-                          <MatchBadge percentage={currentMatch.percentage} />
-                        </div>
-                      )}
-                      <h2 className="text-3xl font-bold leading-tight mb-2">{currentRecipe.name}</h2>
-                      <div className="flex items-center gap-4 text-sm text-white/90 mb-2">
-                        <span className="flex items-center gap-1"><Clock size={13} /> {currentRecipe.cook_time}</span>
-                        {currentRecipe.cuisine && <span className="flex items-center gap-1">🌍 {currentRecipe.cuisine}</span>}
-                        {recipeCookCounts[currentRecipe.id] ? <span>{recipeCookCounts[currentRecipe.id]} cooks</span> : null}
-                      </div>
-                      {(recipeRatings[currentRecipe.id] || 0) > 0 && (
-                        <div className="mb-2 inline-flex items-center gap-1 rounded-full bg-amber-100/95 px-2 py-0.5 text-[11px] font-semibold text-amber-800">
-                          <Star size={11} className="fill-current" /> {recipeRatings[currentRecipe.id]}/5
-                        </div>
-                      )}
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {currentRecipe.ingredients.slice(0, 3).map((line) => {
-                          const parsed = parseIngredientLine(line);
-                          return (
-                            <span key={`${currentRecipe.id}-${line}`} className="text-[11px] bg-white/20 backdrop-blur-sm px-2.5 py-1 rounded-full font-medium">
-                              {formatIngredientDisplay(line, parsed.quantity)}
-                            </span>
-                          );
-                        })}
-                      </div>
-                      <p className="text-xs text-white/90 mt-2">Tap photo to open full recipe details</p>
-                    </div>
-                  </div>
-                </div>
-              )}
+                </AnimatePresence>
+              </div>
             </div>
+          )}
 
-            {/* Action buttons */}
-            <div className="w-full max-w-md bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3">
-              <div className="flex items-center justify-between gap-4">
+          {/* Action buttons */}
+          {stack.length > 0 && !loading && (
+            <div className="flex items-center justify-center gap-5 mt-6">
+              {/* Skip */}
               <button
-                onClick={handlePass}
-                className="w-16 h-16 rounded-full bg-white border-2 border-gray-200 shadow-md flex items-center justify-center text-gray-400 hover:border-red-300 hover:text-red-400 hover:scale-110 transition-all"
-                title="Pass (←)"
+                onClick={handleSkip}
+                className="w-14 h-14 rounded-full bg-white border border-stone-200 flex items-center justify-center text-stone-400 hover:border-red-300 hover:text-red-400 transition-all active:scale-90 shadow-sm hover:shadow-md"
               >
-                <X size={22} strokeWidth={2.5} />
+                <X size={22} />
               </button>
 
-              <div className="text-center">
-                <p className="text-xs uppercase tracking-wide text-gray-400">Recipe</p>
-                <p className="text-sm font-semibold text-gray-700">{currentIndex + 1} / {filteredRecipes.length}</p>
-              </div>
+              {/* Plan */}
+              <button
+                onClick={handlePlan}
+                className="w-12 h-12 rounded-full bg-white border border-stone-200 flex items-center justify-center text-stone-400 hover:border-sky-300 hover:text-sky-500 transition-all active:scale-90 shadow-sm"
+              >
+                <BookOpen size={18} />
+              </button>
 
+              {/* Save */}
               <button
                 onClick={handleSave}
-                className={`w-16 h-16 rounded-full shadow-md flex items-center justify-center transition-all hover:scale-110 ${
-                  isSaved
-                    ? "bg-rose-500 border-2 border-rose-500 text-white"
-                    : "bg-white border-2 border-gray-200 text-gray-400 hover:border-rose-300 hover:text-rose-400"
-                }`}
-                title="Save (→)"
+                className="w-14 h-14 rounded-full flex items-center justify-center text-white transition-all active:scale-90"
+                style={{
+                  background: likedSet.has(current?.id ?? "") ? "#10B981" : "linear-gradient(135deg,#FB923C,#F97316,#EA580C)",
+                  boxShadow: "0 4px 20px rgba(249,115,22,0.35)",
+                }}
               >
-                <Heart size={22} strokeWidth={2.5} className={isSaved ? "fill-white" : ""} />
+                <Heart size={22} fill={likedSet.has(current?.id ?? "") ? "#fff" : "none"} />
               </button>
-              </div>
             </div>
+          )}
 
-            {/* Keyboard hint */}
-            <div className="hidden md:flex items-center gap-4 text-xs text-gray-400">
-              <div className="flex items-center gap-1.5">
-                <kbd className="px-1.5 py-0.5 bg-white border border-gray-200 rounded text-gray-500 font-mono shadow-sm">←</kbd>
-                <span>Pass</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <kbd className="px-1.5 py-0.5 bg-white border border-gray-200 rounded text-gray-500 font-mono shadow-sm">→</kbd>
-                <span>Save</span>
-              </div>
-            </div>
-          </div>
-
+          {/* Swipe hint */}
+          {stack.length > 0 && !loading && (
+            <p className="text-center text-[10px] text-stone-300 mt-4 font-medium">
+              ← Skip &nbsp;·&nbsp; ❤ Save &nbsp;·&nbsp; ↑ Plan meal
+            </p>
+          )}
         </div>
       </div>
-
-      {/* Recipe Detail Dialog */}
-      <Dialog open={!!selectedRecipe} onOpenChange={() => setSelectedRecipe(null)}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold">{selectedRecipe?.name}</DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 min-h-0 overflow-y-auto -mx-6 px-6">
-            {selectedRecipe && selectedMatch && (
-              <div className="space-y-6 pb-4">
-                {/* Image */}
-                {selectedRecipe.image && (
-                  <div className="relative rounded-xl overflow-hidden aspect-video">
-                    <img src={selectedRecipe.image} alt={selectedRecipe.name} className="w-full h-full object-cover" />
-                    <div className="absolute bottom-3 right-3">
-                      <MatchBadge percentage={selectedMatch.percentage} />
-                    </div>
-                  </div>
-                )}
-
-                {/* Meta */}
-                <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-                  <span className="flex items-center gap-1.5"><Clock size={16} /> {selectedRecipe.cook_time}</span>
-                  <span className="flex items-center gap-1.5"><Star size={16} /> {selectedRecipe.difficulty}</span>
-                  {selectedRecipe.cuisine && <span className="flex items-center gap-1.5">🌍 {selectedRecipe.cuisine}</span>}
-                  {recipeCookCounts[selectedRecipe.id] ? <span>Cooked {recipeCookCounts[selectedRecipe.id]}x</span> : null}
-                  {(recipeRatings[selectedRecipe.id] || 0) > 0 ? <span>Rating {recipeRatings[selectedRecipe.id]}/5</span> : null}
-                </div>
-
-                <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3">
-                  <p className="text-sm text-gray-600">Servings: <span className="font-semibold text-gray-900">{scaledServings}</span></p>
-                  <div className="inline-flex items-center gap-1">
-                    {[0.5, 1, 2].map((value) => (
-                      <button
-                        key={value}
-                        onClick={() => setServingMultiplier(value)}
-                        className={`px-2.5 py-1 rounded-md text-xs font-semibold ${servingMultiplier === value ? "bg-primary text-primary-foreground" : "bg-white text-gray-500"}`}
-                      >
-                        {value}x
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm">
-                  <p className="text-gray-500">Source</p>
-                  {selectedSourceUrl ? (
-                    <a className="font-semibold text-primary hover:underline" href={selectedSourceUrl} target="_blank" rel="noreferrer">
-                      {selectedSource}
-                    </a>
-                  ) : (
-                    <p className="font-semibold text-gray-900">{selectedSource}</p>
-                  )}
-                </div>
-
-                {/* Ingredients */}
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-900 mb-3">Ingredients</h3>
-                  <ul className="space-y-2">
-                    {selectedIngredients.map((ingredientLine) => {
-                      const parsed = parseIngredientLine(ingredientLine);
-                      const scaledQty = parsed.quantity ? scaleIngredientQuantity(parsed.quantity, servingMultiplier) : "";
-                      const isMatched = selectedMatch.matched.includes(ingredientLine);
-                      return (
-                        <li key={ingredientLine} className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
-                          <span className="font-medium text-gray-900">{formatIngredientDisplay(ingredientLine, scaledQty)}</span>
-                          <div className="flex items-center gap-2">
-                            {isMatched ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700"><Check size={12} /> In pantry</span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-600"><ShoppingCart size={12} /> Missing</span>
-                            )}
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                  {/* Add missing to grocery */}
-                  {selectedMatch.missing.length > 0 && (
-                    <Button
-                      onClick={() => {
-                        selectedMatch.missing.forEach((ing) => {
-                          const parsed = parseIngredientLine(ing);
-                          const qty = parsed.quantity ? scaleIngredientQuantity(parsed.quantity, servingMultiplier) : "1";
-                          addCustomGroceryItem(parsed.name, qty);
-                        });
-                        setGroceryAddedRecipeIds((prev) => prev.includes(selectedRecipe!.id) ? prev : [...prev, selectedRecipe!.id]);
-                        toast.success(`Added ${selectedMatch.missing.length} items to grocery list`);
-                      }}
-                      disabled={isSelectedRecipeAddedToGrocery}
-                      className="mt-3"
-                      variant={isSelectedRecipeAddedToGrocery ? "secondary" : "default"}
-                      size="sm"
-                    >
-                      <ShoppingCart size={14} /> {isSelectedRecipeAddedToGrocery ? "Already added to grocery list" : `Add ${selectedMatch.missing.length} missing items to grocery list`}
-                    </Button>
-                  )}
-                </div>
-
-                {/* Instructions */}
-                {selectedInstructions.length > 0 ? (
-                  <div>
-                    <h3 className="text-sm font-semibold text-foreground mb-3">Instructions</h3>
-                    <ol className="space-y-3">
-                      {selectedInstructions.map((step, i) => (
-                        <li key={i} className="flex gap-3 text-sm text-muted-foreground">
-                          <span className="flex-shrink-0 w-6 h-6 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center text-xs font-bold">
-                            {i + 1}
-                          </span>
-                          <span>{step}</span>
-                        </li>
-                      ))}
-                    </ol>
-                  </div>
-                ) : (
-                  <div className="text-sm text-muted-foreground italic">
-                    No instructions available for this recipe.
-                  </div>
-                )}
-
-                {/* Nutrition */}
-                <NutritionCard
-                  recipeId={selectedRecipe.id}
-                  recipeName={selectedRecipe.name}
-                  ingredients={selectedIngredients}
-                  servings={scaledServings}
-                />
-
-                <details className="rounded-lg border border-gray-200 bg-gray-50 p-3" open>
-                  <summary className="cursor-pointer text-sm font-semibold text-gray-800">View raw API JSON</summary>
-                  <pre className="mt-3 max-h-64 overflow-auto rounded bg-white p-3 text-xs text-gray-700">
-{JSON.stringify(selectedRawPayload, null, 2)}
-                    </pre>
-                  {(selectedRecipe as any)?.raw_api_payload == null && (
-                    <p className="mt-2 text-xs text-gray-500">Showing normalized recipe object because the source did not provide raw payload.</p>
-                  )}
-                </details>
-
-                {/* Save button */}
-                <Button
-                  onClick={() => {
-                    if (selectedRecipe) {
-                      likeRecipe(selectedRecipe.id, selectedRecipe as any);
-                      toast.success(`${selectedRecipe.name} saved!`);
-                      setSelectedRecipe(null);
-                    }
-                  }}
-                  className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3 rounded-xl"
-                >
-                  <Heart size={18} /> Save Recipe
-                </Button>
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
