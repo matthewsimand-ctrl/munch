@@ -6,6 +6,7 @@ const TUTORIAL_MAP: Record<string, string> = {
   Home: 'nav-home',
   Pantry: 'nav-pantry',
   Recipes: 'nav-browse',
+  'Find Recipes': 'nav-browse',
   Saved: 'nav-recipes',
   Plan: 'nav-plan',
   Grocery: 'nav-grocery',
@@ -14,7 +15,7 @@ const TUTORIAL_MAP: Record<string, string> = {
 const NAV_ITEMS = [
   { path: '/dashboard', label: 'Home', icon: Home },
   { path: '/pantry', label: 'Pantry', icon: UtensilsCrossed },
-  { path: '/swipe', label: 'Explore', icon: BookOpen },
+  { path: '/swipe', label: 'Find Recipes', icon: BookOpen },
   { path: '/saved', label: 'My Recipes', icon: Heart },
   { path: '/meal-prep', label: 'Plan', icon: CalendarDays },
   { path: '/grocery', label: 'Grocery', icon: ShoppingCart },

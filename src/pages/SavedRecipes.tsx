@@ -217,7 +217,16 @@ export default function MyRecipesScreen() {
               <p className="text-xs text-stone-400 mt-1">{savedRecipes.length} saved recipe{savedRecipes.length !== 1 ? "s" : ""}</p>
             </div>
             <div className="flex items-center gap-2">
-              <button className="px-3 py-2 rounded-xl text-xs font-semibold bg-orange-500 text-white">
+              <button
+                onClick={() => setActiveTab("explore")}
+                className={`px-3 py-2 rounded-xl text-xs font-semibold ${activeTab === "explore" ? "bg-orange-500 text-white" : "bg-white border border-stone-200 text-stone-600"}`}
+              >
+                Find Recipes
+              </button>
+              <button
+                onClick={() => setActiveTab("mine")}
+                className={`px-3 py-2 rounded-xl text-xs font-semibold ${activeTab === "mine" ? "bg-orange-500 text-white" : "bg-white border border-stone-200 text-stone-600"}`}
+              >
                 My Recipes
               </button>
               <ImportRecipeDialog>
