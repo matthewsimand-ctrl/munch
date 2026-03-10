@@ -38,6 +38,7 @@ export function useCookedMeals(limit = 12) {
     const { data, error } = await supabase
       .from("cooked_meals")
       .select("id, recipe_id, recipe_name, cooked_at, estimated_savings, metadata")
+      .eq("user_id", session.user.id)
       .order("cooked_at", { ascending: false })
       .limit(limit);
 
@@ -53,6 +54,14 @@ export function useCookedMeals(limit = 12) {
 
   useEffect(() => {
     loadMeals();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(() => {
+      loadMeals();
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
   }, [loadMeals]);
 
   const trackCookedMeal = useCallback(async (input: {
