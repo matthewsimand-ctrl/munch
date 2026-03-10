@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useBrowseFeed } from "@/hooks/useBrowseFeed";
 import { calculateMatch } from "@/lib/matchLogic";
 import RecipePreviewDialog from "@/components/RecipePreviewDialog";
+import MatchBadge from "@/components/MatchBadge";
 import ImportRecipeDialog from "@/components/ImportRecipeDialog";
 import CreateRecipeForm from "@/components/CreateRecipeForm";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -28,6 +29,7 @@ function RecipeCard({
   onUnsave,
   cookCount,
   onChefClick,
+  matchPercentage,
 }: {
   recipe: Recipe;
   view: "grid" | "list";
@@ -37,6 +39,7 @@ function RecipeCard({
   onUnsave: () => void;
   cookCount?: number;
   onChefClick: (chef: string) => void;
+  matchPercentage: number;
 }) {
   const diff = recipe.difficulty ?? "medium";
   const diffColor =
@@ -91,6 +94,9 @@ function RecipeCard({
             </p>
           )}
           {!!recipe.tags?.length && <p className="mt-1 text-xs text-stone-500 line-clamp-1">{recipe.tags.slice(0, 3).join(" • ")}</p>}
+        </div>
+        <div className="shrink-0">
+          <MatchBadge percentage={matchPercentage} />
         </div>
         <button
           onClick={(e) => { e.stopPropagation(); onUnsave(); }}
@@ -436,6 +442,7 @@ export default function MyRecipesScreen() {
                   key={recipe.id}
                   recipe={recipe}
                   view={view}
+                  matchPercentage={calculateMatch(pantryNames, recipe.ingredients || []).percentage}
                   rating={recipeRatings?.[recipe.id]}
                   nutrition={cachedNutrition?.[recipe.id]}
                   cookCount={recipeCookCounts?.[recipe.id]}
