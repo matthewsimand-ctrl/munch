@@ -96,6 +96,7 @@ interface AppState {
   removeRecipeTag: (recipeId: string, tag: string) => void;
   setRecipeIngredients: (recipeId: string, ingredients: string[]) => void;
   createFolder: (name: string, coverImage?: string) => void;
+  createCookbook: (name: string, recipeIds: string[], coverImage?: string) => void;
   addFolder: (name: string) => void;
   renameFolder: (folderId: string, name: string) => void;
   updateFolderCover: (folderId: string, coverImage: string) => void;
@@ -373,6 +374,19 @@ export const useStore = create<AppState>()(
           recipeFolders: [
             ...state.recipeFolders,
             { id: crypto.randomUUID(), name, coverImage, recipeIds: [] },
+          ],
+        })),
+
+      createCookbook: (name, recipeIds, coverImage) =>
+        set((state) => ({
+          recipeFolders: [
+            ...state.recipeFolders,
+            {
+              id: crypto.randomUUID(),
+              name,
+              coverImage,
+              recipeIds: Array.from(new Set(recipeIds)),
+            },
           ],
         })),
 
