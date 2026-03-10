@@ -18,10 +18,8 @@ export default function MatchBadge({ percentage, className = "" }: MatchBadgePro
       {percentage}% match
       <TooltipProvider delayDuration={120}>
         <Tooltip>
-          <TooltipTrigger asChild>
-            <button type="button" className="inline-flex" aria-label="Match percentage info">
-              <Info size={11} className="opacity-90" />
-            </button>
+          <TooltipTrigger type="button" className="inline-flex" aria-label="Match percentage info">
+            <Info size={11} className="opacity-90" />
           </TooltipTrigger>
           <TooltipContent side="top" className="max-w-52 text-[10px] leading-tight">
             Match % compares this recipe against your pantry. 100% means you already have every ingredient.
