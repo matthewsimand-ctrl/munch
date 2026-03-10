@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { recipeName, ingredients, servings = 1 } = await req.json();
+    const { recipeName, ingredients, servings } = await req.json();
 
     if (!recipeName || !ingredients || !Array.isArray(ingredients)) {
       return new Response(
@@ -46,10 +46,10 @@ Deno.serve(async (req) => {
             content: `Estimate the nutritional facts per serving for this recipe.
 
 Recipe: ${recipeName}
-Servings: ${servings}
+Provided servings (may represent total yield, not a typical portion): ${servings ?? 'unknown'}
 Ingredients: ${ingredients.join(', ')}
 
-Return the analysis.`,
+Determine a realistic regular serving size for this dish (what one person would typically eat), then return nutrition per that serving. Do not blindly use the provided servings value if it seems non-standard. Return the analysis.`,
           },
         ],
         tools: [
