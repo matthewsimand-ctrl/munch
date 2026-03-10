@@ -1,8 +1,8 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, type ChangeEvent } from "react";
 import {
   Heart, Clock, Users, Search, Filter, Trash2, ChevronDown,
   Plus, FolderOpen, X, Tag, Edit2, Check, ChefHat, Play,
-  FolderPlus, MoreHorizontal, ShoppingCart, Import, Flame, Beef, Wheat, Droplets, Sparkles, Loader2, Wand2, Image, ArrowLeft,
+  FolderPlus, MoreHorizontal, ShoppingCart, Import, Flame, Beef, Wheat, Droplets, Sparkles, Loader2, Wand2, Image, ArrowLeft, Upload,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useStore } from "@/lib/store";
@@ -68,6 +68,14 @@ export default function SavedRecipes() {
   const [isEditingIngredients, setIsEditingIngredients] = useState(false);
   const [servingMultiplier, setServingMultiplier] = useState(1);
   const [groceryAddedRecipeIds, setGroceryAddedRecipeIds] = useState<string[]>([]);
+  const [coverEditorFolderId, setCoverEditorFolderId] = useState<string | null>(null);
+  const [coverEditorInput, setCoverEditorInput] = useState("");
+  const [brokenCookbookCoverIds, setBrokenCookbookCoverIds] = useState<string[]>([]);
+
+  const coverEditorFolder = useMemo(
+    () => recipeFolders.find((folder) => folder.id === coverEditorFolderId) || null,
+    [recipeFolders, coverEditorFolderId],
+  );
 
   const formatIngredientDisplay = (ingredientLine: string, quantity?: string) => {
     const parsed = parseIngredientLine(ingredientLine);
@@ -195,6 +203,42 @@ export default function SavedRecipes() {
       setRenamingFolder(null);
       setRenameInput("");
     }
+  };
+
+  const normalizeCoverValue = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) return "";
+    if (/^https?:\/\//i.test(trimmed) || trimmed.startsWith("data:")) return trimmed;
+    if (/^www\./i.test(trimmed)) return `https://${trimmed}`;
+    return trimmed;
+  };
+
+  const openCoverEditor = (folderId: string, currentCover?: string) => {
+    setCoverEditorFolderId(folderId);
+    setCoverEditorInput(currentCover || "");
+  };
+
+  const saveCookbookCover = () => {
+    if (!coverEditorFolderId) return;
+    updateFolderCover(coverEditorFolderId, normalizeCoverValue(coverEditorInput));
+    setBrokenCookbookCoverIds((prev) => prev.filter((id) => id !== coverEditorFolderId));
+    toast.success("Cookbook cover updated");
+    setCoverEditorFolderId(null);
+    setCoverEditorInput("");
+  };
+
+  const uploadCookbookCover = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const encodedImage = typeof reader.result === "string" ? reader.result : "";
+      if (encodedImage) {
+        setCoverEditorInput(encodedImage);
+      }
+    };
+    reader.readAsDataURL(file);
+    event.target.value = "";
   };
 
   useEffect(() => {
@@ -468,6 +512,8 @@ export default function SavedRecipes() {
               {visibleCookbooks.map((folder) => {
                 const recipeCount = folder.recipeIds.length;
                 const previewRecipe = allSavedRecipes.find((recipe) => folder.recipeIds.includes(recipe.id));
+                const hasBrokenCover = brokenCookbookCoverIds.includes(folder.id);
+                const displayCover = hasBrokenCover ? previewRecipe?.image : (folder.coverImage || previewRecipe?.image);
 
                 return (
                   <div
@@ -479,22 +525,48 @@ export default function SavedRecipes() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          const cover = window.prompt("Enter a cover image URL", folder.coverImage || "");
-                          if (cover !== null) {
-                            updateFolderCover(folder.id, cover.trim());
-                            toast.success("Cookbook cover updated");
-                          }
+                          openCoverEditor(folder.id, folder.coverImage);
                         }}
                         className="absolute top-3 right-3 z-10 inline-flex items-center gap-1 rounded-full bg-black/40 backdrop-blur px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-black/55 transition-colors"
                         title="Update cookbook cover"
                       >
                         <Image size={12} /> Cover
                       </button>
-                      {folder.coverImage || previewRecipe?.image ? (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            onClick={(e) => e.stopPropagation()}
+                            className="absolute top-3 left-3 z-10 inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur transition-colors hover:bg-black/55"
+                            title="Cookbook actions"
+                          >
+                            <MoreHorizontal size={14} />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenuItem onClick={() => { setRenamingFolder(folder.id); setRenameInput(folder.name); }}>
+                            <Edit2 size={12} className="mr-2" /> Rename
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-destructive"
+                            onClick={() => {
+                              if (activeFolderId === folder.id) setActiveFolderId(null);
+                              deleteFolder(folder.id);
+                              toast.success("Cookbook deleted");
+                            }}
+                          >
+                            <Trash2 size={12} className="mr-2" /> Delete Cookbook
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      {displayCover ? (
                         <img
-                          src={folder.coverImage || previewRecipe?.image}
+                          src={displayCover}
                           alt={folder.name}
                           className="w-full h-full object-cover"
+                          onError={() => {
+                            setBrokenCookbookCoverIds((prev) => prev.includes(folder.id) ? prev : [...prev, folder.id]);
+                          }}
                         />
                       ) : (
                         <div className="w-full h-full bg-gradient-to-br from-orange-400 via-orange-500 to-rose-500" />
@@ -749,6 +821,43 @@ export default function SavedRecipes() {
           </div>
         )}
       </div>
+
+      <Dialog open={Boolean(coverEditorFolder)} onOpenChange={(open) => !open && setCoverEditorFolderId(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Update cookbook cover</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label htmlFor="cookbook-cover-url" className="text-sm font-medium">Image URL</label>
+              <Input
+                id="cookbook-cover-url"
+                value={coverEditorInput}
+                onChange={(e) => setCoverEditorInput(e.target.value)}
+                placeholder="https://example.com/cover.jpg"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="outline" className="w-full" asChild>
+                <label htmlFor="cookbook-cover-upload" className="cursor-pointer">
+                  <Upload size={14} className="mr-2" /> Upload photo
+                </label>
+              </Button>
+              <input
+                id="cookbook-cover-upload"
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={uploadCookbookCover}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="ghost" onClick={() => setCoverEditorFolderId(null)}>Cancel</Button>
+              <Button type="button" onClick={saveCookbookCover}>Save cover</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* New Cookbook Dialog */}
       <Dialog open={showNewCookbook} onOpenChange={setShowNewCookbook}>
