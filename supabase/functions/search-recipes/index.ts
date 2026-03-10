@@ -378,7 +378,7 @@ async function searchSpoonacular(query: string, apiKey: string, number = 5): Pro
           return joinIngredient(amount ? `${amount}${unit ? ` ${unit}` : ''}` : '', i.name || i.originalName || i.original);
         })
         .filter(Boolean);
-      const instructions = normalizeInstructionLines((r.analyzedInstructions?.[0]?.steps
+      const instructions = normalizeInstructionLines(r.analyzedInstructions?.[0]?.steps
         ?.sort((a: any, b: any) => a.number - b.number)
         .map((s: any) => s.step)
         .filter(Boolean) || []);
