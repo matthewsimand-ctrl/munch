@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      cooked_meals: {
+        Row: {
+          cooked_at: string
+          estimated_savings: number | null
+          id: string
+          metadata: Json | null
+          recipe_id: string
+          recipe_name: string
+          savings_source: string
+          user_id: string
+        }
+        Insert: {
+          cooked_at?: string
+          estimated_savings?: number | null
+          id?: string
+          metadata?: Json | null
+          recipe_id: string
+          recipe_name: string
+          savings_source?: string
+          user_id: string
+        }
+        Update: {
+          cooked_at?: string
+          estimated_savings?: number | null
+          id?: string
+          metadata?: Json | null
+          recipe_id?: string
+          recipe_name?: string
+          savings_source?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       meal_plan_items: {
         Row: {
           created_at: string
