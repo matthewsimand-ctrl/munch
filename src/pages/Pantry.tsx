@@ -1,8 +1,10 @@
-import { useMemo, useState } from "react";
+import { useRef, useMemo, useState } from "react";
 import { Package, Search, Trash2, Camera, ChefHat, ShoppingCart } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "@/lib/store";
 import { getCategory, getAllCategories } from "@/lib/ingredientCategories";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { toast } from "sonner";
 
 const PANTRY_CATEGORIES = ["All", ...getAllCategories()];
 
@@ -45,6 +47,9 @@ export default function Pantry() {
   const [activeCategory, setActiveCategory] = useState("All");
   const [newItem, setNewItem] = useState({ name: "", quantity: "", category: "Other" });
   const [isPremium] = useState(true);
+  const [scanDialogOpen, setScanDialogOpen] = useState(false);
+  const uploadInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const items = useMemo(() => pantryList, [pantryList]);
 
@@ -74,6 +79,17 @@ export default function Pantry() {
     addCustomGroceryItem(name, quantity || "1");
   };
 
+  const handleScanOption = (mode: 'upload' | 'camera') => {
+    const input = mode === 'upload' ? uploadInputRef.current : cameraInputRef.current;
+    input?.click();
+  };
+
+  const handleScanFilePicked = (file?: File) => {
+    if (!file) return;
+    toast.success(`Selected ${file.name}. Fridge scanning is coming soon!`);
+    setScanDialogOpen(false);
+  };
+
   return (
     <div className="min-h-full bg-gray-50">
       <div className="bg-white border-b border-gray-100 px-6 py-5">
@@ -91,7 +107,7 @@ export default function Pantry() {
           </div>
           {isPremium && (
             <button
-              onClick={() => {/* TODO */}}
+              onClick={() => setScanDialogOpen(true)}
               className="flex items-center gap-2 bg-white hover:bg-gray-50 text-gray-700 text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-sm border border-gray-200"
             >
               <Camera size={16} /> Scan Fridge
@@ -167,6 +183,45 @@ export default function Pantry() {
           </div>
         </div>
       </div>
+
+
+      <Dialog open={scanDialogOpen} onOpenChange={setScanDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Scan Fridge</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <button
+              onClick={() => handleScanOption('upload')}
+              className="w-full text-left px-4 py-3 rounded-xl border border-gray-200 hover:bg-gray-50 text-sm font-semibold"
+            >
+              Upload a picture
+            </button>
+            <button
+              onClick={() => handleScanOption('camera')}
+              className="w-full text-left px-4 py-3 rounded-xl border border-gray-200 hover:bg-gray-50 text-sm font-semibold"
+            >
+              Take a live picture
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <input
+        ref={uploadInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => handleScanFilePicked(e.target.files?.[0])}
+      />
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(e) => handleScanFilePicked(e.target.files?.[0])}
+      />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useStore } from '@/lib/store';
 import { useDbRecipes } from '@/hooks/useDbRecipes';
@@ -32,6 +32,7 @@ interface MealItem {
 
 export default function MealPrep() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const { likedRecipes, savedApiRecipes } = useStore();
   const { data: dbRecipes = [] } = useDbRecipes();
@@ -52,6 +53,23 @@ export default function MealPrep() {
     return dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Mon=0, Sun=6
   });
   const [recipePreview, setRecipePreview] = useState<{ name: string; sourceUrl?: string; instructions: string[] } | null>(null);
+
+  useEffect(() => {
+    const navState = location.state as { selectedDay?: number; openAddDialog?: boolean; mealType?: MealType } | null;
+    if (!navState) return;
+
+    if (typeof navState.selectedDay === 'number' && navState.selectedDay >= 0 && navState.selectedDay < DAYS.length) {
+      setSelectedDay(navState.selectedDay);
+    }
+
+    if (navState.openAddDialog) {
+      const day = typeof navState.selectedDay === 'number' ? navState.selectedDay : selectedDay;
+      const mealType = navState.mealType && MEAL_TYPES.includes(navState.mealType) ? navState.mealType : 'dinner';
+      setAddDialog({ day, meal: mealType });
+    }
+
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location.pathname, location.state, navigate, selectedDay]);
 
   // Get saved recipes list - check both DB recipes and locally cached API recipes
   const savedRecipes = useMemo(() => {

@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Wand2, Loader2, Leaf, ShoppingBasket, Heart, ChefHat, MessageSquare, ArrowRight, Check, X } from 'lucide-react';
+import { Wand2, Loader2, Leaf, ShoppingBasket, Heart, ChefHat, MessageSquare, ArrowRight, X, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Recipe } from '@/data/recipes';
 
@@ -26,7 +26,7 @@ const TWEAK_OPTIONS: { type: TweakType; label: string; description: string; icon
 ];
 
 export default function RecipeTweakDialog({ recipe, open, onOpenChange }: Props) {
-  const { userProfile, pantryList } = useStore();
+  const { userProfile, pantryList, likeRecipe } = useStore();
   const [tweakType, setTweakType] = useState<TweakType | null>(null);
   const [customPrompt, setCustomPrompt] = useState('');
   const [loading, setLoading] = useState(false);
@@ -65,6 +65,22 @@ export default function RecipeTweakDialog({ recipe, open, onOpenChange }: Props)
     setTweakType(null);
     setResult(null);
     setCustomPrompt('');
+  };
+
+  const handleSaveTweakedRecipe = () => {
+    if (!result) return;
+    const recipeId = `tweaked-${recipe.id}-${Date.now()}`;
+    likeRecipe(recipeId, {
+      ...recipe,
+      id: recipeId,
+      name: result.name,
+      ingredients: result.ingredients,
+      instructions: result.instructions,
+      source: 'tweaked',
+    });
+    toast.success('Tweaked recipe saved locally');
+    onOpenChange(false);
+    handleReset();
   };
 
   return (
@@ -197,6 +213,9 @@ export default function RecipeTweakDialog({ recipe, open, onOpenChange }: Props)
                 <div className="flex gap-2">
                   <Button variant="outline" onClick={handleReset} className="flex-1">
                     <X className="h-4 w-4 mr-1" /> Try Again
+                  </Button>
+                  <Button onClick={handleSaveTweakedRecipe} className="flex-1">
+                    <Save className="h-4 w-4 mr-1" /> Save Locally
                   </Button>
                 </div>
               </>
