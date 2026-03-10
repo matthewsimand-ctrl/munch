@@ -1,7 +1,7 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import {
   Calendar, Plus, X, ChevronLeft, ChevronRight,
-  Clock, Shuffle, ShoppingCart, Utensils, Download,
+  Clock, Shuffle, ShoppingCart, Utensils, Download, RotateCcw,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "@/lib/store";
@@ -11,6 +11,7 @@ import { useBrowseFeed } from "@/hooks/useBrowseFeed";
 import RecipePreviewDialog from "@/components/RecipePreviewDialog";
 import { toast } from "sonner";
 import { jsPDF } from "jspdf";
+import { format, startOfWeek } from "date-fns";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MEAL_TYPES = ["Breakfast", "Lunch", "Dinner"] as const;
@@ -24,11 +25,13 @@ const MEAL_COLORS: Record<MealType, { bg: string; border: string; text: string; 
 
 interface PlannedMeal {
   id: string;
+  weekStart?: string;
   day: string;
   mealType: MealType;
   recipeName: string;
   recipeId: string;
   cookTime?: string;
+  recipeSnapshot?: any;
 }
 
 function MealSlot({
@@ -105,7 +108,7 @@ function MealSlot({
 
 export default function MealPrepScreen() {
   const navigate = useNavigate();
-  const { mealPlan, addMealPlanItem, removeMealPlanItem, savedApiRecipes, likedRecipes, addCustomGroceryItem } = useStore();
+  const { mealPlan, addMealPlanItem, removeMealPlanItem, clearMealPlanWeek, savedApiRecipes, likedRecipes, addCustomGroceryItem } = useStore();
 
   const [weekOffset, setWeekOffset] = useState(0);
   const [showAddModal, setShowAddModal] = useState<{ day: string; mealType: MealType } | null>(null);
@@ -121,20 +124,27 @@ export default function MealPrepScreen() {
   const { recipes: browseRecipes, loaded: browseLoaded, loadFeed } = useBrowseFeed();
 
   // Get week label
+  const getWeekStartForOffset = useCallback((offset: number) => {
+    const base = new Date();
+    base.setDate(base.getDate() + offset * 7);
+    return format(startOfWeek(base, { weekStartsOn: 1 }), "yyyy-MM-dd");
+  }, []);
+
+  const weekStart = useMemo(() => getWeekStartForOffset(weekOffset), [getWeekStartForOffset, weekOffset]);
+
   const weekLabel = useMemo(() => {
-    const now = new Date();
-    now.setDate(now.getDate() + weekOffset * 7);
-    const start = new Date(now);
-    start.setDate(now.getDate() - now.getDay() + 1);
+    const start = new Date(`${weekStart}T00:00:00`);
     const end = new Date(start);
     end.setDate(start.getDate() + 6);
     return `${start.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${end.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
-  }, [weekOffset]);
+  }, [weekStart]);
 
-  const plannedMeals: PlannedMeal[] = (mealPlan ?? []).map((item, idx) => ({
-    ...item,
-    id: item.id ?? `${item.day}-${item.mealType}-${item.recipeId}-${idx}`,
-  }));
+  const plannedMeals: PlannedMeal[] = (mealPlan ?? [])
+    .filter((item) => (item.weekStart ?? getWeekStartForOffset(0)) === weekStart)
+    .map((item, idx) => ({
+      ...item,
+      id: item.id ?? `${item.day}-${item.mealType}-${item.recipeId}-${idx}`,
+    }));
 
   const getMeal = (day: string, mealType: MealType) =>
     plannedMeals.find((m) => m.day === day && m.mealType === mealType);
@@ -152,6 +162,7 @@ export default function MealPrepScreen() {
   const handleAddMeal = (recipe: any) => {
     if (!showAddModal) return;
     addMealPlanItem?.({
+      weekStart,
       day: showAddModal.day,
       mealType: showAddModal.mealType,
       recipeName: recipe.name,
@@ -190,7 +201,7 @@ export default function MealPrepScreen() {
     if (emptySlots.length > 0) {
       emptySlots.forEach(({ day, mealType }) => {
         const recipe = sourceRecipes[Math.floor(Math.random() * sourceRecipes.length)];
-        addMealPlanItem?.({ day, mealType, recipeName: recipe.name, recipeId: recipe.id, cookTime: recipe.cook_time });
+        addMealPlanItem?.({ weekStart, day, mealType, recipeName: recipe.name, recipeId: recipe.id, cookTime: recipe.cook_time, recipeSnapshot: recipe });
       });
       toast.success(`🎲 Filled ${emptySlots.length} open slots with ${sourceLabel} picks!`);
       return;
@@ -204,11 +215,13 @@ export default function MealPrepScreen() {
       const recipe = sourceRecipes[Math.floor(Math.random() * sourceRecipes.length)];
       removeMealPlanItem?.(meal.id);
       addMealPlanItem?.({
+        weekStart,
         day: meal.day,
         mealType: meal.mealType,
         recipeName: recipe.name,
         recipeId: recipe.id,
         cookTime: recipe.cook_time,
+        recipeSnapshot: recipe,
       });
     });
 
@@ -256,6 +269,15 @@ export default function MealPrepScreen() {
   const plannedCount = plannedMeals.length;
   const totalSlots = DAYS.length * MEAL_TYPES.length;
 
+  const handleResetWeek = () => {
+    if (plannedCount === 0) {
+      toast.info("This week is already empty.");
+      return;
+    }
+    clearMealPlanWeek?.(weekStart);
+    toast.success("Cleared all meals for this week.");
+  };
+
   const moveMeal = (targetDay: string, targetMealType: MealType) => {
     if (!draggedMealId) return;
     const draggedMeal = plannedMeals.find((meal) => meal.id === draggedMealId);
@@ -263,11 +285,13 @@ export default function MealPrepScreen() {
 
     const existingTargetMeal = getMeal(targetDay, targetMealType);
     addMealPlanItem?.({
+      weekStart,
       day: targetDay,
       mealType: targetMealType,
       recipeId: draggedMeal.recipeId,
       recipeName: draggedMeal.recipeName,
       cookTime: draggedMeal.cookTime,
+      recipeSnapshot: draggedMeal.recipeSnapshot,
     });
 
     if (existingTargetMeal && existingTargetMeal.id !== draggedMeal.id) {
@@ -401,6 +425,12 @@ export default function MealPrepScreen() {
                 className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-stone-200 text-sm font-semibold text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
               >
                 <Shuffle size={14} /> Surprise Me
+              </button>
+              <button
+                onClick={handleResetWeek}
+                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-stone-200 text-sm font-semibold text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
+              >
+                <RotateCcw size={14} /> Reset Week
               </button>
               <button
                 onClick={handleGenerateGroceryList}
@@ -612,9 +642,10 @@ export default function MealPrepScreen() {
                 <div className="grid grid-cols-2 gap-2 mt-5">
                   <button
                     onClick={() => {
-                      const recipe = savedApiRecipes[showMealActionModal.recipeId];
+                      const mealRecipe = plannedMeals.find((meal) => meal.id === showMealActionModal.id);
+                      const recipe = savedApiRecipes[showMealActionModal.recipeId] ?? mealRecipe?.recipeSnapshot;
                       if (!recipe) {
-                        toast.info("Recipe details not found in your saved collection.");
+                        toast.info("Recipe details are unavailable for this meal.");
                         setShowMealActionModal(null);
                         return;
                       }
