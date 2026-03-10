@@ -34,6 +34,7 @@ interface ReviewData {
   cook_time: string;
   difficulty: string;
   cuisine: string;
+  chef: string;
   tags: string[];
   image: string;
   servings: string;
@@ -46,6 +47,7 @@ interface WebsitePreviewData {
   cook_time: string;
   difficulty: string;
   cuisine: string;
+  chef: string;
   tags: string[];
   image: string;
   servings: string;
@@ -168,6 +170,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
       cook_time: String(recipe.cook_time || '30 min'),
       difficulty: String(recipe.difficulty || 'Intermediate'),
       cuisine: recipe.cuisine ? String(recipe.cuisine) : null,
+      chef: recipe.chef ? String(recipe.chef) : null,
       tags: Array.isArray(recipe.tags) ? recipe.tags.map((tag: unknown) => String(tag).trim()).filter(Boolean) : [],
       image: String(recipe.image || '/placeholder.svg'),
       source: 'imported',
@@ -220,6 +223,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
         instructions: payload.instructions || [],
         tags: payload.tags || [],
         cuisine: payload.cuisine || null,
+        chef: payload.chef || null,
         source: payload.source || 'imported',
         source_url: payload.source_url || null,
         raw_api_payload: payload.raw_api_payload || null,
@@ -322,6 +326,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
           cook_time: String(previewRecipe.cook_time || '30 min'),
           difficulty: String(previewRecipe.difficulty || 'Intermediate'),
           cuisine: previewRecipe.cuisine ? String(previewRecipe.cuisine) : '',
+          chef: previewRecipe.chef ? String(previewRecipe.chef) : '',
           tags: normalizeList(previewRecipe.tags),
           image: String(previewRecipe.image || '/placeholder.svg'),
           servings: String(previewRecipe.servings || 4),
@@ -349,6 +354,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
         cook_time: recipe.cook_time || '30 min',
         difficulty: recipe.difficulty || 'Intermediate',
         cuisine: recipe.cuisine || '',
+        chef: recipe.chef || '',
         tags: normalizeList(recipe.tags),
         image: recipe.image || '/placeholder.svg',
         servings: String(recipe.servings || 4),
@@ -402,6 +408,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
             cook_time: reviewData.cook_time,
             difficulty: reviewData.difficulty,
             cuisine: reviewData.cuisine || null,
+            chef: reviewData.chef || null,
             tags: reviewData.tags,
             image: reviewData.image,
             source: 'imported',
@@ -428,6 +435,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
         cook_time: reviewData.cook_time,
         difficulty: reviewData.difficulty,
         cuisine: reviewData.cuisine || null,
+        chef: reviewData.chef || null,
         tags: reviewData.tags,
         image: reviewData.image,
         source: 'imported',
@@ -683,6 +691,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
       cook_time: websitePreview.cook_time,
       difficulty: websitePreview.difficulty,
       cuisine: websitePreview.cuisine,
+      chef: websitePreview.chef,
       tags: websitePreview.tags,
       image: websitePreview.image,
       servings: websitePreview.servings,
@@ -783,6 +792,9 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
                 </div>
                 {websitePreview.cuisine && (
                   <p className="text-sm text-muted-foreground">{websitePreview.cuisine}</p>
+                )}
+                {websitePreview.chef && (
+                  <p className="text-sm text-muted-foreground">Chef: {websitePreview.chef}</p>
                 )}
               </div>
 
@@ -966,6 +978,14 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
                     value={reviewData.cuisine}
                     onChange={(e) => setReviewData({ ...reviewData, cuisine: e.target.value })}
                     placeholder="Italian"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground">Chef (optional)</label>
+                  <Input
+                    value={reviewData.chef}
+                    onChange={(e) => setReviewData({ ...reviewData, chef: e.target.value })}
+                    placeholder="Chef name"
                   />
                 </div>
               </div>

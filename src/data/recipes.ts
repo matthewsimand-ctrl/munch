@@ -12,6 +12,7 @@ export interface Recipe {
   source_url?: string;
   raw_api_payload?: unknown;
   created_by?: string | null;
+  chef?: string | null;
   is_public?: boolean;
   servings?: number;
   calories?: number;

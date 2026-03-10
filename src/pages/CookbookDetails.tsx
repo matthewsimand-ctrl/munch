@@ -7,11 +7,6 @@ import RecipePreviewDialog from "@/components/RecipePreviewDialog";
 import { calculateMatch } from "@/lib/matchLogic";
 import type { Recipe } from "@/data/recipes";
 
-const getCookStats = (recipe: Recipe, rating?: number) => ({
-  stars: rating ?? ((recipe.name.length % 2) + 4),
-  timesCooked: (recipe.id.charCodeAt(0) % 12) + 3,
-});
-
 export default function CookbookDetails() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
@@ -176,7 +171,6 @@ export default function CookbookDetails() {
             <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {recipes.map((recipe) => {
                 const rating = recipeRatings?.[recipe.id];
-                const stats = getCookStats(recipe, rating);
                 const nutrition = cachedNutrition?.[recipe.id];
                 const difficulty = recipe.difficulty ?? "medium";
                 const diffColor =
@@ -204,7 +198,7 @@ export default function CookbookDetails() {
                         <div className="flex items-center gap-2 mt-2 text-[11px] text-stone-400">
                           <span className="flex items-center gap-1"><Clock size={11} /> {recipe.cook_time}</span>
                           <span className={`px-2 py-0.5 rounded-full font-semibold ${diffColor}`}>{difficulty}</span>
-                          <span className="flex items-center gap-1 text-amber-500"><Star size={11} fill="currentColor" /> {stats.stars.toFixed(1)}</span>
+                          {typeof rating === "number" && <span className="flex items-center gap-1 text-amber-500"><Star size={11} fill="currentColor" /> {rating.toFixed(1)}</span>}
                         </div>
                         {(nutrition?.calories || nutrition?.protein) && (
                           <p className="mt-1 text-[11px] text-stone-500 line-clamp-1">
@@ -230,7 +224,6 @@ export default function CookbookDetails() {
             <div className="p-4 space-y-2">
               {recipes.map((recipe) => {
                 const rating = recipeRatings?.[recipe.id];
-                const stats = getCookStats(recipe, rating);
                 const difficulty = recipe.difficulty ?? "medium";
                 const diffColor =
                   difficulty === "easy"
@@ -253,7 +246,7 @@ export default function CookbookDetails() {
                       <div className="flex items-center gap-2 mt-1 text-[11px] text-stone-400">
                         <span className="flex items-center gap-1"><Clock size={11} /> {recipe.cook_time}</span>
                         <span className={`px-2 py-0.5 rounded-full font-semibold ${diffColor}`}>{difficulty}</span>
-                        <span className="flex items-center gap-1 text-amber-500"><Star size={11} fill="currentColor" /> {stats.stars.toFixed(1)}</span>
+                        {typeof rating === "number" && <span className="flex items-center gap-1 text-amber-500"><Star size={11} fill="currentColor" /> {rating.toFixed(1)}</span>}
                       </div>
                     </button>
                     <button

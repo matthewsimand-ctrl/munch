@@ -8,6 +8,7 @@ import { normalizeIngredients } from '@/lib/normalizeIngredients';
 interface BrowseRecipe extends Recipe {
   source: string;
   cuisine?: string;
+  chef?: string | null;
 }
 
 function normalizeStringArray(value: unknown): string[] {
@@ -41,6 +42,7 @@ function normalizeRecipe(raw: any): BrowseRecipe | null {
     source_url: raw.source_url ? String(raw.source_url) : undefined,
     raw_api_payload: raw.raw_api_payload ?? undefined,
     cuisine: raw.cuisine ? String(raw.cuisine) : undefined,
+    chef: raw.chef ? String(raw.chef) : null,
   };
 }
 
