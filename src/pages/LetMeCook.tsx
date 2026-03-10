@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Play, ChefHat, Clock, Users, Grid3X3, List, Flame, Star, Search, X } from "lucide-react";
+import { Play, Clock, Users, Grid3X3, List, Flame, Search, X } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { toast } from "sonner";
 import { useDbRecipes } from "@/hooks/useDbRecipes";
@@ -97,30 +97,20 @@ export default function LetMeCook() {
             )}
           </div>
         </div>
-
-        {recipes.length === 0 ? (
-          <div className="bg-white border border-gray-100 rounded-2xl p-10 text-center shadow-sm">
-            <ChefHat className="h-10 w-10 mx-auto text-gray-300" />
-            <h2 className="text-lg font-semibold text-gray-900 mt-3">No saved recipes yet</h2>
-            <p className="text-sm text-gray-500 mt-1 mb-4">Save a recipe first, then come back here to start cooking.</p>
-            <Button onClick={() => navigate("/swipe")}>Explore recipes</Button>
-          </div>
-        ) : (
-          <>
-            <div className="flex justify-end mb-4">
-              <button
-                onClick={() => setView(view === "grid" ? "list" : "grid")}
-                className="w-9 h-9 rounded-xl bg-white border border-stone-200 flex items-center justify-center text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
-                aria-label={`Switch to ${view === "grid" ? "list" : "grid"} view`}
-              >
-                {view === "grid" ? <List size={16} /> : <Grid3X3 size={16} />}
-              </button>
-            </div>
-          </div>
-        </div>
       </div>
 
       <div className="max-w-5xl mx-auto px-6 py-6 space-y-5">
+        {recipes.length > 0 && (
+          <div className="flex justify-end">
+            <button
+              onClick={() => setView(view === "grid" ? "list" : "grid")}
+              className="w-9 h-9 rounded-xl bg-white border border-stone-200 flex items-center justify-center text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
+              aria-label={`Switch to ${view === "grid" ? "list" : "grid"} view`}
+            >
+              {view === "grid" ? <List size={16} /> : <Grid3X3 size={16} />}
+            </button>
+          </div>
+        )}
 
         {/* Up next from meal prep */}
         {!currentMealLoading && featuredMeal && (
