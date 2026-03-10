@@ -250,6 +250,8 @@ export default function CookMode() {
             <Button
               variant="ghost"
               size="icon"
+              title={cookModeTtsEnabled ? "Mute voice guidance" : "Unmute voice guidance"}
+              aria-label={cookModeTtsEnabled ? "Mute voice guidance" : "Unmute voice guidance"}
               onClick={() => {
                 if (cookModeTtsEnabled) {
                   setCookModeTtsEnabled(false);
@@ -263,7 +265,7 @@ export default function CookMode() {
                 }
               }}
             >
-              {cookModeTtsEnabled && isSpeaking ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+              {cookModeTtsEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
             </Button>
           </div>
         </div>
