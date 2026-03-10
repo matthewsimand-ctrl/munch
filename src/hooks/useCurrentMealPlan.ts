@@ -63,11 +63,13 @@ export function useCurrentMealPlan() {
       const mealType = getCurrentMealPlanSlot(now);
 
       const localItems = (localMealPlan || [])
+        .filter((item) => (item.weekStart ?? weekStart) === weekStart)
         .map((item) => ({
           id: item.id,
           recipe_id: item.recipeId,
           recipe_name: item.recipeName,
           recipe_image: '/placeholder.svg',
+          recipe_data: item.recipeSnapshot ?? null,
           day_of_week: DAY_INDEX_BY_LABEL[item.day],
           meal_type: SLOT_BY_LABEL[item.mealType],
         }))
@@ -97,13 +99,19 @@ export function useCurrentMealPlan() {
           }
         }
       }
-      const current = allItems.find((item) => item.day_of_week === dayOfWeek && item.meal_type === mealType) || null;
+      const sortedItems = [...allItems].sort((a, b) => {
+        const dayDiff = a.day_of_week - b.day_of_week;
+        if (dayDiff !== 0) return dayDiff;
+        return slotIndex(a.meal_type) - slotIndex(b.meal_type);
+      });
+
+      const current = sortedItems.find((item) => item.day_of_week === dayOfWeek && item.meal_type === mealType) || null;
       setMeal(current);
 
       const currentKey = dayOfWeek * 10 + slotIndex(mealType);
       const next =
-        allItems.find((item) => item.day_of_week * 10 + slotIndex(item.meal_type) >= currentKey) ||
-        allItems[0] ||
+        sortedItems.find((item) => item.day_of_week * 10 + slotIndex(item.meal_type) > currentKey) ||
+        sortedItems[0] ||
         null;
       setNextMeal(next);
       setLoading(false);

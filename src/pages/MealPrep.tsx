@@ -550,7 +550,7 @@ export default function MealPrepScreen() {
               initial={{ opacity: 0, y: 20, scale: 0.97 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.97 }}
-              className="fixed bottom-0 left-0 right-0 sm:bottom-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:max-w-md z-50 rounded-t-3xl sm:rounded-3xl overflow-hidden"
+              className="fixed top-1/2 left-1/2 w-[calc(100%-1.5rem)] max-w-md -translate-x-1/2 -translate-y-1/2 z-50 rounded-3xl overflow-hidden"
               style={{ background: "#fff", boxShadow: "0 -8px 40px rgba(0,0,0,0.15)" }}
             >
               <div className="p-6">
