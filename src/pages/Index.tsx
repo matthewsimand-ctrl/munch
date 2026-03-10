@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 const Index = () => {
   const navigate = useNavigate();
-  const { onboardingComplete, pantryList } = useStore();
+  const { onboardingComplete } = useStore();
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
@@ -14,14 +14,12 @@ const Index = () => {
         navigate('/auth', { replace: true });
       } else if (!onboardingComplete) {
         navigate('/onboarding', { replace: true });
-      } else if (pantryList.length === 0) {
-        navigate('/pantry', { replace: true });
       } else {
         navigate('/dashboard', { replace: true });
       }
       setChecked(true);
     });
-  }, [onboardingComplete, pantryList, navigate]);
+  }, [onboardingComplete, navigate]);
 
   return null;
 };
