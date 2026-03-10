@@ -30,7 +30,7 @@ export default function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
+    <div className="flex h-screen bg-gradient-to-br from-orange-50/50 via-background to-background overflow-hidden">
       {/* ── Desktop Sidebar ── */}
       <aside
         className={`hidden md:flex flex-col bg-white border-r border-gray-100 shrink-0 z-20 transition-all duration-300 relative ${
@@ -126,7 +126,9 @@ export default function AppLayout() {
       {/* ── Main content ── */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <div className="flex-1 overflow-y-auto pb-20 md:pb-0">
-          <Outlet />
+          <div className="app-page">
+            <Outlet />
+          </div>
         </div>
 
         {/* ── Mobile Bottom Nav ── */}

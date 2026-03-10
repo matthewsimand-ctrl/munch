@@ -121,6 +121,18 @@
 }
 
 @layer utilities {
+  .app-page {
+    @apply min-h-full bg-gradient-to-b from-orange-50/60 via-background to-background;
+  }
+
+  .app-section {
+    @apply bg-white/90 backdrop-blur-sm border border-orange-100/60 rounded-2xl shadow-sm;
+  }
+
+  .app-tile {
+    @apply rounded-2xl border border-orange-100/70 bg-gradient-to-br from-white via-white to-orange-50/40 shadow-sm;
+  }
+
   .safe-area-bottom {
     padding-bottom: env(safe-area-inset-bottom);
   }
