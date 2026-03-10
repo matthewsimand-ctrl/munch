@@ -69,6 +69,34 @@ function normalizeList(value: unknown): string[] {
   return [];
 }
 
+function normalizeSourceUrl(url: string): string {
+  const trimmed = String(url || '').trim();
+  if (!trimmed) return '';
+
+  try {
+    const parsed = new URL(trimmed);
+    parsed.hash = '';
+    const normalizedPath = parsed.pathname.replace(/\/+$/, '');
+    parsed.pathname = normalizedPath || '/';
+    return parsed.toString();
+  } catch {
+    return trimmed;
+  }
+}
+
+function sourceUrlCandidates(url: string): string[] {
+  const normalized = normalizeSourceUrl(url);
+  if (!normalized) return [];
+
+  const variants = new Set<string>([normalized]);
+  if (normalized.endsWith('/')) {
+    variants.add(normalized.slice(0, -1));
+  } else {
+    variants.add(`${normalized}/`);
+  }
+  return Array.from(variants);
+}
+
 export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
@@ -149,7 +177,34 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
     };
   };
 
+  const findExistingRecipeByUrl = async (sourceUrl?: string) => {
+    const candidates = sourceUrl ? sourceUrlCandidates(sourceUrl) : [];
+    if (candidates.length === 0) return null;
+
+    const { data, error } = await supabase
+      .from('recipes')
+      .select('*')
+      .in('source_url', candidates)
+      .limit(1)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data;
+  };
+
+  const mapDbRecipeToImportedPayload = (recipe: Record<string, any>) => buildImportedPayload(String(recipe.id), {
+    ...recipe,
+    source: recipe.source || 'community',
+  });
+
   const persistRecipe = async (payload: Record<string, any>) => {
+    const existingRecipe = await findExistingRecipeByUrl(payload.source_url);
+    if (existingRecipe) {
+      const existingPayload = mapDbRecipeToImportedPayload(existingRecipe);
+      likeRecipe(existingPayload.id, existingPayload);
+      return { reusedExisting: true, payload: existingPayload };
+    }
+
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -178,6 +233,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
     }
 
     likeRecipe(payload.id, payload);
+    return { reusedExisting: false, payload };
   };
 
   const saveWebsitePreview = async () => {
@@ -188,9 +244,11 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
 
     setSaving(true);
     try {
-      await persistRecipe(payload);
+      const result = await persistRecipe(payload);
       setMagicProgress(100);
-      toast.success(`Imported "${payload.name}"!`);
+      toast.success(result.reusedExisting
+        ? `Loaded existing recipe "${result.payload.name}" from your library.`
+        : `Imported "${payload.name}"!`);
       setOpen(false);
       resetState();
       navigate(`/saved`);
@@ -254,22 +312,27 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
       const recipe = data.recipe;
 
       if (payload.url) {
+        const existingRecipe = await findExistingRecipeByUrl(recipe.source_url ? String(recipe.source_url) : undefined);
+        const previewRecipe = existingRecipe || recipe;
+
         setWebsitePreview({
-          name: String(recipe.name || 'Imported Recipe').trim(),
-          ingredients: Array.isArray(recipe.ingredients) ? recipe.ingredients.map((item: unknown) => String(item).trim()).filter(Boolean) : [],
-          instructions: normalizeList(recipe.instructions),
-          cook_time: String(recipe.cook_time || '30 min'),
-          difficulty: String(recipe.difficulty || 'Intermediate'),
-          cuisine: recipe.cuisine ? String(recipe.cuisine) : '',
-          tags: normalizeList(recipe.tags),
-          image: String(recipe.image || '/placeholder.svg'),
-          servings: String(recipe.servings || 4),
-          source_url: recipe.source_url ? String(recipe.source_url) : undefined,
-          raw_api_payload: recipe.raw_api_payload && typeof recipe.raw_api_payload === 'object'
-            ? recipe.raw_api_payload as Record<string, unknown>
+          name: String(previewRecipe.name || 'Imported Recipe').trim(),
+          ingredients: Array.isArray(previewRecipe.ingredients) ? previewRecipe.ingredients.map((item: unknown) => String(item).trim()).filter(Boolean) : [],
+          instructions: normalizeList(previewRecipe.instructions),
+          cook_time: String(previewRecipe.cook_time || '30 min'),
+          difficulty: String(previewRecipe.difficulty || 'Intermediate'),
+          cuisine: previewRecipe.cuisine ? String(previewRecipe.cuisine) : '',
+          tags: normalizeList(previewRecipe.tags),
+          image: String(previewRecipe.image || '/placeholder.svg'),
+          servings: String(previewRecipe.servings || 4),
+          source_url: previewRecipe.source_url ? String(previewRecipe.source_url) : undefined,
+          raw_api_payload: previewRecipe.raw_api_payload && typeof previewRecipe.raw_api_payload === 'object'
+            ? previewRecipe.raw_api_payload as Record<string, unknown>
             : undefined,
         });
-        toast.success('Recipe preview ready. Review the cleaned page and save it if it looks right.');
+        toast.success(existingRecipe
+          ? 'Found an existing saved recipe for this URL. Loaded it instead of creating a duplicate.'
+          : 'Recipe preview ready. Review the cleaned page and save it if it looks right.');
         return;
       }
 
@@ -688,8 +751,8 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
                 <p className="text-sm font-medium text-foreground">Ingredients</p>
                 <div className="mt-2 space-y-2">
                   {websitePreview.ingredients.map((ingredient, idx) => (
-                    <div key={idx} className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm text-foreground">
-                      {ingredient}
+                    <div key={idx} className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
+                      <span className="font-medium text-gray-900">{composeIngredientLine(parseIngredientLine(ingredient))}</span>
                     </div>
                   ))}
                 </div>
