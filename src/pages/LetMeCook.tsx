@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Play, ChefHat, Clock, Users, Grid3X3, List, Flame, Star, Search, X } from "lucide-react";
 import { useStore } from "@/lib/store";
+import { toast } from "sonner";
 import { useDbRecipes } from "@/hooks/useDbRecipes";
 import { useCurrentMealPlan } from "@/hooks/useCurrentMealPlan";
 import type { Recipe } from "@/data/recipes";
@@ -10,11 +11,32 @@ import { motion, AnimatePresence } from "framer-motion";
 
 export default function LetMeCook() {
   const navigate = useNavigate();
-  const { likedRecipes, savedApiRecipes } = useStore();
+  const { likedRecipes, savedApiRecipes, likeRecipe } = useStore();
   const [view, setView] = useState<"grid" | "list">("grid");
   const [search, setSearch] = useState("");
   const { data: dbRecipes = [] } = useDbRecipes();
   const { meal: currentPlannedMeal, nextMeal, loading: currentMealLoading } = useCurrentMealPlan();
+
+
+  const handleStartPlannedMeal = () => {
+    const plannedMeal = nextMeal || currentPlannedMeal;
+    if (!plannedMeal) return;
+
+    const recipeId = plannedMeal.recipe_id;
+    const hasRecipeLocally = Boolean(dbRecipes.find((r) => r.id === recipeId) || savedApiRecipes[recipeId]);
+
+    if (!hasRecipeLocally && plannedMeal.recipe_data) {
+      likeRecipe(recipeId, plannedMeal.recipe_data);
+    }
+
+    const canStart = hasRecipeLocally || Boolean(plannedMeal.recipe_data);
+    if (!canStart) {
+      toast.info("We couldn't load this planned recipe yet. Save it first, then try again.");
+      return;
+    }
+
+    navigate(`/cook/${recipeId}`);
+  };
 
   const recipes = useMemo(() => likedRecipes.map((id) => {
     const dbRecipe = dbRecipes.find((r) => r.id === id);
@@ -67,7 +89,24 @@ export default function LetMeCook() {
                 {recipes.length} saved recipe{recipes.length !== 1 ? "s" : ""} · pick one to start
               </p>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            {(nextMeal || currentPlannedMeal) && (
+              <Button size="sm" onClick={handleStartPlannedMeal}>
+                <Play className="h-3.5 w-3.5 mr-1.5" /> Start Planned Meal
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {recipes.length === 0 ? (
+          <div className="bg-white border border-gray-100 rounded-2xl p-10 text-center shadow-sm">
+            <ChefHat className="h-10 w-10 mx-auto text-gray-300" />
+            <h2 className="text-lg font-semibold text-gray-900 mt-3">No saved recipes yet</h2>
+            <p className="text-sm text-gray-500 mt-1 mb-4">Save a recipe first, then come back here to start cooking.</p>
+            <Button onClick={() => navigate("/swipe")}>Explore recipes</Button>
+          </div>
+        ) : (
+          <>
+            <div className="flex justify-end mb-4">
               <button
                 onClick={() => setView(view === "grid" ? "list" : "grid")}
                 className="w-9 h-9 rounded-xl bg-white border border-stone-200 flex items-center justify-center text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
