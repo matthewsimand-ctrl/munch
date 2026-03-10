@@ -1,413 +1,363 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
-  ShoppingCart,
-  Plus,
-  Check,
-  Trash2,
-  Package,
-  ChevronDown,
-  Sparkles,
-  Loader2,
-  Pencil,
+  ShoppingCart, Plus, X, Check, Share2, Trash2,
+  Search, RefreshCw, ChevronDown,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "@/lib/store";
 import { toast } from "sonner";
-import { getCategory, getAllCategories } from "@/lib/ingredientCategories";
 
-// ── Types & data ──────────────────────────────────────────────────────────────
+const STORE_SECTIONS: Record<string, string> = {
+  produce: "🥦 Produce",
+  dairy: "🧀 Dairy",
+  meat: "🥩 Meat & Fish",
+  "dry goods": "🌾 Dry Goods",
+  condiments: "🫙 Condiments",
+  bakery: "🍞 Bakery",
+  frozen: "🧊 Frozen",
+  other: "📦 Other",
+};
+
 interface GroceryItem {
-  id: number;
+  id: string;
   name: string;
-  category: string;
-  checked: boolean;
-  fromRecipe?: string;
+  section?: string;
+  checked?: boolean;
+  qty?: string;
+  recipeSource?: string;
 }
 
-const CATEGORIES_ORDER = getAllCategories();
-
-export default function GroceryList() {
-  const { customGroceryItems } = useStore();
-
-  // Merge store custom items into local state on first render
-  const [items, setItems] = useState<GroceryItem[]>(() => {
-    const storeItems: GroceryItem[] = customGroceryItems.map((item, i) => ({
-      id: Date.now() + i + 1000,
-      name: item.name,
-      category: getCategory(item.name) || "Other",
-      checked: false,
-    }));
-    return storeItems;
-  });
-
-  const [newName, setNewName] = useState("");
-  const [newCat, setNewCat] = useState("Other");
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
-  const [fillingFromPlan, setFillingFromPlan] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editingName, setEditingName] = useState('');
-
-  const startEdit = (item: GroceryItem) => {
-    setEditingId(item.id);
-    setEditingName(item.name);
-  };
-
-  const saveEdit = () => {
-    if (editingId === null || !editingName.trim()) return;
-    setItems((prev) => prev.map((item) => item.id === editingId ? { ...item, name: editingName.trim(), category: getCategory(editingName.trim()) || item.category } : item));
-    setEditingId(null);
-  };
-
-  const toggle = (id: number) =>
-    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, checked: !i.checked } : i)));
-
-  const remove = (id: number) => setItems((prev) => prev.filter((i) => i.id !== id));
-
-  const clearChecked = () => setItems((prev) => prev.filter((i) => !i.checked));
-
-  const handleNameChange = (value: string) => {
-    setNewName(value);
-    const trimmed = value.trim();
-    if (!trimmed) return;
-    setNewCat(getCategory(trimmed));
-  };
-
-  const handleAdd = () => {
-    const trimmedName = newName.trim();
-    if (!trimmedName) return;
-    const item: GroceryItem = {
-      id: Date.now(),
-      name: trimmedName,
-      category: getCategory(trimmedName) || newCat,
-      checked: false,
-    };
-    setItems((prev) => [...prev, item]);
-    setNewName("");
-    setNewCat("Other");
-  };
-
-  const handleAutoFill = async () => {
-    setFillingFromPlan(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast.error("Please sign in to use this feature");
-        return;
-      }
-
-      // Get the current week's meal plan
-      const today = new Date();
-      const dayOfWeek = today.getDay();
-      const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-      const monday = new Date(today);
-      monday.setDate(today.getDate() + mondayOffset);
-      const weekStart = monday.toISOString().split("T")[0];
-
-      const { data: plans } = await supabase
-        .from("meal_plans")
-        .select("id")
-        .eq("user_id", session.user.id)
-        .eq("week_start", weekStart)
-        .limit(1);
-
-      if (!plans || plans.length === 0) {
-        toast.info("No meal plan found for this week. Create one in Meal Prep first!");
-        return;
-      }
-
-      const { data: planItems } = await supabase
-        .from("meal_plan_items")
-        .select("recipe_data, recipe_id")
-        .eq("meal_plan_id", plans[0].id);
-
-      if (!planItems || planItems.length === 0) {
-        toast.info("Your meal plan has no recipes yet.");
-        return;
-      }
-
-      const existingNames = new Set(items.map(i => i.name.toLowerCase()));
-      let addedCount = 0;
-      const newItems: GroceryItem[] = [];
-
-      for (const item of planItems) {
-        const recipeData = item.recipe_data as any;
-        if (!recipeData) continue;
-
-        const recipeName = recipeData.name || "Meal Plan Recipe";
-        const ingredients: string[] = Array.isArray(recipeData.ingredients)
-          ? recipeData.ingredients
-          : [];
-
-        for (const ing of ingredients) {
-          const ingName = ing.trim().toLowerCase();
-          if (!ingName || existingNames.has(ingName)) continue;
-          existingNames.add(ingName);
-
-          newItems.push({
-            id: Date.now() + addedCount + Math.random() * 10000,
-            name: ing.trim(),
-            category: getCategory(ing) || "Other",
-            checked: false,
-            fromRecipe: recipeName,
-          });
-          addedCount++;
-        }
-      }
-
-      if (addedCount === 0) {
-        toast.info("All meal plan ingredients are already in your list!");
-      } else {
-        setItems(prev => [...prev, ...newItems]);
-        toast.success(`Added ${addedCount} ingredients from your meal plan`);
-      }
-    } catch (e: any) {
-      console.error("Auto-fill error:", e);
-      toast.error("Failed to load meal plan");
-    } finally {
-      setFillingFromPlan(false);
-    }
-  };
-
-  const displayItems = activeCategory
-    ? items.filter((i) => i.category === activeCategory)
-    : items;
-
-  const uncheckedCount = items.filter((i) => !i.checked).length;
-  const checkedCount = items.filter((i) => i.checked).length;
-
-  const groupedItems = CATEGORIES_ORDER.reduce<Record<string, GroceryItem[]>>((acc, cat) => {
-    const catItems = displayItems.filter((i) => i.category === cat);
-    if (catItems.length > 0) acc[cat] = catItems;
-    return acc;
-  }, {});
-
-  // Also group uncategorized items
-  const uncategorized = displayItems.filter(i => !(CATEGORIES_ORDER as readonly string[]).includes(i.category));
-  if (uncategorized.length > 0) {
-    groupedItems["Other"] = [...(groupedItems["Other"] || []), ...uncategorized];
-  }
+function GroceryRow({
+  item,
+  onToggle,
+  onRemove,
+  onEditQty,
+}: {
+  item: GroceryItem;
+  onToggle: () => void;
+  onRemove: () => void;
+  onEditQty: (qty: string) => void;
+}) {
+  const [editingQty, setEditingQty] = useState(false);
+  const [qty, setQty] = useState(item.qty ?? "");
 
   return (
-    <div className="min-h-full bg-gray-50">
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: -4 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, x: 20 }}
+      className={`flex items-center gap-3 px-4 py-3 group transition-colors rounded-xl ${item.checked ? "opacity-50" : "hover:bg-stone-50"}`}
+    >
+      {/* Checkbox */}
+      <button
+        onClick={onToggle}
+        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
+          item.checked
+            ? "border-emerald-500 bg-emerald-500"
+            : "border-stone-300 hover:border-orange-400"
+        }`}
+      >
+        {item.checked && <Check size={10} className="text-white" strokeWidth={3} />}
+      </button>
+
+      {/* Name */}
+      <div className="flex-1 min-w-0">
+        <p
+          className={`text-sm font-medium transition-all ${item.checked ? "line-through text-stone-400" : "text-stone-800"}`}
+        >
+          {item.name}
+        </p>
+        {item.recipeSource && !item.checked && (
+          <p className="text-[10px] text-stone-400 mt-0.5">for {item.recipeSource}</p>
+        )}
+      </div>
+
+      {/* Qty */}
+      {editingQty ? (
+        <input
+          autoFocus
+          value={qty}
+          onChange={(e) => setQty(e.target.value)}
+          onBlur={() => { setEditingQty(false); onEditQty(qty); }}
+          onKeyDown={(e) => { if (e.key === "Enter") { setEditingQty(false); onEditQty(qty); } }}
+          className="w-20 text-xs text-stone-600 border border-orange-300 rounded-lg px-2 py-1 outline-none bg-white"
+          placeholder="qty"
+        />
+      ) : (
+        <button
+          onClick={() => !item.checked && setEditingQty(true)}
+          className="text-xs text-stone-400 hover:text-orange-500 transition-colors min-w-[40px] text-right"
+        >
+          {item.qty || (item.checked ? "" : "qty")}
+        </button>
+      )}
+
+      {/* Remove */}
+      <button
+        onClick={onRemove}
+        className="w-7 h-7 rounded-lg flex items-center justify-center text-stone-200 hover:text-red-400 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+      >
+        <X size={13} />
+      </button>
+    </motion.div>
+  );
+}
+
+export default function GroceryScreen() {
+  const {
+    customGroceryItems,
+    addCustomGroceryItem,
+    removeCustomGroceryItem,
+    toggleGroceryItem,
+    updateGroceryItem,
+    clearCheckedGroceryItems,
+  } = useStore();
+
+  const [newItem, setNewItem] = useState("");
+  const [newQty, setNewQty] = useState("");
+  const [newSection, setNewSection] = useState("other");
+  const [search, setSearch] = useState("");
+  const [showChecked, setShowChecked] = useState(true);
+
+  const items: GroceryItem[] = customGroceryItems ?? [];
+  const filteredItems = useMemo(() => {
+    let list = items;
+    if (search) list = list.filter((i) => i.name.toLowerCase().includes(search.toLowerCase()));
+    return list;
+  }, [items, search]);
+
+  const grouped = useMemo(() => {
+    const result: Record<string, GroceryItem[]> = {};
+    filteredItems.forEach((item) => {
+      const s = item.section ?? "other";
+      if (!result[s]) result[s] = [];
+      result[s].push(item);
+    });
+    return result;
+  }, [filteredItems]);
+
+  const checkedCount = items.filter((i) => i.checked).length;
+  const totalCount = items.length;
+
+  const handleAdd = () => {
+    if (!newItem.trim()) return;
+    addCustomGroceryItem(newItem.trim(), { qty: newQty.trim() || undefined, section: newSection });
+    setNewItem("");
+    setNewQty("");
+  };
+
+  const handleShare = () => {
+    const unchecked = items.filter((i) => !i.checked).map((i) => `• ${i.name}${i.qty ? ` (${i.qty})` : ""}`).join("\n");
+    if (!unchecked) { toast.info("Nothing left to share!"); return; }
+    navigator.clipboard?.writeText(`🛒 Grocery List\n\n${unchecked}`);
+    toast.success("Copied to clipboard!");
+  };
+
+  const handleClearChecked = () => {
+    clearCheckedGroceryItems?.();
+    toast.success("Cleared checked items");
+  };
+
+  return (
+    <div className="min-h-full" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", background: "#FFFAF5" }}>
+
       {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-6 py-5">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-orange-500">Grocery List</h1>
-            <p className="text-sm text-gray-500 mt-0.5">
-              {uncheckedCount} to get · {checkedCount} done
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            {checkedCount > 0 && (
+      <div
+        className="border-b"
+        style={{ background: "linear-gradient(135deg,#FFF7ED 0%,#FFFAF5 100%)", borderColor: "rgba(249,115,22,0.12)" }}
+      >
+        <div className="max-w-3xl mx-auto px-6 py-6">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1">Shopping</p>
+              <h1 className="text-2xl font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+                Grocery List
+              </h1>
+              {totalCount > 0 && (
+                <p className="text-xs text-stone-400 mt-1">
+                  {checkedCount}/{totalCount} items checked off
+                </p>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {checkedCount > 0 && (
+                <button
+                  onClick={handleClearChecked}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-stone-200 text-xs font-semibold text-stone-500 hover:border-red-300 hover:text-red-500 transition-colors"
+                >
+                  <Trash2 size={13} /> Clear done
+                </button>
+              )}
               <button
-                onClick={clearChecked}
-                className="text-sm font-semibold text-gray-500 hover:text-red-500 transition-colors px-3 py-2 rounded-xl hover:bg-red-50"
+                onClick={handleShare}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90 active:scale-95"
+                style={{ background: "linear-gradient(135deg,#FB923C,#F97316,#EA580C)", boxShadow: "0 4px 16px rgba(249,115,22,0.30)" }}
               >
-                Clear done
+                <Share2 size={14} /> Share
               </button>
-            )}
-            <button
-              onClick={handleAutoFill}
-              disabled={fillingFromPlan}
-              className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-sm disabled:opacity-50"
-            >
-              {fillingFromPlan ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-              Auto-fill from Meal Plan
-            </button>
+            </div>
           </div>
+
+          {/* Progress bar */}
+          {totalCount > 0 && (
+            <div>
+              <div className="relative h-2 bg-orange-100 rounded-full overflow-hidden">
+                <motion.div
+                  className="absolute inset-y-0 left-0 rounded-full"
+                  style={{ background: "linear-gradient(90deg,#34D399,#10B981)" }}
+                  animate={{ width: `${(checkedCount / totalCount) * 100}%` }}
+                  transition={{ type: "spring", stiffness: 60 }}
+                />
+              </div>
+              <p className="text-[10px] text-stone-400 mt-1.5 font-medium">
+                {totalCount - checkedCount} item{totalCount - checkedCount !== 1 ? "s" : ""} remaining
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="max-w-3xl mx-auto px-6 py-5 space-y-5">
 
-          {/* LEFT: list (2/3) */}
-          <div className="lg:col-span-2 space-y-4">
-
-            {/* Add item */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-              <div className="flex gap-3">
-                <input
-                  value={newName}
-                  onChange={(e) => handleNameChange(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-                  placeholder="Add an item…"
-                  className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-orange-300 transition-colors"
-                />
-                <div className="relative hidden sm:block">
-                  <select
-                    value={newCat}
-                    onChange={(e) => setNewCat(e.target.value)}
-                    className="appearance-none h-full pl-3 pr-7 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-orange-300 transition-colors text-gray-700"
-                  >
-                    {CATEGORIES_ORDER.map((c) => <option key={c}>{c}</option>)}
-                  </select>
-                  <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                </div>
-                <button
-                  onClick={handleAdd}
-                  className="px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl transition-colors shrink-0"
-                >
-                  <Plus size={18} />
-                </button>
-              </div>
-              <p className="mt-2 text-xs text-gray-500">Category auto-detects as you type and can still be adjusted.</p>
+        {/* Add item form */}
+        <div
+          className="rounded-2xl border p-4"
+          style={{ background: "#fff", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.04)" }}
+        >
+          <p className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-3">Add item</p>
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <ShoppingCart size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-300" />
+              <input
+                value={newItem}
+                onChange={(e) => setNewItem(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+                placeholder="e.g. Chicken breast, Lemons…"
+                className="w-full pl-9 pr-4 py-2.5 rounded-xl border text-sm text-stone-700 placeholder:text-stone-300 outline-none focus:border-orange-300 transition-colors"
+                style={{ borderColor: "rgba(0,0,0,0.09)" }}
+              />
             </div>
-
-            {/* Grouped items */}
-            {Object.entries(groupedItems).map(([category, catItems]) => (
-              <div key={category} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between bg-gray-50">
-                  <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wide">{category}</h3>
-                  <span className="text-xs text-gray-400">{catItems.filter((i) => !i.checked).length} left</span>
-                </div>
-
-                <div className="divide-y divide-gray-100">
-                  {catItems.map((item) => (
-                    <div
-                      key={item.id}
-                      className={`flex items-center gap-3 px-5 py-3.5 transition-colors group ${
-                        item.checked ? "bg-gray-50" : "hover:bg-gray-50"
-                      }`}
-                    >
-                      <button
-                        onClick={() => toggle(item.id)}
-                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
-                          item.checked
-                            ? "bg-green-500 border-green-500"
-                            : "border-gray-300 hover:border-orange-400"
-                        }`}
-                      >
-                        {item.checked && <Check size={11} className="text-white" strokeWidth={3} />}
-                      </button>
-
-                      <div className="flex-1 min-w-0">
-                        {editingId === item.id ? (
-                          <div className="flex">
-                            <input value={editingName} onChange={(e) => setEditingName(e.target.value)} className="flex-1 px-2 py-1 text-sm border border-gray-200 rounded" />
-                          </div>
-                        ) : (
-                          <span className={`text-sm font-medium transition-colors ${item.checked ? "text-gray-400 line-through" : "text-gray-800"}`}>
-                            {item.name}
-                          </span>
-                        )}
-                        {item.fromRecipe && (
-                          <div className="text-xs text-gray-400 mt-0.5">For: {item.fromRecipe}</div>
-                        )}
-                      </div>
-                      {editingId === item.id ? (
-                        <button
-                          onClick={saveEdit}
-                          className="text-green-600 hover:text-green-700 shrink-0"
-                        >
-                          <Check size={14} />
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => startEdit(item)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-300 hover:text-orange-500 shrink-0"
-                        >
-                          <Pencil size={14} />
-                        </button>
-                      )}
-
-                      <button
-                        onClick={() => remove(item.id)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-300 hover:text-red-400 shrink-0"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-
-            {displayItems.length === 0 && (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm py-20 text-center">
-                <ShoppingCart size={32} className="mx-auto text-gray-300 mb-3" />
-                <p className="text-sm text-gray-500">Your grocery list is empty</p>
-                <p className="text-xs text-gray-400 mt-1">Add items manually or auto-fill from your meal plan</p>
-              </div>
-            )}
-          </div>
-
-          {/* RIGHT: sidebar (1/3) */}
-          <div className="space-y-4">
-
-            {/* Progress */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-              <h2 className="text-sm font-bold text-gray-800 mb-3">Shopping progress</h2>
-              <div className="flex items-end gap-2 mb-2">
-                <span className="text-3xl font-bold text-gray-900">{checkedCount}</span>
-                <span className="text-gray-400 text-sm pb-1">/ {items.length} items</span>
-              </div>
-              <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-3">
-                <div
-                  className="h-full bg-green-400 rounded-full transition-all duration-500"
-                  style={{ width: `${items.length > 0 ? (checkedCount / items.length) * 100 : 0}%` }}
-                />
-              </div>
-              {checkedCount === items.length && items.length > 0 ? (
-                <p className="text-xs text-green-600 font-semibold">🎉 All done! Great shopping.</p>
-              ) : (
-                <p className="text-xs text-gray-400">{uncheckedCount} items remaining</p>
-              )}
+            <input
+              value={newQty}
+              onChange={(e) => setNewQty(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+              placeholder="Qty"
+              className="w-20 px-3 py-2.5 rounded-xl border text-sm text-stone-700 placeholder:text-stone-300 outline-none focus:border-orange-300 transition-colors"
+              style={{ borderColor: "rgba(0,0,0,0.09)" }}
+            />
+            <div className="relative">
+              <select
+                value={newSection}
+                onChange={(e) => setNewSection(e.target.value)}
+                className="appearance-none pl-3 pr-8 py-2.5 rounded-xl border text-xs font-medium text-stone-600 outline-none cursor-pointer h-full"
+                style={{ background: "#fff", borderColor: "rgba(0,0,0,0.09)" }}
+              >
+                {Object.entries(STORE_SECTIONS).map(([val, label]) => (
+                  <option key={val} value={val}>{label}</option>
+                ))}
+              </select>
+              <ChevronDown size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
             </div>
-
-            {/* Category filter */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-              <h2 className="text-sm font-bold text-gray-800 mb-3">Filter by aisle</h2>
-              <div className="space-y-1">
-                <button
-                  onClick={() => setActiveCategory(null)}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm transition-colors ${
-                    activeCategory === null ? "bg-orange-50 text-orange-600 font-semibold" : "hover:bg-gray-50 text-gray-700"
-                  }`}
-                >
-                  <span>All categories</span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${activeCategory === null ? "bg-orange-100 text-orange-600" : "bg-gray-100 text-gray-500"}`}>
-                    {items.length}
-                  </span>
-                </button>
-                {CATEGORIES_ORDER.map((cat) => {
-                  const count = items.filter((i) => i.category === cat).length;
-                  if (count === 0) return null;
-                  return (
-                    <button
-                      key={cat}
-                      onClick={() => setActiveCategory(cat === activeCategory ? null : cat)}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm transition-colors ${
-                        activeCategory === cat ? "bg-orange-50 text-orange-600 font-semibold" : "hover:bg-gray-50 text-gray-700"
-                      }`}
-                    >
-                      <span>{cat}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${activeCategory === cat ? "bg-orange-100 text-orange-600" : "bg-gray-100 text-gray-500"}`}>
-                        {count}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Recipes sourced from */}
-            {items.some(i => i.fromRecipe) && (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-                <h2 className="text-sm font-bold text-gray-800 mb-3">From your meal plan</h2>
-                <div className="space-y-2">
-                  {Array.from(new Set(items.map((i) => i.fromRecipe).filter(Boolean))).map((recipe) => (
-                    <div key={recipe} className="flex items-center gap-2.5 text-sm text-gray-600 px-2 py-1.5 rounded-xl bg-gray-50">
-                      <Package size={12} className="text-gray-400 shrink-0" />
-                      <span className="truncate">{recipe}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            <button
+              onClick={handleAdd}
+              disabled={!newItem.trim()}
+              className="px-4 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-40 transition-all hover:opacity-90 active:scale-95"
+              style={{ background: "linear-gradient(135deg,#FB923C,#F97316)", boxShadow: "0 2px 8px rgba(249,115,22,0.25)" }}
+            >
+              <Plus size={16} />
+            </button>
           </div>
         </div>
+
+        {/* Search */}
+        {items.length > 5 && (
+          <div className="relative">
+            <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-300" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Filter list…"
+              className="w-full pl-10 pr-4 py-3 rounded-xl border text-sm text-stone-700 placeholder:text-stone-300 outline-none focus:border-orange-300 transition-colors"
+              style={{ background: "#fff", borderColor: "rgba(0,0,0,0.09)" }}
+            />
+            {search && (
+              <button onClick={() => setSearch("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-300 hover:text-stone-500">
+                <X size={13} />
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Items */}
+        {items.length === 0 ? (
+          <div
+            className="rounded-2xl border p-12 text-center"
+            style={{ background: "#fff", borderColor: "rgba(0,0,0,0.07)" }}
+          >
+            <div className="w-16 h-16 rounded-2xl bg-orange-50 flex items-center justify-center text-3xl mx-auto mb-4">🛒</div>
+            <p className="font-bold text-stone-700" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+              List is empty
+            </p>
+            <p className="text-sm text-stone-400 mt-1">
+              Add items above, or generate a list from your meal plan
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {Object.entries(grouped).map(([section, sectionItems]) => {
+              const unchecked = sectionItems.filter((i) => !i.checked);
+              const checked = sectionItems.filter((i) => i.checked);
+              const toShow = showChecked ? sectionItems : unchecked;
+              if (toShow.length === 0) return null;
+
+              return (
+                <div
+                  key={section}
+                  className="rounded-2xl border overflow-hidden"
+                  style={{ background: "#fff", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 8px rgba(28,25,23,0.04)" }}
+                >
+                  {/* Section header */}
+                  <div
+                    className="px-4 py-2.5 flex items-center justify-between"
+                    style={{ background: "rgba(0,0,0,0.02)", borderBottom: "1px solid rgba(0,0,0,0.05)" }}
+                  >
+                    <p className="text-xs font-bold text-stone-600">
+                      {STORE_SECTIONS[section] ?? `📦 ${section}`}
+                    </p>
+                    <span className="text-[10px] text-stone-400 font-semibold">
+                      {unchecked.length}/{sectionItems.length}
+                    </span>
+                  </div>
+
+                  <div className="py-1">
+                    <AnimatePresence>
+                      {toShow.map((item) => (
+                        <GroceryRow
+                          key={item.id}
+                          item={item}
+                          onToggle={() => toggleGroceryItem?.(item.id)}
+                          onRemove={() => removeCustomGroceryItem?.(item.id)}
+                          onEditQty={(qty) => updateGroceryItem?.(item.id, { qty })}
+                        />
+                      ))}
+                    </AnimatePresence>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Toggle checked */}
+            {checkedCount > 0 && (
+              <button
+                onClick={() => setShowChecked((v) => !v)}
+                className="w-full py-3 text-xs font-semibold text-stone-400 hover:text-stone-600 transition-colors flex items-center justify-center gap-1.5"
+              >
+                {showChecked ? <><X size={11} /> Hide</> : <><Check size={11} /> Show</>} {checkedCount} checked item{checkedCount !== 1 ? "s" : ""}
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
