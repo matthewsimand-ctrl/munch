@@ -30,6 +30,21 @@ interface GroceryItem {
   recipeSource?: string;
 }
 
+const toText = (value: unknown): string | undefined => {
+  if (typeof value === "string") return value;
+  if (typeof value === "number") return String(value);
+  return undefined;
+};
+
+const toLegacyDetails = (value: unknown): { qty?: string; section?: string } => {
+  if (!value || typeof value !== "object") return {};
+  const details = value as { qty?: unknown; section?: unknown; category?: unknown };
+  return {
+    qty: toText(details.qty),
+    section: toText(details.section ?? details.category),
+  };
+};
+
 function GroceryRow({
   item,
   onToggle,
@@ -123,12 +138,17 @@ export default function GroceryScreen() {
   const [search, setSearch] = useState("");
   const [showChecked, setShowChecked] = useState(true);
 
-  const items: GroceryItem[] = (customGroceryItems ?? []).map((item, idx) => ({
-    ...item,
-    id: item.id ?? `${item.name}-${idx}`,
-    section: item.section ?? item.category,
-    qty: item.qty ?? item.quantity,
-  }));
+  const items: GroceryItem[] = (customGroceryItems ?? []).map((item, idx) => {
+    const legacy = toLegacyDetails(item.quantity);
+    const section = toText(item.section ?? item.category) ?? legacy.section ?? "other";
+
+    return {
+      ...item,
+      id: item.id ?? `${item.name}-${idx}`,
+      section,
+      qty: toText(item.qty) ?? toText(item.quantity) ?? legacy.qty,
+    };
+  });
   const filteredItems = useMemo(() => {
     let list = items;
     if (search) list = list.filter((i) => i.name.toLowerCase().includes(search.toLowerCase()));
@@ -138,7 +158,7 @@ export default function GroceryScreen() {
   const grouped = useMemo(() => {
     const result: Record<string, GroceryItem[]> = {};
     filteredItems.forEach((item) => {
-      const s = item.section ?? item.category ?? "other";
+      const s = toText(item.section ?? item.category) ?? "other";
       if (!result[s]) result[s] = [];
       result[s].push(item);
     });
