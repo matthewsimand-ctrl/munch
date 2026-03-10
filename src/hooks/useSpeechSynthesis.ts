@@ -61,6 +61,7 @@ export function useSpeechSynthesis() {
   const synthRef = useRef(window.speechSynthesis);
   const voiceRef = useRef<SpeechSynthesisVoice | null>(null);
   const voiceLockedRef = useRef(false);
+  const speakRetryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const getFallbackVoice = useCallback((): SpeechSynthesisVoice | null => {
     const voices = window.speechSynthesis.getVoices();
@@ -81,6 +82,16 @@ export function useSpeechSynthesis() {
   }, []);
 
   const speak = useCallback((text: string) => {
+    if (!('speechSynthesis' in window) || !text.trim()) {
+      setIsSpeaking(false);
+      return;
+    }
+
+    if (speakRetryTimeoutRef.current) {
+      clearTimeout(speakRetryTimeoutRef.current);
+      speakRetryTimeoutRef.current = null;
+    }
+
     synthRef.current.cancel();
     synthRef.current.resume();
 
@@ -94,39 +105,62 @@ export function useSpeechSynthesis() {
     const createUtterance = (voice?: SpeechSynthesisVoice | null) => {
       const utter = new SpeechSynthesisUtterance(text);
       if (voice) utter.voice = voice;
+      utter.lang = voice?.lang ?? 'en-US';
       utter.rate = 0.95;
       utter.pitch = 1.0;
       utter.volume = 1;
       return utter;
     };
 
-    const primary = createUtterance(voiceRef.current);
-    primary.onend = () => setIsSpeaking(false);
-    primary.onerror = () => {
-      const fallbackVoice = getFallbackVoice();
-      if (!fallbackVoice || fallbackVoice.name === primary.voice?.name) {
-        setIsSpeaking(false);
+    const speakWithRetry = (attempt = 0) => {
+      // iOS/Safari can expose empty voices initially and fail silently.
+      if (!voiceRef.current) voiceRef.current = getBestVoice();
+      if (!voiceRef.current && attempt < 5) {
+        speakRetryTimeoutRef.current = setTimeout(() => speakWithRetry(attempt + 1), 200);
         return;
       }
 
-      voiceRef.current = fallbackVoice;
-      const fallback = createUtterance(fallbackVoice);
-      fallback.onend = () => setIsSpeaking(false);
-      fallback.onerror = () => setIsSpeaking(false);
-      synthRef.current.speak(fallback);
+      const primary = createUtterance(voiceRef.current);
+      primary.onstart = () => setIsSpeaking(true);
+      primary.onend = () => setIsSpeaking(false);
+      primary.onerror = () => {
+        const fallbackVoice = getFallbackVoice();
+        if (!fallbackVoice || fallbackVoice.name === primary.voice?.name) {
+          setIsSpeaking(false);
+          return;
+        }
+
+        voiceRef.current = fallbackVoice;
+        const fallback = createUtterance(fallbackVoice);
+        fallback.onstart = () => setIsSpeaking(true);
+        fallback.onend = () => setIsSpeaking(false);
+        fallback.onerror = () => setIsSpeaking(false);
+        synthRef.current.speak(fallback);
+      };
+
+      // Small defer improves reliability in Safari/webviews after cancel().
+      setTimeout(() => {
+        synthRef.current.speak(primary);
+      }, 0);
     };
 
-    setIsSpeaking(true);
-    // Small defer improves reliability in Safari/webviews after cancel().
-    setTimeout(() => {
-      synthRef.current.speak(primary);
-    }, 0);
+    speakWithRetry();
   }, [getFallbackVoice]);
 
   const stop = useCallback(() => {
+    if (speakRetryTimeoutRef.current) {
+      clearTimeout(speakRetryTimeoutRef.current);
+      speakRetryTimeoutRef.current = null;
+    }
     synthRef.current.cancel();
     synthRef.current.resume();
     setIsSpeaking(false);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (speakRetryTimeoutRef.current) clearTimeout(speakRetryTimeoutRef.current);
+    };
   }, []);
 
   return { isSpeaking, speak, stop };
