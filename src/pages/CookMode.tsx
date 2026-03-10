@@ -527,8 +527,6 @@ export default function CookMode() {
             >
               {isLastStep ? (
                 <><Check size={16} /> I'm done!</>
-              ) : stepIndex === 0 ? (
-                <><ChefHat size={15} /> Start cooking</>
               ) : (
                 <>Next step <ArrowRight size={15} /></>
               )}
