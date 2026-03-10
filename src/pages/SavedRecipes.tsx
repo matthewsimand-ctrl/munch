@@ -251,12 +251,6 @@ export default function MyRecipesScreen() {
               >
                 Cookbooks
               </button>
-              <button
-                onClick={() => setView(view === "grid" ? "list" : "grid")}
-                className="w-9 h-9 rounded-xl bg-white border border-stone-200 flex items-center justify-center text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
-              >
-                {view === "grid" ? <List size={16} /> : <Grid3X3 size={16} />}
-              </button>
               <ImportRecipeDialog>
                 <button className="px-3 py-2 rounded-xl bg-white border border-stone-200 text-xs font-semibold text-stone-600 hover:border-orange-300">
                   Import
@@ -273,6 +267,13 @@ export default function MyRecipesScreen() {
                 className={`px-3 py-2 rounded-xl text-xs font-semibold ${activeTab === "explore" ? "bg-orange-500 text-white" : "bg-white border border-stone-200 text-stone-600"}`}
               >
                 Find Recipes
+              </button>
+              <button
+                onClick={() => setView(view === "grid" ? "list" : "grid")}
+                className="w-9 h-9 rounded-xl bg-white border border-stone-200 flex items-center justify-center text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors ml-1"
+                aria-label="Toggle saved recipe layout"
+              >
+                {view === "grid" ? <List size={16} /> : <Grid3X3 size={16} />}
               </button>
             </div>
           </div>

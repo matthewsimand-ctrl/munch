@@ -189,7 +189,7 @@ export default function RecipePreviewDialog({
           <div className="px-4 pb-4 pt-2 border-t grid grid-cols-2 gap-2">
             {mode === 'default' ? (
               <button onClick={() => setTweakOpen(true)} className="col-span-2 px-3 py-2 rounded-lg border text-sm font-medium inline-flex items-center justify-center gap-1.5">
-                <Sparkles className="h-4 w-4" /> AI Tools
+                <Sparkles className="h-4 w-4" /> Remix Recipe
               </button>
             ) : (
               <button onClick={() => onSave?.(recipe)} className="col-span-2 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold inline-flex items-center justify-center gap-1.5">
