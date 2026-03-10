@@ -189,6 +189,12 @@ export default function Browse() {
     return "bg-orange-500";
   };
 
+  const formatIngredientDisplay = (ingredientLine: string, quantity?: string) => {
+    const parsed = parseIngredientLine(ingredientLine);
+    const resolvedQuantity = quantity ?? parsed.quantity;
+    return resolvedQuantity ? `${resolvedQuantity} ${parsed.name}` : parsed.name;
+  };
+
   return (
     <div className="min-h-full bg-gray-50">
       {/* Header */}
@@ -366,14 +372,7 @@ export default function Browse() {
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
                   <div className="relative h-full flex flex-col justify-between p-6 text-white">
-                    <div className="flex items-start justify-between">
-                      <div className="flex flex-wrap gap-1.5">
-                        {currentRecipe.tags.slice(0, 2).map((t) => (
-                          <span key={t} className="text-xs bg-white/20 backdrop-blur-sm px-2.5 py-0.5 rounded-full font-medium">
-                            {t}
-                          </span>
-                        ))}
-                      </div>
+                    <div className="flex items-start justify-end">
                       <div className="flex items-center gap-1 bg-white/20 backdrop-blur-sm px-2.5 py-0.5 rounded-full text-xs font-semibold">
                         <Star size={11} className="fill-white" /> {currentRecipe.difficulty}
                       </div>
@@ -393,10 +392,9 @@ export default function Browse() {
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {currentRecipe.ingredients.slice(0, 3).map((line) => {
                           const parsed = parseIngredientLine(line);
-                          const label = parsed.quantity ? `${parsed.name} · ${parsed.quantity}` : parsed.name;
                           return (
                             <span key={`${currentRecipe.id}-${line}`} className="text-[11px] bg-white/20 backdrop-blur-sm px-2.5 py-1 rounded-full font-medium">
-                              {label}
+                              {formatIngredientDisplay(line, parsed.quantity)}
                             </span>
                           );
                         })}
@@ -480,15 +478,6 @@ export default function Browse() {
                   {selectedRecipe.cuisine && <span className="flex items-center gap-1.5">🌍 {selectedRecipe.cuisine}</span>}
                 </div>
 
-                {/* Tags */}
-                <div className="flex flex-wrap gap-2">
-                  {selectedRecipe.tags.map((t) => (
-                    <span key={t} className="text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full font-medium">
-                      {t}
-                    </span>
-                  ))}
-                </div>
-
                 <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3">
                   <p className="text-sm text-gray-600">Servings: <span className="font-semibold text-gray-900">{scaledServings}</span></p>
                   <div className="inline-flex items-center gap-1">
@@ -525,9 +514,8 @@ export default function Browse() {
                       const isMatched = selectedMatch.matched.includes(ingredientLine);
                       return (
                         <li key={ingredientLine} className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
-                          <span className="font-medium text-gray-900">{parsed.name}</span>
+                          <span className="font-medium text-gray-900">{formatIngredientDisplay(ingredientLine, scaledQty)}</span>
                           <div className="flex items-center gap-2">
-                            {scaledQty && <span className="text-gray-500">{scaledQty}</span>}
                             {isMatched ? (
                               <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700"><Check size={12} /> In pantry</span>
                             ) : (

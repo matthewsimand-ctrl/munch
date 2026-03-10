@@ -67,6 +67,12 @@ export default function SavedRecipes() {
   const [servingMultiplier, setServingMultiplier] = useState(1);
   const [groceryAddedRecipeIds, setGroceryAddedRecipeIds] = useState<string[]>([]);
 
+  const formatIngredientDisplay = (ingredientLine: string, quantity?: string) => {
+    const parsed = parseIngredientLine(ingredientLine);
+    const resolvedQuantity = quantity ?? parsed.quantity;
+    return resolvedQuantity ? `${resolvedQuantity} ${parsed.name}` : parsed.name;
+  };
+
   // Resolve all saved recipes from DB + saved API cache
   const allSavedRecipes: Recipe[] = useMemo(() => {
     return likedRecipes
@@ -521,7 +527,6 @@ export default function SavedRecipes() {
             {visibleRecipes.map((recipe) => {
               const match = calculateMatch(pantryNames, recipe.ingredients || []);
               const userTags = recipeTags[recipe.id] || [];
-              const allRecipeTags = [...(recipe.tags || []), ...userTags];
               const folderNames = getFolderNames(recipe.id);
 
               return (
@@ -595,9 +600,9 @@ export default function SavedRecipes() {
                     {/* Ingredient preview */}
                     {recipe.ingredients.length > 0 && (
                       <div className="flex flex-wrap gap-1 mb-2">
-                        {recipe.ingredients.slice(0, 3).map((ing) => (
-                          <span key={ing} className="text-[10px] px-1.5 py-0.5 rounded-full bg-success/10 text-success font-medium truncate max-w-[100px]">
-                            {ing}
+                        {recipe.ingredients.slice(0, 3).map((ingredientLine) => (
+                          <span key={ingredientLine} className="text-[10px] px-1.5 py-0.5 rounded-full bg-success/10 text-success font-medium truncate max-w-[140px]">
+                            {formatIngredientDisplay(ingredientLine)}
                           </span>
                         ))}
                         {recipe.ingredients.length > 3 && (
@@ -681,32 +686,12 @@ export default function SavedRecipes() {
                       </div>
                     )}
 
-                    {/* Tags with remove X */}
-                    <div className="flex flex-wrap gap-1 mb-2">
-                      {allRecipeTags.slice(0, 3).map((t) => {
-                        const isUserTag = userTags.includes(t);
-                        return (
-                          <span key={t} className="inline-flex items-center gap-0.5 text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
-                            {t}
-                            {isUserTag && (
-                              <button
-                                onClick={(e) => { e.stopPropagation(); removeRecipeTag(recipe.id, t); }}
-                                className="ml-0.5 hover:text-red-500 transition-colors"
-                              >
-                                <X size={10} />
-                              </button>
-                            )}
-                          </span>
-                        );
-                      })}
-                      {allRecipeTags.length > 3 && (
-                        <span className="text-xs text-muted-foreground">+{allRecipeTags.length - 3}</span>
-                      )}
+                    <div className="mb-2">
                       <button
                         onClick={() => setEditingTagsFor(editingTagsFor === recipe.id ? null : recipe.id)}
-                        className="text-xs text-orange-500 hover:text-orange-600 flex items-center gap-0.5"
+                        className="inline-flex items-center gap-1 text-[10px] text-orange-500 hover:text-orange-600"
                       >
-                        <Tag size={10} />
+                        <Tag size={10} /> Manage tags
                       </button>
                     </div>
 
@@ -860,13 +845,6 @@ export default function SavedRecipes() {
                     {selectedRecipe.servings && <Badge variant="secondary" className="gap-1"><Users size={12} /> Serves {selectedRecipe.servings}</Badge>}
                   </div>
 
-                  {/* Tags */}
-                  <div className="flex flex-wrap gap-1.5">
-                    {(selectedRecipe.tags || []).map((t) => (
-                      <Badge key={t} variant="outline" className="text-xs">{t}</Badge>
-                    ))}
-                  </div>
-
                   <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 p-3">
                     <p className="text-sm text-muted-foreground">Servings: <span className="font-semibold text-foreground">{scaledServings}</span></p>
                     <div className="inline-flex items-center gap-1">
@@ -976,7 +954,7 @@ export default function SavedRecipes() {
                               const scaledQty = parsed.quantity ? scaleIngredientQuantity(parsed.quantity, servingMultiplier) : "";
                               return (
                                 <span key={ing} className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full bg-green-100 text-green-700 font-medium">
-                                  <Check size={14} /> {parsed.name}{scaledQty ? ` (${scaledQty})` : ""}
+                                  <Check size={14} /> {formatIngredientDisplay(ing, scaledQty)}
                                 </span>
                               );
                             })}
@@ -985,7 +963,7 @@ export default function SavedRecipes() {
                               const scaledQty = parsed.quantity ? scaleIngredientQuantity(parsed.quantity, servingMultiplier) : "";
                               return (
                                 <span key={ing} className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full bg-red-50 text-red-600 font-medium">
-                                  <ShoppingCart size={14} /> {parsed.name}{scaledQty ? ` (${scaledQty})` : ""}
+                                  <ShoppingCart size={14} /> {formatIngredientDisplay(ing, scaledQty)}
                                 </span>
                               );
                             })}
