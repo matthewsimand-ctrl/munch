@@ -206,6 +206,11 @@ export default function MyRecipesScreen() {
   }, [exploreLoaded, loadFeed]);
 
 
+  const likedRecipeOrder = useMemo(
+    () => new Map(likedRecipes.map((id, index) => [id, index])),
+    [likedRecipes],
+  );
+
   const filtered = useMemo(() => {
     let list = savedRecipes;
     if (activeFolder) {
@@ -219,11 +224,14 @@ export default function MyRecipesScreen() {
     }
     if (selectedChef) list = list.filter((r) => (r.chef || "").toLowerCase() === selectedChef.toLowerCase());
     if (activeCuisine !== "All") list = list.filter((r) => r.cuisine?.toLowerCase() === activeCuisine.toLowerCase());
+    if (sortBy === "Recently Saved") {
+      list = [...list].sort((a, b) => (likedRecipeOrder.get(b.id) ?? -1) - (likedRecipeOrder.get(a.id) ?? -1));
+    }
     if (sortBy === "Cook Time") list = [...list].sort((a, b) => parseInt(a.cook_time || "0") - parseInt(b.cook_time || "0"));
     if (sortBy === "Name A–Z") list = [...list].sort((a, b) => a.name.localeCompare(b.name));
     if (sortBy === "Rating") list = [...list].sort((a, b) => (recipeRatings?.[b.id] ?? 0) - (recipeRatings?.[a.id] ?? 0));
     return list;
-  }, [savedRecipes, activeFolder, recipeFolders, search, selectedChef, activeCuisine, sortBy, recipeRatings]);
+  }, [savedRecipes, activeFolder, recipeFolders, search, selectedChef, activeCuisine, sortBy, recipeRatings, likedRecipeOrder]);
 
 
 
