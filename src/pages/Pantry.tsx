@@ -15,6 +15,7 @@ const CATEGORY_ICONS: Record<string, string> = {
 };
 
 interface PantryItem {
+  key: string;
   id: string;
   name: string;
   category?: string;
@@ -92,7 +93,11 @@ export default function PantryScreen() {
   const [newQty, setNewQty] = useState("");
 
   const filtered = useMemo(() => {
-    let list: PantryItem[] = (pantryList ?? []).map((item, idx) => ({ ...item, id: item.id ?? `${item.name}-${idx}` }));
+    let list: PantryItem[] = (pantryList ?? []).map((item, idx) => ({
+      ...item,
+      key: `${item.id ?? item.name}-${idx}`,
+      id: item.id ?? item.name,
+    }));
     if (search) list = list.filter((i) => i.name.toLowerCase().includes(search.toLowerCase()));
     if (activeCategory !== "All") list = list.filter((i) => (i.category ?? "Other") === activeCategory);
     return list;
@@ -292,7 +297,7 @@ export default function PantryScreen() {
               <AnimatePresence>
                 {filtered.map((item) => (
                   <PantryItemRow
-                    key={item.id}
+                    key={item.key}
                     item={item}
                     onRemove={() => handleRemove(item.id, item.name)}
                     onEdit={(field, value) => updatePantryItem?.(item.id, { [field]: value })}
