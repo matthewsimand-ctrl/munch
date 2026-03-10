@@ -252,10 +252,10 @@ export default function MyRecipesScreen() {
                 Cookbooks
               </button>
               <button
-                onClick={() => navigate("/swipe")}
-                className={`px-3 py-2 rounded-xl text-xs font-semibold ${activeTab === "explore" ? "bg-orange-500 text-white" : "bg-white border border-stone-200 text-stone-600"}`}
+                onClick={() => setView(view === "grid" ? "list" : "grid")}
+                className="w-9 h-9 rounded-xl bg-white border border-stone-200 flex items-center justify-center text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
               >
-                Find Recipes
+                {view === "grid" ? <List size={16} /> : <Grid3X3 size={16} />}
               </button>
               <ImportRecipeDialog>
                 <button className="px-3 py-2 rounded-xl bg-white border border-stone-200 text-xs font-semibold text-stone-600 hover:border-orange-300">
@@ -269,10 +269,10 @@ export default function MyRecipesScreen() {
                 Add Manual
               </button>
               <button
-                onClick={() => setView(view === "grid" ? "list" : "grid")}
-                className="w-9 h-9 rounded-xl bg-white border border-stone-200 flex items-center justify-center text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
+                onClick={() => navigate("/swipe")}
+                className={`px-3 py-2 rounded-xl text-xs font-semibold ${activeTab === "explore" ? "bg-orange-500 text-white" : "bg-white border border-stone-200 text-stone-600"}`}
               >
-                {view === "grid" ? <List size={16} /> : <Grid3X3 size={16} />}
+                Find Recipes
               </button>
             </div>
           </div>

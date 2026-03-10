@@ -1,6 +1,6 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Play, ChefHat, Clock, Users } from "lucide-react";
+import { Play, ChefHat, Clock, Users, Grid3X3, List } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { useDbRecipes } from "@/hooks/useDbRecipes";
 import { useCurrentMealPlan } from "@/hooks/useCurrentMealPlan";
@@ -11,6 +11,7 @@ import { normalizeRecipe } from "@/lib/normalizeRecipe";
 export default function LetMeCook() {
   const navigate = useNavigate();
   const { likedRecipes, savedApiRecipes } = useStore();
+  const [view, setView] = useState<"grid" | "list">("grid");
   const { data: dbRecipes = [] } = useDbRecipes();
   const { meal: currentPlannedMeal, nextMeal, loading: currentMealLoading } = useCurrentMealPlan();
 
@@ -59,10 +60,23 @@ export default function LetMeCook() {
             <Button onClick={() => navigate("/swipe")}>Explore recipes</Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <>
+            <div className="flex justify-end mb-4">
+              <button
+                onClick={() => setView(view === "grid" ? "list" : "grid")}
+                className="w-9 h-9 rounded-xl bg-white border border-stone-200 flex items-center justify-center text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
+                aria-label={`Switch to ${view === "grid" ? "list" : "grid"} view`}
+              >
+                {view === "grid" ? <List size={16} /> : <Grid3X3 size={16} />}
+              </button>
+            </div>
+            <div className={view === "grid" ? "grid grid-cols-1 md:grid-cols-2 gap-4" : "space-y-3"}>
             {recipes.map((recipe) => (
-              <div key={recipe.id} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm flex gap-4">
-                <img src={recipe.image} alt={recipe.name} className="w-24 h-24 rounded-xl object-cover bg-gray-100" />
+              <div
+                key={recipe.id}
+                className={`bg-white border border-gray-100 rounded-2xl p-4 shadow-sm flex gap-4 ${view === "list" ? "items-center" : ""}`}
+              >
+                <img src={recipe.image} alt={recipe.name} className={`${view === "grid" ? "w-24 h-24" : "w-16 h-16"} rounded-xl object-cover bg-gray-100`} />
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-gray-900 truncate">{recipe.name}</h3>
                   <div className="flex flex-wrap gap-3 text-xs text-gray-500 mt-2">
@@ -75,7 +89,8 @@ export default function LetMeCook() {
                 </div>
               </div>
             ))}
-          </div>
+            </div>
+          </>
         )}
       </div>
     </div>
