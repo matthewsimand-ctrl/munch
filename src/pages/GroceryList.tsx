@@ -182,7 +182,7 @@ export default function GroceryList() {
   }, {});
 
   // Also group uncategorized items
-  const uncategorized = displayItems.filter(i => !CATEGORIES_ORDER.includes(i.category));
+  const uncategorized = displayItems.filter(i => !(CATEGORIES_ORDER as readonly string[]).includes(i.category));
   if (uncategorized.length > 0) {
     groupedItems["Other"] = [...(groupedItems["Other"] || []), ...uncategorized];
   }
