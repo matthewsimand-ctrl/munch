@@ -20,14 +20,9 @@ import { motion } from "framer-motion";
 import { getLevel } from "@/components/ChefCompanion";
 import type { Recipe } from "@/data/recipes";
 import { useCurrentMealPlan } from "@/hooks/useCurrentMealPlan";
+import { getMealPlanWeekStart } from "@/lib/mealPlanUtils";
 
-const MEAL_PLAN = [
-  { day: "Mon", meal: "Pasta Carbonara", done: true },
-  { day: "Tue", meal: "Thai Green Curry", done: true },
-  { day: "Wed", meal: "Lemon Herb Salmon", done: false },
-  { day: "Thu", meal: "—", done: false },
-  { day: "Fri", meal: "BBQ Chicken Bowl", done: false },
-];
+const WEEK_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 interface StatDef {
   label: string;
@@ -165,6 +160,7 @@ export default function Dashboard() {
     addCustomGroceryItem, customGroceryItems, recipeFolders,
     cookingStreak, totalMealsCooked, cookedRecipeIds, totalXp,
     earnedBadges, earnBadge, lastCookedDate, chefAvatarUrl, setChefAvatarUrl,
+    mealPlan,
   } = useStore();
 
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
@@ -257,6 +253,25 @@ export default function Dashboard() {
   }, [BADGES, earnedBadges, earnBadge]);
 
   const levelInfo = getLevel(totalXp);
+  const thisWeekMealRows = useMemo(() => {
+    const weekStart = getMealPlanWeekStart();
+    return WEEK_DAYS.map((day) => {
+      const dayMeals = (mealPlan || []).filter((item) => (item.weekStart ?? weekStart) === weekStart && item.day === day);
+      if (dayMeals.length === 0) return { day, meal: "—", recipeId: null, done: false };
+
+      const sortedDayMeals = [...dayMeals].sort((a, b) => {
+        const mealOrder = { Breakfast: 0, Lunch: 1, Snack: 2, Dinner: 3 } as Record<string, number>;
+        return (mealOrder[a.mealType] ?? 99) - (mealOrder[b.mealType] ?? 99);
+      });
+      const primary = sortedDayMeals[0];
+      return {
+        day,
+        meal: primary.recipeName,
+        recipeId: primary.recipeId,
+        done: cookedRecipeIds.includes(primary.recipeId),
+      };
+    });
+  }, [mealPlan, cookedRecipeIds]);
   const likedSet = useMemo(() => new Set(likedRecipes), [likedRecipes]);
   const pantryNames = useMemo(() => pantryList.map((p) => p.name), [pantryList]);
   const availableSuggestions = useMemo(
@@ -477,7 +492,7 @@ export default function Dashboard() {
                     </button>
                   )}
                 </div>
-                {MEAL_PLAN.map(({ day, meal, done }, index) => (
+                {thisWeekMealRows.map(({ day, meal, done, recipeId }, index) => (
                   <div
                     key={day}
                     className="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-colors"
@@ -493,10 +508,10 @@ export default function Dashboard() {
                       </span>
                     ) : (
                       <button
-                        onClick={() => navigate("/meal-prep", { state: { selectedDay: index, openAddDialog: true, mealType: "dinner" } })}
+                        onClick={() => recipeId ? navigate(`/cook/${recipeId}`) : navigate("/meal-prep", { state: { selectedDay: index, openAddDialog: true, mealType: "dinner" } })}
                         className="text-xs text-stone-400 hover:text-orange-500 font-semibold flex items-center gap-1 px-2 py-1 rounded-full hover:bg-orange-50 transition-colors"
                       >
-                        <Plus size={11} /> Add
+                        {recipeId ? <Play size={11} /> : <Plus size={11} />} {recipeId ? "Cook" : "Add"}
                       </button>
                     )}
                   </div>
