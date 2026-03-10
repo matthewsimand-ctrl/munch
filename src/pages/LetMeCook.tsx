@@ -90,28 +90,27 @@ export default function LetMeCook() {
                 {recipes.length} saved recipe{recipes.length !== 1 ? "s" : ""} · pick one to start
               </p>
             </div>
-            {(nextMeal || currentPlannedMeal) && (
-              <Button size="sm" onClick={handleStartPlannedMeal}>
-                <Play className="h-3.5 w-3.5 mr-1.5" /> Start Planned Meal
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {recipes.length > 0 && (
+                <button
+                  onClick={() => setView(view === "grid" ? "list" : "grid")}
+                  className="w-9 h-9 rounded-xl bg-white border border-stone-200 flex items-center justify-center text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
+                  aria-label={`Switch to ${view === "grid" ? "list" : "grid"} view`}
+                >
+                  {view === "grid" ? <List size={16} /> : <Grid3X3 size={16} />}
+                </button>
+              )}
+              {(nextMeal || currentPlannedMeal) && (
+                <Button size="sm" onClick={handleStartPlannedMeal}>
+                  <Play className="h-3.5 w-3.5 mr-1.5" /> Start Planned Meal
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
       <div className="max-w-5xl mx-auto px-6 py-6 space-y-5">
-        {recipes.length > 0 && (
-          <div className="flex justify-end">
-            <button
-              onClick={() => setView(view === "grid" ? "list" : "grid")}
-              className="w-9 h-9 rounded-xl bg-white border border-stone-200 flex items-center justify-center text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
-              aria-label={`Switch to ${view === "grid" ? "list" : "grid"} view`}
-            >
-              {view === "grid" ? <List size={16} /> : <Grid3X3 size={16} />}
-            </button>
-          </div>
-        )}
-
         {/* Up next from meal prep */}
         {!currentMealLoading && featuredMeal && (
           <motion.div
