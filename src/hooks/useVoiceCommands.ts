@@ -4,7 +4,7 @@ interface VoiceCommandHandlers {
   onNext: () => void;
   onPrevious: () => void;
   onRepeat: () => void;
-  onStartTimer?: () => void;
+  onStartTimer?: (seconds?: number) => void;
   onPauseTimer?: () => void;
   onStopTimer?: () => void;
 }
@@ -48,7 +48,7 @@ export function useVoiceCommands({ onNext, onPrevious, onRepeat, onStartTimer, o
     if (recognitionRef.current) {
       const r = recognitionRef.current;
       recognitionRef.current = null;
-      try { r.stop(); } catch {}
+      try { r.stop(); } catch { }
     }
 
     if (!suppressState) {
@@ -102,8 +102,36 @@ export function useVoiceCommands({ onNext, onPrevious, onRepeat, onStartTimer, o
         handlersRef.current.onRepeat();
       } else if (transcript.includes('start timer') || transcript.includes('begin timer') || transcript.includes('set timer')) {
         if (handlersRef.current.onStartTimer) {
-          showCommand('Timer started ⏱️', 'success');
-          handlersRef.current.onStartTimer();
+          let durationSeconds = 0;
+          const matchMinutes = transcript.match(/(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|twenty|thirty|forty|fifty|sixty)\s+minute/i);
+          const matchSeconds = transcript.match(/(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|twenty|thirty|forty|fifty|sixty)\s+second/i);
+
+          const wordToNumber: Record<string, number> = {
+            one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+            eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, twenty: 20, thirty: 30,
+            forty: 40, fifty: 50, sixty: 60
+          };
+
+          const parseAmount = (match: RegExpMatchArray | null): number => {
+            if (!match) return 0;
+            const val = match[1].toLowerCase();
+            return parseInt(val, 10) || wordToNumber[val] || 0;
+          };
+
+          const mins = parseAmount(matchMinutes);
+          const secs = parseAmount(matchSeconds);
+
+          if (mins > 0 || secs > 0) {
+            durationSeconds = mins * 60 + secs;
+          }
+
+          if (durationSeconds > 0) {
+            showCommand(`Timer started for ${mins > 0 ? mins + 'm ' : ''}${secs > 0 ? secs + 's ' : ''}⏱️`.trim(), 'success');
+            handlersRef.current.onStartTimer(durationSeconds);
+          } else {
+            showCommand('Timer started ⏱️', 'success');
+            handlersRef.current.onStartTimer(); // Start default timer
+          }
         } else {
           showCommand('No timer on this step', 'error');
         }
@@ -155,7 +183,7 @@ export function useVoiceCommands({ onNext, onPrevious, onRepeat, onStartTimer, o
           setTimeout(() => {
             if (recognitionRef.current && !isUnmountedRef.current) recognition.start();
           }, 300);
-        } catch {}
+        } catch { }
       } else {
         safeSetState(() => {
           setIsListening(false);

@@ -37,11 +37,10 @@ const Chip = ({
 }) => (
   <button
     onClick={onClick}
-    className={`px-4 py-2.5 rounded-full text-sm font-medium transition-all duration-200 border ${
-      selected
-        ? 'bg-primary text-primary-foreground border-primary shadow-md scale-105'
-        : 'bg-card text-foreground border-border hover:border-primary/50 hover:shadow-sm'
-    }`}
+    className={`px-4 py-2.5 rounded-full text-sm font-medium transition-all duration-200 border ${selected
+      ? 'bg-primary text-primary-foreground border-primary shadow-md scale-105'
+      : 'bg-card text-foreground border-border hover:border-primary/50 hover:shadow-sm'
+      }`}
   >
     {label}
   </button>
@@ -55,7 +54,7 @@ const slideVariants = {
 
 export default function Onboarding() {
   const navigate = useNavigate();
-  const { userProfile, setUserProfile, completeOnboarding } = useStore();
+  const { userProfile, setUserProfile, completeOnboarding, setDisplayName: setStoreDisplayName } = useStore();
   const [step, setStep] = useState(0);
   const [direction, setDirection] = useState(1);
   const [displayName, setDisplayName] = useState('');
@@ -124,6 +123,7 @@ export default function Onboarding() {
           } as any)
           .eq('user_id', session.user.id);
       }
+      setStoreDisplayName(displayName.trim());
       completeOnboarding();
       navigate('/dashboard');
     }
@@ -194,11 +194,10 @@ export default function Onboarding() {
                           key={option.value}
                           type="button"
                           onClick={() => setDefaultServings(option.value)}
-                          className={`p-4 rounded-xl text-left transition-all border group ${
-                            isSelected
-                              ? 'bg-primary text-primary-foreground border-primary shadow-md scale-[1.02]'
-                              : 'bg-card text-foreground border-border hover:border-primary/50 hover:shadow-sm'
-                          }`}
+                          className={`p-4 rounded-xl text-left transition-all border group ${isSelected
+                            ? 'bg-primary text-primary-foreground border-primary shadow-md scale-[1.02]'
+                            : 'bg-card text-foreground border-border hover:border-primary/50 hover:shadow-sm'
+                            }`}
                         >
                           <span className="text-2xl mb-2 block">{option.emoji}</span>
                           <span className="font-semibold text-base block">{option.label}</span>
@@ -246,11 +245,10 @@ export default function Onboarding() {
                       <button
                         key={opt}
                         onClick={() => setUserProfile({ skillLevel: opt })}
-                        className={`p-4 rounded-lg text-left font-medium transition-all border ${
-                          userProfile.skillLevel === opt
-                            ? 'bg-primary text-primary-foreground border-primary shadow-md'
-                            : 'bg-card text-foreground border-border hover:border-primary/50'
-                        }`}
+                        className={`p-4 rounded-lg text-left font-medium transition-all border ${userProfile.skillLevel === opt
+                          ? 'bg-primary text-primary-foreground border-primary shadow-md'
+                          : 'bg-card text-foreground border-border hover:border-primary/50'
+                          }`}
                       >
                         {opt}
                         <span className="block text-sm font-normal opacity-70 mt-0.5">

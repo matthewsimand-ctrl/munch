@@ -5,12 +5,12 @@ import { supabase } from '@/integrations/supabase/client';
 
 const Index = () => {
   const navigate = useNavigate();
-  const { onboardingComplete } = useStore();
+  const { onboardingComplete, isGuest } = useStore();
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
+      if (!session && !isGuest) {
         navigate('/auth', { replace: true });
       } else if (!onboardingComplete) {
         navigate('/onboarding', { replace: true });
@@ -19,7 +19,7 @@ const Index = () => {
       }
       setChecked(true);
     });
-  }, [onboardingComplete, navigate]);
+  }, [onboardingComplete, isGuest, navigate]);
 
   return null;
 };

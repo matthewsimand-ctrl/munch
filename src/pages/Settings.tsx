@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Switch } from '@/components/ui/switch';
 import { getPremiumOverride, setPremiumOverride } from '@/lib/premium';
 import RecipeScraperTester from '@/components/RecipeScraperTester';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const DIETARY_OPTIONS = ['Vegetarian', 'Vegan', 'Gluten-Free', 'Dairy-Free', 'Nut-Free', 'None'];
 const SKILL_OPTIONS = ['Beginner', 'Intermediate', 'Advanced'];
@@ -35,11 +36,10 @@ function mapServingPreference(value: unknown): string {
 const Chip = ({ label, selected, onClick }: { label: string; selected: boolean; onClick: () => void }) => (
   <button
     onClick={onClick}
-    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
-      selected
-        ? 'bg-primary text-primary-foreground border-primary'
-        : 'bg-card text-foreground border-border hover:border-primary/50'
-    }`}
+    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${selected
+      ? 'bg-primary text-primary-foreground border-primary'
+      : 'bg-card text-foreground border-border hover:border-primary/50'
+      }`}
   >
     {label}
   </button>
@@ -55,6 +55,7 @@ export default function Settings() {
   const [loading, setLoading] = useState(false);
   const [premiumOverrideEnabled, setPremiumOverrideEnabled] = useState(getPremiumOverride());
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -127,19 +128,19 @@ export default function Settings() {
 
   const handleSave = async () => {
     let userId = user?.id;
-    
+
     // Re-fetch session if user state is stale
     if (!userId) {
       const { data: { session } } = await supabase.auth.getSession();
       userId = session?.user?.id;
       if (session?.user) setUser(session.user);
     }
-    
+
     if (!userId) {
       toast({ title: 'Not signed in', variant: 'destructive' });
       return;
     }
-    
+
     setLoading(true);
     const { error } = await supabase
       .from('profiles')
@@ -159,10 +160,8 @@ export default function Settings() {
   };
 
   const handleLogout = async () => {
-    const confirmed = window.confirm('Are you sure you want to sign out?');
-    if (!confirmed) return;
-
     await supabase.auth.signOut();
+    resetStore();
     navigate('/auth', { replace: true });
   };
 
@@ -367,7 +366,7 @@ export default function Settings() {
 
           {/* Danger Zone */}
           <section className="space-y-3">
-            <Button variant="outline" className="w-full" onClick={handleLogout}>
+            <Button variant="outline" className="w-full" onClick={() => setShowSignOutConfirm(true)}>
               <LogOut className="h-4 w-4 mr-2" /> Sign Out
             </Button>
             <Button
@@ -398,6 +397,35 @@ export default function Settings() {
           </section>
         </div>
       </div>
+
+      <Dialog open={showSignOutConfirm} onOpenChange={setShowSignOutConfirm}>
+        <DialogContent className="max-w-xs p-6 rounded-2xl">
+          <div className="flex flex-col items-center text-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 mb-2">
+              <LogOut size={24} />
+            </div>
+            <DialogTitle className="text-xl font-bold font-display">Sign Out</DialogTitle>
+            <p className="text-sm text-stone-500 pb-2">
+              Are you sure you want to sign out of your account?
+            </p>
+            <div className="flex w-full gap-3 mt-4">
+              <Button
+                variant="outline"
+                className="flex-1 rounded-xl"
+                onClick={() => setShowSignOutConfirm(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 rounded-xl bg-orange-500 hover:bg-orange-600 text-white"
+                onClick={handleLogout}
+              >
+                Sign Out
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

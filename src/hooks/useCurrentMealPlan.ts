@@ -111,7 +111,6 @@ export function useCurrentMealPlan() {
       const currentKey = dayOfWeek * 10 + slotIndex(mealType);
       const next =
         sortedItems.find((item) => item.day_of_week * 10 + slotIndex(item.meal_type) > currentKey) ||
-        sortedItems[0] ||
         null;
       setNextMeal(next);
       setLoading(false);

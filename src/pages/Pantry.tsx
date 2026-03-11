@@ -1,19 +1,27 @@
 import { useState, useMemo } from "react";
 import {
-  Search, X, Trash2, Camera, Upload,
-  CheckCircle2, ChevronDown,
+  ArrowLeft, Search, CheckCircle2, Circle,
+  Trash2, Plus, Camera, Upload, Lock, ChevronDown, X
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "@/lib/store";
 import { toast } from "sonner";
 import { detectCategories } from "@/lib/categorizeItem";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { getPremiumOverride } from "@/lib/premium";
 
-const CATEGORIES = ["All", "Produce", "Dairy", "Meat", "Dry Goods", "Pasta / Noodles", "Condiments", "Other"];
+const CATEGORIES = ["All", "Produce", "Dairy", "Meat & Fish", "Dry Goods", "Pasta / Noodles", "Condiments", "Bakery", "Frozen", "Other"];
 const CATEGORY_ICONS: Record<string, string> = {
-  Produce: "🥦", Dairy: "🧀", Meat: "🥩", "Dry Goods": "🌾",
-  "Pasta / Noodles": "🍝", Condiments: "🫙", Other: "📦", All: "🛒",
+  Produce: "🥦", Dairy: "🧀", "Meat & Fish": "🥩", "Dry Goods": "🌾",
+  "Pasta / Noodles": "🍝", Condiments: "🫙", Bakery: "🍞", Frozen: "🧊", Other: "📦", All: "🛒",
 };
+
+function normalizeCategory(cat?: string) {
+  if (cat === "Meat") return "Meat & Fish";
+  if (!cat) return "Other";
+  if (!CATEGORIES.includes(cat) && cat !== "All") return "Other";
+  return cat;
+}
 
 interface PantryItem {
   key: string;
@@ -36,7 +44,7 @@ function PantryItemRow({
   const [editing, setEditing] = useState(false);
   const [qty, setQty] = useState(item.quantity ?? "");
 
-  const cat = item.category ?? "Other";
+  const cat = normalizeCategory(item.category);
   const catIcon = CATEGORY_ICONS[cat] ?? "📦";
 
   return (
@@ -93,6 +101,7 @@ export default function PantryScreen() {
   const [newCategory, setNewCategory] = useState("Other");
   const [newQty, setNewQty] = useState("");
   const [scanDialogOpen, setScanDialogOpen] = useState(false);
+  const isPremium = getPremiumOverride();
 
   const filtered = useMemo(() => {
     let list: PantryItem[] = (pantryList ?? []).map((item, idx) => ({
@@ -101,14 +110,14 @@ export default function PantryScreen() {
       id: item.id ?? item.name,
     }));
     if (search) list = list.filter((i) => i.name.toLowerCase().includes(search.toLowerCase()));
-    if (activeCategory !== "All") list = list.filter((i) => (i.category ?? "Other") === activeCategory);
+    if (activeCategory !== "All") list = list.filter((i) => normalizeCategory(i.category) === activeCategory);
     return list;
   }, [pantryList, search, activeCategory]);
 
   const groupedCounts = useMemo(() => {
     const counts: Record<string, number> = { All: pantryList?.length ?? 0 };
-    (pantryList ?? []).forEach((i: PantryItem) => {
-      const c = i.category ?? "Other";
+    (pantryList ?? []).forEach((i) => {
+      const c = normalizeCategory(i.category);
       counts[c] = (counts[c] || 0) + 1;
     });
     return counts;
@@ -118,7 +127,8 @@ export default function PantryScreen() {
     const itemName = newItem.trim();
     if (!itemName) return;
     const detected = detectCategories(itemName);
-    const category = newCategory === "Other" ? detected.pantryCategory : newCategory;
+    let category = newCategory === "Other" ? detected.pantryCategory : newCategory;
+    category = normalizeCategory(category);
     addPantryItem({ name: itemName, category, quantity: newQty.trim() || undefined });
     toast.success(`Added ${itemName} to pantry`);
     setNewItem("");
@@ -155,9 +165,16 @@ export default function PantryScreen() {
             <div className="flex items-center gap-2">
               <button
                 title="Scan fridge"
-                onClick={() => setScanDialogOpen(true)}
+                onClick={() => {
+                  if (!isPremium) {
+                    toast.info("Scan Fridge is a Premium feature. Coming soon!");
+                    return;
+                  }
+                  setScanDialogOpen(true);
+                }}
                 className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-stone-200 text-sm font-semibold text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
               >
+                {!isPremium && <Lock size={12} className="text-stone-400" />}
                 <Camera size={14} /> Scan Fridge
               </button>
             </div>
@@ -222,49 +239,49 @@ export default function PantryScreen() {
           className="rounded-2xl border p-5"
           style={{ background: "#fff", borderColor: "rgba(249,115,22,0.20)", boxShadow: "0 4px 20px rgba(249,115,22,0.08)" }}
         >
-              <p className="text-sm font-bold text-stone-800 mb-3">Add pantry item</p>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <input
-                  autoFocus
-                  value={newItem}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setNewItem(value);
-                    if (value.trim()) setNewCategory(detectCategories(value).pantryCategory);
-                  }}
-                  onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-                  placeholder="e.g. Olive oil, Garlic, Pasta…"
-                  className="flex-1 px-4 py-2.5 rounded-xl border text-sm text-stone-700 placeholder:text-stone-300 outline-none focus:border-orange-300 transition-colors"
-                  style={{ borderColor: "rgba(0,0,0,0.09)" }}
-                />
-                <input
-                  value={newQty}
-                  onChange={(e) => setNewQty(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-                  placeholder="Quantity (optional)"
-                  className="w-40 px-4 py-2.5 rounded-xl border text-sm text-stone-700 placeholder:text-stone-300 outline-none focus:border-orange-300 transition-colors"
-                  style={{ borderColor: "rgba(0,0,0,0.09)" }}
-                />
-                <div className="relative">
-                  <select
-                    value={newCategory}
-                    onChange={(e) => setNewCategory(e.target.value)}
-                    className="appearance-none pl-3 pr-8 py-2.5 rounded-xl border text-sm font-medium text-stone-600 outline-none cursor-pointer"
-                    style={{ background: "#fff", borderColor: "rgba(0,0,0,0.09)" }}
-                  >
-                    {CATEGORIES.filter((c) => c !== "All").map((c) => <option key={c}>{c}</option>)}
-                  </select>
-                  <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
-                </div>
-                <button
-                  onClick={handleAdd}
-                  disabled={!newItem.trim()}
-                  className="w-10 h-10 rounded-xl text-lg font-bold text-white disabled:opacity-40 transition-all hover:opacity-90 active:scale-95"
-                  style={{ background: "linear-gradient(135deg,#FB923C,#F97316)", boxShadow: "0 2px 8px rgba(249,115,22,0.25)" }}
-                >
-                  +
-                </button>
-              </div>
+          <p className="text-sm font-bold text-stone-800 mb-3">Add pantry item</p>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <input
+              autoFocus
+              value={newItem}
+              onChange={(e) => {
+                const value = e.target.value;
+                setNewItem(value);
+                if (value.trim()) setNewCategory(detectCategories(value).pantryCategory);
+              }}
+              onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+              placeholder="e.g. Olive oil, Garlic, Pasta…"
+              className="flex-1 px-4 py-2.5 rounded-xl border text-sm text-stone-700 placeholder:text-stone-300 outline-none focus:border-orange-300 transition-colors"
+              style={{ borderColor: "rgba(0,0,0,0.09)" }}
+            />
+            <input
+              value={newQty}
+              onChange={(e) => setNewQty(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+              placeholder="Quantity (optional)"
+              className="w-40 px-4 py-2.5 rounded-xl border text-sm text-stone-700 placeholder:text-stone-300 outline-none focus:border-orange-300 transition-colors"
+              style={{ borderColor: "rgba(0,0,0,0.09)" }}
+            />
+            <div className="relative">
+              <select
+                value={newCategory}
+                onChange={(e) => setNewCategory(e.target.value)}
+                className="appearance-none pl-3 pr-8 py-2.5 rounded-xl border text-sm font-medium text-stone-600 outline-none cursor-pointer"
+                style={{ background: "#fff", borderColor: "rgba(0,0,0,0.09)" }}
+              >
+                {CATEGORIES.filter((c) => c !== "All").map((c) => <option key={c}>{c}</option>)}
+              </select>
+              <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
+            </div>
+            <button
+              onClick={handleAdd}
+              disabled={!newItem.trim()}
+              className="w-10 h-10 rounded-xl text-lg font-bold text-white disabled:opacity-40 transition-all hover:opacity-90 active:scale-95"
+              style={{ background: "linear-gradient(135deg,#FB923C,#F97316)", boxShadow: "0 2px 8px rgba(249,115,22,0.25)" }}
+            >
+              +
+            </button>
+          </div>
         </motion.div>
 
         {/* Search */}
@@ -333,7 +350,7 @@ export default function PantryScreen() {
               )}
             </div>
           ) : (
-            <div className="divide-y" style={{ divideColor: "rgba(0,0,0,0.04)" }}>
+            <div className="divide-y divide-black/5">
               <AnimatePresence>
                 {filtered.map((item) => (
                   <PantryItemRow

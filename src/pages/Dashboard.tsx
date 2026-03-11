@@ -30,7 +30,7 @@ const MEAL_PREP_TYPES = new Set(["Breakfast", "Lunch", "Dinner"]);
 interface StatDef {
   label: string;
   value: string;
-  icon: React.FC<{ size?: number; className?: string }>;
+  icon: React.ElementType;
   palette: { bg: string; icon: string; text: string; bar: string };
 }
 
@@ -68,7 +68,7 @@ function SectionHeader({
   title,
   action,
 }: {
-  icon: React.FC<{ size?: number; className?: string }>;
+  icon: React.ElementType;
   title: string;
   action?: React.ReactNode;
 }) {
@@ -120,9 +120,8 @@ function RecipeSuggestionCard({
         </button>
         <button
           onClick={(e) => { e.stopPropagation(); if (!isSaved) onSave(); }}
-          className={`absolute top-2 right-2 w-7 h-7 rounded-full backdrop-blur-sm flex items-center justify-center transition-all ${
-            isSaved ? "bg-green-500 text-white" : "bg-black/25 text-white opacity-0 group-hover:opacity-100 hover:bg-orange-500"
-          }`}
+          className={`absolute top-2 right-2 w-7 h-7 rounded-full backdrop-blur-sm flex items-center justify-center transition-all ${isSaved ? "bg-green-500 text-white" : "bg-black/25 text-white opacity-0 group-hover:opacity-100 hover:bg-orange-500"
+            }`}
         >
           {isSaved ? <Check size={12} /> : <Plus size={12} />}
         </button>
@@ -163,7 +162,7 @@ export default function Dashboard() {
     addCustomGroceryItem, customGroceryItems, recipeFolders,
     cookingStreak, totalMealsCooked, cookedRecipeIds, totalXp,
     earnedBadges, earnBadge, lastCookedDate, chefAvatarUrl, setChefAvatarUrl,
-    mealPlan,
+    mealPlan, displayName: storeDisplayName
   } = useStore();
 
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
@@ -238,14 +237,14 @@ export default function Dashboard() {
   };
 
   const BADGES = useMemo(() => [
-    { id: "first_cook",  label: "First Cook",   emoji: "👨‍🍳", desc: "Cook your first recipe", current: totalMealsCooked, target: 1, unlocked: totalMealsCooked >= 1 },
-    { id: "streak_3",   label: "3-Day Streak",  emoji: "🔥", desc: "Cook on 3 consecutive days", current: cookingStreak, target: 3, unlocked: cookingStreak >= 3 },
-    { id: "streak_7",   label: "Week Warrior",  emoji: "⚡", desc: "Maintain a 7-day streak", current: cookingStreak, target: 7, unlocked: cookingStreak >= 7 },
-    { id: "5_recipes",  label: "5 Recipes",     emoji: "📖", desc: "Cook 5 different recipes", current: cookedRecipeIds.length, target: 5, unlocked: cookedRecipeIds.length >= 5 },
-    { id: "10_meals",   label: "Meal Master",   emoji: "🏆", desc: "Cook 10 total meals", current: totalMealsCooked, target: 10, unlocked: totalMealsCooked >= 10 },
-    { id: "level_5",    label: "Level 5",       emoji: "⭐", desc: "Reach chef level 5", current: getLevel(totalXp).level, target: 5, unlocked: getLevel(totalXp).level >= 5 },
-    { id: "saver_10",   label: "Collector",     emoji: "💎", desc: "Save 10 recipes", current: likedRecipes.length, target: 10, unlocked: likedRecipes.length >= 10 },
-    { id: "level_10",   label: "Chef Pro",      emoji: "👑", desc: "Reach chef level 10", current: getLevel(totalXp).level, target: 10, unlocked: getLevel(totalXp).level >= 10 },
+    { id: "first_cook", label: "First Cook", emoji: "👨‍🍳", desc: "Cook your first recipe", current: totalMealsCooked, target: 1, unlocked: totalMealsCooked >= 1 },
+    { id: "streak_3", label: "3-Day Streak", emoji: "🔥", desc: "Cook on 3 consecutive days", current: cookingStreak, target: 3, unlocked: cookingStreak >= 3 },
+    { id: "streak_7", label: "Week Warrior", emoji: "⚡", desc: "Maintain a 7-day streak", current: cookingStreak, target: 7, unlocked: cookingStreak >= 7 },
+    { id: "5_recipes", label: "5 Recipes", emoji: "📖", desc: "Cook 5 different recipes", current: cookedRecipeIds.length, target: 5, unlocked: cookedRecipeIds.length >= 5 },
+    { id: "10_meals", label: "Meal Master", emoji: "🏆", desc: "Cook 10 total meals", current: totalMealsCooked, target: 10, unlocked: totalMealsCooked >= 10 },
+    { id: "level_5", label: "Level 5", emoji: "⭐", desc: "Reach chef level 5", current: getLevel(totalXp).level, target: 5, unlocked: getLevel(totalXp).level >= 5 },
+    { id: "saver_10", label: "Collector", emoji: "💎", desc: "Save 10 recipes", current: likedRecipes.length, target: 10, unlocked: likedRecipes.length >= 10 },
+    { id: "level_10", label: "Chef Pro", emoji: "👑", desc: "Reach chef level 10", current: getLevel(totalXp).level, target: 10, unlocked: getLevel(totalXp).level >= 10 },
   ], [totalMealsCooked, cookingStreak, cookedRecipeIds.length, totalXp, likedRecipes.length]);
 
   useEffect(() => {
@@ -302,14 +301,22 @@ export default function Dashboard() {
   }, [likedRecipes, savedApiRecipes, lastCookedDate, totalMealsCooked, customGroceryItems.length, recipeFolders.length]);
 
   const stats: StatDef[] = useMemo(() => [
-    { label: "Cooking Streak", value: `${cookingStreak}🔥`, icon: Flame,
-      palette: { bg: "linear-gradient(135deg,#FFF1E6 0%,#FFE4CC 100%)", icon: "text-orange-500", text: "#7C2D12", bar: "#F97316" } },
-    { label: "Meals Cooked", value: String(totalMealsCooked), icon: ChefHat,
-      palette: { bg: "linear-gradient(135deg,#ECFDF5 0%,#D1FAE5 100%)", icon: "text-emerald-500", text: "#064E3B", bar: "#10B981" } },
-    { label: "Recipes Saved", value: String(likedRecipes.length), icon: Heart,
-      palette: { bg: "linear-gradient(135deg,#FFF1F2 0%,#FFE4E6 100%)", icon: "text-rose-500", text: "#881337", bar: "#F43F5E" } },
-    { label: "Recipes Cooked", value: String(cookedRecipeIds.length), icon: Trophy,
-      palette: { bg: "linear-gradient(135deg,#FFFBEB 0%,#FEF3C7 100%)", icon: "text-amber-500", text: "#78350F", bar: "#F59E0B" } },
+    {
+      label: "Cooking Streak", value: `${cookingStreak}🔥`, icon: Flame,
+      palette: { bg: "linear-gradient(135deg,#FFF1E6 0%,#FFE4CC 100%)", icon: "text-orange-500", text: "#7C2D12", bar: "#F97316" }
+    },
+    {
+      label: "Meals Cooked", value: String(totalMealsCooked), icon: ChefHat,
+      palette: { bg: "linear-gradient(135deg,#ECFDF5 0%,#D1FAE5 100%)", icon: "text-emerald-500", text: "#064E3B", bar: "#10B981" }
+    },
+    {
+      label: "Recipes Saved", value: String(likedRecipes.length), icon: Heart,
+      palette: { bg: "linear-gradient(135deg,#FFF1F2 0%,#FFE4E6 100%)", icon: "text-rose-500", text: "#881337", bar: "#F43F5E" }
+    },
+    {
+      label: "Recipes Cooked", value: String(cookedRecipeIds.length), icon: Trophy,
+      palette: { bg: "linear-gradient(135deg,#FFFBEB 0%,#FEF3C7 100%)", icon: "text-amber-500", text: "#78350F", bar: "#F59E0B" }
+    },
   ], [likedRecipes.length, cookingStreak, totalMealsCooked, cookedRecipeIds.length]);
 
   useEffect(() => { loadFeed(); }, [loadFeed]);
@@ -377,10 +384,10 @@ export default function Dashboard() {
   };
 
   const QUICK_ACTIONS = [
-    { label: "Find Recipe",   to: "/swipe",     emoji: "🔍", color: "from-orange-50 to-amber-50" },
-    { label: "Add to Pantry", to: "/pantry",    emoji: "📦", color: "from-emerald-50 to-teal-50" },
-    { label: "Grocery List",  to: "/grocery",   emoji: "🛒", color: "from-sky-50 to-blue-50" },
-    { label: "Plan Meals",    to: "/meal-prep", emoji: "📅", color: "from-violet-50 to-purple-50" },
+    { label: "Find Recipe", to: "/swipe", emoji: "🔍", color: "from-orange-50 to-amber-50" },
+    { label: "Add to Pantry", to: "/pantry", emoji: "📦", color: "from-emerald-50 to-teal-50" },
+    { label: "Grocery List", to: "/grocery", emoji: "🛒", color: "from-sky-50 to-blue-50" },
+    { label: "Plan Meals", to: "/meal-prep", emoji: "📅", color: "from-violet-50 to-purple-50" },
   ];
 
   return (
@@ -400,7 +407,7 @@ export default function Dashboard() {
               {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
             </p>
             <h1 className="text-2xl sm:text-3xl font-bold text-stone-900 leading-tight" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
-              {greeting}{displayName ? `, ${displayName}` : ""} 👋
+              {greeting}, <span className="text-orange-500">Chef {displayName || ""}</span> 👋
             </h1>
             <p className="text-sm text-stone-500 mt-1">Here's what's cooking this week</p>
           </div>
@@ -659,9 +666,8 @@ export default function Dashboard() {
                     <button
                       type="button"
                       title={`${b.label}: ${b.desc}`}
-                      className={`w-full flex flex-col items-center gap-1 p-2.5 rounded-xl border transition-all cursor-help ${
-                        b.unlocked ? "border-amber-100 bg-gradient-to-br from-amber-50 to-orange-50" : "border-stone-100 bg-stone-50 opacity-40 grayscale"
-                      }`}
+                      className={`w-full flex flex-col items-center gap-1 p-2.5 rounded-xl border transition-all cursor-help ${b.unlocked ? "border-amber-100 bg-gradient-to-br from-amber-50 to-orange-50" : "border-stone-100 bg-stone-50 opacity-40 grayscale"
+                        }`}
                     >
                       <span className="text-xl leading-none">{b.emoji}</span>
                       <span className="text-[9px] font-semibold text-stone-600 text-center leading-tight">{b.label}</span>

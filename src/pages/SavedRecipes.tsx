@@ -16,6 +16,8 @@ import CreateRecipeForm from "@/components/CreateRecipeForm";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import type { Recipe } from "@/data/recipes";
+import { ChefProfileModal } from "@/components/ChefProfileModal";
+import { normalizeRecipe } from "@/lib/normalizeRecipe";
 
 const SORT_OPTIONS = ["Recently Saved", "Cook Time", "Rating", "Name A–Z"];
 const CUISINE_TAGS = ["All", "Italian", "Asian", "Mexican", "Mediterranean", "American", "Indian"];
@@ -38,14 +40,14 @@ function RecipeCard({
   onCook: () => void;
   onUnsave: () => void;
   cookCount?: number;
-  onChefClick: (chef: string) => void;
+  onChefClick: (chefId: string | null, chefName: string | null) => void;
   matchPercentage: number;
 }) {
   const diff = recipe.difficulty ?? "medium";
   const diffColor =
     diff === "easy" ? "text-emerald-600 bg-emerald-50" :
-    diff === "medium" ? "text-amber-600 bg-amber-50" :
-    "text-red-600 bg-red-50";
+      diff === "medium" ? "text-amber-600 bg-amber-50" :
+        "text-red-600 bg-red-50";
 
   if (view === "list") {
     return (
@@ -78,7 +80,7 @@ function RecipeCard({
             {typeof cookCount === "number" && cookCount > 0 && <span>{cookCount}x cooked</span>}
             {recipe.chef && (
               <button
-                onClick={(e) => { e.stopPropagation(); onChefClick(recipe.chef!); }}
+                onClick={(e) => { e.stopPropagation(); onChefClick(recipe.created_by ?? null, recipe.chef!); }}
                 className="text-orange-600 hover:text-orange-700 underline underline-offset-2"
               >
                 {recipe.chef}
@@ -149,7 +151,7 @@ function RecipeCard({
           <>
             <span className="w-1 h-1 rounded-full bg-stone-300" />
             <button
-              onClick={(e) => { e.stopPropagation(); onChefClick(recipe.chef!); }}
+              onClick={(e) => { e.stopPropagation(); onChefClick(recipe.created_by ?? null, recipe.chef!); }}
               className="text-orange-600 hover:text-orange-700 underline underline-offset-2"
             >
               {recipe.chef}
@@ -184,11 +186,13 @@ export default function MyRecipesScreen() {
   const [sortBy, setSortBy] = useState(SORT_OPTIONS[0]);
   const [activeCuisine, setActiveCuisine] = useState("All");
   const [activeFolder, setActiveFolder] = useState<string | null>(null);
-  const [selectedChef, setSelectedChef] = useState<string | null>(null);
+  const [selectedChefId, setSelectedChefId] = useState<string | null>(null);
+  const [selectedChefName, setSelectedChefName] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [previewRecipe, setPreviewRecipe] = useState<Recipe | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [showManualRecipeDialog, setShowManualRecipeDialog] = useState(false);
+  const [recipeToDelete, setRecipeToDelete] = useState<Recipe | null>(null);
 
   useEffect(() => {
     const loadName = async () => {
@@ -228,7 +232,6 @@ export default function MyRecipesScreen() {
       const term = search.toLowerCase();
       list = list.filter((r) => r.name.toLowerCase().includes(term) || (r.chef || "").toLowerCase().includes(term));
     }
-    if (selectedChef) list = list.filter((r) => (r.chef || "").toLowerCase() === selectedChef.toLowerCase());
     if (activeCuisine !== "All") list = list.filter((r) => r.cuisine?.toLowerCase() === activeCuisine.toLowerCase());
     if (sortBy === "Recently Saved") {
       list = [...list].sort((a, b) => (likedRecipeOrder.get(b.id) ?? -1) - (likedRecipeOrder.get(a.id) ?? -1));
@@ -237,13 +240,14 @@ export default function MyRecipesScreen() {
     if (sortBy === "Name A–Z") list = [...list].sort((a, b) => a.name.localeCompare(b.name));
     if (sortBy === "Rating") list = [...list].sort((a, b) => (recipeRatings?.[b.id] ?? 0) - (recipeRatings?.[a.id] ?? 0));
     return list;
-  }, [savedRecipes, activeFolder, recipeFolders, search, selectedChef, activeCuisine, sortBy, recipeRatings, likedRecipeOrder]);
+  }, [savedRecipes, activeFolder, recipeFolders, search, activeCuisine, sortBy, recipeRatings, likedRecipeOrder]);
 
 
 
   const handleUnsave = (id: string) => {
     unlikeRecipe(id);
     toast.success("Removed from cookbook");
+    setRecipeToDelete(null);
   };
 
   const openPreview = (recipe: Recipe) => {
@@ -319,9 +323,8 @@ export default function MyRecipesScreen() {
           <div className="flex items-center gap-2 pb-4 overflow-x-auto scrollbar-hide">
             <button
               onClick={() => setActiveFolder(null)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
-                !activeFolder ? "bg-stone-900 text-white" : "bg-white border border-stone-200 text-stone-600 hover:border-stone-300"
-              }`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${!activeFolder ? "bg-stone-900 text-white" : "bg-white border border-stone-200 text-stone-600 hover:border-stone-300"
+                }`}
             >
               <BookOpen size={11} /> All Recipes
             </button>
@@ -329,9 +332,8 @@ export default function MyRecipesScreen() {
               <button
                 key={folder.id}
                 onClick={() => setActiveFolder(folder.id === activeFolder ? null : folder.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all group ${
-                  activeFolder === folder.id ? "bg-stone-900 text-white" : "bg-white border border-stone-200 text-stone-600 hover:border-stone-300"
-                }`}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all group ${activeFolder === folder.id ? "bg-stone-900 text-white" : "bg-white border border-stone-200 text-stone-600 hover:border-stone-300"
+                  }`}
               >
                 <Folder size={11} /> {folder.name}
                 <span
@@ -380,17 +382,6 @@ export default function MyRecipesScreen() {
             <Filter size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
           </div>
         </div>
-
-        {selectedChef && (
-          <div className="mb-3">
-            <button
-              onClick={() => setSelectedChef(null)}
-              className="px-3 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-700"
-            >
-              Chef: {selectedChef} ✕
-            </button>
-          </div>
-        )}
 
         {/* Cuisine filter */}
         <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
@@ -446,9 +437,12 @@ export default function MyRecipesScreen() {
                   rating={recipeRatings?.[recipe.id]}
                   nutrition={cachedNutrition?.[recipe.id]}
                   cookCount={recipeCookCounts?.[recipe.id]}
-                  onChefClick={(chef) => setSelectedChef(chef)}
+                  onChefClick={(chefId, chefName) => {
+                    setSelectedChefId(chefId);
+                    setSelectedChefName(chefName);
+                  }}
                   onCook={() => openPreview(recipe)}
-                  onUnsave={() => handleUnsave(recipe.id)}
+                  onUnsave={() => setRecipeToDelete(recipe)}
                 />
               ))}
             </div>
@@ -475,6 +469,46 @@ export default function MyRecipesScreen() {
           <CreateRecipeForm onClose={() => setShowManualRecipeDialog(false)} />
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!recipeToDelete} onOpenChange={(open) => !open && setRecipeToDelete(null)}>
+        <DialogContent className="max-w-xs p-6 rounded-2xl">
+          <div className="flex flex-col items-center text-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center text-red-500 mb-2">
+              <Trash2 size={24} />
+            </div>
+            <DialogTitle className="text-xl font-bold font-display">Delete Recipe?</DialogTitle>
+            <p className="text-sm text-stone-500 pb-2">
+              Are you sure you want to remove <span className="font-semibold text-stone-800">{recipeToDelete?.name}</span> from your cookbook?
+            </p>
+            <div className="flex w-full gap-3 mt-4">
+              <button
+                className="flex-1 rounded-xl px-4 py-2 border border-stone-200 text-stone-600 font-semibold text-sm hover:bg-stone-50 transition-colors"
+                onClick={() => setRecipeToDelete(null)}
+              >
+                Cancel
+              </button>
+              <button
+                className="flex-1 rounded-xl px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-semibold text-sm transition-colors"
+                onClick={() => recipeToDelete && handleUnsave(recipeToDelete.id)}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <ChefProfileModal
+        chefId={selectedChefId}
+        chefName={selectedChefName}
+        open={!!selectedChefId}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedChefId(null);
+            setSelectedChefName(null);
+          }
+        }}
+      />
     </div>
   );
 }

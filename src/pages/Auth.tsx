@@ -2,14 +2,16 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { lovable } from '@/integrations/lovable/index';
+import { useStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { UtensilsCrossed, Mail } from 'lucide-react';
+import { UtensilsCrossed, Mail, Ghost } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Auth() {
   const navigate = useNavigate();
+  const { resetStore } = useStore();
   const { toast } = useToast();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
@@ -26,6 +28,29 @@ export default function Auth() {
     });
     return () => subscription.unsubscribe();
   }, [navigate]);
+
+  const handleGuestLogin = async () => {
+    setLoading(true);
+    try {
+      // Clear store to ensure a fresh experience
+      resetStore();
+
+      // Set local guest mode bypass
+      const { setIsGuest } = useStore.getState();
+      setIsGuest(true);
+
+      console.log("Guest mode activated locally");
+      toast({ title: "Guest Mode", description: "Taking you to onboarding..." });
+
+      // Force navigation to onboarding
+      navigate('/onboarding');
+    } catch (err: any) {
+      console.error("Guest login error:", err);
+      toast({ title: 'Guest Login Failed', description: err.message, variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,6 +133,11 @@ export default function Auth() {
             <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
           </svg>
           Continue with Google
+        </Button>
+
+        <Button variant="outline" className="w-full h-12 mt-3" onClick={handleGuestLogin} disabled={loading}>
+          <Ghost className="h-4 w-4 mr-2" />
+          Continue as Guest
         </Button>
 
         <div className="relative">

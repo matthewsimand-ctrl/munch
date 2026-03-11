@@ -11,6 +11,7 @@ import MatchBadge from "@/components/MatchBadge";
 import { toast } from "sonner";
 import type { Recipe } from "@/data/recipes";
 import RecipePreviewDialog from "@/components/RecipePreviewDialog";
+import { ChefProfileModal } from "@/components/ChefProfileModal";
 import { Input } from "@/components/ui/input";
 
 /* ── Filter pill ───────────────────────────────────────────── */
@@ -30,15 +31,15 @@ function FilterPill({
       style={
         active
           ? {
-              background: "linear-gradient(135deg,#FB923C,#F97316)",
-              color: "#fff",
-              boxShadow: "0 2px 8px rgba(249,115,22,0.30)",
-            }
+            background: "linear-gradient(135deg,#FB923C,#F97316)",
+            color: "#fff",
+            boxShadow: "0 2px 8px rgba(249,115,22,0.30)",
+          }
           : {
-              background: "#fff",
-              color: "#57534E",
-              border: "1px solid rgba(0,0,0,0.08)",
-            }
+            background: "#fff",
+            color: "#57534E",
+            border: "1px solid rgba(0,0,0,0.08)",
+          }
       }
     >
       {label}
@@ -62,7 +63,7 @@ function SwipeCard({
   onSwipeRight: () => void;
   isTop: boolean;
   onOpenDetails: () => void;
-  onChefClick: (chef: string) => void;
+  onChefClick: (chefId: string | null, chefName: string | null) => void;
 }) {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
@@ -80,8 +81,8 @@ function SwipeCard({
     recipe.difficulty === "easy"
       ? { label: "Easy", color: "#059669", bg: "#ECFDF5" }
       : recipe.difficulty === "medium"
-      ? { label: "Med", color: "#D97706", bg: "#FFF3C4" }
-      : { label: "Hard", color: "#DC2626", bg: "#FEF2F2" };
+        ? { label: "Med", color: "#D97706", bg: "#FFF3C4" }
+        : { label: "Hard", color: "#DC2626", bg: "#FEF2F2" };
 
   return (
     <motion.div
@@ -186,7 +187,7 @@ function SwipeCard({
             </span>
             {recipe.chef && (
               <button
-                onClick={(e) => { e.stopPropagation(); onChefClick(recipe.chef!); }}
+                onClick={(e) => { e.stopPropagation(); onChefClick(recipe.created_by ?? null, recipe.chef!); }}
                 className="underline underline-offset-2 text-orange-200 hover:text-orange-100"
               >
                 {recipe.chef}
@@ -228,7 +229,8 @@ export default function SwipeScreen() {
   const [cardIndex, setCardIndex] = useState(0);
   const [activeFilter, setActiveFilter] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedChef, setSelectedChef] = useState<string | null>(null);
+  const [selectedChefId, setSelectedChefId] = useState<string | null>(null);
+  const [selectedChefName, setSelectedChefName] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [previewRecipe, setPreviewRecipe] = useState<Recipe | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -254,8 +256,8 @@ export default function SwipeScreen() {
       );
     }
 
-    if (selectedChef) {
-      byFilter = byFilter.filter((r) => (r.chef || "").toLowerCase() === selectedChef.toLowerCase());
+    if (selectedChefId) { // Changed from selectedChef to selectedChefId
+      byFilter = byFilter.filter((r) => r.created_by === selectedChefId); // Filter by chefId
     }
 
     const normalizedQuery = searchQuery.trim().toLowerCase();
@@ -273,7 +275,7 @@ export default function SwipeScreen() {
     }
 
     return byFilter;
-  }, [recipes, activeFilter, selectedChef, searchQuery]);
+  }, [recipes, activeFilter, searchQuery, selectedChefId]); // Added selectedChefId to dependencies
 
   const stack = useMemo(() => filtered.slice(cardIndex, cardIndex + 3), [filtered, cardIndex]);
   const current = stack[0];
@@ -387,13 +389,13 @@ export default function SwipeScreen() {
         </div>
       </div>
 
-      {selectedChef && (
+      {selectedChefId && ( // Changed from selectedChef to selectedChefId
         <div className="max-w-2xl mx-auto px-6 pt-3">
           <button
-            onClick={() => { setSelectedChef(null); setCardIndex(0); }}
+            onClick={() => { setSelectedChefId(null); setSelectedChefName(null); setCardIndex(0); }} // Updated to clear both id and name
             className="px-3 py-1 rounded-full bg-orange-100 text-orange-700 text-xs font-semibold"
           >
-            Chef: {selectedChef} ✕
+            Chef: {selectedChefName} ✕ {/* Display selectedChefName */}
           </button>
         </div>
       )}
@@ -464,7 +466,10 @@ export default function SwipeScreen() {
                       onSwipeRight={handleSave}
                       isTop
                       onOpenDetails={() => { setPreviewRecipe(current); setPreviewOpen(true); }}
-                      onChefClick={(chef) => { setSelectedChef(chef); setCardIndex(0); }}
+                      onChefClick={(chefId, chefName) => {
+                        setSelectedChefId(chefId);
+                        setSelectedChefName(chefName);
+                      }}
                     />
                   )}
                 </AnimatePresence>
@@ -521,6 +526,18 @@ export default function SwipeScreen() {
         onSave={(recipe) => {
           likeRecipe(recipe.id, recipe);
           toast.success(`❤️ Saved "${recipe.name}" to cookbook`);
+        }}
+      />
+
+      <ChefProfileModal
+        chefId={selectedChefId}
+        chefName={selectedChefName}
+        open={!!selectedChefId}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedChefId(null);
+            setSelectedChefName(null);
+          }
         }}
       />
     </div>

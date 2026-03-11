@@ -57,7 +57,11 @@ interface AppState {
   recipeTags: Record<string, string[]>; // recipeId -> custom user tags
   recipeIngredientOverrides: Record<string, string[]>; // recipeId -> user-edited ingredient list
   recipeFolders: RecipeFolder[];
+  displayName: string;
+  setDisplayName: (name: string) => void;
   onboardingComplete: boolean;
+  isGuest: boolean;
+  setIsGuest: (val: boolean) => void;
   tutorialComplete: boolean;
   showTutorial: boolean;
   cookingStreak: number;
@@ -145,7 +149,11 @@ export const useStore = create<AppState>()(
       recipeTags: {},
       recipeIngredientOverrides: {},
       recipeFolders: [],
+      displayName: '',
+      setDisplayName: (displayName) => set({ displayName }),
       onboardingComplete: false,
+      isGuest: false,
+      setIsGuest: (val) => set({ isGuest: val }),
       tutorialComplete: false,
       showTutorial: false,
       cookingStreak: 0,
@@ -180,11 +188,11 @@ export const useStore = create<AppState>()(
           pantryList: state.pantryList.some(p => p.name === normalized)
             ? state.pantryList
             : [...state.pantryList, {
-                id: crypto.randomUUID(),
-                name: normalized,
-                quantity: input.quantity ?? '1',
-                category: input.category,
-              }],
+              id: crypto.randomUUID(),
+              name: normalized,
+              quantity: input.quantity ?? '1',
+              category: input.category,
+            }],
         }));
       },
 
@@ -205,10 +213,10 @@ export const useStore = create<AppState>()(
           pantryList: state.pantryList.map((item) =>
             item.id === id
               ? {
-                  ...item,
-                  ...updates,
-                  name: updates.name ? updates.name.toLowerCase().trim() : item.name,
-                }
+                ...item,
+                ...updates,
+                name: updates.name ? updates.name.toLowerCase().trim() : item.name,
+              }
               : item
           ),
         })),
@@ -230,12 +238,12 @@ export const useStore = create<AppState>()(
             : [...state.likedRecipes, id],
           savedApiRecipes: recipeData
             ? {
-                ...state.savedApiRecipes,
-                [id]: {
-                  ...recipeData,
-                  ingredients: normalizeIngredients(recipeData.ingredients, recipeData.raw_api_payload),
-                },
-              }
+              ...state.savedApiRecipes,
+              [id]: {
+                ...recipeData,
+                ingredients: normalizeIngredients(recipeData.ingredients, recipeData.raw_api_payload),
+              },
+            }
             : state.savedApiRecipes,
         })),
 
@@ -278,12 +286,12 @@ export const useStore = create<AppState>()(
           customGroceryItems: state.customGroceryItems.some(i => i.name === normalized)
             ? state.customGroceryItems
             : [...state.customGroceryItems, {
-                id: crypto.randomUUID(),
-                name: normalized,
-                quantity: parsed.qty ?? '1',
-                category: parsed.section ?? parsed.category,
-                checked: false,
-              }],
+              id: crypto.randomUUID(),
+              name: normalized,
+              quantity: parsed.qty ?? '1',
+              category: parsed.section ?? parsed.category,
+              checked: false,
+            }],
         }));
       },
 
@@ -311,11 +319,11 @@ export const useStore = create<AppState>()(
           customGroceryItems: state.customGroceryItems.map((item) =>
             item.id === id
               ? {
-                  ...item,
-                  ...updates,
-                  quantity: updates.qty ?? updates.quantity ?? item.quantity,
-                  category: updates.section ?? updates.category ?? item.category,
-                }
+                ...item,
+                ...updates,
+                quantity: updates.qty ?? updates.quantity ?? item.quantity,
+                category: updates.section ?? updates.category ?? item.category,
+              }
               : item
           ),
         })),
@@ -519,7 +527,9 @@ export const useStore = create<AppState>()(
           recipeMealTags: {},
           recipeIngredientOverrides: {},
           recipeFolders: [],
+          displayName: '',
           onboardingComplete: false,
+          isGuest: false,
           tutorialComplete: false,
           showTutorial: false,
           cookingStreak: 0,

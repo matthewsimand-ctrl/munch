@@ -601,16 +601,20 @@ export default function CreateRecipeForm({ onClose }: Props) {
             <Plus className="h-4 w-4 mr-1" /> Add
           </Button>
         </div>
-        <div className="space-y-1.5">
+        <div className="space-y-1.5 pt-2">
           {ingredients.map((ingredient, index) => (
-            <div key={`${ingredient}-${index}`} className="flex items-center gap-2 rounded-md border border-border bg-background/70 p-1.5">
+            <div key={`${ingredient}-${index}`} className="flex items-center gap-2 group">
               <Input
                 value={ingredient}
                 onChange={(e) => updateIngredient(index, e.target.value)}
-                className="h-8"
+                className="h-9 bg-white border-transparent hover:border-border focus:border-orange-300 focus:bg-white transition-all transition-colors px-3 py-1 text-sm shadow-sm"
               />
-              <button type="button" onClick={() => setIngredients((prev) => prev.filter((_, i) => i !== index))}>
-                <X className="h-3.5 w-3.5" />
+              <button
+                type="button"
+                onClick={() => setIngredients((prev) => prev.filter((_, i) => i !== index))}
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-stone-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+              >
+                <X className="h-4 w-4" />
               </button>
             </div>
           ))}

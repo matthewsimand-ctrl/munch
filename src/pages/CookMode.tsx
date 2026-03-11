@@ -1,8 +1,9 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
-  ArrowLeft, ArrowRight, ChefHat, CheckCircle2, Circle,
+  ArrowLeft, ArrowRight, ChefHat, CheckCircle2, Circle, X,
   Volume2, VolumeX, RotateCcw, Check, Star, CircleHelp,
+  Mic, MicOff, Timer, Pause, Play as PlayIcon
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "@/lib/store";
@@ -11,6 +12,7 @@ import { normalizeRecipe } from "@/lib/normalizeRecipe";
 import { useSpeechSynthesis } from "@/hooks/useSpeechSynthesis";
 import { toast } from "sonner";
 import type { Recipe } from "@/data/recipes";
+import { useVoiceCommands } from "@/hooks/useVoiceCommands";
 import { ChefPath, CookingXpBar } from "@/components/ChefCompanion";
 import { buildDictionaryRegex, lookupTerm } from "@/lib/cookingDictionary";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -96,8 +98,8 @@ function ProgressDots({ total, current }: { total: number; current: number }) {
               i < current
                 ? "#10B981"
                 : i === current
-                ? "linear-gradient(90deg,#FB923C,#F97316)"
-                : "rgba(0,0,0,0.10)",
+                  ? "linear-gradient(90deg,#FB923C,#F97316)"
+                  : "rgba(0,0,0,0.10)",
           }}
         />
       ))}
@@ -119,6 +121,8 @@ export default function CookMode() {
   const [ttsEnabled, setTtsEnabled] = useState(true);
   const [done, setDone] = useState(false);
   const [showIngredients, setShowIngredients] = useState(false);
+  const [timerLeft, setTimerLeft] = useState<number | null>(null);
+  const [isTimerPaused, setIsTimerPaused] = useState(false);
   const hasTrackedCookRef = useRef(false);
 
   /* ── Resolve recipe ── */
@@ -147,8 +151,8 @@ export default function CookMode() {
   const handleToggleTts = useCallback(() => {
     if (isSpeaking) {
       stop();
-    } else if (ttsEnabled && steps[stepIndex]) {
-      // This is a direct button click → allowed by browser
+    } else if (!ttsEnabled && steps[stepIndex]) {
+      // User turned TTS ON: start speaking immediately as authorized by this click
       speak(steps[stepIndex]);
     }
     setTtsEnabled((v) => !v);
@@ -207,6 +211,38 @@ export default function CookMode() {
     hasTrackedCookRef.current = false;
   }, [id]);
 
+  useEffect(() => {
+    if (timerLeft === null || isTimerPaused) return;
+    if (timerLeft <= 0) {
+      toast.success("Timer done! ⏱️");
+      speak("Timer is done!");
+      setTimerLeft(null);
+      return;
+    }
+    const interval = setTimeout(() => {
+      setTimerLeft(t => t! - 1);
+    }, 1000);
+    return () => clearTimeout(interval);
+  }, [timerLeft, isTimerPaused, speak]);
+
+  const {
+    isListening, lastCommand, commandStatus, error, toggleListening
+  } = useVoiceCommands({
+    onNext: goNext,
+    onPrevious: goPrev,
+    onRepeat: handleReadStep,
+    onStartTimer: (seconds = 300) => {
+      setTimerLeft(seconds);
+      setIsTimerPaused(false);
+    },
+    onPauseTimer: () => setIsTimerPaused(true),
+    onStopTimer: () => setTimerLeft(null),
+  });
+
+  useEffect(() => {
+    if (error) toast.error(error);
+  }, [error]);
+
   /* ── Keyboard nav ── */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -217,8 +253,31 @@ export default function CookMode() {
     return () => window.removeEventListener("keydown", onKey);
   }, [goNext, goPrev]);
 
-  /* ── Auto-speak first step on mount: we cannot do this since it
-     requires a user gesture. User must press play or tap Next.  */
+  /* ── Auto-Detect Timers ── */
+  const detectedTimers = useMemo(() => {
+    const step = steps[stepIndex] || "";
+    // Match "X minutes", "X mins", "X hr", "X hour", "X sec", "X seconds"
+    const regex = /\b(\d+(?:\.\d+)?)\s*(min|minute|minutes|hr|hour|hours|sec|second|seconds)\b/gi;
+    const timers: { label: string, seconds: number }[] = [];
+    let match;
+    const seen = new Set<string>();
+
+    while ((match = regex.exec(step)) !== null) {
+      const amount = parseFloat(match[1]);
+      const unit = match[2].toLowerCase();
+      let seconds = 0;
+      if (unit.startsWith('hr') || unit.startsWith('hour')) seconds = amount * 3600;
+      else if (unit.startsWith('min')) seconds = amount * 60;
+      else if (unit.startsWith('sec')) seconds = amount;
+
+      const label = match[0].toLowerCase();
+      if (seconds > 0 && !seen.has(label)) {
+        timers.push({ label: match[0], seconds });
+        seen.add(label);
+      }
+    }
+    return timers;
+  }, [steps, stepIndex]);
 
   if (!recipe) {
     return (
@@ -366,19 +425,73 @@ export default function CookMode() {
           >
             Ingredients
           </button>
+          {/* Hands-Free toggle */}
+          <button
+            onClick={toggleListening}
+            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${isListening
+              ? "bg-emerald-500 text-white border border-emerald-500"
+              : "bg-white border border-stone-200 text-stone-400 hover:border-emerald-300"
+              }`}
+            title={isListening ? "Stop listening" : "Enable hands-free mode"}
+          >
+            {isListening ? <Mic size={15} /> : <MicOff size={15} />}
+          </button>
           {/* TTS toggle */}
           <button
             onClick={handleToggleTts}
-            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
-              ttsEnabled
-                ? "bg-orange-500 text-white border border-orange-500"
-                : "bg-white border border-stone-200 text-stone-400 hover:border-orange-300"
-            }`}
+            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${ttsEnabled
+              ? "bg-orange-500 text-white border border-orange-500"
+              : "bg-white border border-stone-200 text-stone-400 hover:border-orange-300"
+              }`}
             title={ttsEnabled ? "Mute voice" : "Enable voice"}
           >
             {ttsEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
           </button>
         </div>
+      </div>
+
+      {/* HUD (Timer & Voice Status) */}
+      <div className="fixed top-24 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none">
+        <AnimatePresence>
+          {lastCommand && (
+            <motion.div
+              initial={{ opacity: 0, y: -10, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -10, scale: 0.9 }}
+              className={`px-4 py-2 rounded-full shadow-lg border text-sm font-bold flex items-center gap-2
+                ${commandStatus === 'success' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'}
+              `}
+            >
+              {lastCommand}
+            </motion.div>
+          )}
+
+          {timerLeft !== null && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="pointer-events-auto flex items-center gap-3 bg-white px-4 py-3 rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-stone-100"
+            >
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${timerLeft <= 10 ? 'bg-red-50 text-red-500 animate-[pulse_1s_ease-in-out_infinite]' : 'bg-orange-50 text-orange-500'}`}>
+                <Timer size={20} />
+              </div>
+              <div className="w-20 text-center">
+                <p className="text-2xl font-black text-stone-800 tracking-tight" style={{ fontVariantNumeric: "tabular-nums" }}>
+                  {Math.floor(timerLeft / 60)}:{(timerLeft % 60).toString().padStart(2, '0')}
+                </p>
+              </div>
+              <div className="flex flex-col gap-1">
+                <button onClick={() => setIsTimerPaused(!isTimerPaused)} className="p-1.5 rounded-lg bg-stone-50 text-stone-500 hover:text-orange-500 hover:bg-orange-50 transition-colors">
+                  {isTimerPaused ? <PlayIcon size={14} fill="currentColor" /> : <Pause size={14} fill="currentColor" />}
+                </button>
+                <button onClick={() => setTimerLeft(null)} className="p-1.5 rounded-lg bg-stone-50 text-stone-500 hover:text-red-500 hover:bg-red-50 transition-colors">
+                  <X size={14} />
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Ingredients slide-down */}
@@ -497,11 +610,10 @@ export default function CookMode() {
                 {/* Read aloud button — direct user gesture → TTS always works here */}
                 <button
                   onClick={handleReadStep}
-                  className={`ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                    isSpeaking
-                      ? "bg-orange-100 text-orange-600 border border-orange-200"
-                      : "bg-stone-100 text-stone-500 border border-stone-200 hover:bg-orange-50 hover:text-orange-500 hover:border-orange-200"
-                  }`}
+                  className={`ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${isSpeaking
+                    ? "bg-orange-100 text-orange-600 border border-orange-200"
+                    : "bg-stone-100 text-stone-500 border border-stone-200 hover:bg-orange-50 hover:text-orange-500 hover:border-orange-200"
+                    }`}
                 >
                   {isSpeaking ? <VolumeX size={12} /> : <Volume2 size={12} />}
                   {isSpeaking ? "Stop" : "Read aloud"}
@@ -516,6 +628,33 @@ export default function CookMode() {
                   {renderInstructionWithDefinitions(steps[stepIndex])}
                 </p>
               </TooltipProvider>
+
+              {/* Detected Timers */}
+              {detectedTimers.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-6 pt-5 flex flex-wrap gap-2"
+                  style={{ borderTop: "1px dashed rgba(249,115,22,0.2)" }}
+                >
+                  <p className="w-full text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1">
+                    Detected Timers
+                  </p>
+                  {detectedTimers.map((t, i) => (
+                    <button
+                      key={i}
+                      onClick={() => {
+                        setTimerLeft(t.seconds);
+                        setIsTimerPaused(false);
+                        toast.success(`Timer set for ${t.label}`);
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-orange-200 bg-orange-50 text-orange-700 text-sm font-semibold hover:bg-orange-100 transition-colors"
+                    >
+                      <Timer size={14} /> Start {t.label}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
             </motion.div>
           </AnimatePresence>
 

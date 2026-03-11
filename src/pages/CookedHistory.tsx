@@ -30,6 +30,44 @@ export default function CookedHistory() {
     };
   }, [meals]);
 
+  const groupedMeals = useMemo(() => {
+    const groups = new Map<string, typeof meals[0] & { count: number; ids: string[]; total_savings: number }>();
+
+    meals.forEach(meal => {
+      // Group by recipe name to coalesce duplicates
+      const key = meal.recipe_name.toLowerCase();
+      if (!groups.has(key)) {
+        groups.set(key, {
+          ...meal,
+          count: 1,
+          ids: [meal.id],
+          total_savings: meal.estimated_savings || 0
+        });
+      } else {
+        const existing = groups.get(key)!;
+        existing.count += 1;
+        existing.ids.push(meal.id);
+
+        // Accumulate savings
+        if (meal.estimated_savings) {
+          existing.total_savings += meal.estimated_savings;
+          // Ensure we consider this grouped meal as "estimated" if it has ANY savings
+          existing.estimated_savings = existing.total_savings;
+        }
+
+        // Keep the most recent cooked_at date
+        if (new Date(meal.cooked_at) > new Date(existing.cooked_at)) {
+          existing.cooked_at = meal.cooked_at;
+          existing.id = meal.id; // use the ID of the most recent one for interactions
+        }
+      }
+    });
+
+    return Array.from(groups.values()).sort((a, b) =>
+      new Date(b.cooked_at).getTime() - new Date(a.cooked_at).getTime()
+    );
+  }, [meals]);
+
   const handleEstimateSavings = async (mealId: string) => {
     if (!isPremium) {
       toast.info("Estimated savings is a Premium feature.", {
@@ -126,15 +164,25 @@ export default function CookedHistory() {
             </div>
           ) : (
             <div className="space-y-2.5">
-              {meals.map((meal) => (
+              {groupedMeals.map((meal) => (
                 <div key={meal.id} className="rounded-xl border border-stone-100 px-3.5 py-3">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 min-w-0">
                         <Utensils size={14} className="text-orange-400 shrink-0" />
-                        <p className="text-sm font-semibold text-stone-800 truncate">{meal.recipe_name}</p>
+                        <p className="text-sm font-semibold text-stone-800 truncate">
+                          {meal.recipe_name}
+                        </p>
+                        {meal.count > 1 && (
+                          <span className="text-[10px] font-bold text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded-md shrink-0">
+                            {meal.count}x
+                          </span>
+                        )}
                       </div>
-                      <p className="text-[11px] text-stone-400 mt-1">Cooked {formatCookedAt(meal.cooked_at)}</p>
+                      <p className="text-[11px] text-stone-400 mt-1">
+                        {meal.count > 1 ? "Last cooked " : "Cooked "}
+                        {formatCookedAt(meal.cooked_at)}
+                      </p>
                     </div>
 
                     <div className="flex items-center gap-1.5 shrink-0">
@@ -147,9 +195,9 @@ export default function CookedHistory() {
                         </button>
                       )}
 
-                      {meal.estimated_savings != null && isPremium ? (
+                      {meal.total_savings > 0 && isPremium ? (
                         <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1.5 rounded-full whitespace-nowrap">
-                          Saved ≈ ${meal.estimated_savings.toFixed(2)}
+                          Saved ≈ ${meal.total_savings.toFixed(2)}
                         </span>
                       ) : (
                         <button
@@ -157,7 +205,7 @@ export default function CookedHistory() {
                           disabled={estimatingMealId === meal.id || !isPremium}
                           className="text-[11px] font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 px-2.5 py-1.5 rounded-full disabled:opacity-60 inline-flex items-center gap-1"
                         >
-                          {isPremium ? <Sparkles size={12} /> : <Lock size={12} />} {estimatingMealId === meal.id ? "Estimating..." : isPremium ? "Estimated savings" : "Premium"}
+                          {isPremium ? <Sparkles size={12} /> : <Lock size={12} />} {estimatingMealId === meal.id ? "Estimating..." : isPremium ? "Estimate savings" : "Premium"}
                         </button>
                       )}
                     </div>

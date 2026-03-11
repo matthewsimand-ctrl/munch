@@ -28,24 +28,42 @@ function getBestVoice(): SpeechSynthesisVoice | null {
     // ── Non-local (network) voices: penalise heavily ──────────────
     // They fail silently in webview/iframe contexts (Lovable, Electron, etc.)
     if (!v.localService) {
-      score -= 200;
+      if (n.includes('google uk english female')) {
+        score += 500; // Exception: User specifically likes this one and it's elegant
+      } else {
+        score -= 200;
+      }
     }
 
-    // ── Local premium voices (macOS / iOS) ───────────────────────
-    if (n.includes('samantha')) score += 100; // best macOS default
-    if (/karen|daniel|moira|tessa|fiona|alex/.test(n)) score += 90;
-    if (n.includes('premium') || n.includes('enhanced')) score += 80;
-    // New macOS Sonoma voices (Eddy, Flo, Reed, Rocko, Sandy, Shelley, Grandma, Grandpa, Rishi)
-    if (/eddy|flo|reed|rocko|sandy|shelley|grandma|grandpa|rishi/.test(n)) score += 60;
+    // ── British Premium voices (Elegant, Clean) ──────────────────
+    if (v.lang === 'en-GB' || v.lang === 'en-UK') {
+      score += 150; // Massively boost UK English
 
-    // ── Generic local fallback ────────────────────────────────────
+      // Give female British voices top priority
+      if (/female|woman|girl/i.test(n)) score += 100;
+    }
+
+    // Specific elegant female voices (British/Scottish/Irish)
+    if (/serena|stephanie|martha|fiona|moira/.test(n)) score += 200;
+
+    // Penalize known male british voices since the user wants a female voice
+    if (/daniel|oliver|arthur|george|rocko|grandpa/.test(n)) score -= 100;
+
+    // ── Generic premium ──────────────────────────────────────────
+    if (n.includes('premium') || n.includes('enhanced')) score += 80;
+
+    // ── Local voices & fallback ──────────────────────────────────
+    if (n.includes('samantha')) score += 40;
+    if (/karen|tessa|alex/.test(n)) score += 30;
+    if (/eddy|flo|reed|sandy|shelley|grandma|rishi/.test(n)) score += 20;
+
     if (v.localService && score === 0) score += 30;
 
     return { voice: v, score };
   });
 
   scored.sort((a, b) => b.score - a.score);
-  return scored[0]?.voice ?? english[0];
+  return scored[0]?.voice ?? english.find((v) => v.lang === 'en-GB' && v.name.toLowerCase().includes('female')) ?? english.find((v) => v.lang === 'en-GB') ?? english[0];
 }
 
 export function useSpeechSynthesis() {
@@ -84,7 +102,7 @@ export function useSpeechSynthesis() {
     utter.volume = 1.0;
 
     utter.onstart = () => setIsSpeaking(true);
-    utter.onend   = () => setIsSpeaking(false);
+    utter.onend = () => setIsSpeaking(false);
     utter.onerror = (e) => {
       if (e.error !== 'interrupted') setIsSpeaking(false);
     };

@@ -31,7 +31,7 @@ const NAV_ITEMS = [
 
 export default function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
-  const [displayName, setDisplayName] = useState("My");
+  const [displayName, setDisplayName] = useState("");
   const [planType, setPlanType] = useState("Free Plan");
 
   useEffect(() => {
@@ -65,9 +65,8 @@ export default function AppLayout() {
     <div className="flex h-screen bg-gradient-to-br from-orange-50/50 via-background to-background overflow-hidden">
       {/* ── Desktop Sidebar ── */}
       <aside
-        className={`hidden md:flex flex-col bg-white border-r border-gray-100 shrink-0 z-20 transition-all duration-300 relative ${
-          collapsed ? "w-16" : "w-56 lg:w-64"
-        }`}
+        className={`hidden md:flex flex-col bg-white border-r border-gray-100 shrink-0 z-20 transition-all duration-300 relative ${collapsed ? "w-16" : "w-56 lg:w-64"
+          }`}
       >
         {/* Collapse toggle on the edge */}
         <button
@@ -81,9 +80,8 @@ export default function AppLayout() {
         {/* Logo */}
         <div className="flex items-center px-3 py-5 border-b border-gray-100">
           <div
-            className={`flex items-center gap-2.5 transition-all ${
-              collapsed ? "mx-auto" : "ml-2"
-            }`}
+            className={`flex items-center gap-2.5 transition-all ${collapsed ? "mx-auto" : "ml-2"
+              }`}
           >
             <div className="w-8 h-8 bg-orange-500 rounded-xl flex items-center justify-center shadow-sm">
               <ChefHat className="text-white" size={18} />
@@ -103,10 +101,9 @@ export default function AppLayout() {
               title={collapsed ? label : undefined}
               className={({ isActive }) =>
                 `flex items-center ${collapsed ? "justify-center" : "gap-3"} px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group
-                ${
-                  isActive
-                    ? "bg-orange-50 text-orange-600"
-                    : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+                ${isActive
+                  ? "bg-orange-50 text-orange-600"
+                  : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
                 }`
               }
             >
@@ -114,11 +111,10 @@ export default function AppLayout() {
                 <>
                   <Icon
                     size={18}
-                    className={`shrink-0 transition-colors ${
-                      isActive
+                    className={`shrink-0 transition-colors ${isActive
                         ? "text-orange-500"
                         : "text-gray-400 group-hover:text-gray-600"
-                    }`}
+                      }`}
                   />
                   {!collapsed && (
                     <>
@@ -138,16 +134,15 @@ export default function AppLayout() {
         <div className="px-4 py-4 border-t border-gray-100">
           <NavLink
             to="/settings"
-            className={`flex items-center rounded-xl hover:bg-gray-50 cursor-pointer transition-colors py-2 ${
-              collapsed ? "justify-center px-2" : "gap-3 px-2"
-            }`}
+            className={`flex items-center rounded-xl hover:bg-gray-50 cursor-pointer transition-colors py-2 ${collapsed ? "justify-center px-2" : "gap-3 px-2"
+              }`}
           >
             <div className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-400 to-pink-500 flex items-center justify-center text-white text-xs font-bold shrink-0">
               M
             </div>
             {!collapsed && (
               <div className="min-w-0">
-                <div className="text-xs font-semibold text-gray-800 truncate">{displayName}&apos;s Kitchen.</div>
+                <div className="text-xs font-semibold text-gray-800 truncate">{displayName ? `${displayName}'s Kitchen` : "My Kitchen"}</div>
                 <div className="text-xs text-gray-400 truncate">Settings | {planType}</div>
               </div>
             )}
