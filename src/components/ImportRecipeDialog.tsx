@@ -845,6 +845,14 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
     setReviewData({ ...reviewData, ingredients: reviewData.ingredients.filter((_, i) => i !== idx) });
   };
 
+  const updateIngredient = (idx: number, field: keyof IngredientEntry, value: string) => {
+    if (!reviewData) return;
+    setReviewData({
+      ...reviewData,
+      ingredients: reviewData.ingredients.map((ingredient, i) => (i === idx ? { ...ingredient, [field]: value } : ingredient)),
+    });
+  };
+
   const addInstruction = () => {
     if (!newInstruction.trim() || !reviewData) return;
     setReviewData({ ...reviewData, instructions: [...reviewData.instructions, newInstruction.trim()] });
@@ -854,6 +862,14 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
   const removeInstruction = (idx: number) => {
     if (!reviewData) return;
     setReviewData({ ...reviewData, instructions: reviewData.instructions.filter((_, i) => i !== idx) });
+  };
+
+  const updateInstruction = (idx: number, value: string) => {
+    if (!reviewData) return;
+    setReviewData({
+      ...reviewData,
+      instructions: reviewData.instructions.map((instruction, i) => (i === idx ? value : instruction)),
+    });
   };
 
   const addTag = () => {
@@ -1139,14 +1155,25 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
-                <div className="flex flex-wrap gap-1.5 mt-2">
+                <div className="space-y-1.5 mt-2">
                   {reviewData.ingredients.map((ing, idx) => (
-                    <Badge key={idx} variant="secondary" className="gap-1">
-                      {ing.quantity ? `${ing.quantity} ${ing.name}` : ing.name}
-                      <button onClick={() => removeIngredient(idx)} className="ml-1 hover:text-destructive">
+                    <div key={`ingredient-${idx}`} className="flex items-center gap-2 rounded-md border border-border bg-background/70 p-1.5">
+                      <Input
+                        value={ing.quantity}
+                        onChange={(e) => updateIngredient(idx, 'quantity', e.target.value)}
+                        placeholder="Qty"
+                        className="h-8 w-24"
+                      />
+                      <Input
+                        value={ing.name}
+                        onChange={(e) => updateIngredient(idx, 'name', e.target.value)}
+                        placeholder="Ingredient"
+                        className="h-8 flex-1"
+                      />
+                      <button type="button" onClick={() => removeIngredient(idx)} className="text-muted-foreground hover:text-destructive">
                         <X size={12} />
                       </button>
-                    </Badge>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -1194,9 +1221,13 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
                 <div className="space-y-1.5 mt-2">
                   {reviewData.instructions.map((step, idx) => (
                     <div key={idx} className="flex items-start gap-2 rounded-md border border-border bg-muted/40 px-2 py-1.5 text-sm">
-                      <span className="text-xs font-semibold text-muted-foreground pt-0.5">{idx + 1}.</span>
-                      <span className="flex-1 text-foreground">{step}</span>
-                      <button onClick={() => removeInstruction(idx)} className="text-muted-foreground hover:text-destructive">
+                      <span className="text-xs font-semibold text-muted-foreground pt-2">{idx + 1}.</span>
+                      <Input
+                        value={step}
+                        onChange={(e) => updateInstruction(idx, e.target.value)}
+                        className="h-8 flex-1"
+                      />
+                      <button type="button" onClick={() => removeInstruction(idx)} className="text-muted-foreground hover:text-destructive pt-1">
                         <X className="h-3.5 w-3.5" />
                       </button>
                     </div>

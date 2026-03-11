@@ -346,6 +346,14 @@ export default function CreateRecipeForm({ onClose }: Props) {
     setInstructions((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const updateIngredient = (index: number, value: string) => {
+    setIngredients((prev) => prev.map((ingredient, i) => (i === index ? value : ingredient)));
+  };
+
+  const updateInstruction = (index: number, value: string) => {
+    setInstructions((prev) => prev.map((step, i) => (i === index ? value : step)));
+  };
+
   const addTag = () => {
     const val = tagInput.trim().toLowerCase();
     if (val && !tags.includes(val)) {
@@ -593,14 +601,18 @@ export default function CreateRecipeForm({ onClose }: Props) {
             <Plus className="h-4 w-4 mr-1" /> Add
           </Button>
         </div>
-        <div className="flex flex-wrap gap-1.5">
-          {ingredients.map(ing => (
-            <Badge key={ing} variant="secondary" className="gap-1">
-              {ing}
-              <button onClick={() => setIngredients(prev => prev.filter(i => i !== ing))}>
-                <X className="h-3 w-3" />
+        <div className="space-y-1.5">
+          {ingredients.map((ingredient, index) => (
+            <div key={`${ingredient}-${index}`} className="flex items-center gap-2 rounded-md border border-border bg-background/70 p-1.5">
+              <Input
+                value={ingredient}
+                onChange={(e) => updateIngredient(index, e.target.value)}
+                className="h-8"
+              />
+              <button type="button" onClick={() => setIngredients((prev) => prev.filter((_, i) => i !== index))}>
+                <X className="h-3.5 w-3.5" />
               </button>
-            </Badge>
+            </div>
           ))}
         </div>
       </div>
@@ -647,7 +659,11 @@ export default function CreateRecipeForm({ onClose }: Props) {
           {instructions.map((step, index) => (
             <div key={`${step}-${index}`} className="flex items-start gap-2 rounded-md border border-border bg-muted/40 px-2 py-1.5 text-sm">
               <span className="text-xs font-semibold text-muted-foreground pt-0.5">{index + 1}.</span>
-              <span className="flex-1 text-foreground">{step}</span>
+              <Input
+                value={step}
+                onChange={(e) => updateInstruction(index, e.target.value)}
+                className="h-8 flex-1"
+              />
               <button type="button" onClick={() => removeInstruction(index)} className="text-muted-foreground hover:text-destructive">
                 <X className="h-3.5 w-3.5" />
               </button>
