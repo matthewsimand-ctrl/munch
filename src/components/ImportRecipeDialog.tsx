@@ -56,6 +56,12 @@ interface WebsitePreviewData {
   raw_api_payload?: Record<string, unknown>;
 }
 
+interface WebsiteAdPreview {
+  sourceUrl: string;
+  previewText: string;
+  adSignals: string[];
+}
+
 const DIFFICULTY_OPTIONS = ['Beginner', 'Intermediate', 'Advanced'];
 const CUISINE_OPTIONS = ['Italian', 'Asian', 'Mexican', 'Mediterranean', 'American', 'French', 'Indian', 'Other'];
 
@@ -138,6 +144,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
   const [fetchingPhoto, setFetchingPhoto] = useState(false);
   const [magicProgress, setMagicProgress] = useState(0);
   const [magicMessage, setMagicMessage] = useState('Summoning recipe magic...');
+  const [websiteAdPreview, setWebsiteAdPreview] = useState<WebsiteAdPreview | null>(null);
 
   const MAGIC_MESSAGES = [
     'Summoning recipe magic... ✨',
@@ -244,7 +251,13 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
       };
       const { error } = await supabase.from('recipes').insert(insertData);
 
-      if (error) throw error;
+      if (error?.message?.includes("Could not find the 'chef' column")) {
+        const { chef: _chef, ...insertDataWithoutChef } = insertData;
+        const fallbackInsert = await supabase.from('recipes').insert(insertDataWithoutChef);
+        if (fallbackInsert.error) throw fallbackInsert.error;
+      } else if (error) {
+        throw error;
+      }
     }
 
     likeRecipe(payload.id, payload);
@@ -293,6 +306,37 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
     setSaving(false);
     setUploadingPhoto(false);
     setFetchingPhoto(false);
+    setWebsiteAdPreview(null);
+  };
+
+  const extractAdSignals = (rawText: string): string[] => {
+    const adPattern = /(advertisement|sponsored|promo(?:tion)?|cookie(?:s)?|newsletter|subscribe|banner|affiliate|tracking)/i;
+    const lines = rawText
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line && adPattern.test(line));
+
+    return Array.from(new Set(lines)).slice(0, 10);
+  };
+
+  const loadWebsiteAdPreview = async (normalizedUrl: string) => {
+    try {
+      const response = await fetch(`https://r.jina.ai/${normalizedUrl}`);
+      const text = response.ok ? await response.text() : '';
+      const adSignals = extractAdSignals(text);
+
+      setWebsiteAdPreview({
+        sourceUrl: normalizedUrl,
+        previewText: text.slice(0, 2500),
+        adSignals,
+      });
+    } catch {
+      setWebsiteAdPreview({
+        sourceUrl: normalizedUrl,
+        previewText: '',
+        adSignals: [],
+      });
+    }
   };
 
   const handleExtract = async (payload: { url?: string; textContent?: string; imageBase64?: string; imageMimeType?: string }) => {
@@ -433,7 +477,30 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
             servings: parseInt(reviewData.servings) || 4,
           });
 
-          if (error) {
+          if (error?.message?.includes("Could not find the 'chef' column")) {
+            const fallbackInsert = await supabase.from('recipes').insert({
+              id,
+              name: reviewData.name,
+              ingredients: reviewData.ingredients.map(composeIngredientLine),
+              instructions: reviewData.instructions,
+              cook_time: reviewData.cook_time,
+              difficulty: reviewData.difficulty,
+              cuisine: reviewData.cuisine || null,
+              tags: reviewData.tags,
+              image: reviewData.image,
+              source: 'imported',
+              created_by: user.id,
+              is_public: true,
+              servings: parseInt(reviewData.servings) || 4,
+            });
+
+            if (fallbackInsert.error) {
+              console.error('Failed to save to database:', fallbackInsert.error);
+              toast.error('Failed to make recipe discoverable. Saved locally instead.');
+            } else {
+              toast.success(`"${reviewData.name}" is now discoverable by others!`);
+            }
+          } else if (error) {
             console.error('Failed to save to database:', error);
             toast.error('Failed to make recipe discoverable. Saved locally instead.');
           } else {
@@ -478,6 +545,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
   const handleNonPremiumUrlImport = async (normalizedUrl: string) => {
     setLoading(true);
     setLastImportError('');
+    await loadWebsiteAdPreview(normalizedUrl);
 
     try {
       const existingRecipe = await findExistingRecipeByUrl(normalizedUrl);
@@ -1191,6 +1259,29 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
                 <p className="text-sm text-muted-foreground">
                   🧠 Paste a recipe page URL and we'll import it. {!isPremium && <span className="font-semibold">Without Premium, we'll load it only if it already exists in our library.</span>}
                 </p>
+
+                {!isPremium && websiteAdPreview && (
+                  <div className="space-y-3 rounded-lg border border-amber-300/70 bg-amber-50/50 p-3 dark:border-amber-700 dark:bg-amber-950/20">
+                    <p className="text-sm font-medium text-amber-900 dark:text-amber-200">Website Preview + Ad X-Ray</p>
+                    <iframe
+                      title="Website preview"
+                      src={websiteAdPreview.sourceUrl}
+                      className="h-44 w-full rounded-md border bg-white"
+                    />
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-amber-800/80 dark:text-amber-200/80">Detected ad-related content</p>
+                      {websiteAdPreview.adSignals.length > 0 ? (
+                        <ul className="mt-1 list-disc space-y-1 pl-4 text-xs text-amber-900 dark:text-amber-100">
+                          {websiteAdPreview.adSignals.map((signal) => (
+                            <li key={signal}>{signal}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="mt-1 text-xs text-amber-900/80 dark:text-amber-100/80">No obvious ad markers were detected from the extracted page text.</p>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 <form onSubmit={handleUrlSubmit} noValidate className="space-y-3">
                   <Input
