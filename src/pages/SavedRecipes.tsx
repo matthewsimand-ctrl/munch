@@ -185,7 +185,7 @@ export default function MyRecipesScreen() {
   const [activeCuisine, setActiveCuisine] = useState("All");
   const [activeFolder, setActiveFolder] = useState<string | null>(null);
   const [selectedChef, setSelectedChef] = useState<string | null>(null);
-  const [displayName, setDisplayName] = useState<string>("Your");
+  const [displayName, setDisplayName] = useState<string | null>(null);
   const [previewRecipe, setPreviewRecipe] = useState<Recipe | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [showManualRecipeDialog, setShowManualRecipeDialog] = useState(false);
@@ -271,7 +271,7 @@ export default function MyRecipesScreen() {
             <div>
               <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1">Your collection</p>
               <h1 className="text-2xl font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
-                {displayName}'s Recipes
+                {displayName ? `${displayName}'s Recipes` : "My Recipes"}
               </h1>
               <p className="text-xs text-stone-400 mt-1">{savedRecipes.length} saved recipe{savedRecipes.length !== 1 ? "s" : ""}</p>
             </div>

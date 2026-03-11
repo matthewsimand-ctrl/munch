@@ -43,6 +43,7 @@ interface ReviewData {
 
 interface WebsitePreviewData {
   name: string;
+  description?: string;
   ingredients: string[];
   instructions: string[];
   cook_time: string;
@@ -579,29 +580,29 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
       }
 
       const previewTitle = String(data.title || 'Imported Recipe').trim() || 'Imported Recipe';
-      const previewItems = Array.isArray(data.listItems)
-        ? data.listItems.map((item: unknown) => String(item).trim()).filter(Boolean)
-        : [];
+      const previewDescription = String(data.description || '').trim();
 
       setWebsitePreview({
         name: previewTitle,
-        ingredients: previewItems.slice(0, 25),
-        instructions: previewItems.slice(25, 50),
-        cook_time: '30 min',
-        difficulty: 'Intermediate',
+        description: previewDescription,
+        ingredients: [],
+        instructions: [],
+        cook_time: '—',
+        difficulty: 'Link preview',
         cuisine: '',
         chef: '',
-        tags: ['web preview'],
+        tags: ['link preview'],
         image: String(data.ogImage || '/placeholder.svg'),
-        servings: '4',
+        servings: '—',
         source_url: String(data.url || normalizedUrl),
         raw_api_payload: {
           source: 'scrape-recipe',
+          page_description: previewDescription,
           preview_text: websiteAdPreview?.previewText || '',
           ad_signals: websiteAdPreview?.adSignals || [],
         },
       });
-      toast.success('Loaded a live webpage preview. Upgrade for full AI recipe extraction from any URL.');
+      toast.success('Loaded a link preview. Upgrade for full AI recipe extraction from any URL.');
     } catch (err: any) {
       console.error('Non-premium URL import error:', err);
       setLastImportError(err?.message || 'Could not load recipe from that URL');
@@ -955,6 +956,9 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
                     <p className="text-sm text-muted-foreground">
                       {websitePreview.cook_time} · {websitePreview.difficulty} · {websitePreview.servings} servings
                     </p>
+                    {websitePreview.description && (
+                      <p className="mt-2 text-sm text-muted-foreground">{websitePreview.description}</p>
+                    )}
                   </div>
                   {websitePreview.source_url && (
                     <Button type="button" variant="outline" size="sm" asChild>
@@ -980,28 +984,32 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
                 </div>
               )}
 
-              <div>
-                <p className="text-sm font-medium text-foreground">Ingredients</p>
-                <div className="mt-2 space-y-2">
-                  {websitePreview.ingredients.map((ingredient, idx) => (
-                    <div key={idx} className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
-                      <span className="font-medium text-gray-900">{composeIngredientLine(parseIngredientLine(ingredient))}</span>
-                    </div>
-                  ))}
+              {websitePreview.ingredients.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium text-foreground">Ingredients</p>
+                  <div className="mt-2 space-y-2">
+                    {websitePreview.ingredients.map((ingredient, idx) => (
+                      <div key={idx} className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
+                        <span className="font-medium text-gray-900">{composeIngredientLine(parseIngredientLine(ingredient))}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
-              <div>
-                <p className="text-sm font-medium text-foreground">Instructions</p>
-                <ol className="mt-2 space-y-2">
-                  {websitePreview.instructions.map((step, idx) => (
-                    <li key={idx} className="flex gap-3 rounded-md border border-border bg-muted/30 px-3 py-2 text-sm text-foreground">
-                      <span className="text-xs font-semibold text-muted-foreground pt-0.5">{idx + 1}.</span>
-                      <span>{step}</span>
-                    </li>
-                  ))}
-                </ol>
-              </div>
+              {websitePreview.instructions.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium text-foreground">Instructions</p>
+                  <ol className="mt-2 space-y-2">
+                    {websitePreview.instructions.map((step, idx) => (
+                      <li key={idx} className="flex gap-3 rounded-md border border-border bg-muted/30 px-3 py-2 text-sm text-foreground">
+                        <span className="text-xs font-semibold text-muted-foreground pt-0.5">{idx + 1}.</span>
+                        <span>{step}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
 
               {typeof websitePreview.raw_api_payload?.preview_text === 'string' && websitePreview.raw_api_payload.preview_text.trim() && (
                 <div>
@@ -1018,7 +1026,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
                   <div>
                     <Label htmlFor="discoverable-web" className="cursor-pointer">Make Discoverable</Label>
                     <p className="text-xs text-muted-foreground">
-                      {isDiscoverable ? 'Others can find this cleaned recipe preview' : 'Only you can see this imported recipe'}
+                      {isDiscoverable ? 'Others can find this imported recipe' : 'Only you can see this imported recipe'}
                     </p>
                   </div>
                 </div>
