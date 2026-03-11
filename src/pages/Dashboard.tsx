@@ -22,6 +22,7 @@ import type { Recipe } from "@/data/recipes";
 import { useCurrentMealPlan } from "@/hooks/useCurrentMealPlan";
 import { getMealPlanWeekStart } from "@/lib/mealPlanUtils";
 import { useCookedMeals } from "@/hooks/useCookedMeals";
+import { usePremiumAccess } from "@/hooks/usePremiumAccess";
 
 const WEEK_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MEAL_PREP_TYPES = new Set(["Breakfast", "Lunch", "Dinner"]);
@@ -349,7 +350,19 @@ export default function Dashboard() {
   const formatCookedAt = (dateString: string) =>
     new Date(dateString).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
+  const { isPremium } = usePremiumAccess();
+
   const handleEstimateSavings = async (mealId: string) => {
+    if (!isPremium) {
+      toast.info("AI savings estimates are a Premium feature.", {
+        action: {
+          label: "Open Settings",
+          onClick: () => navigate("/settings"),
+        },
+      });
+      return;
+    }
+
     const meal = cookedMeals.find((item) => item.id === mealId);
     if (!meal) return;
 
@@ -587,7 +600,7 @@ export default function Dashboard() {
                           <p className="text-xs font-semibold text-stone-800 truncate">{meal.recipe_name}</p>
                           <p className="text-[10px] text-stone-400 mt-0.5">Cooked {formatCookedAt(meal.cooked_at)}</p>
                         </div>
-                        {meal.estimated_savings != null ? (
+                        {meal.estimated_savings != null && isPremium ? (
                           <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full whitespace-nowrap">
                             Saved ≈ ${meal.estimated_savings.toFixed(2)}
                           </span>
@@ -597,7 +610,7 @@ export default function Dashboard() {
                             disabled={estimatingMealId === meal.id}
                             className="text-[10px] font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 px-2 py-1 rounded-full disabled:opacity-60"
                           >
-                            ✨ AI savings
+                            {isPremium ? "✨ AI savings" : "🔒 Premium"}
                           </button>
                         )}
                       </div>

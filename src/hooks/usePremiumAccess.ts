@@ -23,9 +23,18 @@ export function usePremiumAccess() {
       setLoading(false);
     });
 
+    const handlePremiumOverrideChange = () => {
+      void syncPremium();
+    };
+
+    window.addEventListener("storage", handlePremiumOverrideChange);
+    window.addEventListener("munch-premium-override-changed", handlePremiumOverrideChange);
+
     return () => {
       mounted = false;
       authListener.subscription.unsubscribe();
+      window.removeEventListener("storage", handlePremiumOverrideChange);
+      window.removeEventListener("munch-premium-override-changed", handlePremiumOverrideChange);
     };
   }, []);
 

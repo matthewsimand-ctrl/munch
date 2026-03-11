@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 const LOCAL_KEY = "munch_local_cooked_meals";
+const DUPLICATE_WINDOW_MS = 90 * 1000;
 
 export interface CookedMeal {
   id: string;
@@ -21,6 +22,11 @@ function estimateSavingsFromRecipe(input: { cookTime?: string; ingredientCount?:
   const savings = Math.max(2, eatOutCost - atHomeCost);
 
   return Number(savings.toFixed(2));
+}
+
+function isDuplicateCookSession(a: { recipe_id: string; cooked_at: string }, b: { recipe_id: string; cooked_at: string }) {
+  if (a.recipe_id !== b.recipe_id) return false;
+  return Math.abs(new Date(a.cooked_at).getTime() - new Date(b.cooked_at).getTime()) < DUPLICATE_WINDOW_MS;
 }
 
 export function useCookedMeals(limit = 12) {
@@ -92,11 +98,12 @@ export function useCookedMeals(limit = 12) {
     cookTime?: string;
     ingredientCount?: number;
   }) => {
+    const cookedAt = new Date().toISOString();
     const localMeal: CookedMeal = {
       id: crypto.randomUUID(),
       recipe_id: input.recipeId,
       recipe_name: input.recipeName,
-      cooked_at: new Date().toISOString(),
+      cooked_at: cookedAt,
       estimated_savings: null,
       metadata: {
         cook_time: input.cookTime ?? null,
@@ -107,16 +114,39 @@ export function useCookedMeals(limit = 12) {
     try {
       const raw = localStorage.getItem(LOCAL_KEY);
       const parsed = raw ? (JSON.parse(raw) as CookedMeal[]) : [];
-      const next = [localMeal, ...(Array.isArray(parsed) ? parsed : [])].slice(0, 200);
+      const existing = Array.isArray(parsed) ? parsed : [];
+      if (existing.some((meal) => isDuplicateCookSession(meal, localMeal))) return;
+
+      const next = [localMeal, ...existing].slice(0, 200);
       localStorage.setItem(LOCAL_KEY, JSON.stringify(next));
     } catch {
       // Ignore local storage failures.
     }
 
-    setMeals((prev) => [localMeal, ...prev].slice(0, limit));
+    setMeals((prev) => {
+      if (prev.some((meal) => isDuplicateCookSession(meal, localMeal))) return prev;
+      return [localMeal, ...prev].slice(0, limit);
+    });
 
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) return;
+
+    const { data: recentMeals } = await supabase
+      .from("cooked_meals")
+      .select("id, recipe_id, recipe_name, cooked_at, estimated_savings, metadata")
+      .eq("user_id", session.user.id)
+      .eq("recipe_id", input.recipeId)
+      .order("cooked_at", { ascending: false })
+      .limit(1);
+
+    const latest = (recentMeals?.[0] ?? null) as CookedMeal | null;
+    if (latest && isDuplicateCookSession(latest, localMeal)) {
+      setMeals((prev) => {
+        const filtered = prev.filter((meal) => meal.id !== localMeal.id);
+        return [latest, ...filtered].slice(0, limit);
+      });
+      return;
+    }
 
     const { data: inserted } = await supabase.from("cooked_meals").insert({
       user_id: session.user.id,
