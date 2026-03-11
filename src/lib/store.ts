@@ -7,6 +7,8 @@ export interface UserProfile {
   skillLevel: string;
   flavorProfiles: string[];
   cuisinePreferences: string[];
+  groceryLocation: string;
+  groceryCurrency: string;
 }
 
 export interface PantryItem {
@@ -124,6 +126,8 @@ const initialProfile: UserProfile = {
   skillLevel: '',
   flavorProfiles: [],
   cuisinePreferences: [],
+  groceryLocation: '',
+  groceryCurrency: 'USD',
 };
 
 export const useStore = create<AppState>()(
