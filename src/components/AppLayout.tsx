@@ -16,6 +16,7 @@ import {
   History,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useStore } from "@/lib/store";
 
 const NAV_ITEMS = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -33,33 +34,45 @@ export default function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [planType, setPlanType] = useState("Free Plan");
+  const { displayName: storeDisplayName } = useStore();
 
   useEffect(() => {
     const hydrateFooterProfile = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       const user = session?.user;
-      if (!user) return;
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("display_name")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("display_name")
+          .eq("user_id", user.id)
+          .maybeSingle();
 
-      const persistedName = profile?.display_name?.trim();
-      const fallbackName = user.user_metadata?.display_name?.trim();
-      if (persistedName || fallbackName) {
-        setDisplayName((persistedName || fallbackName) as string);
+        const persistedName = profile?.display_name?.trim();
+        const fallbackName = user.user_metadata?.display_name?.trim();
+        if (persistedName || fallbackName) {
+          setDisplayName((persistedName || fallbackName) as string);
+          return;
+        }
       }
 
-      const metadataPlan = user.user_metadata?.plan_type || user.user_metadata?.plan || user.user_metadata?.subscription;
-      if (typeof metadataPlan === "string" && metadataPlan.trim()) {
-        setPlanType(metadataPlan.trim());
+      // Fallback to store name for Guests or users without a profile record
+      if (storeDisplayName) {
+        setDisplayName(storeDisplayName);
+      } else {
+        setDisplayName("");
+      }
+
+      if (user) {
+        const metadataPlan = user.user_metadata?.plan_type || user.user_metadata?.plan || user.user_metadata?.subscription;
+        if (typeof metadataPlan === "string" && metadataPlan.trim()) {
+          setPlanType(metadataPlan.trim());
+        }
       }
     };
 
     hydrateFooterProfile();
-  }, []);
+  }, [storeDisplayName]);
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-orange-50/50 via-background to-background overflow-hidden">
@@ -112,8 +125,8 @@ export default function AppLayout() {
                   <Icon
                     size={18}
                     className={`shrink-0 transition-colors ${isActive
-                        ? "text-orange-500"
-                        : "text-gray-400 group-hover:text-gray-600"
+                      ? "text-orange-500"
+                      : "text-gray-400 group-hover:text-gray-600"
                       }`}
                   />
                   {!collapsed && (
@@ -142,7 +155,9 @@ export default function AppLayout() {
             </div>
             {!collapsed && (
               <div className="min-w-0">
-                <div className="text-xs font-semibold text-gray-800 truncate">{displayName ? `${displayName}'s Kitchen` : "My Kitchen"}</div>
+                <div className="text-xs font-semibold text-gray-800 truncate">
+                  {displayName ? `${displayName}'s Kitchen` : "My Kitchen"}
+                </div>
                 <div className="text-xs text-gray-400 truncate">Settings | {planType}</div>
               </div>
             )}

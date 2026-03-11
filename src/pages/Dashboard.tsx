@@ -341,15 +341,23 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    async function loadProfile() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        const { data } = await supabase.from("profiles").select("display_name").eq("user_id", session.user.id).single();
-        if (data?.display_name) setDisplayName(data.display_name);
+    const loadProfile = async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData.session?.user?.id;
+
+      if (userId) {
+        const { data } = await supabase.from("profiles").select("display_name").eq("user_id", userId).maybeSingle();
+        if (data?.display_name) {
+          setDisplayName(data.display_name);
+          return;
+        }
       }
-    }
+
+      // Fallback to store name for Guests or users without a profile record
+      if (storeDisplayName) setDisplayName(storeDisplayName);
+    };
     loadProfile();
-  }, []);
+  }, [storeDisplayName]);
 
   const selectedMatch = selectedRecipe ? calculateMatch(pantryNames, selectedRecipe.ingredients || []) : null;
   const formatIngredient = (s: string) => { const p = parseIngredientLine(s); return p.quantity ? `${p.name} (${p.quantity})` : p.name; };
