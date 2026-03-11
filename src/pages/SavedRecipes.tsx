@@ -185,7 +185,7 @@ export default function MyRecipesScreen() {
   const [activeCuisine, setActiveCuisine] = useState("All");
   const [activeFolder, setActiveFolder] = useState<string | null>(null);
   const [selectedChef, setSelectedChef] = useState<string | null>(null);
-  const [displayName, setDisplayName] = useState<string>("My");
+  const [displayName, setDisplayName] = useState<string>("Your");
   const [previewRecipe, setPreviewRecipe] = useState<Recipe | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [showManualRecipeDialog, setShowManualRecipeDialog] = useState(false);

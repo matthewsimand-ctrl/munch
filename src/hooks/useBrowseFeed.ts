@@ -4,6 +4,7 @@ import { useStore } from '@/lib/store';
 import type { Recipe } from '@/data/recipes';
 import { rankByRecommendation } from '@/lib/recommendations';
 import { normalizeIngredients } from '@/lib/normalizeIngredients';
+import { classifyMealType } from '@/lib/mealTimeUtils';
 
 interface BrowseRecipe extends Recipe {
   source: string;
@@ -52,6 +53,36 @@ export function useBrowseFeed() {
   const [loaded, setLoaded] = useState(false);
   const { likedRecipes, savedApiRecipes, userProfile, pantryList } = useStore();
 
+  const diversifyBrowseOrder = useCallback((rankedRecipes: BrowseRecipe[]) => {
+    const desserts = rankedRecipes.filter((recipe) => classifyMealType(recipe).includes('dessert'));
+    const mains = rankedRecipes.filter((recipe) => !classifyMealType(recipe).includes('dessert'));
+
+    if (desserts.length === 0 || mains.length === 0) return rankedRecipes;
+
+    const reordered: BrowseRecipe[] = [];
+    let mainIndex = 0;
+    let dessertIndex = 0;
+
+    while (mainIndex < mains.length || dessertIndex < desserts.length) {
+      for (let count = 0; count < 3 && mainIndex < mains.length; count += 1) {
+        reordered.push(mains[mainIndex]);
+        mainIndex += 1;
+      }
+
+      if (dessertIndex < desserts.length) {
+        reordered.push(desserts[dessertIndex]);
+        dessertIndex += 1;
+      }
+
+      if (mainIndex >= mains.length && dessertIndex < desserts.length) {
+        reordered.push(...desserts.slice(dessertIndex));
+        break;
+      }
+    }
+
+    return reordered;
+  }, []);
+
   const loadFeed = useCallback(async () => {
     if (loaded || loading) return;
     setLoading(true);
@@ -74,10 +105,10 @@ export function useBrowseFeed() {
 
       if (likedRecipesList.length > 0 || userProfile.cuisinePreferences.length > 0 || userProfile.skillLevel || pantryNames.length > 0) {
         const ranked = rankByRecommendation(fetched, likedRecipesList, likedIds, userProfile, pantryNames);
-        setRecipes(ranked.map((item) => item.recipe as BrowseRecipe));
+        setRecipes(diversifyBrowseOrder(ranked.map((item) => item.recipe as BrowseRecipe)));
       } else {
         const shuffled = [...fetched].sort(() => Math.random() - 0.5);
-        setRecipes(shuffled);
+        setRecipes(diversifyBrowseOrder(shuffled));
       }
 
       setLoaded(true);
@@ -86,7 +117,7 @@ export function useBrowseFeed() {
     } finally {
       setLoading(false);
     }
-  }, [loaded, loading, likedRecipes, savedApiRecipes, userProfile, pantryList]);
+  }, [loaded, loading, likedRecipes, savedApiRecipes, userProfile, pantryList, diversifyBrowseOrder]);
 
   return { recipes, loading, loaded, loadFeed };
 }
