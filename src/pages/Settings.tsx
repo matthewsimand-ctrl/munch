@@ -10,6 +10,7 @@ import { ArrowLeft, LogOut, User, Users, Utensils, Trash2, Flame, Camera, ChefHa
 import { useToast } from '@/hooks/use-toast';
 import { Switch } from '@/components/ui/switch';
 import { getPremiumOverride, setPremiumOverride } from '@/lib/premium';
+import RecipeScraperTester from '@/components/RecipeScraperTester';
 
 const DIETARY_OPTIONS = ['Vegetarian', 'Vegan', 'Gluten-Free', 'Dairy-Free', 'Nut-Free', 'None'];
 const SKILL_OPTIONS = ['Beginner', 'Intermediate', 'Advanced'];
@@ -199,6 +200,8 @@ export default function Settings() {
               </div>
             </div>
           </section>
+
+          <RecipeScraperTester />
 
           {/* Cooking Preferences */}
           <section className="space-y-4">
