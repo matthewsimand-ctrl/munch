@@ -12,6 +12,8 @@ import RecipePreviewDialog from "@/components/RecipePreviewDialog";
 import { toast } from "sonner";
 import { jsPDF } from "jspdf";
 import { format, startOfWeek } from "date-fns";
+import { usePremiumAccess } from "@/hooks/usePremiumAccess";
+import { calculateMatch } from "@/lib/matchLogic";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MEAL_TYPES = ["Breakfast", "Lunch", "Dinner"] as const;
@@ -108,7 +110,8 @@ function MealSlot({
 
 export default function MealPrepScreen() {
   const navigate = useNavigate();
-  const { mealPlan, addMealPlanItem, removeMealPlanItem, clearMealPlanWeek, savedApiRecipes, likedRecipes, addCustomGroceryItem } = useStore();
+  const { mealPlan, addMealPlanItem, removeMealPlanItem, clearMealPlanWeek, savedApiRecipes, likedRecipes, addCustomGroceryItem, pantryList } = useStore();
+  const { isPremium } = usePremiumAccess();
 
   const [weekOffset, setWeekOffset] = useState(0);
   const [showAddModal, setShowAddModal] = useState<{ day: string; mealType: MealType } | null>(null);
@@ -161,6 +164,11 @@ export default function MealPrepScreen() {
     [savedRecipesList, searchRecipe],
   );
 
+  const pantryNames = useMemo(
+    () => pantryList.map((item) => item.name).filter(Boolean),
+    [pantryList],
+  );
+
   const handleAddMeal = (recipe: any) => {
     if (!showAddModal) return;
     addMealPlanItem?.({
@@ -194,6 +202,23 @@ export default function MealPrepScreen() {
       return;
     }
 
+    const prioritizedRecipes = [...sourceRecipes].sort((recipeA, recipeB) => {
+      const aIngredients = Array.isArray(recipeA.ingredients) ? recipeA.ingredients : [];
+      const bIngredients = Array.isArray(recipeB.ingredients) ? recipeB.ingredients : [];
+      const aMatch = calculateMatch(pantryNames, aIngredients).percentage;
+      const bMatch = calculateMatch(pantryNames, bIngredients).percentage;
+      return bMatch - aMatch;
+    });
+
+    const pickRecipe = () => {
+      if (prioritizedRecipes.length <= 3) {
+        return prioritizedRecipes[Math.floor(Math.random() * prioritizedRecipes.length)];
+      }
+
+      const topCandidates = prioritizedRecipes.slice(0, Math.max(3, Math.ceil(prioritizedRecipes.length * 0.35)));
+      return topCandidates[Math.floor(Math.random() * topCandidates.length)];
+    };
+
     const emptySlots = DAYS.flatMap((day) =>
       MEAL_TYPES
         .filter((mealType) => !getMeal(day, mealType))
@@ -202,7 +227,7 @@ export default function MealPrepScreen() {
 
     if (emptySlots.length > 0) {
       emptySlots.forEach(({ day, mealType }) => {
-        const recipe = sourceRecipes[Math.floor(Math.random() * sourceRecipes.length)];
+        const recipe = pickRecipe();
         addMealPlanItem?.({ weekStart, day, mealType, recipeName: recipe.name, recipeId: recipe.id, cookTime: recipe.cook_time, recipeSnapshot: recipe });
       });
       toast.success(`🎲 Filled ${emptySlots.length} open slots with ${sourceLabel} picks!`);
@@ -214,7 +239,7 @@ export default function MealPrepScreen() {
       .slice(0, Math.min(5, plannedMeals.length));
 
     slotsToReplace.forEach((meal) => {
-      const recipe = sourceRecipes[Math.floor(Math.random() * sourceRecipes.length)];
+      const recipe = pickRecipe();
       removeMealPlanItem?.(meal.id);
       addMealPlanItem?.({
         weekStart,
@@ -237,6 +262,16 @@ export default function MealPrepScreen() {
 
   const handleSurpriseAi = async () => {
     setShowSurpriseSourceModal(false);
+    if (!isPremium) {
+      toast.info("AI meal autofill is a Premium feature.", {
+        action: {
+          label: "Open Settings",
+          onClick: () => navigate("/settings"),
+        },
+      });
+      return;
+    }
+
     if (browseLoaded) {
       applySurpriseMe(browseRecipes, "AI-recommended");
       return;
@@ -843,7 +878,7 @@ export default function MealPrepScreen() {
                 <h3 className="text-lg font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
                   Choose your surprise source
                 </h3>
-                <p className="text-xs text-stone-500 mt-1">Use only recipes you saved, or let AI recommendations mix in new ideas.</p>
+                <p className="text-xs text-stone-500 mt-1">Use only recipes you saved, or let AI recommendations mix in new ideas with higher ingredient match.</p>
                 <div className="grid grid-cols-1 gap-2 mt-5">
                   <button
                     onClick={handleSurpriseSaved}
@@ -853,10 +888,10 @@ export default function MealPrepScreen() {
                   </button>
                   <button
                     onClick={handleSurpriseAi}
-                    className="rounded-xl py-2.5 text-sm font-semibold text-white"
+                    className="rounded-xl py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-75"
                     style={{ background: "linear-gradient(135deg,#FB923C,#F97316,#EA580C)" }}
                   >
-                    Use AI recommendations
+                    {isPremium ? "Use AI recommendations" : "Use AI recommendations · Premium"}
                   </button>
                 </div>
               </div>
