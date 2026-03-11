@@ -1,7 +1,8 @@
 import { useState, useMemo } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import {
   ShoppingCart, Plus, X, Check, Share2, Trash2,
-  Search, ChevronDown,
+  Search, ChevronDown, Sparkles, MapPin,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "@/lib/store";
@@ -131,6 +132,7 @@ export default function GroceryScreen() {
     toggleGroceryItem,
     updateGroceryItem,
     clearCheckedGroceryItems,
+    userProfile,
   } = useStore();
 
   const [newItem, setNewItem] = useState("");
@@ -138,6 +140,9 @@ export default function GroceryScreen() {
   const [newSection, setNewSection] = useState("other");
   const [search, setSearch] = useState("");
   const [showChecked, setShowChecked] = useState(true);
+  const [estimating, setEstimating] = useState(false);
+  const [priceEstimate, setPriceEstimate] = useState<{ total: number; low: number; high: number; nearbyStores: string[]; currency: string; location: string; notes?: string } | null>(null);
+
 
   const items: GroceryItem[] = (customGroceryItems ?? []).map((item, idx) => {
     const legacy = toLegacyDetails(item.quantity);
@@ -197,6 +202,36 @@ export default function GroceryScreen() {
     toast.success("Cleared grocery list");
   };
 
+  const handleEstimatePrice = async () => {
+    const activeItems = items.filter((item) => !item.checked);
+    if (!activeItems.length) {
+      toast.info("Add a few grocery items first.");
+      return;
+    }
+
+    setEstimating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("estimate-grocery-price", {
+        body: {
+          items: activeItems.map((item) => ({ name: item.name, qty: item.qty })),
+          location: userProfile.groceryLocation,
+          currency: userProfile.groceryCurrency,
+        },
+      });
+
+      if (error) throw new Error(error.message || "Could not estimate prices");
+      if (!data?.success || !data?.estimate) throw new Error(data?.error || "Could not estimate prices");
+
+      setPriceEstimate(data.estimate);
+      toast.success("Estimated grocery total ready");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not estimate prices right now";
+      toast.error(message);
+    } finally {
+      setEstimating(false);
+    }
+  };
+
   return (
     <div className="min-h-full" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", background: "#FFFAF5" }}>
 
@@ -225,6 +260,15 @@ export default function GroceryScreen() {
                   className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-stone-200 text-xs font-semibold text-stone-500 hover:border-red-300 hover:text-red-500 transition-colors"
                 >
                   <Trash2 size={13} /> Clear done
+                </button>
+              )}
+              {totalCount > 0 && (
+                <button
+                  onClick={handleEstimatePrice}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-stone-200 text-xs font-semibold text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
+                  disabled={estimating}
+                >
+                  <Sparkles size={13} /> {estimating ? "Estimating..." : "AI estimate"}
                 </button>
               )}
               {totalCount > 0 && (
@@ -319,6 +363,23 @@ export default function GroceryScreen() {
             </button>
           </div>
         </div>
+
+        {priceEstimate && (
+          <div
+            className="rounded-2xl border p-4 space-y-2"
+            style={{ background: "#fff", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.04)" }}
+          >
+            <p className="text-xs font-bold text-stone-500 uppercase tracking-wider">AI price estimate</p>
+            <p className="text-2xl font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+              {new Intl.NumberFormat(undefined, { style: "currency", currency: priceEstimate.currency }).format(priceEstimate.total)}
+            </p>
+            <p className="text-xs text-stone-500">
+              Range {new Intl.NumberFormat(undefined, { style: "currency", currency: priceEstimate.currency }).format(priceEstimate.low)} - {new Intl.NumberFormat(undefined, { style: "currency", currency: priceEstimate.currency }).format(priceEstimate.high)}
+            </p>
+            <p className="text-xs text-stone-500 flex items-center gap-1"><MapPin size={12} /> {priceEstimate.location} · {priceEstimate.nearbyStores.join(", ")}</p>
+            {priceEstimate.notes && <p className="text-[11px] text-stone-400">{priceEstimate.notes}</p>}
+          </div>
+        )}
 
         {/* Search */}
         {items.length > 5 && (

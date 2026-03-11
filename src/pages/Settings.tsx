@@ -6,13 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, LogOut, User, Users, Utensils, Trash2, Flame, Camera, ChefHat, Crown } from 'lucide-react';
+import { ArrowLeft, LogOut, User, Users, Utensils, Trash2, Flame, Camera, ChefHat, Crown, MapPin } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Switch } from '@/components/ui/switch';
 import { getPremiumOverride, setPremiumOverride } from '@/lib/premium';
 
 const DIETARY_OPTIONS = ['Vegetarian', 'Vegan', 'Gluten-Free', 'Dairy-Free', 'Nut-Free', 'None'];
 const SKILL_OPTIONS = ['Beginner', 'Intermediate', 'Advanced'];
+const CURRENCY_OPTIONS = ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY', 'INR'];
 const NO_PREFERENCE_OPTION = 'No preference';
 const FLAVOR_OPTIONS = ['Spicy', 'Sweet', 'Savory', 'Umami', 'Fresh/Citrusy', NO_PREFERENCE_OPTION];
 const SERVING_OPTIONS = [
@@ -266,6 +267,40 @@ export default function Settings() {
                 </div>
               </div>
 
+
+              <div className="pt-2 border-t border-border/70 space-y-3">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <MapPin className="h-4 w-4" />
+                  <span className="text-sm font-semibold">Grocery Price Estimator</span>
+                </div>
+                <div>
+                  <Label htmlFor="groceryLocation">Location</Label>
+                  <p className="text-xs text-muted-foreground mb-2">City or region used to estimate prices at nearby stores.</p>
+                  <Input
+                    id="groceryLocation"
+                    value={userProfile.groceryLocation}
+                    onChange={(e) => setUserProfile({ groceryLocation: e.target.value })}
+                    placeholder="e.g. Austin, TX"
+                    maxLength={80}
+                  />
+                </div>
+                <div>
+                  <Label>Currency</Label>
+                  <Select value={userProfile.groceryCurrency || 'USD'} onValueChange={(value) => setUserProfile({ groceryCurrency: value })}>
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CURRENCY_OPTIONS.map((currency) => (
+                        <SelectItem key={currency} value={currency}>
+                          {currency}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
             </div>
           </section>
 
@@ -336,7 +371,7 @@ export default function Settings() {
               variant="outline"
               className="w-full"
               onClick={() => {
-                setUserProfile({ dietaryRestrictions: [], skillLevel: '', flavorProfiles: [] });
+                setUserProfile({ dietaryRestrictions: [], skillLevel: '', flavorProfiles: [], groceryLocation: '', groceryCurrency: 'USD' });
                 useStore.setState({ onboardingComplete: false });
                 toast({ title: 'Preferences reset!' });
                 navigate('/onboarding');
