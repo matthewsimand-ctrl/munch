@@ -385,6 +385,22 @@ export default function CreateRecipeForm({ onClose }: Props) {
       const stepList = instructions.map((s) => s.trim()).filter(Boolean);
       const finalImage = image || (await getRandomFoodishImage(name)) || '/placeholder.svg';
 
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('display_name')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      const typedDisplayName = chef.trim();
+      const displayChefName = typedDisplayName || profile?.display_name?.trim() || null;
+
+      if (typedDisplayName && typedDisplayName !== profile?.display_name?.trim()) {
+        await supabase
+          .from('profiles')
+          .update({ display_name: typedDisplayName })
+          .eq('user_id', userId);
+      }
+
       const recipeId = crypto.randomUUID();
       const { error } = await supabase.from('recipes').insert({
         id: recipeId,
@@ -393,7 +409,6 @@ export default function CreateRecipeForm({ onClose }: Props) {
         cook_time: cookTime.trim() || '30 min',
         difficulty,
         cuisine: cuisine.trim() || null,
-        chef: chef.trim() || null,
         ingredients,
         tags,
         instructions: stepList,
@@ -413,7 +428,8 @@ export default function CreateRecipeForm({ onClose }: Props) {
         cook_time: cookTime.trim() || '30 min',
         difficulty,
         cuisine: cuisine.trim() || null,
-        chef: chef.trim() || null,
+        chef: displayChefName,
+        created_by: userId,
         ingredients,
         tags,
         instructions: stepList,
@@ -542,8 +558,8 @@ export default function CreateRecipeForm({ onClose }: Props) {
           <Input value={cuisine} onChange={e => setCuisine(e.target.value)} placeholder="Italian" />
         </div>
         <div>
-          <label className="text-sm font-medium text-foreground">Chef (optional)</label>
-          <Input value={chef} onChange={e => setChef(e.target.value)} placeholder="Chef name" />
+          <label className="text-sm font-medium text-foreground">Display name (optional)</label>
+          <Input value={chef} onChange={e => setChef(e.target.value)} placeholder="Shown as recipe author name" />
         </div>
       </div>
 
