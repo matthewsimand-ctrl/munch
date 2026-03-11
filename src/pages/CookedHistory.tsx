@@ -32,7 +32,12 @@ export default function CookedHistory() {
 
   const handleEstimateSavings = async (mealId: string) => {
     if (!isPremium) {
-      toast.info("Estimated savings is a Premium feature.");
+      toast.info("Estimated savings is a Premium feature.", {
+        action: {
+          label: "Open Settings",
+          onClick: () => navigate("/settings"),
+        },
+      });
       return;
     }
     const meal = meals.find((item) => item.id === mealId);
@@ -66,7 +71,18 @@ export default function CookedHistory() {
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setShowSavings((prev) => !prev)}
+                onClick={() => {
+                  if (!isPremium) {
+                    toast.info("Estimated savings is a Premium feature.", {
+                      action: {
+                        label: "Open Settings",
+                        onClick: () => navigate("/settings"),
+                      },
+                    });
+                    return;
+                  }
+                  setShowSavings((prev) => !prev);
+                }}
                 className="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 px-3 py-2 rounded-xl border border-violet-100"
               >
                 <Sparkles size={13} /> Estimated savings {!isPremium && <><Lock size={12} /> Premium</>}

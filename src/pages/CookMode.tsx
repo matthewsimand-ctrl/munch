@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft, ArrowRight, ChefHat, CheckCircle2, Circle,
@@ -119,6 +119,7 @@ export default function CookMode() {
   const [ttsEnabled, setTtsEnabled] = useState(true);
   const [done, setDone] = useState(false);
   const [showIngredients, setShowIngredients] = useState(false);
+  const hasTrackedCookRef = useRef(false);
 
   /* ── Resolve recipe ── */
   const recipe = useMemo<Recipe | null>(() => {
@@ -166,13 +167,16 @@ export default function CookMode() {
     stop(); // stop current speech
     if (isLastStep) {
       setDone(true);
-      markRecipeCooked?.(id!);
-      void trackCookedMeal({
-        recipeId: id!,
-        recipeName: recipe.name,
-        cookTime: recipe.cook_time,
-        ingredientCount: ingredients.length,
-      });
+      if (!hasTrackedCookRef.current) {
+        hasTrackedCookRef.current = true;
+        markRecipeCooked?.(id!);
+        void trackCookedMeal({
+          recipeId: id!,
+          recipeName: recipe.name,
+          cookTime: recipe.cook_time,
+          ingredientCount: ingredients.length,
+        });
+      }
       return;
     }
     const next = stepIndex + 1;
@@ -198,6 +202,10 @@ export default function CookMode() {
       speak(steps[0]);
     }
   }, [ttsEnabled, steps, speak]);
+
+  useEffect(() => {
+    hasTrackedCookRef.current = false;
+  }, [id]);
 
   /* ── Keyboard nav ── */
   useEffect(() => {
@@ -301,7 +309,7 @@ export default function CookMode() {
 
           <div className="flex gap-3 justify-center">
             <button
-              onClick={() => { setDone(false); setStepIndex(0); }}
+              onClick={() => { hasTrackedCookRef.current = false; setDone(false); setStepIndex(0); }}
               className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold bg-white border border-stone-200 text-stone-600 hover:border-orange-300 transition-colors"
             >
               <RotateCcw size={14} /> Cook again

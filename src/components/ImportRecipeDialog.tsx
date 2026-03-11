@@ -115,6 +115,15 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
   const { likeRecipe } = useStore();
   const { isPremium } = usePremiumAccess();
 
+  const promptPremiumUpgrade = () => {
+    toast.info('This is a Premium feature. Upgrade to unlock AI imports.', {
+      action: {
+        label: 'Open Settings',
+        onClick: () => navigate('/settings'),
+      },
+    });
+  };
+
   // Review mode state
   const [reviewMode, setReviewMode] = useState(false);
   const [reviewData, setReviewData] = useState<ReviewData | null>(null);
@@ -287,8 +296,8 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
   };
 
   const handleExtract = async (payload: { url?: string; textContent?: string; imageBase64?: string; imageMimeType?: string }) => {
-    if (!isPremium) {
-      toast.info('AI recipe import is a Premium feature.');
+    if (!isPremium && !payload.url) {
+      promptPremiumUpgrade();
       return;
     }
 
@@ -465,6 +474,45 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
     }
   };
 
+
+  const handleNonPremiumUrlImport = async (normalizedUrl: string) => {
+    setLoading(true);
+    setLastImportError('');
+
+    try {
+      const existingRecipe = await findExistingRecipeByUrl(normalizedUrl);
+      if (!existingRecipe) {
+        setLastImportError('No recipe was found for this URL yet. Upgrade to Premium to import directly from any site.');
+        promptPremiumUpgrade();
+        return;
+      }
+
+      setWebsitePreview({
+        name: String(existingRecipe.name || 'Imported Recipe').trim(),
+        ingredients: Array.isArray(existingRecipe.ingredients) ? existingRecipe.ingredients.map((item: unknown) => String(item).trim()).filter(Boolean) : [],
+        instructions: normalizeList(existingRecipe.instructions),
+        cook_time: String(existingRecipe.cook_time || '30 min'),
+        difficulty: String(existingRecipe.difficulty || 'Intermediate'),
+        cuisine: existingRecipe.cuisine ? String(existingRecipe.cuisine) : '',
+        chef: existingRecipe.chef ? String(existingRecipe.chef) : '',
+        tags: normalizeList(existingRecipe.tags),
+        image: String(existingRecipe.image || '/placeholder.svg'),
+        servings: String(existingRecipe.servings || 4),
+        source_url: existingRecipe.source_url ? String(existingRecipe.source_url) : undefined,
+        raw_api_payload: existingRecipe.raw_api_payload && typeof existingRecipe.raw_api_payload === 'object'
+          ? existingRecipe.raw_api_payload as Record<string, unknown>
+          : undefined,
+      });
+      toast.success('Loaded this recipe from the community library. Upgrade for AI import from any URL.');
+    } catch (err: any) {
+      console.error('Non-premium URL import error:', err);
+      setLastImportError(err?.message || 'Could not load recipe from that URL');
+      toast.error('Could not load this URL right now.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleUrlSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const trimmedUrl = url.trim();
@@ -482,6 +530,11 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
       setLastImportError('Please enter a valid recipe URL.');
       setShowManualPaste(true);
       toast.error('Invalid URL format. You can paste recipe text instead.');
+      return;
+    }
+
+    if (!isPremium) {
+      void handleNonPremiumUrlImport(normalizedUrl);
       return;
     }
 
@@ -1136,7 +1189,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
 
               <TabsContent value="url" className="space-y-4 pt-4">
                 <p className="text-sm text-muted-foreground">
-                  🧠 Paste a recipe page URL and AI will extract the details. {!isPremium && <span className="font-semibold">Premium required.</span>} If it fails, paste text directly or upload a PDF.
+                  🧠 Paste a recipe page URL and we'll import it. {!isPremium && <span className="font-semibold">Without Premium, we'll load it only if it already exists in our library.</span>}
                 </p>
 
                 <form onSubmit={handleUrlSubmit} noValidate className="space-y-3">
@@ -1145,15 +1198,15 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
                     placeholder="https://example.com/recipe/..."
                     value={url}
                     onChange={(e) => setUrl(e.target.value)}
-                    disabled={loading || !isPremium}
+                    disabled={loading}
                   />
-                  <Button type="submit" className="w-full" disabled={loading || !url.trim() || !isPremium}>
+                  <Button type="submit" className="w-full" disabled={loading || !url.trim()}>
                     {loading ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Extracting...
                       </>
                     ) : (
-                      isPremium ? 'Import Recipe' : 'Premium Required'
+                      isPremium ? 'Import Recipe' : 'Find Recipe in Library'
                     )}
                   </Button>
                 </form>
@@ -1205,20 +1258,20 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
                           value={manualText}
                           onChange={(e) => setManualText(e.target.value)}
                           placeholder="Copy and paste the recipe title, ingredients, and instructions here..."
-                          disabled={loading || !isPremium}
+                          disabled={loading}
                         />
                         <Button
                           type="button"
                           onClick={handleManualImport}
                           className="w-full"
-                          disabled={loading || !manualText.trim() || !isPremium}
+                          disabled={loading || !manualText.trim()}
                         >
                           {loading ? (
                             <>
                               <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Importing...
                             </>
                           ) : (
-                            isPremium ? '🧠 Import Pasted Text' : 'Premium Required'
+                            isPremium ? '🧠 Import Pasted Text' : 'Upgrade for AI Import'
                           )}
                         </Button>
                       </div>
@@ -1241,8 +1294,14 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
                 <Button
                   variant="outline"
                   className="w-full h-24 border-dashed border-2 flex flex-col gap-2"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={loading || !isPremium}
+                  onClick={() => {
+                    if (!isPremium) {
+                      promptPremiumUpgrade();
+                      return;
+                    }
+                    fileInputRef.current?.click();
+                  }}
+                  disabled={loading}
                 >
                   {loading ? (
                     <>
@@ -1252,7 +1311,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
                   ) : (
                     <>
                       <FileText className="h-6 w-6 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">{isPremium ? 'Click to upload PDF (max 20MB)' : 'Premium Required'}</span>
+                      <span className="text-sm text-muted-foreground">{isPremium ? 'Click to upload PDF (max 20MB)' : 'Upgrade for AI PDF import'}</span>
                     </>
                   )}
                 </Button>
@@ -1272,8 +1331,14 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
                 <Button
                   variant="outline"
                   className="w-full h-24 border-dashed border-2 flex flex-col gap-2"
-                  onClick={() => recipePhotoInputRef.current?.click()}
-                  disabled={loading || !isPremium}
+                  onClick={() => {
+                    if (!isPremium) {
+                      promptPremiumUpgrade();
+                      return;
+                    }
+                    recipePhotoInputRef.current?.click();
+                  }}
+                  disabled={loading}
                 >
                   {loading ? (
                     <>
@@ -1283,7 +1348,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
                   ) : (
                     <>
                       <Camera className="h-6 w-6 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">{isPremium ? 'Click to upload recipe photo (max 10MB)' : 'Premium Required'}</span>
+                      <span className="text-sm text-muted-foreground">{isPremium ? 'Click to upload recipe photo (max 10MB)' : 'Upgrade for AI photo import'}</span>
                     </>
                   )}
                 </Button>

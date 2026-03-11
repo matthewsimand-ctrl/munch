@@ -6,14 +6,29 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, LogOut, User, Users, Utensils, Trash2, Flame, FolderArchive, Camera, ChefHat } from 'lucide-react';
+import { ArrowLeft, LogOut, User, Users, Utensils, Trash2, Flame, Camera, ChefHat, Crown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Switch } from '@/components/ui/switch';
+import { getPremiumOverride, setPremiumOverride } from '@/lib/premium';
 
 const DIETARY_OPTIONS = ['Vegetarian', 'Vegan', 'Gluten-Free', 'Dairy-Free', 'Nut-Free', 'None'];
 const SKILL_OPTIONS = ['Beginner', 'Intermediate', 'Advanced'];
 const NO_PREFERENCE_OPTION = 'No preference';
 const FLAVOR_OPTIONS = ['Spicy', 'Sweet', 'Savory', 'Umami', 'Fresh/Citrusy', NO_PREFERENCE_OPTION];
+const SERVING_OPTIONS = [
+  { value: '1', label: 'Solo', description: 'Just me' },
+  { value: '2', label: 'Couple', description: 'Cooking for 2' },
+  { value: '4', label: 'Family', description: 'Four servings' },
+  { value: '8', label: 'Party', description: 'Cooking for a crowd' },
+];
+
+function mapServingPreference(value: unknown): string {
+  const numeric = Number.parseInt(String(value || 2), 10) || 2;
+  const options = SERVING_OPTIONS.map((option) => Number.parseInt(option.value, 10));
+  return String(options.reduce((closest, current) => (
+    Math.abs(current - numeric) < Math.abs(closest - numeric) ? current : closest
+  ), options[0]));
+}
 
 const Chip = ({ label, selected, onClick }: { label: string; selected: boolean; onClick: () => void }) => (
   <button
@@ -34,8 +49,9 @@ export default function Settings() {
   const { userProfile, setUserProfile, resetStore, chefAvatarUrl, setChefAvatarUrl, shareCustomRecipesByDefault, setShareCustomRecipesByDefault } = useStore();
   const [user, setUser] = useState<any>(null);
   const [displayName, setDisplayName] = useState('');
-  const [defaultServings, setDefaultServings] = useState('2');
+  const [defaultServings, setDefaultServings] = useState(mapServingPreference(2));
   const [loading, setLoading] = useState(false);
+  const [premiumOverrideEnabled, setPremiumOverrideEnabled] = useState(getPremiumOverride());
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
@@ -54,7 +70,7 @@ export default function Settings() {
         .then(({ data }) => {
           if (data) {
             setDisplayName(data.display_name || '');
-            setDefaultServings(String((data as any).default_servings || 2));
+            setDefaultServings(mapServingPreference((data as any).default_servings));
           }
         });
     });
@@ -199,9 +215,9 @@ export default function Settings() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {[1, 2, 3, 4, 5, 6, 8, 10, 12].map((n) => (
-                      <SelectItem key={n} value={String(n)}>
-                        {n} {n === 1 ? 'serving' : 'servings'}
+                    {SERVING_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label} · {option.description}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -250,22 +266,6 @@ export default function Settings() {
                 </div>
               </div>
 
-              {/* Archive Behavior */}
-              <div>
-                <Label>After Cooking</Label>
-                <p className="text-xs text-muted-foreground mb-2">What to do with a recipe after you finish cooking it</p>
-                <Select value={useStore.getState().archiveBehavior} onValueChange={(v) => useStore.getState().setArchiveBehavior(v as any)}>
-                  <SelectTrigger className="w-56">
-                    <FolderArchive className="h-4 w-4 mr-2" />
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ask">Ask me every time</SelectItem>
-                    <SelectItem value="always">Always archive</SelectItem>
-                    <SelectItem value="never">Never archive</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
           </section>
 
@@ -285,6 +285,27 @@ export default function Settings() {
                   <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
                 </div>
               </div>
+            </div>
+          </section>
+
+          <section className="space-y-4">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Crown className="h-4 w-4" />
+              <span className="text-sm font-semibold uppercase tracking-wide">Premium (Testing)</span>
+            </div>
+            <div className="bg-card rounded-xl p-4 border border-border flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-foreground">Enable premium features on this device</p>
+                <p className="text-xs text-muted-foreground">Developer toggle for testing premium-only experiences.</p>
+              </div>
+              <Switch
+                checked={premiumOverrideEnabled}
+                onCheckedChange={(checked) => {
+                  setPremiumOverrideEnabled(checked);
+                  setPremiumOverride(checked);
+                  toast({ title: checked ? 'Premium enabled for testing' : 'Premium testing disabled' });
+                }}
+              />
             </div>
           </section>
 
