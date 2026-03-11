@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import {
   Heart, X, Clock, ChefHat, Flame, Filter,
-  ChevronDown, Sparkles, ArrowLeft, ArrowRight,
+  ChevronDown, Sparkles,
 } from "lucide-react";
 import { motion, AnimatePresence, useMotionValue, useTransform } from "framer-motion";
 import { useStore } from "@/lib/store";
@@ -11,6 +11,7 @@ import MatchBadge from "@/components/MatchBadge";
 import { toast } from "sonner";
 import type { Recipe } from "@/data/recipes";
 import RecipePreviewDialog from "@/components/RecipePreviewDialog";
+import { Input } from "@/components/ui/input";
 
 /* ── Filter pill ───────────────────────────────────────────── */
 function FilterPill({
@@ -226,9 +227,9 @@ export default function SwipeScreen() {
 
   const [cardIndex, setCardIndex] = useState(0);
   const [activeFilter, setActiveFilter] = useState("All");
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedChef, setSelectedChef] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
-  const [swipeHistory, setSwipeHistory] = useState<string[]>([]);
   const [previewRecipe, setPreviewRecipe] = useState<Recipe | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [swipeFeedback, setSwipeFeedback] = useState<"saved" | "skipped" | null>(null);
@@ -257,8 +258,22 @@ export default function SwipeScreen() {
       byFilter = byFilter.filter((r) => (r.chef || "").toLowerCase() === selectedChef.toLowerCase());
     }
 
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    if (normalizedQuery) {
+      byFilter = byFilter.filter((recipe) => {
+        const tags = recipe.tags?.join(" ") || "";
+        const ingredients = recipe.ingredients?.join(" ") || "";
+        const instructions = recipe.instructions?.join(" ") || "";
+        const searchableText = [recipe.name, tags, ingredients, instructions, recipe.chef || ""]
+          .join(" ")
+          .toLowerCase();
+
+        return searchableText.includes(normalizedQuery);
+      });
+    }
+
     return byFilter;
-  }, [recipes, activeFilter, selectedChef]);
+  }, [recipes, activeFilter, selectedChef, searchQuery]);
 
   const stack = useMemo(() => filtered.slice(cardIndex, cardIndex + 3), [filtered, cardIndex]);
   const current = stack[0];
@@ -269,7 +284,6 @@ export default function SwipeScreen() {
   const handleSave = useCallback(() => {
     if (!current) return;
     likeRecipe(current.id, current);
-    setSwipeHistory((h) => [...h, current.id]);
     setSwipeFeedback("saved");
     setTimeout(() => setSwipeFeedback(null), 420);
     toast.success(`❤️ Saved "${current.name}" to cookbook`);
@@ -278,7 +292,6 @@ export default function SwipeScreen() {
 
   const handleSkip = useCallback(() => {
     if (!current) return;
-    setSwipeHistory((h) => [...h, current.id]);
     setSwipeFeedback("skipped");
     setTimeout(() => setSwipeFeedback(null), 420);
     advance();
@@ -308,13 +321,6 @@ export default function SwipeScreen() {
     }
   }, [loaded, loadFeed]);
 
-  const handleUndo = () => {
-    if (swipeHistory.length === 0) { toast.info("Nothing to undo"); return; }
-    setCardIndex((i) => Math.max(0, i - 1));
-    setSwipeHistory((h) => h.slice(0, -1));
-    toast.success("Brought back that recipe");
-  };
-
   return (
     <div className="min-h-full flex flex-col" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", background: "#FFFAF5" }}>
 
@@ -335,13 +341,6 @@ export default function SwipeScreen() {
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={handleUndo}
-                className="w-9 h-9 rounded-xl bg-white border border-stone-200 flex items-center justify-center text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
-                title="Undo"
-              >
-                ↩
-              </button>
-              <button
                 onClick={() => setShowFilters((v) => !v)}
                 className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border text-sm font-semibold text-stone-600 hover:border-orange-300 transition-colors"
                 style={{ borderColor: showFilters ? "#F97316" : "rgba(0,0,0,0.09)" }}
@@ -361,10 +360,26 @@ export default function SwipeScreen() {
                 exit={{ height: 0, opacity: 0 }}
                 className="overflow-hidden"
               >
-                <div className="flex gap-2 pb-1 overflow-x-auto scrollbar-hide">
-                  {FILTERS.map((f) => (
-                    <FilterPill key={f} label={f} active={activeFilter === f} onClick={() => setActiveFilter(f)} />
-                  ))}
+                <div className="space-y-3 pb-1">
+                  <Input
+                    value={searchQuery}
+                    onChange={(event) => {
+                      setSearchQuery(event.target.value);
+                      setCardIndex(0);
+                    }}
+                    placeholder="Search recipes, tags, ingredients, instructions, chefs"
+                    className="bg-white"
+                  />
+                  <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+                    {FILTERS.map((f) => (
+                      <FilterPill
+                        key={f}
+                        label={f}
+                        active={activeFilter === f}
+                        onClick={() => { setActiveFilter(f); setCardIndex(0); }}
+                      />
+                    ))}
+                  </div>
                 </div>
               </motion.div>
             )}
@@ -482,14 +497,11 @@ export default function SwipeScreen() {
             </div>
           )}
 
-          {/* Swipe hint */}
+          {/* Keyboard hint */}
           {stack.length > 0 && !loading && (
-            <div className="mt-4 text-center space-y-2">
-              <p className="text-[10px] text-stone-300 font-medium">← Skip &nbsp;·&nbsp; ❤ Save</p>
-              <div className="flex items-center justify-center gap-2 text-xs text-stone-400 font-medium">
-                <ArrowLeft size={14} />
-                <span>Use keyboard arrows to swipe</span>
-                <ArrowRight size={14} />
+            <div className="mt-4 text-center">
+              <div className="text-xs text-stone-400 font-medium">
+                Use keyboard arrows to swipe
               </div>
             </div>
           )}
