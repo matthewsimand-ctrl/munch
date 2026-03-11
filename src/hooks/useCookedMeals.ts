@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
+const LOCAL_KEY = "munch_local_cooked_meals";
+
 export interface CookedMeal {
   id: string;
   recipe_id: string;
@@ -29,8 +31,19 @@ export function useCookedMeals(limit = 12) {
     setLoading(true);
     const { data: { session } } = await supabase.auth.getSession();
 
+    const getLocalMeals = (): CookedMeal[] => {
+      try {
+        const raw = localStorage.getItem(LOCAL_KEY);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw) as CookedMeal[];
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    };
+
     if (!session?.user) {
-      setMeals([]);
+      setMeals(getLocalMeals().slice(0, limit));
       setLoading(false);
       return;
     }
@@ -43,12 +56,21 @@ export function useCookedMeals(limit = 12) {
       .limit(limit);
 
     if (error) {
-      setMeals([]);
+      setMeals(getLocalMeals().slice(0, limit));
       setLoading(false);
       return;
     }
 
-    setMeals((data || []) as CookedMeal[]);
+    const remoteMeals = (data || []) as CookedMeal[];
+    const localMeals = getLocalMeals();
+    const merged = [...remoteMeals];
+    const existingIds = new Set(remoteMeals.map((meal) => meal.id));
+    for (const localMeal of localMeals) {
+      if (!existingIds.has(localMeal.id)) merged.push(localMeal);
+    }
+
+    merged.sort((a, b) => new Date(b.cooked_at).getTime() - new Date(a.cooked_at).getTime());
+    setMeals(merged.slice(0, limit));
     setLoading(false);
   }, [limit]);
 
@@ -70,10 +92,33 @@ export function useCookedMeals(limit = 12) {
     cookTime?: string;
     ingredientCount?: number;
   }) => {
+    const localMeal: CookedMeal = {
+      id: crypto.randomUUID(),
+      recipe_id: input.recipeId,
+      recipe_name: input.recipeName,
+      cooked_at: new Date().toISOString(),
+      estimated_savings: null,
+      metadata: {
+        cook_time: input.cookTime ?? null,
+        ingredient_count: input.ingredientCount ?? null,
+      },
+    };
+
+    try {
+      const raw = localStorage.getItem(LOCAL_KEY);
+      const parsed = raw ? (JSON.parse(raw) as CookedMeal[]) : [];
+      const next = [localMeal, ...(Array.isArray(parsed) ? parsed : [])].slice(0, 200);
+      localStorage.setItem(LOCAL_KEY, JSON.stringify(next));
+    } catch {
+      // Ignore local storage failures.
+    }
+
+    setMeals((prev) => [localMeal, ...prev].slice(0, limit));
+
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) return;
 
-    await supabase.from("cooked_meals").insert({
+    const { data: inserted } = await supabase.from("cooked_meals").insert({
       user_id: session.user.id,
       recipe_id: input.recipeId,
       recipe_name: input.recipeName,
@@ -81,8 +126,15 @@ export function useCookedMeals(limit = 12) {
         cook_time: input.cookTime ?? null,
         ingredient_count: input.ingredientCount ?? null,
       },
-    });
-  }, []);
+    }).select("id, recipe_id, recipe_name, cooked_at, estimated_savings, metadata").maybeSingle();
+
+    if (inserted) {
+      setMeals((prev) => {
+        const filtered = prev.filter((meal) => meal.id !== localMeal.id);
+        return [inserted as CookedMeal, ...filtered].slice(0, limit);
+      });
+    }
+  }, [limit]);
 
   const estimateMealSavings = useCallback(async (meal: CookedMeal) => {
     const estimated = estimateSavingsFromRecipe({

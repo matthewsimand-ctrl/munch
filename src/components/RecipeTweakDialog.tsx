@@ -5,9 +5,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Wand2, Loader2, Leaf, ShoppingBasket, Heart, ChefHat, MessageSquare, ArrowRight, X, Save } from 'lucide-react';
+import { Wand2, Loader2, Leaf, ShoppingBasket, Heart, ChefHat, MessageSquare, ArrowRight, X, Save, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Recipe } from '@/data/recipes';
+import { usePremiumAccess } from '@/hooks/usePremiumAccess';
 
 interface Props {
   recipe: Recipe;
@@ -27,6 +28,7 @@ const TWEAK_OPTIONS: { type: TweakType; label: string; description: string; icon
 
 export default function RecipeTweakDialog({ recipe, open, onOpenChange }: Props) {
   const { userProfile, pantryList, likeRecipe } = useStore();
+  const { isPremium } = usePremiumAccess();
   const [tweakType, setTweakType] = useState<TweakType | null>(null);
   const [customPrompt, setCustomPrompt] = useState('');
   const [loading, setLoading] = useState(false);
@@ -34,6 +36,10 @@ export default function RecipeTweakDialog({ recipe, open, onOpenChange }: Props)
 
   const handleTweak = async () => {
     if (!tweakType) return;
+    if (!isPremium) {
+      toast.info('AI Recipe Tweaker is a Premium feature.');
+      return;
+    }
     setLoading(true);
     setResult(null);
 
@@ -90,6 +96,7 @@ export default function RecipeTweakDialog({ recipe, open, onOpenChange }: Props)
           <DialogTitle className="flex items-center gap-2">
             <Wand2 className="h-5 w-5 text-primary" />
             AI Recipe Tweaker
+            {!isPremium && <Badge variant="secondary" className="ml-2"><Lock className="h-3 w-3 mr-1" /> Premium</Badge>}
           </DialogTitle>
         </DialogHeader>
 
@@ -150,13 +157,13 @@ export default function RecipeTweakDialog({ recipe, open, onOpenChange }: Props)
 
                 <Button
                   onClick={handleTweak}
-                  disabled={!tweakType || loading || (tweakType === 'custom' && !customPrompt.trim())}
+                  disabled={!isPremium || !tweakType || loading || (tweakType === 'custom' && !customPrompt.trim())}
                   className="w-full"
                 >
                   {loading ? (
                     <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Tweaking...</>
                   ) : (
-                    <><Wand2 className="h-4 w-4 mr-2" /> Tweak Recipe</>
+                    <>{isPremium ? <Wand2 className="h-4 w-4 mr-2" /> : <Lock className="h-4 w-4 mr-2" />}{isPremium ? 'Tweak Recipe' : 'Premium Required'}</>
                   )}
                 </Button>
               </>

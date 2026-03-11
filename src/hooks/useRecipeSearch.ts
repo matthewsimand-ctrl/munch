@@ -4,6 +4,7 @@ import { Recipe } from '@/data/recipes';
 import { useToast } from '@/hooks/use-toast';
 import { useStore } from '@/lib/store';
 import { normalizeIngredients } from '@/lib/normalizeIngredients';
+import { isPremiumSession } from '@/lib/premium';
 
 interface APIRecipe extends Recipe {
   source: string;
@@ -28,6 +29,18 @@ export function useRecipeSearch() {
     try {
       // If the query is a URL, use the import-recipe function instead
       if (isUrl(query.trim())) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (!isPremiumSession(sessionData.session)) {
+          toast({
+            title: 'Premium required',
+            description: 'AI URL imports are only available on Premium.',
+            variant: 'destructive',
+          });
+          setApiRecipes([]);
+          setLoading(false);
+          return;
+        }
+
         const { data, error } = await supabase.functions.invoke('import-recipe', {
           body: { url: query.trim() },
         });

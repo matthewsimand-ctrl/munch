@@ -15,6 +15,7 @@ import { useStore } from '@/lib/store';
 import { composeIngredientLine, parseIngredientLine } from '@/lib/ingredientText';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { usePremiumAccess } from '@/hooks/usePremiumAccess';
 
 interface ImportRecipeDialogProps {
   children?: React.ReactNode;
@@ -112,6 +113,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
   const recipePhotoInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const { likeRecipe } = useStore();
+  const { isPremium } = usePremiumAccess();
 
   // Review mode state
   const [reviewMode, setReviewMode] = useState(false);
@@ -285,6 +287,11 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
   };
 
   const handleExtract = async (payload: { url?: string; textContent?: string; imageBase64?: string; imageMimeType?: string }) => {
+    if (!isPremium) {
+      toast.info('AI recipe import is a Premium feature.');
+      return;
+    }
+
     setLoading(true);
     setLastImportError('');
 
@@ -763,7 +770,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
               ? 'Website Recipe Preview'
               : reviewMode
                 ? 'Review & Edit Recipe'
-                : <><Brain className="h-4 w-4 text-violet-500" /> Import Recipe (AI)</>}
+                : <><Brain className="h-4 w-4 text-violet-500" /> Import Recipe (AI) {!isPremium && <Badge variant="secondary" className="ml-1">Premium</Badge>}</>}
           </DialogTitle>
         </DialogHeader>
 
@@ -1129,7 +1136,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
 
               <TabsContent value="url" className="space-y-4 pt-4">
                 <p className="text-sm text-muted-foreground">
-                  🧠 Paste a recipe page URL and AI will extract the details. If it fails, paste text directly or upload a PDF.
+                  🧠 Paste a recipe page URL and AI will extract the details. {!isPremium && <span className="font-semibold">Premium required.</span>} If it fails, paste text directly or upload a PDF.
                 </p>
 
                 <form onSubmit={handleUrlSubmit} noValidate className="space-y-3">
@@ -1138,15 +1145,15 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
                     placeholder="https://example.com/recipe/..."
                     value={url}
                     onChange={(e) => setUrl(e.target.value)}
-                    disabled={loading}
+                    disabled={loading || !isPremium}
                   />
-                  <Button type="submit" className="w-full" disabled={loading || !url.trim()}>
+                  <Button type="submit" className="w-full" disabled={loading || !url.trim() || !isPremium}>
                     {loading ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Extracting...
                       </>
                     ) : (
-                      'Import Recipe'
+                      isPremium ? 'Import Recipe' : 'Premium Required'
                     )}
                   </Button>
                 </form>
@@ -1198,20 +1205,20 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
                           value={manualText}
                           onChange={(e) => setManualText(e.target.value)}
                           placeholder="Copy and paste the recipe title, ingredients, and instructions here..."
-                          disabled={loading}
+                          disabled={loading || !isPremium}
                         />
                         <Button
                           type="button"
                           onClick={handleManualImport}
                           className="w-full"
-                          disabled={loading || !manualText.trim()}
+                          disabled={loading || !manualText.trim() || !isPremium}
                         >
                           {loading ? (
                             <>
                               <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Importing...
                             </>
                           ) : (
-                            '🧠 Import Pasted Text'
+                            isPremium ? '🧠 Import Pasted Text' : 'Premium Required'
                           )}
                         </Button>
                       </div>
@@ -1222,7 +1229,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
 
               <TabsContent value="pdf" className="space-y-4 pt-4">
                 <p className="text-sm text-muted-foreground">
-                  🧠 Upload a PDF with a recipe and AI will extract the details.
+                  🧠 Upload a PDF with a recipe and AI will extract the details. {!isPremium && <span className="font-semibold">Premium required.</span>}
                 </p>
                 <input
                   ref={fileInputRef}
@@ -1235,7 +1242,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
                   variant="outline"
                   className="w-full h-24 border-dashed border-2 flex flex-col gap-2"
                   onClick={() => fileInputRef.current?.click()}
-                  disabled={loading}
+                  disabled={loading || !isPremium}
                 >
                   {loading ? (
                     <>
@@ -1245,7 +1252,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
                   ) : (
                     <>
                       <FileText className="h-6 w-6 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">Click to upload PDF (max 20MB)</span>
+                      <span className="text-sm text-muted-foreground">{isPremium ? 'Click to upload PDF (max 20MB)' : 'Premium Required'}</span>
                     </>
                   )}
                 </Button>
@@ -1253,7 +1260,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
 
               <TabsContent value="photo" className="space-y-4 pt-4">
                 <p className="text-sm text-muted-foreground">
-                  🧠 Upload a photo of a recipe card, cookbook page, or screenshot. AI will read the image and map it to recipe fields.
+                  🧠 Upload a photo of a recipe card, cookbook page, or screenshot. AI will read the image and map it to recipe fields. {!isPremium && <span className="font-semibold">Premium required.</span>}
                 </p>
                 <input
                   ref={recipePhotoInputRef}
@@ -1266,7 +1273,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
                   variant="outline"
                   className="w-full h-24 border-dashed border-2 flex flex-col gap-2"
                   onClick={() => recipePhotoInputRef.current?.click()}
-                  disabled={loading}
+                  disabled={loading || !isPremium}
                 >
                   {loading ? (
                     <>
@@ -1276,7 +1283,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
                   ) : (
                     <>
                       <Camera className="h-6 w-6 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">Click to upload recipe photo (max 10MB)</span>
+                      <span className="text-sm text-muted-foreground">{isPremium ? 'Click to upload recipe photo (max 10MB)' : 'Premium Required'}</span>
                     </>
                   )}
                 </Button>

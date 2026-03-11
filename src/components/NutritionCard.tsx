@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Loader2, Flame, Beef, Wheat, Droplets, Heart } from 'lucide-react';
+import { Sparkles, Loader2, Flame, Beef, Wheat, Droplets, Heart, Lock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useStore } from '@/lib/store';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
+import { usePremiumAccess } from '@/hooks/usePremiumAccess';
 
 export interface NutritionData {
   calories: number;
@@ -31,6 +32,7 @@ interface NutritionCardProps {
 
 export default function NutritionCard({ recipeId, recipeName, ingredients, servings = 1 }: NutritionCardProps) {
   const { cachedNutrition, cacheNutrition } = useStore();
+  const { isPremium } = usePremiumAccess();
   const [nutrition, setNutrition] = useState<NutritionData | null>(cachedNutrition[recipeId] || null);
   const [loading, setLoading] = useState(false);
 
@@ -39,6 +41,11 @@ export default function NutritionCard({ recipeId, recipeName, ingredients, servi
   }, [recipeId, cachedNutrition]);
 
   const analyze = async () => {
+    if (!isPremium) {
+      toast.info('Nutrition analysis is a Premium feature.');
+      return;
+    }
+
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('analyze-nutrition', {
@@ -75,7 +82,7 @@ export default function NutritionCard({ recipeId, recipeName, ingredients, servi
           </>
         ) : (
           <>
-            <Sparkles className="h-3.5 w-3.5 text-amber-500" /> Nutrition Facts
+            {isPremium ? <Sparkles className="h-3.5 w-3.5 text-amber-500" /> : <Lock className="h-3.5 w-3.5" />} {isPremium ? 'Nutrition Facts' : 'Nutrition Facts (Premium)'}
           </>
         )}
       </Button>
