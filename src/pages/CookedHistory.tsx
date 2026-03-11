@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
-import { Sparkles, RefreshCw, Utensils, ChevronRight } from "lucide-react";
+import { Sparkles, RefreshCw, Utensils, ChevronRight, Lock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useCookedMeals } from "@/hooks/useCookedMeals";
 import { toast } from "sonner";
+import { usePremiumAccess } from "@/hooks/usePremiumAccess";
 
 function formatCookedAt(dateString: string) {
   return new Date(dateString).toLocaleDateString("en-US", {
@@ -15,7 +16,9 @@ function formatCookedAt(dateString: string) {
 export default function CookedHistory() {
   const navigate = useNavigate();
   const { meals, loading, estimateMealSavings, loadMeals } = useCookedMeals(60);
+  const { isPremium } = usePremiumAccess();
   const [estimatingMealId, setEstimatingMealId] = useState<string | null>(null);
+  const [showSavings, setShowSavings] = useState(false);
 
   const totals = useMemo(() => {
     const estimatedMeals = meals.filter((meal) => meal.estimated_savings != null);
@@ -28,6 +31,10 @@ export default function CookedHistory() {
   }, [meals]);
 
   const handleEstimateSavings = async (mealId: string) => {
+    if (!isPremium) {
+      toast.info("Estimated savings is a Premium feature.");
+      return;
+    }
     const meal = meals.find((item) => item.id === mealId);
     if (!meal) return;
 
@@ -55,14 +62,22 @@ export default function CookedHistory() {
             <div>
               <p className="text-xs font-semibold uppercase tracking-widest text-stone-400">Your progress</p>
               <h1 className="text-2xl md:text-3xl font-bold text-stone-800 mt-1">Cooked History</h1>
-              <p className="text-sm text-stone-500 mt-1">Every completed meal in one place, plus optional AI savings estimates.</p>
+              <p className="text-sm text-stone-500 mt-1">Every completed meal in one place.</p>
             </div>
-            <button
-              onClick={handleRefresh}
-              className="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold text-orange-700 bg-orange-50 hover:bg-orange-100 px-3 py-2 rounded-xl border border-orange-100"
-            >
-              <RefreshCw size={13} /> Refresh
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowSavings((prev) => !prev)}
+                className="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 px-3 py-2 rounded-xl border border-violet-100"
+              >
+                <Sparkles size={13} /> Estimated savings {!isPremium && <><Lock size={12} /> Premium</>}
+              </button>
+              <button
+                onClick={handleRefresh}
+                className="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold text-orange-700 bg-orange-50 hover:bg-orange-100 px-3 py-2 rounded-xl border border-orange-100"
+              >
+                <RefreshCw size={13} /> Refresh
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mt-5">
@@ -74,10 +89,14 @@ export default function CookedHistory() {
               <p className="text-[11px] text-stone-400 font-semibold uppercase tracking-wide">Estimates added</p>
               <p className="text-xl font-bold text-stone-800 mt-1">{totals.estimatedCount}</p>
             </div>
-            <div className="rounded-xl bg-emerald-50 border border-emerald-100 px-3 py-3">
-              <p className="text-[11px] text-emerald-700/75 font-semibold uppercase tracking-wide">Estimated savings</p>
-              <p className="text-xl font-bold text-emerald-700 mt-1">≈ ${totals.estimatedTotal.toFixed(2)}</p>
-            </div>
+            {showSavings && (
+              <div className="rounded-xl bg-emerald-50 border border-emerald-100 px-3 py-3">
+                <p className="text-[11px] text-emerald-700/75 font-semibold uppercase tracking-wide">Estimated savings</p>
+                <p className="text-xl font-bold text-emerald-700 mt-1">
+                  {isPremium ? `≈ $${totals.estimatedTotal.toFixed(2)}` : "Premium feature"}
+                </p>
+              </div>
+            )}
           </div>
         </section>
 
@@ -112,17 +131,17 @@ export default function CookedHistory() {
                         </button>
                       )}
 
-                      {meal.estimated_savings != null ? (
+                      {meal.estimated_savings != null && isPremium ? (
                         <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1.5 rounded-full whitespace-nowrap">
                           Saved ≈ ${meal.estimated_savings.toFixed(2)}
                         </span>
                       ) : (
                         <button
                           onClick={() => handleEstimateSavings(meal.id)}
-                          disabled={estimatingMealId === meal.id}
+                          disabled={estimatingMealId === meal.id || !isPremium}
                           className="text-[11px] font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 px-2.5 py-1.5 rounded-full disabled:opacity-60 inline-flex items-center gap-1"
                         >
-                          <Sparkles size={12} /> {estimatingMealId === meal.id ? "Estimating..." : "AI savings"}
+                          {isPremium ? <Sparkles size={12} /> : <Lock size={12} />} {estimatingMealId === meal.id ? "Estimating..." : isPremium ? "Estimated savings" : "Premium"}
                         </button>
                       )}
                     </div>
