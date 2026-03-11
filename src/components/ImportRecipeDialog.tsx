@@ -549,29 +549,59 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
 
     try {
       const existingRecipe = await findExistingRecipeByUrl(normalizedUrl);
-      if (!existingRecipe) {
-        setLastImportError('No recipe was found for this URL yet. Upgrade to Premium to import directly from any site.');
-        promptPremiumUpgrade();
+      if (existingRecipe) {
+        setWebsitePreview({
+          name: String(existingRecipe.name || 'Imported Recipe').trim(),
+          ingredients: Array.isArray(existingRecipe.ingredients) ? existingRecipe.ingredients.map((item: unknown) => String(item).trim()).filter(Boolean) : [],
+          instructions: normalizeList(existingRecipe.instructions),
+          cook_time: String(existingRecipe.cook_time || '30 min'),
+          difficulty: String(existingRecipe.difficulty || 'Intermediate'),
+          cuisine: existingRecipe.cuisine ? String(existingRecipe.cuisine) : '',
+          chef: existingRecipe.chef ? String(existingRecipe.chef) : '',
+          tags: normalizeList(existingRecipe.tags),
+          image: String(existingRecipe.image || '/placeholder.svg'),
+          servings: String(existingRecipe.servings || 4),
+          source_url: existingRecipe.source_url ? String(existingRecipe.source_url) : undefined,
+          raw_api_payload: existingRecipe.raw_api_payload && typeof existingRecipe.raw_api_payload === 'object'
+            ? existingRecipe.raw_api_payload as Record<string, unknown>
+            : undefined,
+        });
+        toast.success('Loaded this recipe from the community library.');
         return;
       }
 
-      setWebsitePreview({
-        name: String(existingRecipe.name || 'Imported Recipe').trim(),
-        ingredients: Array.isArray(existingRecipe.ingredients) ? existingRecipe.ingredients.map((item: unknown) => String(item).trim()).filter(Boolean) : [],
-        instructions: normalizeList(existingRecipe.instructions),
-        cook_time: String(existingRecipe.cook_time || '30 min'),
-        difficulty: String(existingRecipe.difficulty || 'Intermediate'),
-        cuisine: existingRecipe.cuisine ? String(existingRecipe.cuisine) : '',
-        chef: existingRecipe.chef ? String(existingRecipe.chef) : '',
-        tags: normalizeList(existingRecipe.tags),
-        image: String(existingRecipe.image || '/placeholder.svg'),
-        servings: String(existingRecipe.servings || 4),
-        source_url: existingRecipe.source_url ? String(existingRecipe.source_url) : undefined,
-        raw_api_payload: existingRecipe.raw_api_payload && typeof existingRecipe.raw_api_payload === 'object'
-          ? existingRecipe.raw_api_payload as Record<string, unknown>
-          : undefined,
+      const { data, error } = await supabase.functions.invoke('scrape-recipe', {
+        body: { url: normalizedUrl },
       });
-      toast.success('Loaded this recipe from the community library. Upgrade for AI import from any URL.');
+
+      if (error || !data) {
+        throw new Error(error?.message || 'Could not fetch this URL');
+      }
+
+      const previewTitle = String(data.title || 'Imported Recipe').trim() || 'Imported Recipe';
+      const previewItems = Array.isArray(data.listItems)
+        ? data.listItems.map((item: unknown) => String(item).trim()).filter(Boolean)
+        : [];
+
+      setWebsitePreview({
+        name: previewTitle,
+        ingredients: previewItems.slice(0, 25),
+        instructions: previewItems.slice(25, 50),
+        cook_time: '30 min',
+        difficulty: 'Intermediate',
+        cuisine: '',
+        chef: '',
+        tags: ['web preview'],
+        image: String(data.ogImage || '/placeholder.svg'),
+        servings: '4',
+        source_url: String(data.url || normalizedUrl),
+        raw_api_payload: {
+          source: 'scrape-recipe',
+          preview_text: websiteAdPreview?.previewText || '',
+          ad_signals: websiteAdPreview?.adSignals || [],
+        },
+      });
+      toast.success('Loaded a live webpage preview. Upgrade for full AI recipe extraction from any URL.');
     } catch (err: any) {
       console.error('Non-premium URL import error:', err);
       setLastImportError(err?.message || 'Could not load recipe from that URL');
