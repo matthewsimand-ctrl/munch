@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 const LOCAL_KEY = "munch_local_cooked_meals";
@@ -29,9 +29,22 @@ function isDuplicateCookSession(a: { recipe_id: string; cooked_at: string }, b: 
   return Math.abs(new Date(a.cooked_at).getTime() - new Date(b.cooked_at).getTime()) < DUPLICATE_WINDOW_MS;
 }
 
+function isCookedMealsTableMissing(error: { code?: string | null; message?: string | null; details?: string | null } | null) {
+  const text = `${error?.code || ""} ${error?.message || ""} ${error?.details || ""}`.toLowerCase();
+  return text.includes("cooked_meals")
+    && (
+      text.includes("404")
+      || text.includes("pgrst205")
+      || text.includes("42p01")
+      || text.includes("could not find the table")
+      || text.includes("relation")
+    );
+}
+
 export function useCookedMeals(limit = 12) {
   const [meals, setMeals] = useState<CookedMeal[]>([]);
   const [loading, setLoading] = useState(true);
+  const cookedMealsTableUnavailableRef = useRef(false);
 
   const loadMeals = useCallback(async () => {
     setLoading(true);
@@ -54,6 +67,12 @@ export function useCookedMeals(limit = 12) {
       return;
     }
 
+    if (cookedMealsTableUnavailableRef.current) {
+      setMeals(getLocalMeals().slice(0, limit));
+      setLoading(false);
+      return;
+    }
+
     const { data, error } = await supabase
       .from("cooked_meals")
       .select("id, recipe_id, recipe_name, cooked_at, estimated_savings, metadata")
@@ -62,6 +81,9 @@ export function useCookedMeals(limit = 12) {
       .limit(limit);
 
     if (error) {
+      if (isCookedMealsTableMissing(error)) {
+        cookedMealsTableUnavailableRef.current = true;
+      }
       setMeals(getLocalMeals().slice(0, limit));
       setLoading(false);
       return;
@@ -130,14 +152,22 @@ export function useCookedMeals(limit = 12) {
 
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) return;
+    if (cookedMealsTableUnavailableRef.current) return;
 
-    const { data: recentMeals } = await supabase
+    const { data: recentMeals, error: recentMealsError } = await supabase
       .from("cooked_meals")
       .select("id, recipe_id, recipe_name, cooked_at, estimated_savings, metadata")
       .eq("user_id", session.user.id)
       .eq("recipe_id", input.recipeId)
       .order("cooked_at", { ascending: false })
       .limit(1);
+
+    if (recentMealsError) {
+      if (isCookedMealsTableMissing(recentMealsError)) {
+        cookedMealsTableUnavailableRef.current = true;
+      }
+      return;
+    }
 
     const latest = (recentMeals?.[0] ?? null) as CookedMeal | null;
     if (latest && isDuplicateCookSession(latest, localMeal)) {
@@ -148,7 +178,7 @@ export function useCookedMeals(limit = 12) {
       return;
     }
 
-    const { data: inserted } = await supabase.from("cooked_meals").insert({
+    const { data: inserted, error: insertError } = await supabase.from("cooked_meals").insert({
       user_id: session.user.id,
       recipe_id: input.recipeId,
       recipe_name: input.recipeName,
@@ -157,6 +187,13 @@ export function useCookedMeals(limit = 12) {
         ingredient_count: input.ingredientCount ?? null,
       },
     }).select("id, recipe_id, recipe_name, cooked_at, estimated_savings, metadata").maybeSingle();
+
+    if (insertError) {
+      if (isCookedMealsTableMissing(insertError)) {
+        cookedMealsTableUnavailableRef.current = true;
+      }
+      return;
+    }
 
     if (inserted) {
       setMeals((prev) => {
@@ -167,6 +204,8 @@ export function useCookedMeals(limit = 12) {
   }, [limit]);
 
   const estimateMealSavings = useCallback(async (meal: CookedMeal) => {
+    if (cookedMealsTableUnavailableRef.current) return null;
+
     const estimated = estimateSavingsFromRecipe({
       cookTime: meal.metadata?.cook_time ?? undefined,
       ingredientCount: meal.metadata?.ingredient_count ?? undefined,
@@ -179,7 +218,14 @@ export function useCookedMeals(limit = 12) {
       .select("id, recipe_id, recipe_name, cooked_at, estimated_savings, metadata")
       .maybeSingle();
 
-    if (error || !updated) return null;
+    if (error) {
+      if (isCookedMealsTableMissing(error)) {
+        cookedMealsTableUnavailableRef.current = true;
+      }
+      return null;
+    }
+
+    if (!updated) return null;
 
     setMeals((prev) => prev.map((item) => (item.id === meal.id ? (updated as CookedMeal) : item)));
     return updated as CookedMeal;
