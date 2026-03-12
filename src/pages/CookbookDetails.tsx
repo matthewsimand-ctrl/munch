@@ -188,7 +188,8 @@ export default function CookbookDetails() {
                     : difficulty === "medium"
                       ? "text-amber-600 bg-amber-50"
                       : "text-red-600 bg-red-50";
-                const sourceHostname = getSourceHostname(recipe.source_url);
+                const isImported = recipe.source?.toLowerCase() === 'imported';
+                const sourceHostname = isImported ? getSourceHostname(recipe.source_url) : null;
 
                 return (
                   <div
@@ -251,7 +252,8 @@ export default function CookbookDetails() {
                     : difficulty === "medium"
                       ? "text-amber-600 bg-amber-50"
                       : "text-red-600 bg-red-50";
-                const sourceHostname = getSourceHostname(recipe.source_url);
+                const isImported = recipe.source?.toLowerCase() === 'imported';
+                const sourceHostname = isImported ? getSourceHostname(recipe.source_url) : null;
 
                 return (
                   <div key={recipe.id} className="rounded-xl border border-stone-200 bg-white p-3 flex items-center gap-3">

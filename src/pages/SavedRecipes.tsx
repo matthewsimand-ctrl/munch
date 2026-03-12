@@ -59,7 +59,8 @@ function RecipeCard({
     diff === "easy" ? "text-emerald-600 bg-emerald-50" :
       diff === "medium" ? "text-amber-600 bg-amber-50" :
         "text-red-600 bg-red-50";
-  const sourceHostname = getSourceHostname(recipe.source_url);
+  const isImported = recipe.source?.toLowerCase() === 'imported';
+  const sourceHostname = isImported ? getSourceHostname(recipe.source_url) : null;
 
   if (view === "list") {
     return (
