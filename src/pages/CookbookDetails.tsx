@@ -7,6 +7,15 @@ import RecipePreviewDialog from "@/components/RecipePreviewDialog";
 import { calculateMatch } from "@/lib/matchLogic";
 import type { Recipe } from "@/data/recipes";
 
+function getSourceHostname(url: string | undefined): string | null {
+  if (!url) return null;
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return null;
+  }
+}
+
 export default function CookbookDetails() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
@@ -179,6 +188,7 @@ export default function CookbookDetails() {
                     : difficulty === "medium"
                       ? "text-amber-600 bg-amber-50"
                       : "text-red-600 bg-red-50";
+                const sourceHostname = getSourceHostname(recipe.source_url);
 
                 return (
                   <div
@@ -186,11 +196,21 @@ export default function CookbookDetails() {
                     className="rounded-2xl overflow-hidden border border-stone-200 bg-white hover:border-orange-200 hover:shadow-sm transition-all"
                   >
                     <button onClick={() => openPreview(recipe)} className="w-full text-left">
-                      <div className="aspect-[4/3] bg-stone-100 overflow-hidden">
+                      <div className="relative aspect-[4/3] bg-stone-100 overflow-hidden">
                         {recipe.image && recipe.image !== "/placeholder.svg" ? (
                           <img src={recipe.image} alt={recipe.name} className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-4xl bg-gradient-to-br from-orange-50 to-amber-50">🍽️</div>
+                        )}
+                        {sourceHostname && (
+                          <div className="absolute top-2 left-2 flex items-center gap-1 px-1.5 py-1 rounded-md bg-black/30 backdrop-blur-sm">
+                            <img
+                              src={`https://www.google.com/s2/favicons?domain=${sourceHostname}&sz=32`}
+                              alt=""
+                              className="h-3.5 w-3.5"
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                            />
+                          </div>
                         )}
                       </div>
                       <div className="p-3">
@@ -231,14 +251,25 @@ export default function CookbookDetails() {
                     : difficulty === "medium"
                       ? "text-amber-600 bg-amber-50"
                       : "text-red-600 bg-red-50";
+                const sourceHostname = getSourceHostname(recipe.source_url);
 
                 return (
                   <div key={recipe.id} className="rounded-xl border border-stone-200 bg-white p-3 flex items-center gap-3">
-                    <button onClick={() => openPreview(recipe)} className="w-16 h-16 rounded-lg overflow-hidden bg-stone-100 shrink-0">
+                    <button onClick={() => openPreview(recipe)} className="relative w-16 h-16 rounded-lg overflow-hidden bg-stone-100 shrink-0">
                       {recipe.image && recipe.image !== "/placeholder.svg" ? (
                         <img src={recipe.image} alt={recipe.name} className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-xl bg-gradient-to-br from-orange-50 to-amber-50">🍽️</div>
+                      )}
+                      {sourceHostname && (
+                        <div className="absolute bottom-0.5 right-0.5 flex items-center justify-center w-4 h-4 rounded bg-black/40">
+                          <img
+                            src={`https://www.google.com/s2/favicons?domain=${sourceHostname}&sz=32`}
+                            alt=""
+                            className="h-2.5 w-2.5"
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                          />
+                        </div>
                       )}
                     </button>
                     <button onClick={() => openPreview(recipe)} className="text-left flex-1 min-w-0">

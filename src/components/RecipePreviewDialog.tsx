@@ -74,7 +74,7 @@ export default function RecipePreviewDialog({
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
-          className="max-w-md h-[90vh] p-0 overflow-hidden flex flex-col"
+          className={`h-[90vh] p-0 overflow-hidden flex flex-col ${recipe.source_url ? 'max-w-2xl' : 'max-w-md'}`}
           onOpenAutoFocus={(event) => event.preventDefault()}
           data-tutorial="recipe-dialog-content"
         >
@@ -114,53 +114,38 @@ export default function RecipePreviewDialog({
 
               {/* ── Recipe Content ── */}
               {recipe.source_url ? (
-                <div className="space-y-4">
-                  <div className="relative w-full aspect-[4/5] rounded-xl overflow-hidden border bg-muted group">
+                <div className="space-y-3">
+                  <div className="relative w-full aspect-[4/5] rounded-xl overflow-auto border border-stone-200 bg-muted">
                     <iframe
                       src={recipe.source_url}
-                      className="w-full h-full border-0"
+                      className="w-full min-w-full h-full min-h-full border-0 rounded-xl"
                       title={recipe.name}
                       sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
                     />
-
-                    {/* Fallback overlay for CSP blocked frames - shown on hover or if frame fails (partial UI) */}
-                    <div className="absolute inset-0 flex flex-col items-center justify-center p-6 bg-stone-50/95 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-focus-within:opacity-100 dark:bg-stone-900/95">
-                      <ExternalLink className="h-8 w-8 text-orange-400 mb-2" />
-                      <p className="text-sm font-medium text-stone-700 dark:text-stone-300 text-center px-4">
-                        If the website doesn't load here, it may be blocking embedding.
-                      </p>
-                      <a
-                        href={recipe.source_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-4 px-4 py-2 bg-orange-500 text-white rounded-full text-xs font-bold hover:bg-orange-600 transition-colors pointer-events-auto shadow-sm shadow-orange-200"
-                      >
-                        Open Website Directly
-                      </a>
-                    </div>
+                    <a
+                      href={recipe.source_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="absolute top-2 right-2 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold bg-white/95 backdrop-blur-sm border border-stone-200 text-stone-700 shadow-sm hover:bg-orange-500 hover:text-white hover:border-orange-400 transition-colors"
+                    >
+                      <ExternalLink size={12} /> Open in Browser
+                    </a>
                   </div>
 
                   <a
                     href={recipe.source_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-between p-3.5 rounded-xl border border-orange-100 bg-orange-50/20 hover:bg-orange-50 transition-colors group"
+                    className="flex items-center gap-2.5 p-2.5 rounded-lg border border-stone-200 bg-stone-50/50 hover:bg-stone-100 transition-colors"
                   >
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center overflow-hidden border border-orange-50">
-                        <img
-                          src={`https://www.google.com/s2/favicons?domain=${new URL(recipe.source_url).hostname}&sz=32`}
-                          alt=""
-                          className="h-5 w-5"
-                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                        />
-                      </div>
-                      <div>
-                        <p className="text-xs font-bold text-stone-800">Source: {new URL(recipe.source_url).hostname}</p>
-                        <p className="text-[10px] text-stone-500">View original formatting and photos</p>
-                      </div>
-                    </div>
-                    <ExternalLink size={14} className="text-orange-400 group-hover:text-orange-600 transition-colors" />
+                    <img
+                      src={`https://www.google.com/s2/favicons?domain=${new URL(recipe.source_url).hostname}&sz=32`}
+                      alt=""
+                      className="h-5 w-5 shrink-0"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                    />
+                    <span className="text-xs font-medium text-stone-700 truncate">{new URL(recipe.source_url).hostname}</span>
+                    <ExternalLink size={12} className="text-stone-400 shrink-0 ml-auto" />
                   </a>
                 </div>
               ) : (
