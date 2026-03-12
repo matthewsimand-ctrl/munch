@@ -96,7 +96,12 @@ function renderInstructionWithDefinitions(step: string, onTimerClick?: (seconds:
       nodes.push(
         <button
           key={`timer-${matchedText}-${matchIndex}-${index}`}
-          onClick={() => onTimerClick?.(seconds, matchedText)}
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onTimerClick?.(seconds, matchedText);
+          }}
           className="inline-block border-b-2 border-dashed border-orange-400 text-orange-700 font-bold hover:bg-orange-50 px-0.5 transition-colors"
         >
           {matchedText}
@@ -373,8 +378,32 @@ export default function CookMode() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-[32px] border border-stone-100 p-8 shadow-[0_20px_48px_rgba(249,115,22,0.08)] mb-8"
+            className="bg-white rounded-[32px] border border-stone-100 overflow-hidden shadow-[0_20px_48px_rgba(249,115,22,0.08)] mb-8"
           >
+            {recipe.image && recipe.image !== "/placeholder.svg" && (
+              <div className="relative w-full aspect-[16/9] overflow-hidden">
+                <img
+                  src={recipe.image}
+                  alt={recipe.name}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
+                <div className="absolute bottom-4 left-6 right-6">
+                  <h2
+                    className="text-xl font-bold text-white drop-shadow-md"
+                    style={{ fontFamily: "'Fraunces', Georgia, serif" }}
+                  >
+                    {recipe.name}
+                  </h2>
+                  {(recipe.cook_time || recipe.difficulty) && (
+                    <p className="text-sm text-white/90 mt-0.5">
+                      {[recipe.cook_time, recipe.difficulty].filter(Boolean).join(" · ")}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+            <div className={`${recipe.image && recipe.image !== "/placeholder.svg" ? "px-8 pt-6 pb-8" : "p-8"}`}>
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>Ingredients Needed</h2>
               <div className="flex items-center gap-3">
@@ -422,6 +451,7 @@ export default function CookMode() {
                   </button>
                 );
               })}
+            </div>
             </div>
           </motion.div>
 
@@ -638,7 +668,12 @@ export default function CookMode() {
               )}
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setIsTimerPaused(!isTimerPaused)}
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsTimerPaused(!isTimerPaused);
+                  }}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-orange-100 text-orange-700 font-semibold text-sm hover:bg-orange-200 transition-colors"
                 >
                   {isTimerPaused ? (
@@ -652,7 +687,13 @@ export default function CookMode() {
                   )}
                 </button>
                 <button
-                  onClick={() => { setTimerLeft(null); setTimerLabel(''); }}
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setTimerLeft(null);
+                    setTimerLabel('');
+                  }}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-stone-100 text-stone-600 font-semibold text-sm hover:bg-red-100 hover:text-red-600 transition-colors"
                 >
                   <X size={16} /> End
@@ -727,18 +768,6 @@ export default function CookMode() {
               <CookingXpBar currentStep={stepIndex} isDone={done} />
             </div>
           </div>
-
-          {/* Recipe image – shown on step 0 */}
-          {stepIndex === 0 && recipe.image && recipe.image !== "/placeholder.svg" && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.97 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="rounded-2xl overflow-hidden aspect-video"
-              style={{ boxShadow: "0 8px 32px rgba(28,25,23,0.12)" }}
-            >
-              <img src={recipe.image} alt={recipe.name} className="w-full h-full object-cover" />
-            </motion.div>
-          )}
 
           {/* Progress */}
           <div className="flex items-center justify-between text-xs font-semibold text-stone-400">
@@ -815,7 +844,12 @@ export default function CookMode() {
                   {detectedTimers.map((t, i) => (
                     <button
                       key={i}
-                      onClick={() => handleStartTimer(t.seconds, t.label)}
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleStartTimer(t.seconds, t.label);
+                      }}
                       className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl border border-orange-100 bg-orange-50 text-orange-700 text-sm font-bold hover:bg-orange-100 hover:border-orange-200 transition-all active:scale-95 shadow-sm"
                     >
                       <Timer size={16} /> Start {t.label}

@@ -442,7 +442,8 @@ export default function SwipeScreen() {
 
       {/* Carousel area */}
       <div className="flex-1 flex flex-col items-center justify-center p-6 overflow-hidden">
-        <div className="w-full max-w-5xl relative flex items-center justify-center h-[520px]">
+        <div className="w-full max-w-5xl flex flex-col items-center">
+          <div className="relative flex items-center justify-center h-[520px] w-full">
           {loading ? (
             <div className="aspect-[3/4] rounded-3xl bg-stone-100 animate-pulse" />
           ) : filtered.length === cardIndex ? (
@@ -557,8 +558,9 @@ export default function SwipeScreen() {
               </AnimatePresence>
             </div>
           )}
+          </div>
 
-          {/* Action buttons */}
+          {/* Action buttons - below carousel */}
           {(current || loading) && !loading && (
             <div className="flex items-center justify-center gap-5 mt-6">
               {/* Skip */}

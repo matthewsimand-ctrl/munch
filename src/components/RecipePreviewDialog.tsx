@@ -29,6 +29,30 @@ const SCALE_OPTIONS = [
   { label: '2x', factor: 2 },
 ] as const;
 
+/** Domains that block iframe embedding via frame-ancestors CSP (e.g. Food Network) */
+const EMBED_BLOCKED_DOMAINS = [
+  'foodnetwork.com',
+  'www.foodnetwork.com',
+  'allrecipes.com',
+  'www.allrecipes.com',
+  'epicurious.com',
+  'www.epicurious.com',
+];
+
+function canEmbedSourceUrl(url: string): boolean {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return !EMBED_BLOCKED_DOMAINS.some((d) => host === d || host.endsWith('.' + d));
+  } catch {
+    return true;
+  }
+}
+
+/** Only imported recipes (from URL) show the source site; API recipes (MealDB, etc.) use ingredients/instructions */
+function isImportedRecipe(recipe: Recipe): boolean {
+  return recipe.source?.toLowerCase() === 'imported';
+}
+
 function scaleIngredient(ingredient: string, factor: number) {
   if (factor === 1) return ingredient;
   const match = ingredient.match(/^(\d+(?:\.\d+)?)(.*)$/);
@@ -74,7 +98,7 @@ export default function RecipePreviewDialog({
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
-          className={`h-[90vh] p-0 overflow-hidden flex flex-col ${recipe.source_url ? 'max-w-2xl' : 'max-w-md'}`}
+          className={`h-[90vh] p-0 overflow-hidden flex flex-col ${recipe.source_url && isImportedRecipe(recipe) ? 'max-w-2xl' : 'max-w-md'}`}
           onOpenAutoFocus={(event) => event.preventDefault()}
           data-tutorial="recipe-dialog-content"
         >
@@ -113,24 +137,54 @@ export default function RecipePreviewDialog({
               )}
 
               {/* ── Recipe Content ── */}
-              {recipe.source_url ? (
+              {recipe.source_url && isImportedRecipe(recipe) ? (
                 <div className="space-y-3">
-                  <div className="relative w-full aspect-[4/5] rounded-xl overflow-auto border border-stone-200 bg-muted">
-                    <iframe
-                      src={recipe.source_url}
-                      className="w-full min-w-full h-full min-h-full border-0 rounded-xl"
-                      title={recipe.name}
-                      sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
-                    />
-                    <a
-                      href={recipe.source_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="absolute top-2 right-2 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold bg-white/95 backdrop-blur-sm border border-stone-200 text-stone-700 shadow-sm hover:bg-orange-500 hover:text-white hover:border-orange-400 transition-colors"
+                  {canEmbedSourceUrl(recipe.source_url) ? (
+                    <div className="relative w-full aspect-[4/5] rounded-xl overflow-auto border border-stone-200 bg-muted">
+                      <iframe
+                        src={recipe.source_url}
+                        className="w-full min-w-full h-full min-h-full border-0 rounded-xl"
+                        title={recipe.name}
+                        sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+                      />
+                      <a
+                        href={recipe.source_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="absolute top-2 right-2 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold bg-white/95 backdrop-blur-sm border border-stone-200 text-stone-700 shadow-sm hover:bg-orange-500 hover:text-white hover:border-orange-400 transition-colors"
+                      >
+                        <ExternalLink size={12} /> Open in Browser
+                      </a>
+                    </div>
+                  ) : (
+                    <div
+                      className="relative w-full aspect-[4/5] rounded-xl overflow-hidden border border-stone-200 bg-stone-100 flex flex-col items-center justify-center p-6 text-center"
+                      style={{ minHeight: 200 }}
                     >
-                      <ExternalLink size={12} /> Open in Browser
-                    </a>
-                  </div>
+                      <div className="absolute inset-0">
+                        {recipe.image && recipe.image !== '/placeholder.svg' ? (
+                          <img src={recipe.image} alt="" className="w-full h-full object-cover opacity-30" />
+                        ) : null}
+                        <div className="absolute inset-0 bg-gradient-to-t from-stone-900/60 to-stone-900/20" />
+                      </div>
+                      <div className="relative z-10">
+                        <p className="text-sm font-medium text-white/95 mb-2">
+                          This site doesn&apos;t allow embedding
+                        </p>
+                        <p className="text-xs text-white/80 mb-4 max-w-[220px]">
+                          Open the recipe directly in your browser to view it
+                        </p>
+                        <a
+                          href={recipe.source_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold bg-orange-500 text-white hover:bg-orange-600 transition-colors shadow-lg"
+                        >
+                          <ExternalLink size={16} /> Open in Browser
+                        </a>
+                      </div>
+                    </div>
+                  )}
 
                   <a
                     href={recipe.source_url}
