@@ -11,6 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Progress } from '@/components/ui/progress';
 import { Link2, FileText, Loader2, Import, ClipboardPaste, X, Plus, Globe, Lock, Camera, Upload, Brain } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { getAiDisabledMessage, isAiAgentCallsDisabledError } from '@/lib/ai';
+import { useAiAgentCallsDisabled } from '@/hooks/useAiAgentCallsDisabled';
+import { invokeAppFunction } from '@/lib/functionClient';
 import { useStore } from '@/lib/store';
 import { composeIngredientLine, parseIngredientLine } from '@/lib/ingredientText';
 import { toast } from 'sonner';
@@ -146,6 +149,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
   const [magicProgress, setMagicProgress] = useState(0);
   const [magicMessage, setMagicMessage] = useState('Summoning recipe magic...');
   const [websiteAdPreview, setWebsiteAdPreview] = useState<WebsiteAdPreview | null>(null);
+  const aiAgentCallsDisabled = useAiAgentCallsDisabled();
 
   const MAGIC_MESSAGES = [
     'Summoning recipe magic... ✨',
@@ -384,6 +388,15 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
   };
 
   const handleExtract = async (payload: { url?: string; textContent?: string; imageBase64?: string; imageMimeType?: string }) => {
+    if (aiAgentCallsDisabled) {
+      if (payload.url) {
+        await handleNonPremiumUrlImport(payload.url);
+      } else {
+        toast.info(getAiDisabledMessage('AI recipe extraction'));
+      }
+      return;
+    }
+
     if (!isPremium && !payload.url) {
       promptPremiumUpgrade();
       return;
@@ -400,7 +413,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
         }
         : payload;
 
-      const { data, error } = await supabase.functions.invoke('import-recipe', {
+      const { data, error } = await invokeAppFunction('import-recipe', {
         body: normalizedPayload,
       });
 
@@ -475,6 +488,11 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
       setReviewMode(true);
       toast.success('Recipe extracted! Review and edit before saving.');
     } catch (err) {
+      if (isAiAgentCallsDisabledError(err)) {
+        toast.info(getAiDisabledMessage('AI recipe extraction'));
+        return;
+      }
+
       console.error('Import error:', err);
       const message = 'Something went wrong importing the recipe';
       setLastImportError(message);
@@ -589,7 +607,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke('scrape-recipe', {
+      const { data, error } = await invokeAppFunction('scrape-recipe', {
         body: { url: normalizedUrl },
       });
 
@@ -649,7 +667,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
       return;
     }
 
-    if (!isPremium) {
+    if (aiAgentCallsDisabled || !isPremium) {
       void handleNonPremiumUrlImport(normalizedUrl);
       return;
     }

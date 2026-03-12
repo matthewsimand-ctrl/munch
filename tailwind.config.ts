@@ -13,11 +13,11 @@ export default {
   		}
   	},
   	extend: {
-  		fontFamily: {
-  			display: [
-  				'Playfair Display"',
-  				'serif'
-  			],
+  			fontFamily: {
+  				display: [
+  					'Playfair Display',
+  					'serif'
+  				],
   			sans: [
   				'Open Sans',
   				'ui-sans-serif',

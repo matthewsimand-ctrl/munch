@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { useStore } from '@/lib/store';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Wand2, Loader2, Leaf, ShoppingBasket, Heart, ChefHat, MessageSquare, ArrowRight, X, Save, Lock } from 'lucide-react';
+import { getAiDisabledMessage, isAiAgentCallsDisabledError } from '@/lib/ai';
+import { invokeAppFunction } from '@/lib/functionClient';
 import { toast } from 'sonner';
 import type { Recipe } from '@/data/recipes';
 import { usePremiumAccess } from '@/hooks/usePremiumAccess';
@@ -44,7 +45,7 @@ export default function RecipeTweakDialog({ recipe, open, onOpenChange }: Props)
     setResult(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke('tweak-recipe', {
+      const { data, error } = await invokeAppFunction('tweak-recipe', {
         body: {
           recipeName: recipe.name,
           ingredients: recipe.ingredients,
@@ -61,6 +62,11 @@ export default function RecipeTweakDialog({ recipe, open, onOpenChange }: Props)
 
       setResult(data.tweaked);
     } catch (e: any) {
+      if (isAiAgentCallsDisabledError(e)) {
+        toast.info(getAiDisabledMessage('AI recipe tweaks'));
+        return;
+      }
+
       toast.error(e.message || 'Failed to tweak recipe');
     } finally {
       setLoading(false);

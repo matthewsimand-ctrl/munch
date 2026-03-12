@@ -9,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ArrowLeft, LogOut, User, Users, Utensils, Trash2, Flame, Camera, ChefHat, Crown, MapPin, Compass } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Switch } from '@/components/ui/switch';
+import { useAiAgentCallsDisabled } from '@/hooks/useAiAgentCallsDisabled';
+import { setAiAgentCallsDisabled } from '@/lib/ai';
 import { getPremiumOverride, setPremiumOverride } from '@/lib/premium';
 import RecipeScraperTester from '@/components/RecipeScraperTester';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -56,6 +58,7 @@ export default function Settings() {
   const [displayName, setDisplayName] = useState('');
   const [defaultServings, setDefaultServings] = useState(mapServingPreference(2));
   const [loading, setLoading] = useState(false);
+  const aiAgentCallsDisabled = useAiAgentCallsDisabled();
   const [premiumOverrideEnabled, setPremiumOverrideEnabled] = useState(getPremiumOverride());
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
@@ -333,21 +336,37 @@ export default function Settings() {
           <section className="space-y-4">
             <div className="flex items-center gap-2 text-muted-foreground">
               <Crown className="h-4 w-4" />
-              <span className="text-sm font-semibold uppercase tracking-wide">Premium (Testing)</span>
+              <span className="text-sm font-semibold uppercase tracking-wide">Testing</span>
             </div>
-            <div className="bg-card rounded-xl p-4 border border-border flex items-center justify-between gap-4">
-              <div>
-                <p className="text-sm font-medium text-foreground">Enable premium features on this device</p>
-                <p className="text-xs text-muted-foreground">Developer toggle for testing premium-only experiences.</p>
+            <div className="bg-card rounded-xl p-4 border border-border space-y-4">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium text-foreground">Enable premium features on this device</p>
+                  <p className="text-xs text-muted-foreground">Developer toggle for testing premium-only experiences.</p>
+                </div>
+                <Switch
+                  checked={premiumOverrideEnabled}
+                  onCheckedChange={(checked) => {
+                    setPremiumOverrideEnabled(checked);
+                    setPremiumOverride(checked);
+                    toast({ title: checked ? 'Premium enabled for testing' : 'Premium testing disabled' });
+                  }}
+                />
               </div>
-              <Switch
-                checked={premiumOverrideEnabled}
-                onCheckedChange={(checked) => {
-                  setPremiumOverrideEnabled(checked);
-                  setPremiumOverride(checked);
-                  toast({ title: checked ? 'Premium enabled for testing' : 'Premium testing disabled' });
-                }}
-              />
+
+              <div className="flex items-center justify-between gap-4 pt-4 border-t border-border/70">
+                <div>
+                  <p className="text-sm font-medium text-foreground">Disable AI agent API calls</p>
+                  <p className="text-xs text-muted-foreground">Keeps local logic plus recipe feeds like TheMealDB and Spoonacular available for testing.</p>
+                </div>
+                <Switch
+                  checked={aiAgentCallsDisabled}
+                  onCheckedChange={(checked) => {
+                    setAiAgentCallsDisabled(checked);
+                    toast({ title: checked ? 'AI agent calls disabled for testing' : 'AI agent calls re-enabled' });
+                  }}
+                />
+              </div>
             </div>
           </section>
 

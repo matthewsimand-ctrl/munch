@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { invokeAppFunction } from '@/lib/functionClient';
 
 interface ScrapeRecipeResponse {
   url: string;
@@ -23,7 +23,7 @@ export default function RecipeScraperTester() {
     setLoading(true);
     setError('');
 
-    const { data, error: invokeError } = await supabase.functions.invoke('scrape-recipe', {
+    const { data, error: invokeError } = await invokeAppFunction('scrape-recipe', {
       body: { url: trimmedUrl },
     });
 

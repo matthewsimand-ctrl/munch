@@ -2,6 +2,8 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Recipe } from '@/data/recipes';
 import { useToast } from '@/hooks/use-toast';
+import { getAiDisabledMessage, isAiAgentCallsDisabledError } from '@/lib/ai';
+import { invokeAppFunction } from '@/lib/functionClient';
 import { useStore } from '@/lib/store';
 import { normalizeIngredients } from '@/lib/normalizeIngredients';
 import { isPremiumSession } from '@/lib/premium';
@@ -41,7 +43,7 @@ export function useRecipeSearch() {
           return;
         }
 
-        const { data, error } = await supabase.functions.invoke('import-recipe', {
+        const { data, error } = await invokeAppFunction('import-recipe', {
           body: { url: query.trim() },
         });
 
@@ -77,7 +79,7 @@ export function useRecipeSearch() {
       }
 
       // Normal keyword search
-      const { data, error } = await supabase.functions.invoke('search-recipes', {
+      const { data, error } = await invokeAppFunction('search-recipes', {
         body: { query },
       });
       if (error) throw error;
@@ -92,6 +94,15 @@ export function useRecipeSearch() {
         toast({ title: 'No results', description: `No recipes found for "${query}"` });
       }
     } catch (e: any) {
+      if (isAiAgentCallsDisabledError(e)) {
+        toast({
+          title: 'AI imports disabled',
+          description: getAiDisabledMessage('AI URL imports'),
+        });
+        setApiRecipes([]);
+        return;
+      }
+
       console.error('Recipe search error:', e);
       toast({ title: 'Search failed', description: e.message, variant: 'destructive' });
     } finally {
