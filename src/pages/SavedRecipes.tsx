@@ -22,6 +22,15 @@ import { normalizeRecipe } from "@/lib/normalizeRecipe";
 const SORT_OPTIONS = ["Recently Saved", "Cook Time", "Rating", "Name A–Z"];
 const CUISINE_TAGS = ["All", "Italian", "Asian", "Mexican", "Mediterranean", "American", "Indian"];
 
+function getSourceHostname(url: string | undefined): string | null {
+  if (!url) return null;
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return null;
+  }
+}
+
 function RecipeCard({
   recipe,
   view,
@@ -50,6 +59,7 @@ function RecipeCard({
     diff === "easy" ? "text-emerald-600 bg-emerald-50" :
       diff === "medium" ? "text-amber-600 bg-amber-50" :
         "text-red-600 bg-red-50";
+  const sourceHostname = getSourceHostname(recipe.source_url);
 
   if (view === "list") {
     return (
@@ -73,6 +83,14 @@ function RecipeCard({
             {recipe.name}
           </p>
           <div className="flex items-center gap-3 mt-1 text-xs text-stone-400">
+            {sourceHostname && (
+              <img
+                src={`https://www.google.com/s2/favicons?domain=${sourceHostname}&sz=32`}
+                alt=""
+                className="h-3.5 w-3.5 shrink-0"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              />
+            )}
             <span className="flex items-center gap-1"><Clock size={11} /> {recipe.cook_time}</span>
             <span className={`px-2 py-0.5 rounded-full font-semibold ${diffColor}`}>{diff}</span>
             {typeof rating === "number" && (
@@ -138,6 +156,16 @@ function RecipeCard({
         <div className="absolute bottom-2 left-2">
           <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${diffColor}`}>{diff}</span>
         </div>
+        {sourceHostname && (
+          <div className="absolute top-2 left-2 flex items-center gap-1 px-1.5 py-1 rounded-md bg-black/30 backdrop-blur-sm">
+            <img
+              src={`https://www.google.com/s2/favicons?domain=${sourceHostname}&sz=32`}
+              alt=""
+              className="h-3.5 w-3.5"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+            />
+          </div>
+        )}
         {typeof rating === "number" && (
           <div className="absolute bottom-2 right-2 flex items-center gap-1 bg-black/30 backdrop-blur-sm px-2 py-0.5 rounded-full text-amber-400 text-[10px] font-bold">
             <Star size={9} fill="currentColor" /> {rating.toFixed(1)}

@@ -155,6 +155,7 @@ export default function CookMode() {
   const [showIngredients, setShowIngredients] = useState(false);
   const [timerLeft, setTimerLeft] = useState<number | null>(null);
   const [isTimerPaused, setIsTimerPaused] = useState(false);
+  const [timerLabel, setTimerLabel] = useState<string>('');
   const hasTrackedCookRef = useRef(false);
 
   /* ── Resolve recipe ── */
@@ -250,6 +251,7 @@ export default function CookMode() {
       toast.success("Timer done! ⏱️");
       speak("Timer is done!");
       setTimerLeft(null);
+      setTimerLabel('');
       return;
     }
     const interval = setTimeout(() => {
@@ -267,9 +269,13 @@ export default function CookMode() {
     onStartTimer: (seconds = 300) => {
       setTimerLeft(seconds);
       setIsTimerPaused(false);
+      setTimerLabel('');
     },
     onPauseTimer: () => setIsTimerPaused(true),
-    onStopTimer: () => setTimerLeft(null),
+    onStopTimer: () => {
+      setTimerLeft(null);
+      setTimerLabel('');
+    },
   });
 
   useEffect(() => {
@@ -315,6 +321,7 @@ export default function CookMode() {
   const handleStartTimer = useCallback((seconds: number, label: string) => {
     setTimerLeft(seconds);
     setIsTimerPaused(false);
+    setTimerLabel(label);
     toast.success(`Timer set for ${label}`);
   }, []);
 
@@ -389,7 +396,7 @@ export default function CookMode() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               {ingredients.map((ing, i) => {
                 const checked = checkedIngredients.has(i);
                 return (
@@ -607,22 +614,48 @@ export default function CookMode() {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              className="pointer-events-auto flex items-center gap-3 bg-white px-4 py-3 rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-stone-100"
+              className="pointer-events-auto flex flex-col items-center gap-4 bg-white px-8 py-6 rounded-3xl shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-stone-100"
             >
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${timerLeft <= 10 ? 'bg-red-50 text-red-500 animate-[pulse_1s_ease-in-out_infinite]' : 'bg-orange-50 text-orange-500'}`}>
-                <Timer size={20} />
+              <div className="flex flex-col items-center gap-2">
+                <div
+                  className={`w-28 h-28 rounded-full flex items-center justify-center border-4 ${
+                    timerLeft <= 10
+                      ? 'border-red-200 bg-red-50 text-red-600 animate-[pulse_1s_ease-in-out_infinite]'
+                      : 'border-orange-200 bg-orange-50/50 text-orange-600'
+                  }`}
+                >
+                  <p
+                    className="text-2xl font-black tracking-tight"
+                    style={{ fontVariantNumeric: "tabular-nums" }}
+                  >
+                    {Math.floor(timerLeft / 60)}:{(timerLeft % 60).toString().padStart(2, '0')}
+                  </p>
+                </div>
+                <Clock size={18} className="text-stone-400" strokeWidth={2} />
               </div>
-              <div className="w-20 text-center">
-                <p className="text-2xl font-black text-stone-800 tracking-tight" style={{ fontVariantNumeric: "tabular-nums" }}>
-                  {Math.floor(timerLeft / 60)}:{(timerLeft % 60).toString().padStart(2, '0')}
-                </p>
-              </div>
-              <div className="flex flex-col gap-1">
-                <button onClick={() => setIsTimerPaused(!isTimerPaused)} className="p-1.5 rounded-lg bg-stone-50 text-stone-500 hover:text-orange-500 hover:bg-orange-50 transition-colors">
-                  {isTimerPaused ? <PlayIcon size={14} fill="currentColor" /> : <Pause size={14} fill="currentColor" />}
+              {timerLabel && (
+                <p className="text-xs font-semibold text-stone-500 -mt-2">{timerLabel}</p>
+              )}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsTimerPaused(!isTimerPaused)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-orange-100 text-orange-700 font-semibold text-sm hover:bg-orange-200 transition-colors"
+                >
+                  {isTimerPaused ? (
+                    <>
+                      <PlayIcon size={16} fill="currentColor" /> Play
+                    </>
+                  ) : (
+                    <>
+                      <Pause size={16} fill="currentColor" /> Pause
+                    </>
+                  )}
                 </button>
-                <button onClick={() => setTimerLeft(null)} className="p-1.5 rounded-lg bg-stone-50 text-stone-500 hover:text-red-500 hover:bg-red-50 transition-colors">
-                  <X size={14} />
+                <button
+                  onClick={() => { setTimerLeft(null); setTimerLabel(''); }}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-stone-100 text-stone-600 font-semibold text-sm hover:bg-red-100 hover:text-red-600 transition-colors"
+                >
+                  <X size={16} /> End
                 </button>
               </div>
             </motion.div>
@@ -642,7 +675,7 @@ export default function CookMode() {
           >
             <div className="px-6 py-4 max-w-2xl mx-auto">
               <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-3">Ingredients</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+              <div className="grid grid-cols-2 gap-1.5">
                 {ingredients.map((ing, i) => {
                   const checked = checkedIngredients.has(i);
                   return (
