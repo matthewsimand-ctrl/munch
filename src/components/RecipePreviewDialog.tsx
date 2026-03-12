@@ -6,7 +6,7 @@ import type { MatchResult } from '@/lib/matchLogic';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Clock, BarChart3, Check, ShoppingCart, MapPin, ChefHat, Users, Heart, Play, Sparkles, ExternalLink } from 'lucide-react';
+import { Clock, BarChart3, Check, ShoppingCart, MapPin, ChefHat, Users, Heart, Play, Sparkles, ExternalLink, FileText } from 'lucide-react';
 import MatchBadge from '@/components/MatchBadge';
 import RecipeTweakDialog from '@/components/RecipeTweakDialog';
 import NutritionCard from '@/components/NutritionCard';
@@ -58,6 +58,26 @@ function hasStructuredRecipeContent(recipe: Recipe): boolean {
   return recipe.ingredients.length > 0 || recipe.instructions.length > 0;
 }
 
+function getImportedPreviewData(recipe: Recipe) {
+  if (!recipe.raw_api_payload || typeof recipe.raw_api_payload !== 'object' || Array.isArray(recipe.raw_api_payload)) {
+    return {
+      previewText: '',
+      structuredText: '',
+      sourceUrl: '',
+      rawPayloadKeys: [] as string[],
+    };
+  }
+
+  const payload = recipe.raw_api_payload as Record<string, unknown>;
+
+  return {
+    previewText: typeof payload.preview_text === 'string' ? payload.preview_text.trim() : '',
+    structuredText: typeof payload.structured_text === 'string' ? payload.structured_text.trim() : '',
+    sourceUrl: typeof payload.source_url === 'string' ? payload.source_url : '',
+    rawPayloadKeys: Object.keys(payload),
+  };
+}
+
 function scaleIngredient(ingredient: string, factor: number) {
   if (factor === 1) return ingredient;
   const match = ingredient.match(/^(\d+(?:\.\d+)?)(.*)$/);
@@ -94,7 +114,21 @@ export default function RecipePreviewDialog({
   const importedRecipe = isImportedRecipe(recipe);
   const embedBlockReason = recipe.source_url ? getEmbedBlockReason(recipe.source_url) : null;
   const canEmbedSource = Boolean(recipe.source_url) && !embedBlockReason;
+  const importedPreview = useMemo(() => getImportedPreviewData(recipe), [recipe]);
+  const readerPreviewText = importedPreview.previewText || importedPreview.structuredText;
+  const hasReaderPreview = readerPreviewText.length > 0;
   const showStructuredFallback = importedRecipe && hasStructuredRecipeContent(recipe);
+  const sourceHostname = useMemo(() => {
+    const url = recipe.source_url || importedPreview.sourceUrl;
+
+    if (!url) return '';
+
+    try {
+      return new URL(url).hostname;
+    } catch {
+      return '';
+    }
+  }, [importedPreview.sourceUrl, recipe.source_url]);
 
   useEffect(() => {
     if (!open || !importedRecipe || !recipe.source_url || !embedBlockReason) return;
@@ -105,8 +139,24 @@ export default function RecipePreviewDialog({
       sourceUrl: recipe.source_url,
       reason: embedBlockReason,
       hasStructuredFallback: showStructuredFallback,
+      hasReaderPreview,
+      previewTextLength: importedPreview.previewText.length,
+      structuredTextLength: importedPreview.structuredText.length,
+      rawPayloadKeys: importedPreview.rawPayloadKeys,
     });
-  }, [embedBlockReason, importedRecipe, open, recipe.id, recipe.name, recipe.source_url, showStructuredFallback]);
+  }, [
+    embedBlockReason,
+    hasReaderPreview,
+    importedPreview.previewText.length,
+    importedPreview.rawPayloadKeys,
+    importedPreview.structuredText.length,
+    importedRecipe,
+    open,
+    recipe.id,
+    recipe.name,
+    recipe.source_url,
+    showStructuredFallback,
+  ]);
 
   const handleAddMissingToGrocery = () => {
     if (!onAddMissingToGrocery || displayMatch.missing.length === 0) return;
@@ -209,11 +259,17 @@ export default function RecipePreviewDialog({
                       <div className="relative z-10 flex flex-wrap items-center gap-3 justify-between">
                         <div className="space-y-1">
                           <p className="text-sm font-medium text-stone-800">
-                            {canEmbedSource ? 'Viewing imported recipe details' : 'This site doesn&apos;t allow direct embedding'}
+                            {hasReaderPreview
+                              ? 'Showing Reader View for this recipe'
+                              : canEmbedSource
+                                ? 'Viewing imported recipe details'
+                                : 'This site doesn&apos;t allow direct embedding'}
                           </p>
                           <p className="text-xs text-stone-500">
-                            {showStructuredFallback
-                              ? 'Showing the saved recipe details we imported.'
+                            {hasReaderPreview
+                              ? 'This site blocks iframe embedding, so we&apos;re showing the imported page content in-app.'
+                              : showStructuredFallback
+                                ? 'Showing the saved recipe details we imported.'
                               : 'Open the original page in your browser to view it.'}
                           </p>
                         </div>
@@ -225,6 +281,28 @@ export default function RecipePreviewDialog({
                         >
                           <ExternalLink size={16} /> Open in Browser
                         </a>
+                      </div>
+                    </div>
+                  )}
+
+                  {hasReaderPreview && (
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Reader View</p>
+                      <div className="rounded-xl border border-stone-200 bg-stone-50/70 overflow-hidden">
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-200 bg-white/80 px-4 py-3">
+                          <div className="inline-flex items-center gap-2 text-sm font-semibold text-stone-800">
+                            <FileText className="h-4 w-4 text-orange-500" />
+                            In-app page preview
+                          </div>
+                          {sourceHostname && (
+                            <span className="text-xs text-stone-500 truncate max-w-full">
+                              {sourceHostname}
+                            </span>
+                          )}
+                        </div>
+                        <div className="max-h-80 overflow-y-auto px-4 py-4 text-sm leading-6 text-stone-700 whitespace-pre-wrap">
+                          {readerPreviewText}
+                        </div>
                       </div>
                     </div>
                   )}
