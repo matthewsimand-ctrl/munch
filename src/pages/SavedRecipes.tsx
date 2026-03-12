@@ -32,6 +32,7 @@ function RecipeCard({
   cookCount,
   onChefClick,
   matchPercentage,
+  dataTutorial,
 }: {
   recipe: Recipe;
   view: "grid" | "list";
@@ -42,6 +43,7 @@ function RecipeCard({
   cookCount?: number;
   onChefClick: (chefId: string | null, chefName: string | null) => void;
   matchPercentage: number;
+  dataTutorial?: string;
 }) {
   const diff = recipe.difficulty ?? "medium";
   const diffColor =
@@ -55,6 +57,7 @@ function RecipeCard({
         layout
         initial={{ opacity: 0, x: -8 }}
         animate={{ opacity: 1, x: 0 }}
+        data-tutorial={dataTutorial}
         className="flex items-center gap-4 p-4 rounded-2xl group hover:bg-orange-50/60 transition-colors cursor-pointer border border-transparent hover:border-orange-100"
         onClick={onCook}
       >
@@ -115,6 +118,7 @@ function RecipeCard({
       layout
       initial={{ opacity: 0, scale: 0.96 }}
       animate={{ opacity: 1, scale: 1 }}
+      data-tutorial={dataTutorial}
       className="group cursor-pointer"
       onClick={onCook}
     >
@@ -279,15 +283,17 @@ export default function MyRecipesScreen() {
               </h1>
               <p className="text-xs text-stone-400 mt-1">{savedRecipes.length} saved recipe{savedRecipes.length !== 1 ? "s" : ""}</p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2" data-tutorial="recipes-nav">
               <button
                 onClick={() => navigate("/saved")}
+                data-tutorial="my-recipes-page-tab"
                 className={`px-3 py-2 rounded-xl text-xs font-semibold ${activeTab === "mine" ? "bg-orange-500 text-white" : "bg-white border border-stone-200 text-stone-600"}`}
               >
                 My Recipes
               </button>
               <button
                 onClick={() => navigate("/cookbooks")}
+                data-tutorial="cookbooks-tab"
                 className={`px-3 py-2 rounded-xl text-xs font-semibold ${activeTab === "cookbooks" ? "bg-orange-500 text-white" : "bg-white border border-stone-200 text-stone-600"}`}
               >
                 Cookbooks
@@ -428,10 +434,11 @@ export default function MyRecipesScreen() {
         ) : (
           <AnimatePresence>
             <div className={view === "grid" ? "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5" : "space-y-1"}>
-              {filtered.map((recipe) => (
+              {filtered.map((recipe, index) => (
                 <RecipeCard
                   key={recipe.id}
                   recipe={recipe}
+                  dataTutorial={index === 0 ? "saved-recipe-card" : undefined}
                   view={view}
                   matchPercentage={calculateMatch(pantryNames, recipe.ingredients || []).percentage}
                   rating={recipeRatings?.[recipe.id]}

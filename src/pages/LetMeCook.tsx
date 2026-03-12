@@ -117,6 +117,7 @@ export default function LetMeCook() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             className="rounded-2xl overflow-hidden border"
+            data-tutorial="pantry-status-card"
             style={{
               background: "linear-gradient(135deg,#FFF7ED 0%,#FFF3E4 100%)",
               borderColor: "rgba(249,115,22,0.20)",
@@ -223,7 +224,7 @@ export default function LetMeCook() {
             ) : (
               <div
                 className="rounded-2xl border overflow-hidden divide-y"
-                style={{ background: "#fff", borderColor: "rgba(0,0,0,0.07)", divideColor: "rgba(0,0,0,0.05)" }}
+                style={{ background: "#fff", borderColor: "rgba(0,0,0,0.07)" }}
               >
                 {filtered.map((recipe, i) => (
                   <ListRow key={recipe.id} recipe={recipe} index={i} onStart={() => navigate(`/cook/${recipe.id}`)} />
@@ -241,8 +242,8 @@ function GridCard({ recipe, index, onStart }: { recipe: Recipe; index: number; o
   const diff = recipe.difficulty ?? "medium";
   const diffColor =
     diff === "easy" ? { text: "#059669", bg: "#ECFDF5" } :
-    diff === "medium" ? { text: "#D97706", bg: "#FFF3C4" } :
-    { text: "#DC2626", bg: "#FEF2F2" };
+      diff === "medium" ? { text: "#D97706", bg: "#FFF3C4" } :
+        { text: "#DC2626", bg: "#FEF2F2" };
 
   return (
     <motion.div
@@ -304,8 +305,8 @@ function ListRow({ recipe, index, onStart }: { recipe: Recipe; index: number; on
   const diff = recipe.difficulty ?? "medium";
   const diffColor =
     diff === "easy" ? "text-emerald-600 bg-emerald-50" :
-    diff === "medium" ? "text-amber-600 bg-amber-50" :
-    "text-red-600 bg-red-50";
+      diff === "medium" ? "text-amber-600 bg-amber-50" :
+        "text-red-600 bg-red-50";
 
   return (
     <motion.div

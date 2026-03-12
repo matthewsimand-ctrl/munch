@@ -27,49 +27,80 @@ function cleanInstruction(raw: string): string {
 }
 
 const dictionaryRegex = buildDictionaryRegex();
+const timerRegex = /\b(\d+(?:\.\d+)?)\s*(min|minute|minutes|hr|hour|hours|sec|second|seconds)\b/gi;
 
-function renderInstructionWithDefinitions(step: string) {
-  const matches = Array.from(step.matchAll(dictionaryRegex));
+function renderInstructionWithDefinitions(step: string, onTimerClick?: (seconds: number, label: string) => void) {
+  // Combine both dictionary and timer matches
+  const dictMatches = Array.from(step.matchAll(dictionaryRegex));
+  const timeMatches = Array.from(step.matchAll(timerRegex));
 
-  if (!matches.length) return step;
+  const allMatches = [
+    ...dictMatches.map(m => ({ type: 'dict' as const, match: m })),
+    ...timeMatches.map(m => ({ type: 'timer' as const, match: m }))
+  ].sort((a, b) => (a.match.index ?? 0) - (b.match.index ?? 0));
+
+  if (!allMatches.length) return step;
 
   const nodes: Array<JSX.Element | string> = [];
   let lastIndex = 0;
 
-  matches.forEach((match, index) => {
+  allMatches.forEach(({ type, match }, index) => {
     const matchedText = match[0];
     const matchIndex = match.index ?? 0;
+
+    // Handle overlapping matches – skip if this match starts before the previous one ended
+    if (matchIndex < lastIndex) return;
 
     if (matchIndex > lastIndex) {
       nodes.push(step.slice(lastIndex, matchIndex));
     }
 
-    const entry = lookupTerm(matchedText);
-
-    if (!entry) {
-      nodes.push(matchedText);
-    } else {
-      nodes.push(
-        <span key={`${matchedText}-${matchIndex}-${index}`} className="inline-flex items-baseline gap-1">
-          <span className="rounded px-1 py-0.5 bg-orange-100 text-orange-700 font-semibold">
-            {matchedText}
+    if (type === 'dict') {
+      const entry = lookupTerm(matchedText);
+      if (!entry) {
+        nodes.push(matchedText);
+      } else {
+        nodes.push(
+          <span key={`dict-${matchedText}-${matchIndex}-${index}`} className="inline-flex items-baseline gap-1">
+            <span className="rounded px-1 py-0.5 bg-orange-100 text-orange-700 font-semibold cursor-help">
+              {matchedText}
+            </span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  data-tutorial="dictionary-term"
+                  className="inline-flex items-center justify-center text-orange-500 hover:text-orange-600 transition-colors"
+                  aria-label={`Definition for ${matchedText}`}
+                >
+                  <CircleHelp size={14} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs shadow-xl border-orange-100">
+                <p className="font-semibold text-xs text-orange-600 mb-1">{entry.term}</p>
+                <p className="text-xs leading-relaxed">{entry.definition}</p>
+              </TooltipContent>
+            </Tooltip>
           </span>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                className="inline-flex items-center justify-center text-orange-500 hover:text-orange-600 transition-colors"
-                aria-label={`Definition for ${matchedText}`}
-              >
-                <CircleHelp size={14} />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent className="max-w-xs">
-              <p className="font-semibold text-xs text-orange-600 mb-1">{entry.term}</p>
-              <p className="text-xs leading-relaxed">{entry.definition}</p>
-            </TooltipContent>
-          </Tooltip>
-        </span>,
+        );
+      }
+    } else {
+      // Timer match
+      const amount = parseFloat(match[1]);
+      const unit = match[2].toLowerCase();
+      let seconds = 0;
+      if (unit.startsWith('hr') || unit.startsWith('hour')) seconds = amount * 3600;
+      else if (unit.startsWith('min')) seconds = amount * 60;
+      else if (unit.startsWith('sec')) seconds = amount;
+
+      nodes.push(
+        <button
+          key={`timer-${matchedText}-${matchIndex}-${index}`}
+          onClick={() => onTimerClick?.(seconds, matchedText)}
+          className="inline-block border-b-2 border-dashed border-orange-400 text-orange-700 font-bold hover:bg-orange-50 px-0.5 transition-colors"
+        >
+          {matchedText}
+        </button>
       );
     }
 
@@ -116,6 +147,7 @@ export default function CookMode() {
   const { isSpeaking, speak, stop } = useSpeechSynthesis();
   const { trackCookedMeal } = useCookedMeals(1);
 
+  const [flowState, setFlowState] = useState<'prep' | 'cooking'>('prep');
   const [stepIndex, setStepIndex] = useState(0);
   const [checkedIngredients, setCheckedIngredients] = useState<Set<number>>(new Set());
   const [ttsEnabled, setTtsEnabled] = useState(true);
@@ -201,7 +233,8 @@ export default function CookMode() {
   }, [stop, stepIndex, ttsEnabled, steps, speak]);
 
   const handleStart = useCallback(() => {
-    // Called from "Start Cooking" button — user gesture, TTS allowed
+    // Called from "Let's Cook" button — user gesture, TTS allowed
+    setFlowState('cooking');
     if (ttsEnabled && steps[0]) {
       speak(steps[0]);
     }
@@ -256,13 +289,13 @@ export default function CookMode() {
   /* ── Auto-Detect Timers ── */
   const detectedTimers = useMemo(() => {
     const step = steps[stepIndex] || "";
-    // Match "X minutes", "X mins", "X hr", "X hour", "X sec", "X seconds"
-    const regex = /\b(\d+(?:\.\d+)?)\s*(min|minute|minutes|hr|hour|hours|sec|second|seconds)\b/gi;
     const timers: { label: string, seconds: number }[] = [];
     let match;
     const seen = new Set<string>();
 
-    while ((match = regex.exec(step)) !== null) {
+    // Reset regex index for safety
+    timerRegex.lastIndex = 0;
+    while ((match = timerRegex.exec(step)) !== null) {
       const amount = parseFloat(match[1]);
       const unit = match[2].toLowerCase();
       let seconds = 0;
@@ -278,6 +311,12 @@ export default function CookMode() {
     }
     return timers;
   }, [steps, stepIndex]);
+
+  const handleStartTimer = useCallback((seconds: number, label: string) => {
+    setTimerLeft(seconds);
+    setIsTimerPaused(false);
+    toast.success(`Timer set for ${label}`);
+  }, []);
 
   if (!recipe) {
     return (
@@ -300,6 +339,103 @@ export default function CookMode() {
           <p className="font-bold text-stone-800 mb-2" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>No instructions available</p>
           <p className="text-sm text-stone-400 mb-5">This recipe doesn't have step-by-step instructions yet.</p>
           <button onClick={() => navigate(-1)} className="px-4 py-2 rounded-xl bg-orange-500 text-white text-sm font-semibold">Go back</button>
+        </div>
+      </div>
+    );
+  }
+
+  // Prep Screen (Mise en place)
+  if (flowState === 'prep') {
+    const allChecked = Array.from({ length: ingredients.length }).every((_, i) => checkedIngredients.has(i));
+
+    return (
+      <div className="min-h-full flex flex-col" style={{ background: "#FFFAF5", fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
+        {/* Simple Top Bar */}
+        <div className="border-b px-6 py-4 flex items-center justify-between" style={{ background: "linear-gradient(135deg,#FFF7ED 0%,#FFFAF5 100%)", borderColor: "rgba(249,115,22,0.12)" }}>
+          <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-stone-200 text-xs font-semibold text-stone-600 hover:border-orange-300 transition-colors">
+            <ArrowLeft size={13} /> Back
+          </button>
+          <div className="text-center">
+            <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest">Mise en Place</p>
+            <p className="text-sm font-bold text-stone-800" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>Prepare Your Ingredients</p>
+          </div>
+          <div className="w-[60px]" /> {/* Spacer */}
+        </div>
+
+        <div className="flex-1 max-w-2xl mx-auto w-full px-6 py-10">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-[32px] border border-stone-100 p-8 shadow-[0_20px_48px_rgba(249,115,22,0.08)] mb-8"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>Ingredients Needed</h2>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => {
+                    if (allChecked) {
+                      setCheckedIngredients(new Set());
+                    } else {
+                      setCheckedIngredients(new Set(ingredients.map((_, i) => i)));
+                    }
+                  }}
+                  className="text-[10px] font-bold text-orange-600 hover:text-orange-700 uppercase tracking-wider bg-orange-50 px-3 py-1 rounded-full transition-colors"
+                >
+                  {allChecked ? 'Deselect All' : 'Select All'}
+                </button>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                  {checkedIngredients.size}/{ingredients.length}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3">
+              {ingredients.map((ing, i) => {
+                const checked = checkedIngredients.has(i);
+                return (
+                  <button
+                    key={i}
+                    onClick={() => setCheckedIngredients(prev => {
+                      const next = new Set(prev);
+                      checked ? next.delete(i) : next.add(i);
+                      return next;
+                    })}
+                    className={`flex items-center gap-4 p-4 rounded-2xl text-left transition-all duration-300 border ${checked
+                      ? 'bg-emerald-50/50 border-emerald-100 text-emerald-950'
+                      : 'bg-stone-50/50 border-stone-100 text-stone-800 hover:border-orange-200'
+                      }`}
+                  >
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors ${checked ? 'bg-emerald-500 text-white' : 'bg-white border-2 border-stone-200'
+                      }`}>
+                      {checked && <Check size={14} />}
+                    </div>
+                    <span className={`text-sm font-medium leading-relaxed ${checked ? 'line-through opacity-50' : ''}`}>
+                      {ing}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </motion.div>
+
+          <button
+            onClick={handleStart}
+            className={`w-full py-4 rounded-2xl text-lg font-black text-white transition-all duration-300 shadow-[0_12px_24px_rgba(249,115,22,0.2)] active:scale-[0.98] ${allChecked ? 'bg-emerald-500 shadow-emerald-200' : 'bg-orange-500'
+              }`}
+            style={{
+              background: allChecked
+                ? "linear-gradient(135deg,#10B981,#059669)"
+                : "linear-gradient(135deg,#FB923C,#F97316,#EA580C)"
+            }}
+          >
+            {allChecked ? "All Ready—Let's Cook!" : "Let's Get Cooking"}
+          </button>
+
+          {!allChecked && (
+            <p className="text-center text-stone-400 text-xs mt-4 font-semibold italic">
+              {ingredients.length - checkedIngredients.size} items remaining
+            </p>
+          )}
         </div>
       </div>
     );
@@ -338,7 +474,7 @@ export default function CookMode() {
             <p className="text-2xl font-black text-emerald-700">+{sessionXp} XP</p>
           </div>
 
-          <div className="mb-7">
+          <div className="mb-7" data-tutorial="rating-stars">
             <p className="text-xs uppercase tracking-[0.14em] text-stone-400 font-bold mb-2">Rate this recipe</p>
             <div className="flex items-center justify-center gap-1.5">
               {Array.from({ length: 5 }).map((_, index) => {
@@ -586,6 +722,7 @@ export default function CookMode() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -16 }}
               transition={{ duration: 0.25, ease: "easeOut" }}
+              data-tutorial="cooking-step-card"
               className="rounded-2xl border p-8"
               style={{
                 background: "#fff",
@@ -610,6 +747,7 @@ export default function CookMode() {
                 {/* Read aloud button — direct user gesture → TTS always works here */}
                 <button
                   onClick={handleReadStep}
+                  data-tutorial="read-aloud-btn"
                   className={`ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${isSpeaking
                     ? "bg-orange-100 text-orange-600 border border-orange-200"
                     : "bg-stone-100 text-stone-500 border border-stone-200 hover:bg-orange-50 hover:text-orange-500 hover:border-orange-200"
@@ -621,12 +759,12 @@ export default function CookMode() {
               </div>
 
               <TooltipProvider delayDuration={120}>
-                <p
+                <div
                   className="text-xl font-medium text-stone-800 leading-relaxed"
                   style={{ fontFamily: "'Fraunces', Georgia, serif" }}
                 >
-                  {renderInstructionWithDefinitions(steps[stepIndex])}
-                </p>
+                  {renderInstructionWithDefinitions(steps[stepIndex], handleStartTimer)}
+                </div>
               </TooltipProvider>
 
               {/* Detected Timers */}
@@ -634,23 +772,20 @@ export default function CookMode() {
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
+                  data-tutorial="timers-section"
                   className="mt-6 pt-5 flex flex-wrap gap-2"
                   style={{ borderTop: "1px dashed rgba(249,115,22,0.2)" }}
                 >
                   <p className="w-full text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1">
-                    Detected Timers
+                    Quick Start Timer
                   </p>
                   {detectedTimers.map((t, i) => (
                     <button
                       key={i}
-                      onClick={() => {
-                        setTimerLeft(t.seconds);
-                        setIsTimerPaused(false);
-                        toast.success(`Timer set for ${t.label}`);
-                      }}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-orange-200 bg-orange-50 text-orange-700 text-sm font-semibold hover:bg-orange-100 transition-colors"
+                      onClick={() => handleStartTimer(t.seconds, t.label)}
+                      className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl border border-orange-100 bg-orange-50 text-orange-700 text-sm font-bold hover:bg-orange-100 hover:border-orange-200 transition-all active:scale-95 shadow-sm"
                     >
-                      <Timer size={14} /> Start {t.label}
+                      <Timer size={16} /> Start {t.label}
                     </button>
                   ))}
                 </motion.div>
@@ -670,6 +805,7 @@ export default function CookMode() {
 
             <button
               onClick={stepIndex === 0 ? () => { handleStart(); goNext(); } : goNext}
+              data-tutorial="step-controls"
               className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90 active:scale-[0.98]"
               style={{
                 background: isLastStep

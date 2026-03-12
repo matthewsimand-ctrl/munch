@@ -23,6 +23,8 @@ export interface CustomGroceryItem {
   name: string;
   quantity: string;
   category?: string;
+  section?: string;
+  qty?: string;
   checked?: boolean;
 }
 
@@ -114,6 +116,7 @@ interface AppState {
   addRecipeToFolder: (folderId: string, recipeId: string) => void;
   removeRecipeFromFolder: (folderId: string, recipeId: string) => void;
   completeTutorial: () => void;
+  resetTutorial: () => void;
   markRecipeCooked: (recipeId: string) => void;
   addXp: (amount: number) => void;
   earnBadge: (badgeId: string) => void;
@@ -184,16 +187,39 @@ export const useStore = create<AppState>()(
           : nameOrItem;
         const normalized = input.name.toLowerCase().trim();
         if (!normalized) return;
-        set((state) => ({
-          pantryList: state.pantryList.some(p => p.name === normalized)
-            ? state.pantryList
-            : [...state.pantryList, {
+
+        set((state) => {
+          const existingIndex = state.pantryList.findIndex(p => p.name === normalized);
+          if (existingIndex >= 0) {
+            const newList = [...state.pantryList];
+            const existing = newList[existingIndex];
+            const currentQty = parseFloat(existing.quantity || '0');
+            const addedQty = parseFloat(input.quantity || '1');
+
+            if (!isNaN(currentQty) && !isNaN(addedQty)) {
+              newList[existingIndex] = {
+                ...existing,
+                quantity: String(currentQty + addedQty),
+                category: input.category || existing.category
+              };
+            } else {
+              // If not numeric, just update category if provided
+              newList[existingIndex] = {
+                ...existing,
+                category: input.category || existing.category
+              };
+            }
+            return { pantryList: newList };
+          }
+          return {
+            pantryList: [...state.pantryList, {
               id: crypto.randomUUID(),
               name: normalized,
               quantity: input.quantity ?? '1',
               category: input.category,
             }],
-        }));
+          };
+        });
       },
 
       removePantryItem: (nameOrId) =>
@@ -223,12 +249,24 @@ export const useStore = create<AppState>()(
 
       addPantryItems: (items) =>
         set((state) => {
-          const existing = new Set(state.pantryList.map(p => p.name));
-          const newItems: PantryItem[] = items
-            .map(i => i.toLowerCase().trim())
-            .filter(i => i && !existing.has(i))
-            .map(name => ({ id: crypto.randomUUID(), name, quantity: '1' }));
-          return { pantryList: [...state.pantryList, ...newItems] };
+          const newList = [...state.pantryList];
+          items.forEach(name => {
+            const normalized = name.toLowerCase().trim();
+            if (!normalized) return;
+            const existingIndex = newList.findIndex(p => p.name === normalized);
+            if (existingIndex >= 0) {
+              const currentQty = parseFloat(newList[existingIndex].quantity || '0');
+              if (!isNaN(currentQty)) {
+                newList[existingIndex] = {
+                  ...newList[existingIndex],
+                  quantity: String(currentQty + 1)
+                };
+              }
+            } else {
+              newList.push({ id: crypto.randomUUID(), name: normalized, quantity: '1' });
+            }
+          });
+          return { pantryList: newList };
         }),
 
       likeRecipe: (id, recipeData) =>
@@ -282,17 +320,38 @@ export const useStore = create<AppState>()(
           ? { qty: quantity }
           : (quantity || {});
 
-        set((state) => ({
-          customGroceryItems: state.customGroceryItems.some(i => i.name === normalized)
-            ? state.customGroceryItems
-            : [...state.customGroceryItems, {
+        set((state) => {
+          const existingIndex = state.customGroceryItems.findIndex(i => i.name === normalized);
+          if (existingIndex >= 0) {
+            const newList = [...state.customGroceryItems];
+            const existing = newList[existingIndex];
+            const currentQty = parseFloat(existing.quantity || '0');
+            const addedQty = parseFloat(parsed.qty || '1');
+
+            if (!isNaN(currentQty) && !isNaN(addedQty)) {
+              newList[existingIndex] = {
+                ...existing,
+                quantity: String(currentQty + addedQty),
+                category: parsed.section ?? parsed.category ?? existing.category
+              };
+            } else {
+              newList[existingIndex] = {
+                ...existing,
+                category: parsed.section ?? parsed.category ?? existing.category
+              };
+            }
+            return { customGroceryItems: newList };
+          }
+          return {
+            customGroceryItems: [...state.customGroceryItems, {
               id: crypto.randomUUID(),
               name: normalized,
               quantity: parsed.qty ?? '1',
               category: parsed.section ?? parsed.category,
               checked: false,
             }],
-        }));
+          };
+        });
       },
 
       removeCustomGroceryItem: (nameOrId) =>
@@ -461,6 +520,8 @@ export const useStore = create<AppState>()(
         })),
 
       completeTutorial: () => set({ tutorialComplete: true }),
+
+      resetTutorial: () => set({ tutorialComplete: false, showTutorial: true }),
 
       markRecipeCooked: (recipeId) =>
         set((state) => {

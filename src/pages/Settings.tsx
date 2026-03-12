@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, LogOut, User, Users, Utensils, Trash2, Flame, Camera, ChefHat, Crown, MapPin } from 'lucide-react';
+import { ArrowLeft, LogOut, User, Users, Utensils, Trash2, Flame, Camera, ChefHat, Crown, MapPin, Compass } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Switch } from '@/components/ui/switch';
 import { getPremiumOverride, setPremiumOverride } from '@/lib/premium';
@@ -48,7 +48,10 @@ const Chip = ({ label, selected, onClick }: { label: string; selected: boolean; 
 export default function Settings() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { userProfile, setUserProfile, resetStore, chefAvatarUrl, setChefAvatarUrl, shareCustomRecipesByDefault, setShareCustomRecipesByDefault } = useStore();
+  const {
+    userProfile, setUserProfile, resetStore, resetTutorial,
+    chefAvatarUrl, setChefAvatarUrl, shareCustomRecipesByDefault, setShareCustomRecipesByDefault
+  } = useStore();
   const [user, setUser] = useState<any>(null);
   const [displayName, setDisplayName] = useState('');
   const [defaultServings, setDefaultServings] = useState(mapServingPreference(2));
@@ -56,6 +59,8 @@ export default function Settings() {
   const [premiumOverrideEnabled, setPremiumOverrideEnabled] = useState(getPremiumOverride());
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
+  const [showClearDataConfirm, setShowClearDataConfirm] = useState(false);
+  const [showResetTutorialConfirm, setShowResetTutorialConfirm] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -383,14 +388,15 @@ export default function Settings() {
             </Button>
             <Button
               variant="outline"
+              className="w-full"
+              onClick={() => setShowResetTutorialConfirm(true)}
+            >
+              <Compass className="h-4 w-4 mr-2" /> Reset Tutorial
+            </Button>
+            <Button
+              variant="outline"
               className="w-full text-destructive border-destructive/30 hover:bg-destructive hover:text-destructive-foreground"
-              onClick={() => {
-                const confirmed = window.confirm('Clear all local data on this device? This cannot be undone.');
-                if (!confirmed) return;
-
-                resetStore();
-                toast({ title: 'Local data cleared' });
-              }}
+              onClick={() => setShowClearDataConfirm(true)}
             >
               <Trash2 className="h-4 w-4 mr-2" /> Clear Local Data
             </Button>
@@ -421,6 +427,74 @@ export default function Settings() {
                 onClick={handleLogout}
               >
                 Sign Out
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showResetTutorialConfirm} onOpenChange={setShowResetTutorialConfirm}>
+        <DialogContent className="max-w-xs p-6 rounded-2xl">
+          <div className="flex flex-col items-center text-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 mb-2">
+              <Compass size={24} />
+            </div>
+            <DialogTitle className="text-xl font-bold font-display">Reset Tutorial</DialogTitle>
+            <p className="text-sm text-stone-500 pb-2">
+              Would you like to restart the guided tour from the beginning?
+            </p>
+            <div className="flex w-full gap-3 mt-4">
+              <Button
+                variant="outline"
+                className="flex-1 rounded-xl"
+                onClick={() => setShowResetTutorialConfirm(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 rounded-xl bg-orange-500 hover:bg-orange-600 text-white"
+                onClick={() => {
+                  resetTutorial();
+                  setShowResetTutorialConfirm(false);
+                  toast({ title: 'Tutorial reset!' });
+                  window.scrollTo(0, 0);
+                  navigate('/dashboard');
+                }}
+              >
+                Reset
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showClearDataConfirm} onOpenChange={setShowClearDataConfirm}>
+        <DialogContent className="max-w-xs p-6 rounded-2xl">
+          <div className="flex flex-col items-center text-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center text-red-500 mb-2">
+              <Trash2 size={24} />
+            </div>
+            <DialogTitle className="text-xl font-bold font-display text-red-600">Clear Local Data</DialogTitle>
+            <p className="text-sm text-stone-500 pb-2">
+              This will wipe all local recipes, pantry items, and preferences from this device. <span className="font-bold">This cannot be undone.</span>
+            </p>
+            <div className="flex w-full gap-3 mt-4">
+              <Button
+                variant="outline"
+                className="flex-1 rounded-xl"
+                onClick={() => setShowClearDataConfirm(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 rounded-xl bg-red-600 hover:bg-red-700 text-white"
+                onClick={() => {
+                  resetStore();
+                  setShowClearDataConfirm(false);
+                  toast({ title: 'Local data cleared' });
+                }}
+              >
+                Clear All
               </Button>
             </div>
           </div>

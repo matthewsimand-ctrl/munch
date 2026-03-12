@@ -173,6 +173,29 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
     return () => window.clearInterval(timer);
   }, [loading]);
 
+  /** Convert ISO-8601 duration (e.g. PT45M, P0Y0M0DT0H45M0.000S) to human-readable */
+  const parseCookTime = (raw: unknown): string => {
+    const str = String(raw || '').trim();
+    if (!str || str === '—') return '30 min';
+
+    // Match ISO 8601 duration: PnYnMnDTnHnMnS  (any part may be absent)
+    const iso = str.match(/^P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?)?$/i);
+    if (iso) {
+      const hours = parseInt(iso[4] || '0', 10);
+      const minutes = parseInt(iso[5] || '0', 10);
+      const seconds = parseFloat(iso[6] || '0');
+
+      const parts: string[] = [];
+      if (hours > 0) parts.push(`${hours} hr`);
+      if (minutes > 0) parts.push(`${minutes} min`);
+      if (parts.length === 0 && seconds > 0) parts.push(`${Math.round(seconds)} sec`);
+      return parts.length > 0 ? parts.join(' ') : '30 min';
+    }
+
+    // Already human-readable (e.g. "45 min", "1 hour")
+    return str;
+  };
+
   const buildImportedPayload = (id: string, recipe: Record<string, any>) => {
     const normalizedIngredients = Array.isArray(recipe.ingredients)
       ? recipe.ingredients.map((item: unknown) => String(item).trim()).filter(Boolean)
@@ -181,20 +204,20 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
       ? recipe.instructions.map((item: unknown) => String(item).trim()).filter(Boolean)
       : [];
 
+
     return {
       id,
       name: String(recipe.name || 'Imported Recipe').trim(),
       ingredients: normalizedIngredients,
       instructions: normalizedInstructions,
-      cook_time: String(recipe.cook_time || '30 min'),
+      cook_time: parseCookTime(recipe.cook_time),
       difficulty: String(recipe.difficulty || 'Intermediate'),
       cuisine: recipe.cuisine ? String(recipe.cuisine) : null,
-      chef: recipe.chef ? String(recipe.chef) : null,
       tags: Array.isArray(recipe.tags) ? recipe.tags.map((tag: unknown) => String(tag).trim()).filter(Boolean) : [],
-      image: String(recipe.image || '/placeholder.svg'),
+      image: String(recipe.image || '/placeholder.svg').trim() || '/placeholder.svg',
       source: 'imported',
-      source_url: recipe.source_url ? String(recipe.source_url).trim() : undefined,
-      raw_api_payload: recipe.raw_api_payload ?? undefined,
+      source_url: recipe.source_url ? String(recipe.source_url).trim() : null,
+      raw_api_payload: recipe.raw_api_payload ?? null,
       servings: parseInt(String(recipe.servings || 4), 10) || 4,
     };
   };
@@ -232,32 +255,52 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
     } = await supabase.auth.getUser();
 
     if (user && isDiscoverable) {
+      // Safely serialize raw_api_payload — some AI responses contain non-serializable objects
+      let safeRawPayload: any = null;
+      if (payload.raw_api_payload && typeof payload.raw_api_payload === 'object') {
+        try {
+          safeRawPayload = JSON.parse(JSON.stringify(payload.raw_api_payload));
+        } catch {
+          safeRawPayload = null;
+        }
+      }
+
       const insertData = {
         id: payload.id,
-        name: payload.name,
-        image: payload.image || '',
-        cook_time: payload.cook_time || '30 min',
-        difficulty: payload.difficulty || 'Intermediate',
-        ingredients: payload.ingredients || [],
-        instructions: payload.instructions || [],
-        tags: payload.tags || [],
-        cuisine: payload.cuisine || null,
-        chef: payload.chef || null,
-        source: payload.source || 'imported',
-        source_url: payload.source_url || null,
-        raw_api_payload: payload.raw_api_payload || null,
-        servings: payload.servings || 4,
+        name: String(payload.name || 'Imported Recipe').trim(),
+        image: String(payload.image || '/placeholder.svg').trim() || '/placeholder.svg',
+        cook_time: String(payload.cook_time || '30 min'),
+        difficulty: String(payload.difficulty || 'Intermediate'),
+        ingredients: Array.isArray(payload.ingredients) ? payload.ingredients : [],
+        instructions: Array.isArray(payload.instructions) ? payload.instructions : [],
+        tags: Array.isArray(payload.tags) ? payload.tags : [],
+        cuisine: payload.cuisine ? String(payload.cuisine) : null,
+        source: String(payload.source || 'imported'),
+        source_url: payload.source_url ? String(payload.source_url) : null,
+        servings: parseInt(String(payload.servings || 4), 10) || 4,
         created_by: user.id,
         is_public: true,
       };
-      const { error } = await supabase.from('recipes').insert(insertData);
 
-      if (error?.message?.includes("Could not find the 'chef' column")) {
-        const { chef: _chef, ...insertDataWithoutChef } = insertData;
-        const fallbackInsert = await supabase.from('recipes').insert(insertDataWithoutChef);
-        if (fallbackInsert.error) throw fallbackInsert.error;
-      } else if (error) {
-        throw error;
+      // Primary insert: try core fields + raw_api_payload
+      const { error } = await supabase.from('recipes').insert({
+        ...insertData,
+        raw_api_payload: safeRawPayload,
+      });
+
+      if (error) {
+        console.warn(`[Import] Primary insert for "${insertData.name}" failed: ${error.message}${error.details ? ` (${error.details})` : ''}`);
+
+        // Fallback: try without raw_api_payload
+        const { error: fallbackError } = await supabase.from('recipes').insert(insertData);
+        if (fallbackError) {
+          console.error(`[Import] Fallback insert failed: ${fallbackError.message}`);
+          toast.error('Could not share recipe publicly, but saved to your library.');
+        } else {
+          console.info(`[Import] Successfully saved "${insertData.name}" without raw_api_payload.`);
+        }
+      } else {
+        console.info(`[Import] Successfully saved "${insertData.name}" to database.`);
       }
     }
 
@@ -352,9 +395,9 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
     try {
       const normalizedPayload = payload.url
         ? {
-            ...payload,
-            url: /^https?:\/\//i.test(payload.url.trim()) ? payload.url.trim() : `https://${payload.url.trim()}`,
-          }
+          ...payload,
+          url: /^https?:\/\//i.test(payload.url.trim()) ? payload.url.trim() : `https://${payload.url.trim()}`,
+        }
         : payload;
 
       const { data, error } = await supabase.functions.invoke('import-recipe', {
@@ -378,27 +421,35 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
 
       if (payload.url) {
         const existingRecipe = await findExistingRecipeByUrl(recipe.source_url ? String(recipe.source_url) : undefined);
-        const previewRecipe = existingRecipe || recipe;
 
-        setWebsitePreview({
-          name: String(previewRecipe.name || 'Imported Recipe').trim(),
-          ingredients: Array.isArray(previewRecipe.ingredients) ? previewRecipe.ingredients.map((item: unknown) => String(item).trim()).filter(Boolean) : [],
-          instructions: normalizeList(previewRecipe.instructions),
-          cook_time: String(previewRecipe.cook_time || '30 min'),
-          difficulty: String(previewRecipe.difficulty || 'Intermediate'),
-          cuisine: previewRecipe.cuisine ? String(previewRecipe.cuisine) : '',
-          chef: previewRecipe.chef ? String(previewRecipe.chef) : '',
-          tags: normalizeList(previewRecipe.tags),
-          image: String(previewRecipe.image || '/placeholder.svg'),
-          servings: String(previewRecipe.servings || 4),
-          source_url: previewRecipe.source_url ? String(previewRecipe.source_url) : undefined,
-          raw_api_payload: previewRecipe.raw_api_payload && typeof previewRecipe.raw_api_payload === 'object'
-            ? previewRecipe.raw_api_payload as Record<string, unknown>
-            : undefined,
+        if (existingRecipe) {
+          // Recipe already exists — just add to library
+          const existingPayload = mapDbRecipeToImportedPayload(existingRecipe);
+          likeRecipe(existingPayload.id, existingPayload);
+          toast.success(`"${existingPayload.name}" is already in your library!`);
+          setOpen(false);
+          resetState();
+          navigate('/saved');
+          return;
+        }
+
+        // Auto-save immediately — no editable preview
+        const id = crypto.randomUUID();
+        const autoPayload = buildImportedPayload(id, {
+          ...recipe,
+          source_url: recipe.source_url || payload.url,
         });
-        toast.success(existingRecipe
-          ? 'Found an existing saved recipe for this URL. Loaded it instead of creating a duplicate.'
-          : 'Recipe preview ready. Review the cleaned page and save it if it looks right.');
+
+        try {
+          await persistRecipe(autoPayload);
+          toast.success(`Imported "${autoPayload.name}" — view the original on the recipe card.`);
+          setOpen(false);
+          resetState();
+          navigate('/saved');
+        } catch (saveErr: any) {
+          console.error('Auto-save error:', saveErr);
+          toast.error(saveErr.message || 'Failed to save recipe');
+        }
         return;
       }
 
@@ -461,7 +512,8 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
         if (!user) {
           toast.info('Not logged in — saved privately. Log in to make it discoverable.');
         } else {
-          const { error } = await supabase.from('recipes').insert({
+          // Standard manual import save flow
+          const coreInsertData = {
             id,
             name: reviewData.name,
             ingredients: reviewData.ingredients.map(composeIngredientLine),
@@ -469,40 +521,18 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
             cook_time: reviewData.cook_time,
             difficulty: reviewData.difficulty,
             cuisine: reviewData.cuisine || null,
-            chef: reviewData.chef || null,
             tags: reviewData.tags,
             image: reviewData.image,
             source: 'imported',
             created_by: user.id,
             is_public: true,
             servings: parseInt(reviewData.servings) || 4,
-          });
+          };
 
-          if (error?.message?.includes("Could not find the 'chef' column")) {
-            const fallbackInsert = await supabase.from('recipes').insert({
-              id,
-              name: reviewData.name,
-              ingredients: reviewData.ingredients.map(composeIngredientLine),
-              instructions: reviewData.instructions,
-              cook_time: reviewData.cook_time,
-              difficulty: reviewData.difficulty,
-              cuisine: reviewData.cuisine || null,
-              tags: reviewData.tags,
-              image: reviewData.image,
-              source: 'imported',
-              created_by: user.id,
-              is_public: true,
-              servings: parseInt(reviewData.servings) || 4,
-            });
+          const { error } = await supabase.from('recipes').insert(coreInsertData);
 
-            if (fallbackInsert.error) {
-              console.error('Failed to save to database:', fallbackInsert.error);
-              toast.error('Failed to make recipe discoverable. Saved locally instead.');
-            } else {
-              toast.success(`"${reviewData.name}" is now discoverable by others!`);
-            }
-          } else if (error) {
-            console.error('Failed to save to database:', error);
+          if (error) {
+            console.error('[Import] Manual save failed:', error.message);
             toast.error('Failed to make recipe discoverable. Saved locally instead.');
           } else {
             toast.success(`"${reviewData.name}" is now discoverable by others!`);
@@ -527,11 +557,11 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
       };
 
       likeRecipe(id, recipeData);
-      
+
       if (!isDiscoverable) {
         toast.success(`Imported "${reviewData.name}"!`);
       }
-      
+
       setOpen(false);
       resetState();
     } catch (err) {
@@ -546,28 +576,16 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
   const handleNonPremiumUrlImport = async (normalizedUrl: string) => {
     setLoading(true);
     setLastImportError('');
-    await loadWebsiteAdPreview(normalizedUrl);
 
     try {
       const existingRecipe = await findExistingRecipeByUrl(normalizedUrl);
       if (existingRecipe) {
-        setWebsitePreview({
-          name: String(existingRecipe.name || 'Imported Recipe').trim(),
-          ingredients: Array.isArray(existingRecipe.ingredients) ? existingRecipe.ingredients.map((item: unknown) => String(item).trim()).filter(Boolean) : [],
-          instructions: normalizeList(existingRecipe.instructions),
-          cook_time: String(existingRecipe.cook_time || '30 min'),
-          difficulty: String(existingRecipe.difficulty || 'Intermediate'),
-          cuisine: existingRecipe.cuisine ? String(existingRecipe.cuisine) : '',
-          chef: existingRecipe.chef ? String(existingRecipe.chef) : '',
-          tags: normalizeList(existingRecipe.tags),
-          image: String(existingRecipe.image || '/placeholder.svg'),
-          servings: String(existingRecipe.servings || 4),
-          source_url: existingRecipe.source_url ? String(existingRecipe.source_url) : undefined,
-          raw_api_payload: existingRecipe.raw_api_payload && typeof existingRecipe.raw_api_payload === 'object'
-            ? existingRecipe.raw_api_payload as Record<string, unknown>
-            : undefined,
-        });
-        toast.success('Loaded this recipe from the community library.');
+        const existingPayload = mapDbRecipeToImportedPayload(existingRecipe);
+        likeRecipe(existingPayload.id, existingPayload);
+        toast.success(`"${existingPayload.name}" is already in your library!`);
+        setOpen(false);
+        resetState();
+        navigate('/saved');
         return;
       }
 
@@ -580,29 +598,28 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
       }
 
       const previewTitle = String(data.title || 'Imported Recipe').trim() || 'Imported Recipe';
-      const previewDescription = String(data.description || '').trim();
 
-      setWebsitePreview({
+      // Auto-save immediately
+      const id = crypto.randomUUID();
+      const autoPayload = buildImportedPayload(id, {
         name: previewTitle,
-        description: previewDescription,
         ingredients: [],
         instructions: [],
-        cook_time: '—',
-        difficulty: 'Link preview',
+        cook_time: '30 min',
+        difficulty: 'Intermediate',
         cuisine: '',
         chef: '',
-        tags: ['link preview'],
+        tags: [],
         image: String(data.ogImage || '/placeholder.svg'),
-        servings: '—',
+        servings: 4,
         source_url: String(data.url || normalizedUrl),
-        raw_api_payload: {
-          source: 'scrape-recipe',
-          page_description: previewDescription,
-          preview_text: websiteAdPreview?.previewText || '',
-          ad_signals: websiteAdPreview?.adSignals || [],
-        },
       });
-      toast.success('Loaded a link preview. Upgrade for full AI recipe extraction from any URL.');
+
+      await persistRecipe(autoPayload);
+      toast.success(`Imported "${previewTitle}" — tap the recipe card to view the original.`);
+      setOpen(false);
+      resetState();
+      navigate('/saved');
     } catch (err: any) {
       console.error('Non-premium URL import error:', err);
       setLastImportError(err?.message || 'Could not load recipe from that URL');

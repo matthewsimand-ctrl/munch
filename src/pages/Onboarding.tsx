@@ -125,6 +125,7 @@ export default function Onboarding() {
       }
       setStoreDisplayName(displayName.trim());
       completeOnboarding();
+      useStore.setState({ showTutorial: true });
       navigate('/dashboard');
     }
   };

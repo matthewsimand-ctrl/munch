@@ -110,9 +110,9 @@ export function scoreRecipe(recipe: Recipe, profile: UserTasteProfile, userPrefs
         tagScore += (profile.tagFrequency[tag] || 0);
       }
       const tagMax = profile.totalLiked * recipeTags.length;
-      score += (tagScore / Math.max(tagMax, 1)) * 15;
+      score += (tagScore / Math.max(tagMax, 1)) * 20;
     }
-    maxScore += 15;
+    maxScore += 20;
 
     // Ingredient overlap (weight: 15)
     const recipeIngs = (recipe.ingredients || []).map(normalize);
@@ -132,9 +132,9 @@ export function scoreRecipe(recipe: Recipe, profile: UserTasteProfile, userPrefs
         }
       }
       const ingMax = profile.totalLiked * recipeIngs.length;
-      score += (ingScore / Math.max(ingMax, 1)) * 15;
+      score += (ingScore / Math.max(ingMax, 1)) * 20;
     }
-    maxScore += 15;
+    maxScore += 20;
 
     // Cuisine match from likes (weight: 10)
     if (recipe.cuisine) {
@@ -153,8 +153,8 @@ export function scoreRecipe(recipe: Recipe, profile: UserTasteProfile, userPrefs
     maxScore += 10;
   }
 
-  // === Pantry match scoring (15 points, or 20 if no likes) ===
-  const pantryWeight = hasLikes ? 15 : 20;
+  // === Pantry match scoring (5 points, or 10 if no likes) ===
+  const pantryWeight = hasLikes ? 5 : 10;
   if (pantryItems && pantryItems.length > 0) {
     const recipeIngs = (recipe.ingredients || []).map(normalize);
     if (recipeIngs.length > 0) {
@@ -173,9 +173,9 @@ export function scoreRecipe(recipe: Recipe, profile: UserTasteProfile, userPrefs
     score += pantryWeight * 0.3; // neutral score when no pantry
   }
 
-  // === Onboarding preference scoring (35 points, or 80 if no likes) ===
-  const prefWeight = hasLikes ? 35 : 80;
-  const prefScale = prefWeight / 40;
+  // === Onboarding preference scoring (35 points, or 90 if no likes) ===
+  const prefWeight = hasLikes ? 35 : 90;
+  const prefScale = prefWeight / (hasLikes ? 40 : 40); // Maintain relative internal weights
 
   if (userPrefs) {
     // Cuisine preference match (weight: 15 * scale)

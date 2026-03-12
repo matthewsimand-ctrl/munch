@@ -1,17 +1,13 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
+import { useStore } from '@/lib/store';
 import {
-  Home,
-  UtensilsCrossed,
-  Flame,
-  Heart,
-  ShoppingCart,
-  ArrowRight,
-  Sparkles,
-  Plus,
-  Search,
+  Sparkles, Plus, Search, Heart, UtensilsCrossed,
+  ShoppingCart, CalendarDays, History, BookMarked, ArrowRight,
+  ChefHat, TrendingUp, Zap, LayoutDashboard, Timer, Volume2, Star,
+  Trophy, CheckCircle2, Compass, X, Settings
 } from 'lucide-react';
 
 interface TutorialStep {
@@ -20,175 +16,303 @@ interface TutorialStep {
   title: string;
   description: string;
   icon: React.ReactNode;
-  position?: 'above' | 'below' | 'center';
+  position?: 'above' | 'below' | 'center' | 'left' | 'right';
+  requireCondition?: (state: any) => boolean;
+  interactionHint?: string;
 }
 
 const ROUTE_TAB_TARGET: Record<string, { target: string; label: string }> = {
-  '/dashboard': { target: 'nav-home', label: 'Home' },
+  '/dashboard': { target: 'nav-dashboard', label: 'Dashboard' },
+  '/swipe': { target: 'nav-swipe', label: 'Find Recipes' },
+  '/saved': { target: 'nav-saved', label: 'My Recipes' },
+  '/let-me-cook': { target: 'nav-let-me-cook', label: 'Let me Cook' },
   '/pantry': { target: 'nav-pantry', label: 'Pantry' },
-  '/swipe': { target: 'nav-browse', label: 'Browse' },
-  '/saved': { target: 'nav-recipes', label: 'Recipes' },
   '/grocery': { target: 'nav-grocery', label: 'Grocery' },
+  '/meal-prep': { target: 'nav-meal-prep', label: 'Meal Prep' },
+  '/cooked-history': { target: 'nav-cooked-history', label: 'Cooked' },
+  '/dictionary': { target: 'nav-dictionary', label: 'Dictionary' },
 };
 
 const TUTORIAL_STEPS: TutorialStep[] = [
   {
     route: '/dashboard',
-    title: 'Welcome to Munch! 🎉',
-    description:
-      'Your home dashboard shows stats at a glance and quick access to every feature. Let\'s take a tour!',
-    icon: <Sparkles className="h-6 w-6" />,
-    position: 'center',
+    target: 'dashboard-stats',
+    title: 'Your Kitchen Hub',
+    description: 'Welcome to Munch! Track your cooking streaks, earn XP, and level up as you master new skills.',
+    icon: <Zap className="h-5 w-5" />,
+    position: 'right',
   },
   {
     route: '/dashboard',
-    target: 'stats',
-    title: 'Your Stats',
-    description:
-      'Track your pantry items, saved recipes, and total available recipes right here.',
-    icon: <Home className="h-5 w-5" />,
+    target: 'dashboard-suggestions',
+    title: 'Tailored Suggestions',
+    description: 'Get daily inspiration based on what you have in your pantry and your flavor profile.',
+    icon: <TrendingUp className="h-5 w-5" />,
+    position: 'below',
+  },
+  {
+    route: '/dashboard',
+    target: 'nav-swipe',
+    title: 'The Discovery Engine',
+    description: 'Ready to find your next meal? Use the Discovery Engine to swipe through personalized recipes.',
+    icon: <Compass className="h-5 w-5" />,
+    position: 'right',
+  },
+  {
+    route: '/swipe',
+    target: 'swipe-stack',
+    title: 'Discovery Feed',
+    description: 'Swipe right for recipes you love, or left to skip. Every swipe helps us learn your taste.',
+    icon: <Sparkles className="h-5 w-5" />,
+    position: 'right',
+  },
+  {
+    route: '/swipe',
+    target: 'match-percentage',
+    title: 'Match Engine',
+    description: 'Our Match Engine tells you exactly what percentage of a recipe\'s ingredients you already have in your pantry.',
+    icon: <Search className="h-5 w-5" />,
+    position: 'below',
+  },
+  {
+    route: '/swipe',
+    target: 'nav-saved',
+    title: 'Your Cookbook',
+    description: 'Everything you like or save gets organized automatically in your personal collection.',
+    icon: <Heart className="h-5 w-5" />,
+    position: 'right',
+  },
+  {
+    route: '/saved',
+    target: 'recipes-nav',
+    title: 'Your Library',
+    description: 'Access all your saved recipes or organize them into custom Cookbooks to keep your favorite meals organized neatly.',
+    icon: <BookMarked className="h-5 w-5" />,
+    position: 'below',
+  },
+  {
+    route: '/saved',
+    target: 'nav-let-me-cook',
+    title: 'Ready to Cook?',
+    description: 'Ready to cook? Head over to Let Me Cook to find perfect recipes for exactly what you have on hand.',
+    icon: <ChefHat className="h-5 w-5" />,
+    position: 'right',
+  },
+  {
+    route: '/let-me-cook',
+    target: 'pantry-status-card',
+    title: 'Smart Matching',
+    description: 'We analyze your fridge and pantry to find culinary gems you can make right now.',
+    icon: <Sparkles className="h-5 w-5" />,
+    position: 'below',
+  },
+  {
+    route: '/let-me-cook',
+    target: 'nav-pantry',
+    title: 'Digital Pantry',
+    description: 'Keep your digital kitchen in sync with your real one for accurate match percentages.',
+    icon: <Plus className="h-5 w-5" />,
+    position: 'right',
   },
   {
     route: '/pantry',
     target: 'pantry-add-form',
-    title: 'Add Ingredients',
-    description:
-      'Type an ingredient and tap + to add it. Munch auto-detects the category and will match recipes to what you have!',
+    title: 'Stock Management',
+    description: 'Add your ingredients here. Munch automatically categorizes them and tracks your inventory.',
     icon: <Plus className="h-5 w-5" />,
+    position: 'below',
   },
   {
     route: '/pantry',
-    target: 'pantry-quick-add',
-    title: 'Quick Add',
-    description:
-      'Tap common ingredients to add them instantly. Great for stocking up your virtual pantry fast!',
-    icon: <UtensilsCrossed className="h-5 w-5" />,
-  },
-  {
-    route: '/swipe',
-    target: 'swipe-search',
-    title: 'Search Recipes',
-    description:
-      'Search by name, ingredient, or even paste a URL to import a recipe from the web.',
-    icon: <Search className="h-5 w-5" />,
-  },
-  {
-    route: '/swipe',
-    target: 'swipe-card-area',
-    title: 'Swipe to Discover',
-    description:
-      'Swipe right to save a recipe, left to skip. The % match shows how many ingredients you already have in your pantry — 100% means you\'re ready to cook! Tap anywhere on a card to see full details.',
-    icon: <Flame className="h-5 w-5" />,
-    position: 'above',
-  },
-  {
-    route: '/saved',
-    target: 'saved-header',
-    title: 'Your Saved Recipes',
-    description:
-      'All recipes you liked land here. Tap to expand details, see ingredient match %, and start cooking!',
-    icon: <Heart className="h-5 w-5" />,
-  },
-  {
-    route: '/saved',
-    target: 'saved-actions',
-    title: 'Create & Import',
-    description:
-      'Create your own recipes or import them from any URL. Add missing ingredients to your grocery list with one tap.',
-    icon: <Plus className="h-5 w-5" />,
+    target: 'nav-grocery',
+    title: 'Smart Shopping',
+    description: 'Never forget an ingredient again. Your shopping list is always just a tap away.',
+    icon: <ShoppingCart className="h-5 w-5" />,
+    position: 'right',
   },
   {
     route: '/grocery',
-    target: 'grocery-header',
-    title: 'Smart Grocery List',
-    description:
-      'Missing ingredients are auto-grouped by aisle. Export to Apple Notes or Google Docs for easy shopping!',
+    target: 'grocery-list-container',
+    title: 'Automatic Lists',
+    description: 'Add missing items or use our AI price estimator to plan your grocery runs efficiently.',
     icon: <ShoppingCart className="h-5 w-5" />,
+    position: 'below',
+  },
+  {
+    route: '/grocery',
+    target: 'profile-settings',
+    title: 'Custom Preferences',
+    description: 'Set your dietary restrictions, skill level, and flavor profiles to make Munch truly yours.',
+    icon: <Settings className="h-5 w-5" />,
+    position: 'right',
   },
   {
     route: '/dashboard',
-    title: 'You\'re all set! 🚀',
-    description:
-      'Start by adding items to your pantry, then browse recipes to find your next meal. Happy cooking!',
-    icon: <Sparkles className="h-6 w-6" />,
+    title: 'Tour Complete! 👨‍🍳',
+    description: 'The kitchen is yours. Go create something amazing!',
+    icon: <CheckCircle2 className="h-5 w-5" />,
     position: 'center',
   },
 ];
 
-interface SpotlightTutorialProps {
-  onComplete: () => void;
-}
-
-export default function SpotlightTutorial({ onComplete }: SpotlightTutorialProps) {
+export default function SpotlightTutorial({ onComplete }: { onComplete: () => void }) {
   const [currentStep, setCurrentStep] = useState(0);
   const [spotlightRect, setSpotlightRect] = useState<DOMRect | null>(null);
-  const [tooltipHeight, setTooltipHeight] = useState(280);
+  const [tooltipHeight, setTooltipHeight] = useState(240);
+  const [_tick, setTick] = useState(0);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
+  const store = useStore();
 
   const step = TUTORIAL_STEPS[currentStep];
-  const pad = 8;
+  const pad = 12;
   const isLast = currentStep === TUTORIAL_STEPS.length - 1;
-  const isOnExpectedRoute = location.pathname === step.route;
-  const routeTab = ROUTE_TAB_TARGET[step.route];
-  const activeTarget = isOnExpectedRoute ? step.target : routeTab?.target;
-  const stepDescription = isOnExpectedRoute
-    ? step.description
-    : routeTab
-      ? `Tap ${routeTab.label} in the bottom tabs to continue.`
-      : step.description;
+  const isOnExpectedRoute = useMemo(() => {
+    if (step.route.includes(':id')) {
+      return location.pathname.startsWith('/cook/');
+    }
+    return location.pathname === step.route;
+  }, [location, step.route]);
+
+  const routeTab = useMemo(() =>
+    ROUTE_TAB_TARGET[step.route.replace('/:id', '')] || ROUTE_TAB_TARGET[step.route],
+    [step.route]
+  );
+
+  const activeTarget = useMemo(() => {
+    if (!isOnExpectedRoute) return routeTab?.target;
+
+    // Recovery logic: if we're on a step that needs the dialog but it's closed, 
+    // point back to the card so the user can re-open it without being blocked.
+    const isDetailStep = step.target?.includes('dialog') ||
+      step.target === 'add-missing-button';
+    const dialogClosed = !document.querySelector('[role="dialog"]');
+
+    if (isDetailStep && dialogClosed && step.route === '/swipe') {
+      return 'recipe-card';
+    }
+
+    return step.target;
+  }, [isOnExpectedRoute, step, routeTab, _tick]);
+
+  const activePosition = useMemo(() => {
+    if (!isOnExpectedRoute && routeTab) {
+      // For sidebar navigation, "right" is usually best if possible
+      return 'right';
+    }
+    return step.position;
+  }, [isOnExpectedRoute, step.position, routeTab]);
+
+  const isConditionMet = useMemo(() => {
+    if (!step.requireCondition) return true;
+    return step.requireCondition(store);
+  }, [step, store, _tick]); // Added _tick to force re-evaluation when DOM changes
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTick(t => t + 1);
+    }, 200); // Very fast for smooth state transitions
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (isOnExpectedRoute && isConditionMet && step.requireCondition && !isLast) {
+      const timer = setTimeout(() => {
+        setCurrentStep(prev => prev + 1);
+      }, 100); // 100ms for near-instant snap
+      return () => clearTimeout(timer);
+    }
+  }, [isConditionMet, isOnExpectedRoute, step.requireCondition, isLast]);
+
+  // Scroll to top when route changes during tutorial
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [location.pathname]);
+
+  const stepDescription = useMemo(() => {
+    if (!isOnExpectedRoute) {
+      const tabLabel = routeTab?.label ?? 'the correct tab';
+      return `Navigate to the ${tabLabel} to continue the tour.`;
+    }
+
+    // Check if we are in a step that expects a dialog but it's closed
+    const needsDialog = step.target?.includes('dialog') || step.target === 'add-missing-button';
+    const dialogClosed = !document.querySelector('[role="dialog"]');
+
+    if (needsDialog && dialogClosed) {
+      return 'Click on the closed recipe card.';
+    }
+
+    // Only show the hint if we are on a step that requires an action and the action isn't possible 
+    // because the target is missing, OR if the user is stuck.
+    const targetExists = !!document.querySelector(`[data-tutorial="${activeTarget}"]`);
+    if (!isConditionMet && step.interactionHint && !targetExists) {
+      return step.interactionHint;
+    }
+    return step.description;
+  }, [isOnExpectedRoute, isConditionMet, step, routeTab, _tick, activeTarget]);
 
   useEffect(() => {
     if (!tooltipRef.current) return;
-
-    const measure = () => {
-      if (tooltipRef.current) {
-        setTooltipHeight(tooltipRef.current.offsetHeight || 280);
-      }
-    };
-
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(tooltipRef.current);
-    return () => observer.disconnect();
-  }, [currentStep, location.pathname]);
+    setTooltipHeight(tooltipRef.current.offsetHeight || 240);
+  }, [currentStep, stepDescription]);
 
   const updateSpotlight = useCallback(() => {
     if (!activeTarget) {
       setSpotlightRect(null);
       return;
     }
-
     const el = document.querySelector(`[data-tutorial="${activeTarget}"]`);
     if (el) {
-      setSpotlightRect(el.getBoundingClientRect());
+      const rect = el.getBoundingClientRect();
+      // Only update if the rect has content and is visible
+      if (rect.width > 0 && rect.height > 0) {
+        setSpotlightRect(rect);
+      }
     } else {
       setSpotlightRect(null);
     }
   }, [activeTarget]);
 
   useEffect(() => {
-    const timers = [50, 180, 360, 700].map((ms) => setTimeout(updateSpotlight, ms));
+    const interval = setInterval(updateSpotlight, 100); // Rapid polling for animations
     window.addEventListener('resize', updateSpotlight);
     window.addEventListener('scroll', updateSpotlight, true);
-
     return () => {
-      timers.forEach(clearTimeout);
+      clearInterval(interval);
       window.removeEventListener('resize', updateSpotlight);
       window.removeEventListener('scroll', updateSpotlight, true);
     };
   }, [updateSpotlight]);
 
-  const next = () => {
-    if (!isOnExpectedRoute) return;
+  const next = useCallback(() => {
+    if (!isOnExpectedRoute) {
+      navigate(step.route.replace(':id', 'tutorial-omelette'));
+      return;
+    }
+    if (!isConditionMet) return;
 
     if (currentStep < TUTORIAL_STEPS.length - 1) {
-      setCurrentStep((prev) => prev + 1);
+      setCurrentStep(prev => prev + 1);
     } else {
       onComplete();
     }
-  };
+  }, [isOnExpectedRoute, navigate, step.route, currentStep, onComplete, isConditionMet]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if (e.key === 'ArrowRight') next();
+        // Left arrow is trapped but doesn't necessarily advance (user might want to stay)
+        // unless you want it to go "Prev", but user only asked to stop background action.
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
+  }, [next]);
 
   const skip = () => {
     navigate('/dashboard');
@@ -196,138 +320,137 @@ export default function SpotlightTutorial({ onComplete }: SpotlightTutorialProps
   };
 
   const getTooltipStyle = (): React.CSSProperties => {
-    const topPadding = 16;
-    const bottomPadding = 96;
-    const maxTop = Math.max(topPadding, window.innerHeight - tooltipHeight - bottomPadding);
-
-    if (step.position === 'center' || !spotlightRect) {
-      const centeredTop = (window.innerHeight - tooltipHeight) / 2;
-      return { top: `${Math.min(Math.max(centeredTop, topPadding), maxTop)}px` };
+    const topPadding = 20;
+    const bottomPadding = 120; // Increased to prevent bottom cut-offs
+    const pos = activePosition;
+    if (pos === 'center' || !spotlightRect) {
+      return { top: '50%', transform: 'translateY(-50%)' };
     }
 
-    // Respect explicit position hint
-    const forceAbove = step.position === 'above';
-    const placeAbove = forceAbove || spotlightRect.top > window.innerHeight * 0.52;
-    const preferredTop = placeAbove
-      ? spotlightRect.top - tooltipHeight - pad - 16
-      : spotlightRect.bottom + pad + 16;
+    if (pos === 'below') {
+      return { top: `${spotlightRect.bottom + 16}px` };
+    }
+    if (pos === 'above') {
+      return { top: `${spotlightRect.top - tooltipHeight - 32}px` };
+    }
+    if (pos === 'left') {
+      const horizontalSpace = spotlightRect.left;
+      if (horizontalSpace < 400) { // Not enough room for tooltip on left
+        return { top: '50%', transform: 'translateY(-50%)', left: '16px', right: '16px', maxWidth: '380px', margin: '0 auto' };
+      }
+      const preferredTop = spotlightRect.top + spotlightRect.height / 2 - tooltipHeight / 2;
+      const clampedTop = Math.min(Math.max(preferredTop, topPadding), window.innerHeight - tooltipHeight - bottomPadding);
+      return {
+        top: `${clampedTop}px`,
+        left: `${spotlightRect.left - 410}px`,
+        maxWidth: '380px'
+      };
+    }
+    if (pos === 'right') {
+      const horizontalSpace = window.innerWidth - spotlightRect.right;
+      if (horizontalSpace < 400) { // Not enough room for tooltip on right
+        return { top: '50%', transform: 'translateY(-50%)', left: '16px', right: '16px', maxWidth: '380px', margin: '0 auto' };
+      }
+      const preferredTop = spotlightRect.top + spotlightRect.height / 2 - tooltipHeight / 2;
+      const clampedTop = Math.min(Math.max(preferredTop, topPadding), window.innerHeight - tooltipHeight - bottomPadding);
+      return {
+        top: `${clampedTop}px`,
+        left: `${spotlightRect.right + 24}px`,
+        maxWidth: '380px'
+      };
+    }
 
-    const clampedTop = Math.min(Math.max(preferredTop, topPadding), maxTop);
+    const placeAbove = spotlightRect.top > window.innerHeight * 0.52;
+    const preferredTop = placeAbove
+      ? spotlightRect.top - tooltipHeight - 32
+      : spotlightRect.bottom + 16;
+    const clampedTop = Math.min(Math.max(preferredTop, topPadding), window.innerHeight - tooltipHeight - bottomPadding);
     return { top: `${clampedTop}px` };
   };
 
   return (
-    <div className="fixed inset-0 z-[100]" style={{ pointerEvents: 'none' }}>
-      <svg className="absolute inset-0 w-full h-full">
-        <defs>
-          <mask id="spotlight-mask">
-            <rect x="0" y="0" width="100%" height="100%" fill="white" />
-            {spotlightRect && (
-              <rect
-                x={spotlightRect.left - pad}
-                y={spotlightRect.top - pad}
-                width={spotlightRect.width + pad * 2}
-                height={spotlightRect.height + pad * 2}
-                rx="14"
-                fill="black"
-              />
-            )}
-          </mask>
-        </defs>
-        <rect
-          x="0"
-          y="0"
-          width="100%"
-          height="100%"
-          fill="rgba(0,0,0,0.6)"
-          mask="url(#spotlight-mask)"
-          style={{ pointerEvents: 'auto' }}
-          onClick={(e) => e.stopPropagation()}
-        />
-      </svg>
-
+    <div className="fixed inset-0 z-[9999] pointer-events-none">
       {spotlightRect && (
         <>
-          <motion.div
-            layoutId="spotlight-ring"
-            className="absolute border-2 border-primary rounded-xl pointer-events-none"
-            style={{
-              left: spotlightRect.left - pad,
-              top: spotlightRect.top - pad,
-              width: spotlightRect.width + pad * 2,
-              height: spotlightRect.height + pad * 2,
-            }}
-            transition={{ type: 'tween', duration: 0.2, ease: 'easeOut' }}
-          />
-          {/* Pass-through div so users can tap the spotlighted element (e.g. bottom nav tabs) */}
-          <div
-            className="absolute z-[101]"
-            style={{
-              left: spotlightRect.left - pad,
-              top: spotlightRect.top - pad,
-              width: spotlightRect.width + pad * 2,
-              height: spotlightRect.height + pad * 2,
-              pointerEvents: 'auto',
-            }}
-            onClick={() => {
-              // Find and click the actual element behind the spotlight
-              const el = document.querySelector(`[data-tutorial="${activeTarget}"]`) as HTMLElement;
-              if (el) el.click();
-            }}
-          />
+          <div className="absolute top-0 left-0 right-0 bg-black/60 pointer-events-auto" style={{ height: spotlightRect.top - pad }} onClick={e => e.stopPropagation()} />
+          <div className="absolute bottom-0 left-0 right-0 bg-black/60 pointer-events-auto" style={{ top: spotlightRect.bottom + pad }} onClick={e => e.stopPropagation()} />
+          <div className="absolute left-0 bg-black/60 pointer-events-auto" style={{ top: spotlightRect.top - pad, bottom: window.innerHeight - (spotlightRect.bottom + pad), width: spotlightRect.left - pad }} onClick={e => e.stopPropagation()} />
+          <div className="absolute right-0 bg-black/60 pointer-events-auto" style={{ top: spotlightRect.top - pad, bottom: window.innerHeight - (spotlightRect.bottom + pad), left: spotlightRect.right + pad }} onClick={e => e.stopPropagation()} />
         </>
+      )}
+      {(!spotlightRect || step.position === 'center') && (
+        <div className="absolute inset-0 bg-black/60 pointer-events-auto" onClick={e => e.stopPropagation()} />
+      )}
+
+      {spotlightRect && (
+        <motion.div
+          layoutId="spotlight-ring"
+          initial={false}
+          transition={{ type: "spring", bounce: 0, duration: 0.3 }} // Snappy spring for visibility
+          className="absolute border-2 border-orange-500 rounded-xl pointer-events-none"
+          style={{
+            left: spotlightRect.left - pad,
+            top: spotlightRect.top - pad,
+            width: spotlightRect.width + pad * 2,
+            height: spotlightRect.height + pad * 2,
+          }}
+        />
       )}
 
       <AnimatePresence mode="wait">
         <motion.div
           key={currentStep}
-          initial={{ opacity: 0, y: 8 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -8 }}
-          transition={{ duration: 0.2, ease: 'easeOut' }}
-          className="absolute left-4 right-4 max-w-sm mx-auto z-[102]"
+          exit={{ opacity: 0, y: -10 }}
+          className="absolute left-4 right-4 max-w-sm mx-auto z-[10000]"
           style={{ ...getTooltipStyle(), pointerEvents: 'auto' }}
           ref={tooltipRef}
+          onPointerDown={e => e.stopPropagation()}
+          onMouseDown={e => e.stopPropagation()}
         >
-          <div className="bg-card border border-border rounded-2xl p-5 shadow-xl max-h-[calc(100vh-8rem)] overflow-y-auto">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="h-9 w-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+          <div className="bg-card border border-border rounded-2xl p-5 shadow-2xl">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="h-10 w-10 rounded-xl bg-orange-500/10 text-orange-600 flex items-center justify-center shrink-0 shadow-inner">
                 {step.icon}
               </div>
-              <div>
-                <h3 className="font-display font-bold text-foreground text-base">{step.title}</h3>
-                <span className="text-[10px] text-muted-foreground uppercase tracking-wide">
-                  {currentStep + 1} of {TUTORIAL_STEPS.length}
-                </span>
+              <div className="min-w-0">
+                <h3 className="font-display font-bold text-foreground text-base truncate">{step.title}</h3>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">
+                  Step {currentStep + 1} of {TUTORIAL_STEPS.length}
+                </p>
               </div>
             </div>
 
-            <p className="text-sm text-muted-foreground mb-4 leading-relaxed">{stepDescription}</p>
+            <p className="text-sm text-stone-600 mb-5 leading-relaxed font-semibold">
+              {stepDescription}
+            </p>
 
-            <div className="flex items-center justify-between">
-              <button
-                onClick={skip}
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Skip tutorial
+            <div className="flex items-center justify-between gap-4">
+              <button onClick={skip} className="text-xs text-stone-400 hover:text-stone-600 transition-colors font-medium">
+                Skip
               </button>
-              <Button onClick={next} size="sm" className="gap-1.5" disabled={!isOnExpectedRoute}>
-                {isOnExpectedRoute ? (isLast ? "Let's Cook!" : 'Next') : `Go to ${routeTab?.label ?? 'tab'}`}
-                {isOnExpectedRoute && !isLast && <ArrowRight className="h-3.5 w-3.5" />}
+              <Button
+                onClick={next}
+                size="sm"
+                className="rounded-xl px-4 h-9 bg-orange-500 hover:bg-orange-600 text-white border-0 shadow-lg shadow-orange-500/20"
+                disabled={isOnExpectedRoute && !isConditionMet}
+              >
+                {!isOnExpectedRoute
+                  ? `Go to ${routeTab?.label ?? 'Tab'}`
+                  : !isConditionMet
+                    ? 'Wait...'
+                    : isLast ? 'Finish' : 'Next'}
+                {isOnExpectedRoute && isConditionMet && !isLast && <ArrowRight className="h-4 w-4 ml-1.5" />}
               </Button>
             </div>
 
-            <div className="flex items-center justify-center gap-1.5 mt-3">
+            <div className="flex items-center justify-center gap-1 mt-4">
               {TUTORIAL_STEPS.map((_, i) => (
                 <div
                   key={i}
-                  className={`h-1.5 rounded-full transition-all duration-300 ${
-                    i === currentStep
-                      ? 'w-4 bg-primary'
-                      : i < currentStep
-                        ? 'w-1.5 bg-primary/40'
-                        : 'w-1.5 bg-muted'
-                  }`}
+                  className={`h-0.5 rounded-full transition-all duration-300 ${i === currentStep ? 'w-4 bg-orange-500' : i < currentStep ? 'w-1 bg-orange-200' : 'w-1 bg-stone-100'
+                    }`}
                 />
               ))}
             </div>
@@ -337,4 +460,3 @@ export default function SpotlightTutorial({ onComplete }: SpotlightTutorialProps
     </div>
   );
 }
-

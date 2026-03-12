@@ -99,7 +99,7 @@ export default function CookedHistory() {
 
   return (
     <div className="min-h-full px-4 md:px-8 py-6 md:py-8" style={{ background: "#FFFAF5" }}>
-      <div className="max-w-5xl mx-auto space-y-5">
+      <div className="max-w-5xl mx-auto space-y-5" data-tutorial="cooked-history-container">
         <section className="rounded-2xl border p-5 md:p-6" style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}>
           <div className="flex items-start justify-between gap-3">
             <div>

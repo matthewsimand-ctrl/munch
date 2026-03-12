@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   ShoppingCart, Plus, X, Check, Share2, Trash2,
@@ -59,7 +59,11 @@ function GroceryRow({
   onEditQty: (qty: string) => void;
 }) {
   const [editingQty, setEditingQty] = useState(false);
-  const [qty, setQty] = useState(item.qty ?? "");
+  const [qty, setQty] = useState(item.quantity || item.qty || "");
+
+  useEffect(() => {
+    setQty(item.quantity || item.qty || "");
+  }, [item.quantity, item.qty]);
 
   return (
     <motion.div
@@ -72,11 +76,10 @@ function GroceryRow({
       {/* Checkbox */}
       <button
         onClick={onToggle}
-        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
-          item.checked
-            ? "border-emerald-500 bg-emerald-500"
-            : "border-stone-300 hover:border-orange-400"
-        }`}
+        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${item.checked
+          ? "border-emerald-500 bg-emerald-500"
+          : "border-stone-300 hover:border-orange-400"
+          }`}
       >
         {item.checked && <Check size={10} className="text-white" strokeWidth={3} />}
       </button>
@@ -107,9 +110,10 @@ function GroceryRow({
       ) : (
         <button
           onClick={() => !item.checked && setEditingQty(true)}
-          className="text-xs text-stone-400 hover:text-orange-500 transition-colors min-w-[40px] text-right"
+          className="text-[11px] font-semibold text-stone-400 bg-stone-100/30 hover:bg-orange-50 hover:text-orange-500 px-2 py-0.5 rounded-lg border border-transparent hover:border-orange-100 transition-all flex items-center gap-1 min-h-[20px]"
         >
-          {item.qty || (item.checked ? "" : "qty")}
+          <span>{item.quantity || item.qty || (item.checked ? "" : "qty")}</span>
+          {!item.checked && <Plus size={8} />}
         </button>
       )}
 
@@ -415,7 +419,7 @@ export default function GroceryScreen() {
             </p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-4" data-tutorial="grocery-list-container">
             {Object.entries(grouped).map(([section, sectionItems]) => {
               const unchecked = sectionItems.filter((i) => !i.checked);
               const checked = sectionItems.filter((i) => i.checked);

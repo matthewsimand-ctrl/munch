@@ -36,10 +36,12 @@ function PantryItemRow({
   item,
   onRemove,
   onEdit,
+  dataTutorial,
 }: {
   item: PantryItem;
   onRemove: () => void;
   onEdit: (field: "quantity", value: string) => void;
+  dataTutorial?: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [qty, setQty] = useState(item.quantity ?? "");
@@ -53,6 +55,7 @@ function PantryItemRow({
       initial={{ opacity: 0, y: -4 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, x: 16 }}
+      data-tutorial={dataTutorial}
       className="flex items-center gap-3 px-4 py-3 rounded-xl group hover:bg-orange-50/50 transition-colors"
     >
       <span className="text-xl w-8 text-center">{catIcon}</span>
@@ -71,9 +74,10 @@ function PantryItemRow({
         ) : (
           <button
             onClick={() => setEditing(true)}
-            className="text-xs text-stone-400 hover:text-orange-500 transition-colors mt-0.5 text-left"
+            className="text-[10px] text-stone-400 bg-stone-100/50 hover:bg-orange-100 hover:text-orange-600 px-2 py-0.5 rounded-md transition-all mt-1 w-fit flex items-center gap-1.5 font-medium"
           >
-            {item.quantity || "tap to add quantity"}
+            <span>{item.quantity || "Add qty"}</span>
+            <Plus size={8} />
           </button>
         )}
       </div>
@@ -237,12 +241,14 @@ export default function PantryScreen() {
         {/* Add form */}
         <motion.div
           className="rounded-2xl border p-5"
+          data-tutorial="pantry-add-form"
           style={{ background: "#fff", borderColor: "rgba(249,115,22,0.20)", boxShadow: "0 4px 20px rgba(249,115,22,0.08)" }}
         >
           <p className="text-sm font-bold text-stone-800 mb-3">Add pantry item</p>
           <div className="flex flex-col sm:flex-row gap-3">
             <input
               autoFocus
+              data-tutorial="pantry-input"
               value={newItem}
               onChange={(e) => {
                 const value = e.target.value;
@@ -275,6 +281,7 @@ export default function PantryScreen() {
             </div>
             <button
               onClick={handleAdd}
+              data-tutorial="pantry-add-btn"
               disabled={!newItem.trim()}
               className="w-10 h-10 rounded-xl text-lg font-bold text-white disabled:opacity-40 transition-all hover:opacity-90 active:scale-95"
               style={{ background: "linear-gradient(135deg,#FB923C,#F97316)", boxShadow: "0 2px 8px rgba(249,115,22,0.25)" }}
@@ -352,10 +359,11 @@ export default function PantryScreen() {
           ) : (
             <div className="divide-y divide-black/5">
               <AnimatePresence>
-                {filtered.map((item) => (
+                {filtered.map((item, index) => (
                   <PantryItemRow
                     key={item.key}
                     item={item}
+                    dataTutorial={index === 0 ? "pantry-item-0" : undefined}
                     onRemove={() => handleRemove(item.id, item.name)}
                     onEdit={(field, value) => updatePantryItem?.(item.id, { [field]: value })}
                   />

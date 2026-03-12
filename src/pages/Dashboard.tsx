@@ -414,7 +414,11 @@ export default function Dashboard() {
             <p className="text-xs font-semibold text-orange-400 uppercase tracking-widest mb-1">
               {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
             </p>
-            <h1 className="text-2xl sm:text-3xl font-bold text-stone-900 leading-tight" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+            <h1
+              data-tutorial="dashboard-greeting"
+              className="text-2xl sm:text-3xl font-bold text-stone-900 leading-tight"
+              style={{ fontFamily: "'Fraunces', Georgia, serif" }}
+            >
               {greeting}, <span className="text-orange-500">Chef {displayName || ""}</span> 👋
             </h1>
             <p className="text-sm text-stone-500 mt-1">Here's what's cooking this week</p>
@@ -461,7 +465,7 @@ export default function Dashboard() {
       <div className="max-w-7xl mx-auto px-6 py-7 space-y-7">
 
         {/* Stats */}
-        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3" data-tutorial="dashboard-stats">
           {stats.map((s, i) => (
             <motion.div key={s.label} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06, duration: 0.4, ease: "easeOut" }}>
               <StatCard {...s} />
@@ -475,7 +479,11 @@ export default function Dashboard() {
           {/* Left 2/3 */}
           <div className="lg:col-span-2 space-y-6">
             {/* Suggestions */}
-            <section className="rounded-2xl border p-5" style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}>
+            <section
+              data-tutorial="dashboard-suggestions"
+              className="rounded-2xl border p-5"
+              style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}
+            >
               <SectionHeader
                 icon={TrendingUp}
                 title="Suggested for you"
@@ -587,7 +595,11 @@ export default function Dashboard() {
           {/* Right 1/3 */}
           <div className="space-y-5">
             {/* Quick actions */}
-            <section className="rounded-2xl border p-5" style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}>
+            <section
+              data-tutorial="dashboard-quick-actions"
+              className="rounded-2xl border p-5"
+              style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}
+            >
               <h2 className="text-[15px] font-bold text-stone-800 mb-3">Quick actions</h2>
               <div className="grid grid-cols-2 gap-2">
                 {QUICK_ACTIONS.map(({ label, to, emoji, color }) => (

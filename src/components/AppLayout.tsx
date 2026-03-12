@@ -112,6 +112,7 @@ export default function AppLayout() {
               key={to}
               to={to}
               title={collapsed ? label : undefined}
+              data-tutorial={`nav-${to.replace("/", "") || "dashboard"}`}
               className={({ isActive }) =>
                 `flex items-center ${collapsed ? "justify-center" : "gap-3"} px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group
                 ${isActive
@@ -147,6 +148,7 @@ export default function AppLayout() {
         <div className="px-4 py-4 border-t border-gray-100">
           <NavLink
             to="/settings"
+            data-tutorial="profile-settings"
             className={`flex items-center rounded-xl hover:bg-gray-50 cursor-pointer transition-colors py-2 ${collapsed ? "justify-center px-2" : "gap-3 px-2"
               }`}
           >
@@ -179,6 +181,7 @@ export default function AppLayout() {
             <NavLink
               key={to}
               to={to}
+              data-tutorial={`nav-${to.replace("/", "") || "dashboard"}`}
               className={({ isActive }) =>
                 `flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-xs font-medium transition-colors
                 ${isActive ? "text-orange-500" : "text-gray-400"}`
