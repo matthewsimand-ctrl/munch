@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sparkles, Loader2, Flame, Beef, Wheat, Droplets, Heart, Lock } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { getAiDisabledMessage, isAiAgentCallsDisabledError } from '@/lib/ai';
+import { invokeAppFunction } from '@/lib/functionClient';
 import { useStore } from '@/lib/store';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
@@ -48,7 +49,7 @@ export default function NutritionCard({ recipeId, recipeName, ingredients, servi
 
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('analyze-nutrition', {
+      const { data, error } = await invokeAppFunction('analyze-nutrition', {
         body: { recipeName, ingredients, servings },
       });
 
@@ -60,6 +61,11 @@ export default function NutritionCard({ recipeId, recipeName, ingredients, servi
       setNutrition(data.nutrition);
       cacheNutrition(recipeId, data.nutrition);
     } catch (err) {
+      if (isAiAgentCallsDisabledError(err)) {
+        toast.info(getAiDisabledMessage('AI nutrition analysis'));
+        return;
+      }
+
       console.error('Nutrition error:', err);
       toast.error('Something went wrong');
     } finally {

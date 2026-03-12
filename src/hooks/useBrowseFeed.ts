@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { useStore } from '@/lib/store';
 import type { Recipe } from '@/data/recipes';
+import { invokeAppFunction } from '@/lib/functionClient';
 import { rankByRecommendation } from '@/lib/recommendations';
 import { normalizeIngredients } from '@/lib/normalizeIngredients';
 import { classifyMealType } from '@/lib/mealTimeUtils';
@@ -87,7 +87,7 @@ export function useBrowseFeed() {
     if (loaded || loading) return;
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('search-recipes', {
+      const { data, error } = await invokeAppFunction('search-recipes', {
         body: { mode: 'browse' },
       });
       if (error) throw error;

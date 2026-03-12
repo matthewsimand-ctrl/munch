@@ -22,7 +22,7 @@ function splitInstructionBlock(text: string): string[] {
 
   return splitByMarkers
     .map((line) => line.replace(/^(?:step\s*)?\d+\s*[).:-]\s*/i, '').trim())
-    .filter(Boolean);
+    .filter((line) => Boolean(line) && !/^step$/i.test(line));
 }
 
 export function normalizeStringArray(value: unknown): string[] {

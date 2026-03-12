@@ -119,6 +119,154 @@ function renderInstructionWithDefinitions(step: string, onTimerClick?: (seconds:
   return nodes;
 }
 
+function getTimerDisplay(seconds: number) {
+  if (seconds >= 60) {
+    return {
+      value: String(Math.max(1, Math.ceil(seconds / 60))),
+      unit: "min",
+    };
+  }
+
+  return {
+    value: String(Math.max(0, seconds)),
+    unit: "sec",
+  };
+}
+
+function formatTimerClock(seconds: number) {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
+}
+
+function StepTimerCard({
+  label,
+  totalSeconds,
+  remainingSeconds,
+  isActive,
+  isPaused,
+  onStart,
+  onTogglePause,
+  onEnd,
+}: {
+  label: string;
+  totalSeconds: number;
+  remainingSeconds?: number;
+  isActive: boolean;
+  isPaused: boolean;
+  onStart: () => void;
+  onTogglePause: () => void;
+  onEnd: () => void;
+}) {
+  const seconds = isActive ? remainingSeconds ?? totalSeconds : totalSeconds;
+  const display = getTimerDisplay(seconds);
+  const safeTotal = Math.max(totalSeconds, 1);
+  const progress = isActive ? Math.max(0, Math.min(1, seconds / safeTotal)) : 1;
+  const radius = 24;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference * (1 - progress);
+  const ringColor = isActive && seconds <= 10 ? "#DC2626" : "#F97316";
+
+  return (
+    <div
+      className="rounded-2xl border px-4 py-4"
+      style={{
+        background: isActive ? "linear-gradient(135deg,rgba(255,247,237,0.95),#fff)" : "#fff",
+        borderColor: isActive ? "rgba(249,115,22,0.28)" : "rgba(249,115,22,0.12)",
+        boxShadow: isActive ? "0 10px 24px rgba(249,115,22,0.12)" : "0 4px 14px rgba(249,115,22,0.06)",
+      }}
+    >
+      <div className="flex items-center gap-3">
+        <div
+          className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
+          style={{ background: "rgba(249,115,22,0.12)", color: "#EA580C" }}
+        >
+          <Timer size={18} />
+        </div>
+
+        <div className="min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-orange-400">
+            {isActive ? "Timer Running" : "Detected Timer"}
+          </p>
+          <p className="text-sm font-bold text-stone-800 truncate">{label}</p>
+          {isActive && (
+            <p className="text-[11px] font-semibold text-stone-400 mt-0.5">
+              {formatTimerClock(seconds)} remaining
+            </p>
+          )}
+        </div>
+
+        <div className="ml-auto relative w-16 h-16 shrink-0">
+          <svg className="w-16 h-16 -rotate-90" viewBox="0 0 56 56" aria-hidden="true">
+            <circle
+              cx="28"
+              cy="28"
+              r={radius}
+              fill="none"
+              stroke="rgba(249,115,22,0.16)"
+              strokeWidth="4"
+            />
+            <circle
+              cx="28"
+              cy="28"
+              r={radius}
+              fill="none"
+              stroke={ringColor}
+              strokeWidth="4"
+              strokeLinecap="round"
+              strokeDasharray={circumference}
+              strokeDashoffset={strokeDashoffset}
+              className="transition-[stroke-dashoffset] duration-1000 ease-linear"
+            />
+          </svg>
+
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-base font-black text-stone-900 leading-none" style={{ fontVariantNumeric: "tabular-nums" }}>
+              {display.value}
+            </span>
+            <span className="text-[9px] font-bold uppercase tracking-wide text-stone-400">
+              {display.unit}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 flex items-center gap-2">
+        {isActive ? (
+          <>
+            <button
+              type="button"
+              onClick={onTogglePause}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-orange-100 text-orange-700 font-semibold text-xs hover:bg-orange-200 transition-colors"
+            >
+              {isPaused ? <PlayIcon size={14} fill="currentColor" /> : <Pause size={14} fill="currentColor" />}
+              {isPaused ? "Resume" : "Pause"}
+            </button>
+            <button
+              type="button"
+              onClick={onEnd}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-stone-100 text-stone-600 font-semibold text-xs hover:bg-red-100 hover:text-red-600 transition-colors"
+            >
+              <X size={14} />
+              End
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={onStart}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-orange-500 text-white font-semibold text-xs hover:opacity-90 transition-opacity"
+            style={{ boxShadow: "0 8px 16px rgba(249,115,22,0.18)" }}
+          >
+            <PlayIcon size={14} fill="currentColor" />
+            Start Timer
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ─── Sub-components ───────────────────────────────────────── */
 function ProgressDots({ total, current }: { total: number; current: number }) {
   return (
@@ -159,6 +307,7 @@ export default function CookMode() {
   const [done, setDone] = useState(false);
   const [showIngredients, setShowIngredients] = useState(false);
   const [timerLeft, setTimerLeft] = useState<number | null>(null);
+  const [timerDuration, setTimerDuration] = useState<number | null>(null);
   const [isTimerPaused, setIsTimerPaused] = useState(false);
   const [timerLabel, setTimerLabel] = useState<string>('');
   const hasTrackedCookRef = useRef(false);
@@ -256,6 +405,7 @@ export default function CookMode() {
       toast.success("Timer done! ⏱️");
       speak("Timer is done!");
       setTimerLeft(null);
+      setTimerDuration(null);
       setTimerLabel('');
       return;
     }
@@ -273,12 +423,14 @@ export default function CookMode() {
     onRepeat: handleReadStep,
     onStartTimer: (seconds = 300) => {
       setTimerLeft(seconds);
+      setTimerDuration(seconds);
       setIsTimerPaused(false);
       setTimerLabel('');
     },
     onPauseTimer: () => setIsTimerPaused(true),
     onStopTimer: () => {
       setTimerLeft(null);
+      setTimerDuration(null);
       setTimerLabel('');
     },
   });
@@ -325,10 +477,31 @@ export default function CookMode() {
 
   const handleStartTimer = useCallback((seconds: number, label: string) => {
     setTimerLeft(seconds);
+    setTimerDuration(seconds);
     setIsTimerPaused(false);
     setTimerLabel(label);
     toast.success(`Timer set for ${label}`);
   }, []);
+
+  const isDetectedTimerActive = useCallback((timer: { label: string; seconds: number }) => {
+    if (timerLeft === null) return false;
+
+    if (timerLabel) {
+      return timerLabel.toLowerCase() === timer.label.toLowerCase();
+    }
+
+    return timerDuration === timer.seconds && detectedTimers.length === 1;
+  }, [detectedTimers.length, timerDuration, timerLabel, timerLeft]);
+
+  const detachedActiveTimer = useMemo(() => {
+    if (timerLeft === null) return null;
+    if (detectedTimers.some((timer) => isDetectedTimerActive(timer))) return null;
+
+    return {
+      label: timerLabel || "Active Timer",
+      seconds: timerDuration ?? timerLeft,
+    };
+  }, [detectedTimers, isDetectedTimerActive, timerDuration, timerLabel, timerLeft]);
 
   if (!recipe) {
     return (
@@ -623,7 +796,7 @@ export default function CookMode() {
         </div>
       </div>
 
-      {/* HUD (Timer & Voice Status) */}
+      {/* Voice Status */}
       <div className="fixed top-24 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none">
         <AnimatePresence>
           {lastCommand && (
@@ -636,69 +809,6 @@ export default function CookMode() {
               `}
             >
               {lastCommand}
-            </motion.div>
-          )}
-
-          {timerLeft !== null && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="pointer-events-auto flex flex-col items-center gap-4 bg-white px-8 py-6 rounded-3xl shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-stone-100"
-            >
-              <div className="flex flex-col items-center gap-2">
-                <div
-                  className={`w-28 h-28 rounded-full flex items-center justify-center border-4 ${
-                    timerLeft <= 10
-                      ? 'border-red-200 bg-red-50 text-red-600 animate-[pulse_1s_ease-in-out_infinite]'
-                      : 'border-orange-200 bg-orange-50/50 text-orange-600'
-                  }`}
-                >
-                  <p
-                    className="text-2xl font-black tracking-tight"
-                    style={{ fontVariantNumeric: "tabular-nums" }}
-                  >
-                    {Math.floor(timerLeft / 60)}:{(timerLeft % 60).toString().padStart(2, '0')}
-                  </p>
-                </div>
-                <Clock size={18} className="text-stone-400" strokeWidth={2} />
-              </div>
-              {timerLabel && (
-                <p className="text-xs font-semibold text-stone-500 -mt-2">{timerLabel}</p>
-              )}
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setIsTimerPaused(!isTimerPaused);
-                  }}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-orange-100 text-orange-700 font-semibold text-sm hover:bg-orange-200 transition-colors"
-                >
-                  {isTimerPaused ? (
-                    <>
-                      <PlayIcon size={16} fill="currentColor" /> Play
-                    </>
-                  ) : (
-                    <>
-                      <Pause size={16} fill="currentColor" /> Pause
-                    </>
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setTimerLeft(null);
-                    setTimerLabel('');
-                  }}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-stone-100 text-stone-600 font-semibold text-sm hover:bg-red-100 hover:text-red-600 transition-colors"
-                >
-                  <X size={16} /> End
-                </button>
-              </div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -763,7 +873,7 @@ export default function CookMode() {
             className="rounded-2xl border px-4 py-3"
             style={{ background: "#fff", borderColor: "rgba(249,115,22,0.14)", boxShadow: "0 4px 18px rgba(249,115,22,0.08)" }}
           >
-            <ChefPath currentStep={stepIndex} totalSteps={steps.length} isDone={done} />
+            <ChefPath currentStep={stepIndex} totalSteps={steps.length} timerRunning={timerLeft !== null} isDone={done} />
             <div className="mt-2 pt-2 border-t" style={{ borderColor: "rgba(249,115,22,0.12)" }}>
               <CookingXpBar currentStep={stepIndex} isDone={done} />
             </div>
@@ -829,32 +939,59 @@ export default function CookMode() {
                 </div>
               </TooltipProvider>
 
-              {/* Detected Timers */}
-              {detectedTimers.length > 0 && (
+              {/* Step Timers */}
+              {(detectedTimers.length > 0 || detachedActiveTimer) && (
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   data-tutorial="timers-section"
-                  className="mt-6 pt-5 flex flex-wrap gap-2"
+                  className="mt-6 pt-5 space-y-3"
                   style={{ borderTop: "1px dashed rgba(249,115,22,0.2)" }}
                 >
-                  <p className="w-full text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1">
-                    Quick Start Timer
+                  <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest">
+                    Step Timers
                   </p>
-                  {detectedTimers.map((t, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleStartTimer(t.seconds, t.label);
-                      }}
-                      className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl border border-orange-100 bg-orange-50 text-orange-700 text-sm font-bold hover:bg-orange-100 hover:border-orange-200 transition-all active:scale-95 shadow-sm"
-                    >
-                      <Timer size={16} /> Start {t.label}
-                    </button>
-                  ))}
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {detectedTimers.map((timer, index) => {
+                      const isActive = isDetectedTimerActive(timer);
+
+                      return (
+                        <StepTimerCard
+                          key={`${timer.label}-${index}`}
+                          label={timer.label}
+                          totalSeconds={timer.seconds}
+                          remainingSeconds={isActive ? timerLeft ?? timer.seconds : timer.seconds}
+                          isActive={isActive}
+                          isPaused={isActive && isTimerPaused}
+                          onStart={() => handleStartTimer(timer.seconds, timer.label)}
+                          onTogglePause={() => setIsTimerPaused((paused) => !paused)}
+                          onEnd={() => {
+                            setTimerLeft(null);
+                            setTimerDuration(null);
+                            setTimerLabel('');
+                          }}
+                        />
+                      );
+                    })}
+
+                    {detachedActiveTimer && (
+                      <StepTimerCard
+                        label={detachedActiveTimer.label}
+                        totalSeconds={detachedActiveTimer.seconds}
+                        remainingSeconds={timerLeft ?? detachedActiveTimer.seconds}
+                        isActive
+                        isPaused={isTimerPaused}
+                        onStart={() => {}}
+                        onTogglePause={() => setIsTimerPaused((paused) => !paused)}
+                        onEnd={() => {
+                          setTimerLeft(null);
+                          setTimerDuration(null);
+                          setTimerLabel('');
+                        }}
+                      />
+                    )}
+                  </div>
                 </motion.div>
               )}
             </motion.div>

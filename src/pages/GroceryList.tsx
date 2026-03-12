@@ -1,11 +1,12 @@
 import { useState, useMemo, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import {
   ShoppingCart, Plus, X, Check, Share2, Trash2,
   Search, ChevronDown, Sparkles, MapPin,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { getAiDisabledMessage, isAiAgentCallsDisabledError } from "@/lib/ai";
 import { useStore } from "@/lib/store";
+import { invokeAppFunction } from "@/lib/functionClient";
 import { toast } from "sonner";
 import { detectCategories } from "@/lib/categorizeItem";
 
@@ -215,7 +216,7 @@ export default function GroceryScreen() {
 
     setEstimating(true);
     try {
-      const { data, error } = await supabase.functions.invoke("estimate-grocery-price", {
+      const { data, error } = await invokeAppFunction("estimate-grocery-price", {
         body: {
           items: activeItems.map((item) => ({ name: item.name, qty: item.qty })),
           location: userProfile.groceryLocation,
@@ -229,6 +230,11 @@ export default function GroceryScreen() {
       setPriceEstimate(data.estimate);
       toast.success("Estimated grocery total ready");
     } catch (error) {
+      if (isAiAgentCallsDisabledError(error)) {
+        toast.info(getAiDisabledMessage("AI grocery price estimates"));
+        return;
+      }
+
       const message = error instanceof Error ? error.message : "Could not estimate prices right now";
       toast.error(message);
     } finally {

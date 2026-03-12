@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { extractSpoonacularInstructions } from "../../../src/lib/spoonacular.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -418,11 +419,18 @@ async function searchTasty(query: string, apiKey: string, size = 5): Promise<Nor
 async function searchSpoonacular(query: string, apiKey: string, number = 5): Promise<NormalizedRecipe[]> {
   try {
     const searchRes = await fetch(
-      `https://api.spoonacular.com/recipes/complexSearch?query=${encodeURIComponent(query)}&number=${number}&addRecipeInformation=true&fillIngredients=true&apiKey=${apiKey}`
+      `https://api.spoonacular.com/recipes/complexSearch?query=${encodeURIComponent(query)}&number=${number}&addRecipeInformation=true&fillIngredients=true&instructionsRequired=true&apiKey=${apiKey}`
     );
-    const data = await searchRes.json();
+
+    const rawBody = await searchRes.text();
+    if (!searchRes.ok) {
+      console.error('Spoonacular search error:', searchRes.status, rawBody);
+      return [];
+    }
+
+    const data = rawBody ? JSON.parse(rawBody) : {};
     if (!data.results) return [];
-    return data.results.map((r: any) => {
+    const recipes = data.results.map((r: any) => {
       const ingredients = (r.extendedIngredients || [])
         .map((i: any) => {
           const amount = i.measures?.us?.amount ?? i.amount;
@@ -430,10 +438,7 @@ async function searchSpoonacular(query: string, apiKey: string, number = 5): Pro
           return joinIngredient(amount ? `${amount}${unit ? ` ${unit}` : ''}` : '', i.name || i.originalName || i.original);
         })
         .filter(Boolean);
-      const instructions = normalizeInstructionLines((r.analyzedInstructions?.[0]?.steps
-        ?.sort((a: any, b: any) => a.number - b.number)
-        .map((s: any) => s.step)
-        .filter(Boolean) || []));
+      const instructions = extractSpoonacularInstructions(r);
       const difficulty = r.readyInMinutes > 60 ? 'Advanced' as const
         : r.readyInMinutes > 30 ? 'Intermediate' as const : 'Beginner' as const;
       return {
@@ -446,11 +451,14 @@ async function searchSpoonacular(query: string, apiKey: string, number = 5): Pro
         tags: (r.dishTypes || []).slice(0, 5).map((t: string) => t.toLowerCase()),
         instructions: instructions.slice(0, 10),
         source: 'Spoonacular',
-        source_url: r.sourceUrl || undefined,
+        source_url: r.sourceUrl || r.spoonacularSourceUrl || undefined,
         raw_api_payload: r,
         cuisine: (r.cuisines || [])[0] || undefined,
       };
     });
+
+    console.log(`Spoonacular search("${query}") returned ${recipes.length} recipes before dedupe`);
+    return recipes;
   } catch (e) {
     console.error('Spoonacular error:', e);
     return [];
@@ -462,9 +470,16 @@ async function browseSpoonacularRandom(apiKey: string, number = 20): Promise<Nor
     const res = await fetch(
       `https://api.spoonacular.com/recipes/random?number=${number}&apiKey=${apiKey}`
     );
-    const data = await res.json();
+
+    const rawBody = await res.text();
+    if (!res.ok) {
+      console.error('Spoonacular random error:', res.status, rawBody);
+      return [];
+    }
+
+    const data = rawBody ? JSON.parse(rawBody) : {};
     if (!data.recipes) return [];
-    return data.recipes.map((r: any) => {
+    const recipes = data.recipes.map((r: any) => {
       const ingredients = (r.extendedIngredients || [])
         .map((i: any) => {
           const amount = i.measures?.us?.amount ?? i.amount;
@@ -472,10 +487,7 @@ async function browseSpoonacularRandom(apiKey: string, number = 20): Promise<Nor
           return joinIngredient(amount ? `${amount}${unit ? ` ${unit}` : ''}` : '', i.name || i.originalName || i.original);
         })
         .filter(Boolean);
-      const instructions = normalizeInstructionLines((r.analyzedInstructions?.[0]?.steps
-        ?.sort((a: any, b: any) => a.number - b.number)
-        .map((s: any) => s.step)
-        .filter(Boolean) || []));
+      const instructions = extractSpoonacularInstructions(r);
       const difficulty = r.readyInMinutes > 60 ? 'Advanced' as const
         : r.readyInMinutes > 30 ? 'Intermediate' as const : 'Beginner' as const;
       return {
@@ -488,11 +500,14 @@ async function browseSpoonacularRandom(apiKey: string, number = 20): Promise<Nor
         tags: (r.dishTypes || []).slice(0, 5).map((t: string) => t.toLowerCase()),
         instructions: instructions.slice(0, 10),
         source: 'Spoonacular',
-        source_url: r.sourceUrl || undefined,
+        source_url: r.sourceUrl || r.spoonacularSourceUrl || undefined,
         raw_api_payload: r,
         cuisine: (r.cuisines || [])[0] || undefined,
       };
     });
+
+    console.log(`Spoonacular random returned ${recipes.length} recipes before dedupe`);
+    return recipes;
   } catch (e) {
     console.error('Spoonacular random error:', e);
     return [];
