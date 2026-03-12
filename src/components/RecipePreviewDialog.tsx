@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import type { Recipe } from '@/data/recipes';
@@ -39,18 +39,23 @@ const EMBED_BLOCKED_DOMAINS = [
   'www.epicurious.com',
 ];
 
-function canEmbedSourceUrl(url: string): boolean {
+function getEmbedBlockReason(url: string): string | null {
   try {
     const host = new URL(url).hostname.toLowerCase();
-    return !EMBED_BLOCKED_DOMAINS.some((d) => host === d || host.endsWith('.' + d));
+    const blockedDomain = EMBED_BLOCKED_DOMAINS.find((d) => host === d || host.endsWith('.' + d));
+    return blockedDomain ? `blocked-domain:${blockedDomain}` : null;
   } catch {
-    return true;
+    return null;
   }
 }
 
 /** Only imported recipes (from URL) show the source site; API recipes (MealDB, etc.) use ingredients/instructions */
 function isImportedRecipe(recipe: Recipe): boolean {
   return recipe.source?.toLowerCase() === 'imported';
+}
+
+function hasStructuredRecipeContent(recipe: Recipe): boolean {
+  return recipe.ingredients.length > 0 || recipe.instructions.length > 0;
 }
 
 function scaleIngredient(ingredient: string, factor: number) {
@@ -86,6 +91,22 @@ export default function RecipePreviewDialog({
 
   if (!recipe) return null;
   const displayMatch = match ?? fallbackMatch;
+  const importedRecipe = isImportedRecipe(recipe);
+  const embedBlockReason = recipe.source_url ? getEmbedBlockReason(recipe.source_url) : null;
+  const canEmbedSource = Boolean(recipe.source_url) && !embedBlockReason;
+  const showStructuredFallback = importedRecipe && hasStructuredRecipeContent(recipe);
+
+  useEffect(() => {
+    if (!open || !importedRecipe || !recipe.source_url || !embedBlockReason) return;
+
+    console.info('[RecipePreviewDialog] Source embed disabled', {
+      recipeId: recipe.id,
+      recipeName: recipe.name,
+      sourceUrl: recipe.source_url,
+      reason: embedBlockReason,
+      hasStructuredFallback: showStructuredFallback,
+    });
+  }, [embedBlockReason, importedRecipe, open, recipe.id, recipe.name, recipe.source_url, showStructuredFallback]);
 
   const handleAddMissingToGrocery = () => {
     if (!onAddMissingToGrocery || displayMatch.missing.length === 0) return;
@@ -98,7 +119,7 @@ export default function RecipePreviewDialog({
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
-          className={`h-[90vh] p-0 overflow-hidden flex flex-col ${recipe.source_url && isImportedRecipe(recipe) ? 'max-w-2xl' : 'max-w-md'}`}
+          className={`h-[90vh] p-0 overflow-hidden flex flex-col ${recipe.source_url && importedRecipe ? 'max-w-2xl' : 'max-w-md'}`}
           onOpenAutoFocus={(event) => event.preventDefault()}
           data-tutorial="recipe-dialog-content"
         >
@@ -137,54 +158,24 @@ export default function RecipePreviewDialog({
               )}
 
               {/* ── Recipe Content ── */}
-              {recipe.source_url && isImportedRecipe(recipe) ? (
+              {recipe.source_url && importedRecipe && canEmbedSource ? (
                 <div className="space-y-3">
-                  {canEmbedSourceUrl(recipe.source_url) ? (
-                    <div className="relative w-full aspect-[4/5] rounded-xl overflow-auto border border-stone-200 bg-muted">
-                      <iframe
-                        src={recipe.source_url}
-                        className="w-full min-w-full h-full min-h-full border-0 rounded-xl"
-                        title={recipe.name}
-                        sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
-                      />
-                      <a
-                        href={recipe.source_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="absolute top-2 right-2 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold bg-white/95 backdrop-blur-sm border border-stone-200 text-stone-700 shadow-sm hover:bg-orange-500 hover:text-white hover:border-orange-400 transition-colors"
-                      >
-                        <ExternalLink size={12} /> Open in Browser
-                      </a>
-                    </div>
-                  ) : (
-                    <div
-                      className="relative w-full aspect-[4/5] rounded-xl overflow-hidden border border-stone-200 bg-stone-100 flex flex-col items-center justify-center p-6 text-center"
-                      style={{ minHeight: 200 }}
+                  <div className="relative w-full aspect-[4/5] rounded-xl overflow-auto border border-stone-200 bg-muted">
+                    <iframe
+                      src={recipe.source_url}
+                      className="w-full min-w-full h-full min-h-full border-0 rounded-xl"
+                      title={recipe.name}
+                      sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+                    />
+                    <a
+                      href={recipe.source_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="absolute top-2 right-2 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold bg-white/95 backdrop-blur-sm border border-stone-200 text-stone-700 shadow-sm hover:bg-orange-500 hover:text-white hover:border-orange-400 transition-colors"
                     >
-                      <div className="absolute inset-0">
-                        {recipe.image && recipe.image !== '/placeholder.svg' ? (
-                          <img src={recipe.image} alt="" className="w-full h-full object-cover opacity-30" />
-                        ) : null}
-                        <div className="absolute inset-0 bg-gradient-to-t from-stone-900/60 to-stone-900/20" />
-                      </div>
-                      <div className="relative z-10">
-                        <p className="text-sm font-medium text-white/95 mb-2">
-                          This site doesn&apos;t allow embedding
-                        </p>
-                        <p className="text-xs text-white/80 mb-4 max-w-[220px]">
-                          Open the recipe directly in your browser to view it
-                        </p>
-                        <a
-                          href={recipe.source_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold bg-orange-500 text-white hover:bg-orange-600 transition-colors shadow-lg"
-                        >
-                          <ExternalLink size={16} /> Open in Browser
-                        </a>
-                      </div>
-                    </div>
-                  )}
+                      <ExternalLink size={12} /> Open in Browser
+                    </a>
+                  </div>
 
                   <a
                     href={recipe.source_url}
@@ -204,36 +195,74 @@ export default function RecipePreviewDialog({
                 </div>
               ) : (
                 <div className="space-y-6">
-                  <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Portion Size</p>
-                    <div className="inline-flex rounded-lg border p-1 gap-1">
-                      {SCALE_OPTIONS.map((option) => (
-                        <button
-                          key={option.label}
-                          onClick={() => setPortionFactor(option.factor)}
-                          className={`px-3 py-1.5 text-xs rounded-md font-semibold ${portionFactor === option.factor ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
+                  {recipe.source_url && importedRecipe && (
+                    <div
+                      className="relative rounded-xl overflow-hidden border border-stone-200 bg-stone-100 p-4"
+                      style={{ minHeight: 120 }}
+                    >
+                      <div className="absolute inset-0">
+                        {recipe.image && recipe.image !== '/placeholder.svg' ? (
+                          <img src={recipe.image} alt="" className="w-full h-full object-cover opacity-20" />
+                        ) : null}
+                        <div className="absolute inset-0 bg-gradient-to-t from-stone-900/10 to-white/80" />
+                      </div>
+                      <div className="relative z-10 flex flex-wrap items-center gap-3 justify-between">
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-stone-800">
+                            {canEmbedSource ? 'Viewing imported recipe details' : 'This site doesn&apos;t allow direct embedding'}
+                          </p>
+                          <p className="text-xs text-stone-500">
+                            {showStructuredFallback
+                              ? 'Showing the saved recipe details we imported.'
+                              : 'Open the original page in your browser to view it.'}
+                          </p>
+                        </div>
+                        <a
+                          href={recipe.source_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold bg-orange-500 text-white hover:bg-orange-600 transition-colors shadow-lg"
                         >
-                          {option.label}
-                        </button>
-                      ))}
+                          <ExternalLink size={16} /> Open in Browser
+                        </a>
+                      </div>
                     </div>
-                  </div>
+                  )}
 
-                  <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Ingredients</p>
-                    <ul className="space-y-2">
-                      {recipe.ingredients.map((ing) => {
-                        const scaledIngredient = scaleIngredient(ing, portionFactor);
-                        const hasIngredient = displayMatch.matched.some((m) => m.toLowerCase() === ing.toLowerCase());
-                        return (
-                          <li key={ing} className="text-sm flex items-start gap-2 text-foreground">
-                            {hasIngredient ? <Check className="h-4 w-4 mt-0.5 text-emerald-600" /> : <ShoppingCart className="h-4 w-4 mt-0.5 text-orange-500" />}
-                            <span>{scaledIngredient}</span>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
+                  {recipe.ingredients.length > 0 && (
+                    <>
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Portion Size</p>
+                        <div className="inline-flex rounded-lg border p-1 gap-1">
+                          {SCALE_OPTIONS.map((option) => (
+                            <button
+                              key={option.label}
+                              onClick={() => setPortionFactor(option.factor)}
+                              className={`px-3 py-1.5 text-xs rounded-md font-semibold ${portionFactor === option.factor ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
+                            >
+                              {option.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Ingredients</p>
+                        <ul className="space-y-2">
+                          {recipe.ingredients.map((ing) => {
+                            const scaledIngredient = scaleIngredient(ing, portionFactor);
+                            const hasIngredient = displayMatch.matched.some((m) => m.toLowerCase() === ing.toLowerCase());
+                            return (
+                              <li key={ing} className="text-sm flex items-start gap-2 text-foreground">
+                                {hasIngredient ? <Check className="h-4 w-4 mt-0.5 text-emerald-600" /> : <ShoppingCart className="h-4 w-4 mt-0.5 text-orange-500" />}
+                                <span>{scaledIngredient}</span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    </>
+                  )}
 
                   {recipe.instructions.length > 0 && (
                     <div>
@@ -271,15 +300,17 @@ export default function RecipePreviewDialog({
                     </motion.button>
                   )}
 
-                  <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Nutrition Dashboard</p>
-                    <NutritionCard
-                      recipeId={recipe.id}
-                      recipeName={recipe.name}
-                      ingredients={recipe.ingredients}
-                      servings={recipe.servings ?? 1}
-                    />
-                  </div>
+                  {recipe.ingredients.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Nutrition Dashboard</p>
+                      <NutritionCard
+                        recipeId={recipe.id}
+                        recipeName={recipe.name}
+                        ingredients={recipe.ingredients}
+                        servings={recipe.servings ?? 1}
+                      />
+                    </div>
+                  )}
                 </div>
               )}
             </div>
