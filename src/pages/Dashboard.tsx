@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import {
   Flame, Clock, Heart, ShoppingCart, ChevronRight,
   Calendar, Star, Plus, Check, Users, MapPin, X, RotateCw,
-  Trophy, ChefHat, Zap, Award, Camera, Sparkles, TrendingUp, Play, Beef, Wheat, Droplets,
+  Trophy, ChefHat, Zap, Award, Camera, Sparkles, TrendingUp, Play, Beef, Wheat, Droplets, Bell, CheckCheck,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,9 +24,20 @@ import { getMealPlanWeekStart } from "@/lib/mealPlanUtils";
 import { useCookedMeals } from "@/hooks/useCookedMeals";
 import { usePremiumAccess } from "@/hooks/usePremiumAccess";
 import { getConsumedNutritionSummary } from "@/lib/consumedNutrition";
+import { useNotifications } from "@/hooks/useNotifications";
 
 const WEEK_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MEAL_PREP_TYPES = new Set(["Breakfast", "Lunch", "Dinner"]);
+
+function formatRelative(timestamp: string) {
+  const diffMs = Date.now() - new Date(timestamp).getTime();
+  const diffMin = Math.max(1, Math.floor(diffMs / 60000));
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  const diffDay = Math.floor(diffHr / 24);
+  return `${diffDay}d ago`;
+}
 
 interface StatDef {
   label: string;
@@ -171,6 +182,7 @@ export default function Dashboard() {
   const [suggestionOffset, setSuggestionOffset] = useState(0);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [avatarSkinTone, setAvatarSkinTone] = useState("#F5C9A9");
   const [avatarHair, setAvatarHair] = useState("short");
   const [avatarHairColor, setAvatarHairColor] = useState("#3F2A1D");
@@ -179,6 +191,7 @@ export default function Dashboard() {
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const { meal: currentPlannedMeal, loading: currentMealLoading } = useCurrentMealPlan();
   const { meals: cookedMeals, loading: cookedMealsLoading, estimateMealSavings } = useCookedMeals();
+  const { notifications, unreadCount, loading: notificationsLoading, markAsRead, markAllAsRead } = useNotifications();
   const [estimatingMealId, setEstimatingMealId] = useState<string | null>(null);
   const nutritionSummary = useMemo(
     () => getConsumedNutritionSummary(cookedMeals, cachedNutrition),
@@ -416,6 +429,33 @@ export default function Dashboard() {
     setEstimatingMealId(null);
   };
 
+  const handleOpenNotification = async (notification: typeof notifications[number]) => {
+    try {
+      if (!notification.read_at) {
+        await markAsRead(notification.id);
+      }
+
+      setNotificationsOpen(false);
+
+      if (notification.type === "kitchen_invite") {
+        navigate("/kitchens");
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not open notification";
+      toast.error(message);
+    }
+  };
+
+  const handleMarkAllNotifications = async () => {
+    try {
+      await markAllAsRead();
+      toast.success("Marked all notifications as read");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not update notifications";
+      toast.error(message);
+    }
+  };
+
   const QUICK_ACTIONS = [
     { label: "Find Recipe", to: "/swipe", emoji: "🔍", color: "from-orange-50 to-amber-50" },
     { label: "Add to Pantry", to: "/pantry", emoji: "📦", color: "from-emerald-50 to-teal-50" },
@@ -449,6 +489,18 @@ export default function Dashboard() {
             <p className="text-xs sm:text-sm text-stone-500 mt-1">Here's what's cooking this week</p>
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
+            <button
+              onClick={() => setNotificationsOpen(true)}
+              className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-orange-200 bg-white/85 text-stone-700 shadow-sm transition-colors hover:bg-orange-50"
+              aria-label="Open notifications"
+            >
+              <Bell size={18} />
+              {unreadCount > 0 && (
+                <span className="absolute -right-1 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-orange-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+            </button>
             <div className="hidden md:block min-w-[220px] rounded-xl border px-3 py-2" style={{ background: "rgba(255,255,255,0.72)", borderColor: "rgba(249,115,22,0.20)" }}>
               <div className="flex items-center justify-between text-[11px] font-bold text-stone-600 mb-1">
                 <span className="inline-flex items-center gap-1"><Star size={11} className="text-amber-500 fill-amber-500" /> Level {levelInfo.level}</span>
@@ -841,6 +893,59 @@ export default function Dashboard() {
                 <button onClick={applyCustomAvatar} className="text-sm font-semibold text-white bg-orange-500 hover:bg-orange-600 px-3 py-2 rounded-lg">Use this avatar</button>
               </div>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={notificationsOpen} onOpenChange={setNotificationsOpen}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between gap-3 pr-8">
+              <span>Notifications</span>
+              <button
+                type="button"
+                onClick={() => void handleMarkAllNotifications()}
+                disabled={unreadCount === 0}
+                className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 px-3 py-1 text-xs font-semibold text-stone-600 disabled:opacity-50"
+              >
+                <CheckCheck className="h-3.5 w-3.5" />
+                Mark all read
+              </button>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
+            {notificationsLoading ? (
+              <div className="rounded-2xl border border-dashed border-stone-200 px-4 py-8 text-center text-sm text-stone-400">
+                Loading notifications...
+              </div>
+            ) : notifications.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-stone-200 px-4 py-10 text-center">
+                <Bell className="mx-auto mb-3 h-8 w-8 text-stone-300" />
+                <p className="text-sm font-semibold text-stone-600">No notifications yet</p>
+                <p className="mt-1 text-xs text-stone-400">Kitchen invites and shared activity will show up here.</p>
+              </div>
+            ) : (
+              notifications.map((notification) => (
+                <button
+                  key={notification.id}
+                  onClick={() => void handleOpenNotification(notification)}
+                  className={`w-full rounded-2xl border px-4 py-4 text-left transition-colors ${
+                    notification.read_at ? "border-stone-200 bg-white" : "border-orange-200 bg-orange-50/70"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-stone-900">{notification.title}</p>
+                      <p className="mt-1 text-sm text-stone-600">{notification.body}</p>
+                      <p className="mt-2 text-xs text-stone-400">{formatRelative(notification.created_at)}</p>
+                    </div>
+                    {!notification.read_at && (
+                      <span className="mt-1 inline-flex h-2.5 w-2.5 rounded-full bg-orange-500" />
+                    )}
+                  </div>
+                </button>
+              ))
+            )}
           </div>
         </DialogContent>
       </Dialog>

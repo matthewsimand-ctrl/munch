@@ -1,15 +1,13 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
-import { Home, UtensilsCrossed, BookOpen, CookingPot, Ellipsis, Heart, ShoppingCart, CalendarDays, History, BookMarked, Settings, BookOpenCheck, Users, Bell } from 'lucide-react';
+import { Home, UtensilsCrossed, BookOpen, CookingPot, Ellipsis, Heart, ShoppingCart, CalendarDays, History, BookMarked, Settings, BookOpenCheck, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { useNotifications } from '@/hooks/useNotifications';
 
 const TUTORIAL_MAP: Record<string, string> = {
   Home: 'nav-home',
   Pantry: 'nav-pantry',
   Recipes: 'nav-browse',
-  'Find Recipes': 'nav-browse',
   Saved: 'nav-recipes',
   Plan: 'nav-plan',
   Grocery: 'nav-grocery',
@@ -20,7 +18,7 @@ const TUTORIAL_MAP: Record<string, string> = {
 
 const NAV_ITEMS = [
   { path: '/dashboard', label: 'Home', icon: Home },
-  { path: '/swipe', label: 'Find Recipes', icon: BookOpen },
+  { path: '/swipe', label: 'Recipes', icon: BookOpen },
   { path: '/let-me-cook', label: 'Cook', icon: CookingPot },
   { path: '/pantry', label: 'Kitchen', icon: UtensilsCrossed },
   { path: '__more__', label: 'More', icon: Ellipsis },
@@ -30,7 +28,6 @@ const MORE_ITEMS = [
   { path: '/grocery', label: 'Grocery List', icon: ShoppingCart },
   { path: '/meal-prep', label: 'Meal Prep', icon: CalendarDays },
   { path: '/kitchens', label: 'Kitchens', icon: Users },
-  { path: '/notifications', label: 'Notifications', icon: Bell },
   { path: '/saved', label: 'My Recipes', icon: Heart },
   { path: '/cookbooks', label: 'Cookbooks', icon: BookOpenCheck },
   { path: '/cooked-history', label: 'Cooked', icon: History },
@@ -42,7 +39,6 @@ export default function BottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
   const [moreOpen, setMoreOpen] = useState(false);
-  const { unreadCount } = useNotifications();
 
   const isMoreActive = MORE_ITEMS.some(({ path }) => location.pathname === path);
 
@@ -101,14 +97,7 @@ export default function BottomNav() {
                   )}
                 >
                   <Icon className="h-5 w-5" />
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold leading-tight">{label}</span>
-                    {path === '/notifications' && unreadCount > 0 && (
-                      <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-orange-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                        {unreadCount > 9 ? '9+' : unreadCount}
-                      </span>
-                    )}
-                  </div>
+                  <span className="text-sm font-semibold leading-tight">{label}</span>
                 </button>
               );
             })}
