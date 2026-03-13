@@ -22,6 +22,7 @@ describe('ai testing helpers', () => {
 
   it('recognizes AI-backed edge functions only', () => {
     expect(isAiAgentFunction('import-recipe')).toBe(true);
+    expect(isAiAgentFunction('generate-pantry-recipe')).toBe(true);
     expect(isAiAgentFunction('scrape-recipe')).toBe(false);
     expect(isAiAgentFunction('search-recipes')).toBe(false);
   });

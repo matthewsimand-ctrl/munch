@@ -12,7 +12,6 @@ import { getPremiumOverride } from "@/lib/premium";
 import { adjustQuantityString, canDecreaseQuantity, parseIngredientLine, suggestQuantityForItem } from "@/lib/ingredientText";
 import { invokeAppFunction } from "@/lib/functionClient";
 import { getAiDisabledMessage, isAiAgentCallsDisabledError } from "@/lib/ai";
-import { calculateMatch } from "@/lib/matchLogic";
 import RecipePreviewDialog from "@/components/RecipePreviewDialog";
 import type { Recipe } from "@/data/recipes";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -270,25 +269,17 @@ export default function PantryScreen() {
     setGeneratingRecipe(true);
     try {
       const pantryNames = pantryItems.map((item) => item.name);
-      const query = pantryNames.slice(0, 6).join(" ");
-      const { data, error } = await invokeAppFunction<{ recipes?: unknown[]; error?: string }>("search-recipes", {
-        body: { query },
+      const { data, error } = await invokeAppFunction<{ recipe?: unknown; error?: string }>("generate-pantry-recipe", {
+        body: { pantryItems: pantryNames },
       });
 
       if (error) throw new Error(error.message || "Could not generate a recipe");
 
-      const candidates = (data?.recipes || [])
-        .map(normalizeGeneratedRecipe)
-        .filter((recipe): recipe is Recipe => Boolean(recipe));
-
-      if (candidates.length === 0) {
+      const bestRecipe = normalizeGeneratedRecipe(data?.recipe);
+      if (!bestRecipe) {
         toast.info("I couldn't find a pantry-based recipe right now. Try adding a few more ingredients.");
         return;
       }
-
-      const bestRecipe = [...candidates].sort(
-        (a, b) => calculateMatch(pantryNames, b.ingredients || []).percentage - calculateMatch(pantryNames, a.ingredients || []).percentage
-      )[0];
 
       setGeneratedRecipe(bestRecipe);
       setGeneratedRecipeOpen(true);
@@ -422,7 +413,7 @@ export default function PantryScreen() {
   };
 
   return (
-    <div className="min-h-full" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", background: "#FFFAF5" }}>
+    <div className="min-h-full overflow-x-hidden pb-4 md:pb-0" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", background: "#FFFAF5" }}>
 
       {/* Header */}
       <div
@@ -433,8 +424,8 @@ export default function PantryScreen() {
           className="absolute inset-0 opacity-20"
           style={{ backgroundImage: "radial-gradient(circle, #FDA97440 1px, transparent 1px)", backgroundSize: "20px 20px" }}
         />
-        <div className="relative max-w-4xl mx-auto px-6 py-6">
-          <div className="flex items-start justify-between mb-4">
+        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 py-5 sm:py-6">
+          <div className="flex flex-col gap-4 mb-4">
             <div>
               <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1">Your kitchen</p>
               <h1 className="text-2xl font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
@@ -445,11 +436,11 @@ export default function PantryScreen() {
                 {isKitchenMode && <span className="ml-2 font-semibold text-orange-500">Shared with {activeKitchenName || "Kitchen"}</span>}
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-stretch gap-2">
               <button
                 title="Import Receipts"
                 onClick={() => receiptInputRef.current?.click()}
-                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-stone-200 text-sm font-semibold text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
+                className="flex min-w-0 flex-1 items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-white border border-stone-200 text-sm font-semibold text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors sm:flex-none"
                 disabled={importingReceipt}
               >
                 <Upload size={14} /> {importingReceipt ? "Importing..." : "Import Receipts"}
@@ -457,7 +448,7 @@ export default function PantryScreen() {
               <button
                 title="Fridge Cleanup"
                 onClick={() => void handleGenerateRecipe()}
-                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-stone-200 text-sm font-semibold text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
+                className="flex min-w-0 flex-1 items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-white border border-stone-200 text-sm font-semibold text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors sm:flex-none"
                 disabled={generatingRecipe}
               >
                 {!isPremium && <Lock size={12} className="text-stone-400" />}
@@ -487,7 +478,7 @@ export default function PantryScreen() {
                   }
                   setScanDialogOpen(true);
                 }}
-                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-stone-200 text-sm font-semibold text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
+                className="flex min-w-0 w-full items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-white border border-stone-200 text-sm font-semibold text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors sm:w-auto"
               >
                 {!isPremium && <Lock size={12} className="text-stone-400" />}
                 <Camera size={14} /> Scan Fridge
@@ -571,13 +562,16 @@ export default function PantryScreen() {
           likeRecipe(recipe.id, recipe);
           toast.success(`Saved ${recipe.name}`);
         }}
+        onRegenerate={() => {
+          void handleGenerateRecipe();
+        }}
         onAddMissingToGrocery={(recipe, missingIngredients) => {
           missingIngredients.forEach((ingredient) => addCustomGroceryItem(ingredient));
           toast.success(`Added ${missingIngredients.length} missing items from ${recipe.name}`);
         }}
       />
 
-      <div className="max-w-4xl mx-auto px-6 py-5 space-y-5">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-5 space-y-5 pb-8">
 
         {/* Add form */}
         <motion.div
@@ -588,7 +582,6 @@ export default function PantryScreen() {
           <p className="text-sm font-bold text-stone-800 mb-3">Add pantry item</p>
           <div className="flex flex-col sm:flex-row gap-3">
             <input
-              autoFocus
               data-tutorial="pantry-input"
               value={newItem}
               onChange={(e) => {

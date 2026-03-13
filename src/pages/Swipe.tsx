@@ -3,7 +3,7 @@ import {
   Heart, X, Clock, ChefHat, Flame, Filter,
   ChevronDown, Sparkles, Search,
 } from "lucide-react";
-import { motion, AnimatePresence, useMotionValue, useTransform } from "framer-motion";
+import { motion, AnimatePresence, useMotionValue, useTransform, animate } from "framer-motion";
 import { useStore } from "@/lib/store";
 import { useBrowseFeed } from "@/hooks/useBrowseFeed";
 import { calculateMatch } from "@/lib/matchLogic";
@@ -77,6 +77,8 @@ function SwipeCard({
   const handleDragEnd = (_: unknown, info: { offset: { x: number; y: number } }) => {
     if (info.offset.x > 100) { onSwipeRight(); return; }
     if (info.offset.x < -100) { onSwipeLeft(); return; }
+    animate(x, 0, { type: "spring", stiffness: 360, damping: 28 });
+    animate(y, 0, { type: "spring", stiffness: 360, damping: 28 });
   };
 
   const diffBadge =
@@ -89,7 +91,9 @@ function SwipeCard({
   return (
     <motion.div
       drag={isTop}
+      dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
       dragElastic={0.12}
+      dragMomentum={false}
       onDragEnd={handleDragEnd}
       onPanStart={() => {
         didMoveRef.current = false;

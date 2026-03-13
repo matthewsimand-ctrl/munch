@@ -80,7 +80,7 @@ export default function AppLayout() {
   }, [storeDisplayName]);
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-orange-50/50 via-background to-background overflow-hidden">
+    <div className="flex min-h-screen h-[100dvh] bg-gradient-to-br from-orange-50/50 via-background to-background overflow-hidden">
       {/* ── Desktop Sidebar ── */}
       <aside
         className={`hidden md:flex flex-col bg-white border-r border-gray-100 shrink-0 z-20 transition-all duration-300 relative ${collapsed ? "w-16" : "w-56 lg:w-64"
@@ -183,7 +183,7 @@ export default function AppLayout() {
 
       {/* ── Main content ── */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <div className="flex-1 overflow-y-auto pb-20 md:pb-0">
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-0">
           <div className="app-page">
             <Outlet />
           </div>

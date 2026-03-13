@@ -19,20 +19,20 @@ const TUTORIAL_MAP: Record<string, string> = {
 const NAV_ITEMS = [
   { path: '/dashboard', label: 'Home', icon: Home },
   { path: '/swipe', label: 'Recipes', icon: BookOpen },
-  { path: '/let-me-cook', label: 'Cook', icon: CookingPot },
-  { path: '/pantry', label: 'Kitchen', icon: UtensilsCrossed },
+  { path: '/saved', label: 'Saved', icon: Heart },
+  { path: '/pantry', label: 'Pantry', icon: UtensilsCrossed },
   { path: '__more__', label: 'More', icon: Ellipsis },
 ];
 
 const MORE_ITEMS = [
+  { path: '/settings', label: 'Settings', icon: Settings },
+  { path: '/let-me-cook', label: 'Cook', icon: CookingPot },
   { path: '/grocery', label: 'Grocery List', icon: ShoppingCart },
   { path: '/meal-prep', label: 'Meal Prep', icon: CalendarDays },
   { path: '/kitchens', label: 'Kitchens', icon: Users },
-  { path: '/saved', label: 'My Recipes', icon: Heart },
   { path: '/cookbooks', label: 'Cookbooks', icon: BookOpenCheck },
   { path: '/cooked-history', label: 'Cooked', icon: History },
   { path: '/dictionary', label: 'Dictionary', icon: BookMarked },
-  { path: '/settings', label: 'Settings', icon: Settings },
 ];
 
 export default function BottomNav() {

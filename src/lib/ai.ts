@@ -6,6 +6,7 @@ const AI_AGENT_FUNCTIONS = new Set([
   'analyze-nutrition',
   'estimate-grocery-price',
   'generate-meal-plan',
+  'generate-pantry-recipe',
   'import-recipe',
   'scan-fridge',
   'tweak-recipe',

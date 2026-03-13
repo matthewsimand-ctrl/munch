@@ -25,6 +25,7 @@ interface Props {
   mode?: 'default' | 'explore';
   onSave?: (recipe: Recipe) => void;
   onAddMissingToGrocery?: (recipe: Recipe, missingIngredients: string[]) => void;
+  onRegenerate?: () => void;
 }
 
 const SCALE_OPTIONS = [
@@ -103,6 +104,7 @@ export default function RecipePreviewDialog({
   mode = 'default',
   onSave,
   onAddMissingToGrocery,
+  onRegenerate,
 }: Props) {
   const navigate = useNavigate();
   const [portionFactor, setPortionFactor] = useState(1);
@@ -497,11 +499,22 @@ export default function RecipePreviewDialog({
               </button>
             ) : (
               <button
-                onClick={() => onSave?.(recipe)}
+                onClick={() => {
+                  onSave?.(recipe);
+                  onOpenChange(false);
+                }}
                 data-tutorial="like-button"
-                className="col-span-2 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold inline-flex items-center justify-center gap-1.5"
+                className={`${onRegenerate ? 'col-span-1' : 'col-span-2'} px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold inline-flex items-center justify-center gap-1.5`}
               >
                 <Heart className="h-4 w-4" /> Save Recipe
+              </button>
+            )}
+            {mode === 'explore' && onRegenerate && (
+              <button
+                onClick={onRegenerate}
+                className="col-span-1 px-3 py-2 rounded-lg border text-sm font-semibold inline-flex items-center justify-center gap-1.5"
+              >
+                <Sparkles className="h-4 w-4" /> Generate Again
               </button>
             )}
             {mode === 'default' && (
@@ -511,6 +524,14 @@ export default function RecipePreviewDialog({
                 className="col-span-2 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold inline-flex items-center justify-center gap-1.5"
               >
                 <Play className="h-4 w-4" /> Start Cooking
+              </button>
+            )}
+            {mode === 'explore' && (
+              <button
+                onClick={() => onOpenChange(false)}
+                className="col-span-2 px-3 py-2 rounded-lg border text-sm font-medium inline-flex items-center justify-center gap-1.5"
+              >
+                Close
               </button>
             )}
           </div>
