@@ -23,7 +23,7 @@ export function ChefProfileModal({ chefId, chefName, open, onOpenChange }: ChefP
             if (!chefId) return null;
             const { data, error } = await supabase
                 .from('profiles')
-                .select('display_name, avatar_url')
+                .select('display_name, avatar_url, username')
                 .eq('user_id', chefId)
                 .maybeSingle();
             if (error && error.code !== 'PGRST116') throw error;
@@ -74,6 +74,9 @@ export function ChefProfileModal({ chefId, chefName, open, onOpenChange }: ChefP
                             <h2 className="font-display text-2xl font-bold text-stone-900 leading-none mb-1">
                                 {displayName}
                             </h2>
+                            {(profile as any)?.username && (
+                                <p className="text-xs text-stone-400 mb-1">@{(profile as any).username}</p>
+                            )}
                             <p className="text-sm font-medium text-stone-500">
                                 {isLoading ? (
                                     <span className="flex items-center gap-1.5"><Loader2 size={12} className="animate-spin" /> Fetching recipes...</span>

@@ -266,7 +266,7 @@ export default function SwipeScreen() {
   const [showFilters, setShowFilters] = useState(false);
   const [previewRecipe, setPreviewRecipe] = useState<Recipe | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [swipeFeedback, setSwipeFeedback] = useState<"saved" | "skipped" | null>(null);
+  const [saveButtonPulse, setSaveButtonPulse] = useState(false);
 
   const pantryNames = useMemo(() => pantryList.map((p) => p.name), [pantryList]);
   const likedSet = useMemo(() => new Set(likedRecipes), [likedRecipes]);
@@ -332,6 +332,10 @@ export default function SwipeScreen() {
     return final;
   }, [recipes, activeFilter, searchQuery, selectedChefId]); // Added selectedChefId to dependencies
 
+  useEffect(() => {
+    setCardIndex(0);
+  }, [activeFilter, searchQuery, selectedChefId]);
+
   const current = filtered[cardIndex] || null;
   const prev = cardIndex > 0 ? filtered[cardIndex - 1] : null;
   const next = filtered[cardIndex + 1] || null;
@@ -345,18 +349,19 @@ export default function SwipeScreen() {
   const handleSave = useCallback(() => {
     if (!current) return;
     likeRecipe(current.id, current);
-    setSwipeFeedback("saved");
-    setTimeout(() => setSwipeFeedback(null), 420);
-    toast.success(`❤️ Saved "${current.name}" to cookbook`);
     advance();
   }, [current, likeRecipe, advance]);
 
   const handleSkip = useCallback(() => {
     if (!current) return;
-    setSwipeFeedback("skipped");
-    setTimeout(() => setSwipeFeedback(null), 420);
     advance();
   }, [current, advance]);
+
+  const handleSaveButton = useCallback(() => {
+    setSaveButtonPulse(true);
+    window.setTimeout(() => setSaveButtonPulse(false), 280);
+    handleSave();
+  }, [handleSave]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -551,20 +556,6 @@ export default function SwipeScreen() {
                     className="z-10 w-[300px] sm:w-[340px] h-[380px] sm:h-[460px]"
                     style={{ perspective: 1000 }}
                   >
-                    <AnimatePresence>
-                      {swipeFeedback && (
-                        <motion.div
-                          key={swipeFeedback}
-                          initial={{ opacity: 0, scale: 0.8, y: 12 }}
-                          animate={{ opacity: 1, scale: 1, y: 0 }}
-                          exit={{ opacity: 0, scale: 0.9, y: -6 }}
-                          className={`absolute top-6 left-1/2 -translate-x-1/2 z-20 px-4 py-2 rounded-full text-sm font-bold shadow-lg ${swipeFeedback === "saved" ? "bg-emerald-500 text-white" : "bg-red-500 text-white"
-                            }`}
-                        >
-                          {swipeFeedback === "saved" ? "Saved" : "Skipped"}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
                     <SwipeCard
                       recipe={current}
                       matchPercent={currentMatch?.percentage ?? 0}
@@ -596,16 +587,18 @@ export default function SwipeScreen() {
               </button>
 
               {/* Save */}
-              <button
-                onClick={handleSave}
+              <motion.button
+                onClick={handleSaveButton}
                 data-tutorial="like-button"
                 className="w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center text-white transition-all active:scale-90 shadow-lg hover:shadow-orange-200/50"
+                animate={saveButtonPulse ? { scale: [1, 1.14, 0.96, 1], rotate: [0, -8, 8, 0] } : { scale: 1, rotate: 0 }}
+                transition={{ duration: 0.28 }}
                 style={{
                   background: likedSet.has(current?.id ?? "") ? "#10B981" : "linear-gradient(135deg,#FB923C,#F97316,#EA580C)",
                 }}
               >
                 <Heart size={20} fill={likedSet.has(current?.id ?? "") ? "#fff" : "none"} />
-              </button>
+              </motion.button>
             </div>
           )}
 
@@ -633,7 +626,6 @@ export default function SwipeScreen() {
         }}
         onSave={(recipe) => {
           likeRecipe(recipe.id, recipe);
-          toast.success(`❤️ Saved "${recipe.name}" to cookbook`);
         }}
       />
 

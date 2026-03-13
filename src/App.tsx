@@ -23,6 +23,8 @@ import ChefProfile from "./pages/ChefProfile";
 import Dictionary from "./pages/Dictionary";
 import CookedHistory from "./pages/CookedHistory";
 import Kitchens from "./pages/Kitchens";
+import Notifications from "./pages/Notifications";
+import KitchenInviteAccept from "./pages/KitchenInviteAccept";
 import NotFound from "./pages/NotFound";
 import SpotlightTutorial from "./components/SpotlightTutorial";
 
@@ -43,6 +45,7 @@ function AppRoutes() {
         <Route path="/" element={<Index />} />
         <Route path="/auth" element={<Auth />} />
         <Route path="/onboarding" element={<Onboarding />} />
+        <Route path="/invite/kitchen/:token" element={<KitchenInviteAccept />} />
         <Route path="/cook/:id" element={<CookMode />} />
 
         {/* Main app — sidebar on desktop, bottom nav on mobile */}
@@ -57,6 +60,7 @@ function AppRoutes() {
           <Route path="/grocery" element={<GroceryList />} />
           <Route path="/meal-prep" element={<MealPrep />} />
           <Route path="/kitchens" element={<Kitchens />} />
+          <Route path="/notifications" element={<Notifications />} />
           <Route path="/cooked-history" element={<CookedHistory />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/dictionary" element={<Dictionary />} />

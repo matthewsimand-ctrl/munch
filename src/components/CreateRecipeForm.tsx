@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -253,6 +253,34 @@ export default function CreateRecipeForm({ onClose }: Props) {
   const [tags, setTags] = useState<string[]>([]);
   const { likeRecipe, shareCustomRecipesByDefault } = useStore();
   const [isPublic, setIsPublic] = useState(shareCustomRecipesByDefault);
+  const [chefUsername, setChefUsername] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+
+    void supabase.auth.getSession().then(async ({ data: { session } }) => {
+      const userId = session?.user?.id;
+      if (!userId) return;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('display_name, username')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (!active || !profile) return;
+
+      if (profile.display_name && !chef.trim()) {
+        setChef(profile.display_name);
+      }
+
+      setChefUsername((profile as any).username || null);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleParsePaste = () => {
     if (!pasteText.trim()) return;
@@ -396,7 +424,7 @@ export default function CreateRecipeForm({ onClose }: Props) {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('display_name')
+        .select('display_name, username')
         .eq('user_id', userId)
         .maybeSingle();
 
@@ -404,13 +432,6 @@ export default function CreateRecipeForm({ onClose }: Props) {
       const displayChefName = isOriginalRecipe
         ? (typedDisplayName || profile?.display_name?.trim() || null)
         : null;
-
-      if (isOriginalRecipe && typedDisplayName && typedDisplayName !== profile?.display_name?.trim()) {
-        await supabase
-          .from('profiles')
-          .update({ display_name: typedDisplayName })
-          .eq('user_id', userId);
-      }
 
       const recipeId = crypto.randomUUID();
       const { error } = await supabase.from('recipes').insert({
@@ -593,6 +614,11 @@ export default function CreateRecipeForm({ onClose }: Props) {
           <div>
             <label className="text-sm font-medium text-foreground">Chef Name</label>
             <Input value={chef} onChange={e => setChef(e.target.value)} placeholder="Shown as recipe author name" />
+            {chefUsername && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Linked to @{chefUsername} so people land on your profile.
+              </p>
+            )}
           </div>
         )}
       </div>

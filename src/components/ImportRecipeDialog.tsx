@@ -60,14 +60,26 @@ interface WebsitePreviewData {
   raw_api_payload?: Record<string, unknown>;
 }
 
-interface WebsiteAdPreview {
-  sourceUrl: string;
-  previewText: string;
-  adSignals: string[];
-}
-
 const DIFFICULTY_OPTIONS = ['Beginner', 'Intermediate', 'Advanced'];
 const CUISINE_OPTIONS = ['Italian', 'Asian', 'Mexican', 'Mediterranean', 'American', 'French', 'Indian', 'Other'];
+const EMBED_BLOCKED_DOMAINS = [
+  'foodnetwork.com',
+  'www.foodnetwork.com',
+  'allrecipes.com',
+  'www.allrecipes.com',
+  'epicurious.com',
+  'www.epicurious.com',
+];
+
+function getEmbedBlockReason(url: string): string | null {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    const blockedDomain = EMBED_BLOCKED_DOMAINS.find((d) => host === d || host.endsWith(`.${d}`));
+    return blockedDomain ? `blocked-domain:${blockedDomain}` : null;
+  } catch {
+    return 'invalid-url';
+  }
+}
 
 function normalizeList(value: unknown): string[] {
   if (Array.isArray(value)) {
@@ -183,13 +195,12 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
   const [fetchingPhoto, setFetchingPhoto] = useState(false);
   const [magicProgress, setMagicProgress] = useState(0);
   const [magicMessage, setMagicMessage] = useState('Summoning recipe magic...');
-  const [websiteAdPreview, setWebsiteAdPreview] = useState<WebsiteAdPreview | null>(null);
   const aiAgentCallsDisabled = useAiAgentCallsDisabled();
 
   const MAGIC_MESSAGES = [
     'Summoning recipe magic... ✨',
     'Whisking through the webpage... 🥣',
-    'Sifting out ads and navigation crumbs... 🧹',
+    'Parsing the recipe page... 🌐',
     'Decoding ingredients and steps... 🧠',
     'Plating your recipe card... 🍽️',
   ];
@@ -393,37 +404,6 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
     setSaving(false);
     setUploadingPhoto(false);
     setFetchingPhoto(false);
-    setWebsiteAdPreview(null);
-  };
-
-  const extractAdSignals = (rawText: string): string[] => {
-    const adPattern = /(advertisement|sponsored|promo(?:tion)?|cookie(?:s)?|newsletter|subscribe|banner|affiliate|tracking)/i;
-    const lines = rawText
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter((line) => line && adPattern.test(line));
-
-    return Array.from(new Set(lines)).slice(0, 10);
-  };
-
-  const loadWebsiteAdPreview = async (normalizedUrl: string) => {
-    try {
-      const response = await fetch(`https://r.jina.ai/${normalizedUrl}`);
-      const text = response.ok ? await response.text() : '';
-      const adSignals = extractAdSignals(text);
-
-      setWebsiteAdPreview({
-        sourceUrl: normalizedUrl,
-        previewText: text.slice(0, 2500),
-        adSignals,
-      });
-    } catch {
-      setWebsiteAdPreview({
-        sourceUrl: normalizedUrl,
-        previewText: '',
-        adSignals: [],
-      });
-    }
   };
 
   const handleExtract = async (payload: { url?: string; textContent?: string; imageBase64?: string; imageMimeType?: string }) => {
@@ -472,6 +452,13 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
       const recipe = data.recipe;
 
       if (payload.url) {
+        const importedSourceUrl = normalizeSourceUrl(String(recipe.source_url || payload.url));
+        if (getEmbedBlockReason(importedSourceUrl)) {
+          setLastImportError('This recipe site cannot be displayed in-app right now, so it was not imported.');
+          toast.error('This recipe site cannot be displayed in-app right now.');
+          return;
+        }
+
         const existingRecipe = await findExistingRecipeByUrl(recipe.source_url ? String(recipe.source_url) : undefined);
 
         if (existingRecipe) {
@@ -489,12 +476,12 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
         const id = crypto.randomUUID();
         const autoPayload = buildImportedPayload(id, {
           ...recipe,
-          source_url: recipe.source_url || payload.url,
+          source_url: importedSourceUrl,
         });
 
         try {
           await persistRecipe(autoPayload);
-          toast.success(`Imported "${autoPayload.name}" — view the original on the recipe card.`);
+          toast.success(`Imported "${autoPayload.name}".`);
           setOpen(false);
           resetState();
           navigate('/saved');
@@ -649,37 +636,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
         return;
       }
 
-      const { data, error } = await invokeAppFunction('scrape-recipe', {
-        body: { url: normalizedUrl },
-      });
-
-      if (error || !data) {
-        throw new Error(error?.message || 'Could not fetch this URL');
-      }
-
-      const previewTitle = String(data.title || 'Imported Recipe').trim() || 'Imported Recipe';
-
-      // Auto-save immediately
-      const id = crypto.randomUUID();
-      const autoPayload = buildImportedPayload(id, {
-        name: previewTitle,
-        ingredients: [],
-        instructions: [],
-        cook_time: '30 min',
-        difficulty: 'Intermediate',
-        cuisine: '',
-        chef: '',
-        tags: [],
-        image: String(data.ogImage || '/placeholder.svg'),
-        servings: 4,
-        source_url: String(data.url || normalizedUrl),
-      });
-
-      await persistRecipe(autoPayload);
-      toast.success(`Imported "${previewTitle}" — tap the recipe card to view the original.`);
-      setOpen(false);
-      resetState();
-      navigate('/saved');
+      toast.error('URL imports are only supported right now for recipe pages we can display in-app.');
     } catch (err: any) {
       console.error('Non-premium URL import error:', err);
       setLastImportError(err?.message || 'Could not load recipe from that URL');
@@ -1403,31 +1360,8 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
 
               <TabsContent value="url" className="space-y-4 pt-4">
                 <p className="text-sm text-muted-foreground">
-                  🧠 Paste a recipe page URL and we'll import it. {!isPremium && <span className="font-semibold">Without Premium, we'll load it only if it already exists in our library.</span>}
+                  🧠 Paste a recipe page URL and we'll import it only when the original page can be displayed in-app.
                 </p>
-
-                {!isPremium && websiteAdPreview && (
-                  <div className="space-y-3 rounded-lg border border-amber-300/70 bg-amber-50/50 p-3 dark:border-amber-700 dark:bg-amber-950/20">
-                    <p className="text-sm font-medium text-amber-900 dark:text-amber-200">Website Preview + Ad X-Ray</p>
-                    <iframe
-                      title="Website preview"
-                      src={websiteAdPreview.sourceUrl}
-                      className="h-44 w-full rounded-md border bg-white"
-                    />
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-amber-800/80 dark:text-amber-200/80">Detected ad-related content</p>
-                      {websiteAdPreview.adSignals.length > 0 ? (
-                        <ul className="mt-1 list-disc space-y-1 pl-4 text-xs text-amber-900 dark:text-amber-100">
-                          {websiteAdPreview.adSignals.map((signal) => (
-                            <li key={signal}>{signal}</li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p className="mt-1 text-xs text-amber-900/80 dark:text-amber-100/80">No obvious ad markers were detected from the extracted page text.</p>
-                      )}
-                    </div>
-                  </div>
-                )}
 
                 <form onSubmit={handleUrlSubmit} noValidate className="space-y-3">
                   <Input
@@ -1443,7 +1377,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Extracting...
                       </>
                     ) : (
-                      isPremium ? 'Import Recipe' : 'Find Recipe in Library'
+                      isPremium ? 'Import Recipe' : 'Check Existing Import'
                     )}
                   </Button>
                 </form>

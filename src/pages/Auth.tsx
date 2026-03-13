@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { lovable } from '@/integrations/lovable/index';
 import { useStore } from '@/lib/store';
@@ -12,6 +12,7 @@ import { MunchLogo } from '@/components/MunchLogo';
 
 export default function Auth() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { resetStore } = useStore();
   const { toast } = useToast();
   const [isLogin, setIsLogin] = useState(true);
@@ -19,16 +20,17 @@ export default function Auth() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const nextPath = new URLSearchParams(location.search).get('next') || '/';
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session) navigate('/');
+      if (session) navigate(nextPath, { replace: true });
     });
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) navigate('/');
+      if (session) navigate(nextPath, { replace: true });
     });
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, nextPath]);
 
   const handleGuestLogin = async () => {
     setLoading(true);
@@ -82,7 +84,7 @@ export default function Auth() {
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: window.location.origin },
+          options: { emailRedirectTo: `${window.location.origin}/auth${nextPath !== '/' ? `?next=${encodeURIComponent(nextPath)}` : ''}` },
         });
         if (error) {
           // Handle "User already registered"
@@ -110,7 +112,7 @@ export default function Auth() {
 
   const handleGoogle = async () => {
     const { error } = await lovable.auth.signInWithOAuth('google', {
-      redirect_uri: window.location.origin,
+      redirect_uri: `${window.location.origin}/auth${nextPath !== '/' ? `?next=${encodeURIComponent(nextPath)}` : ''}`,
     });
     if (error) toast({ title: 'Error', description: String(error), variant: 'destructive' });
   };

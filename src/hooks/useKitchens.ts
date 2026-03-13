@@ -4,10 +4,13 @@ import { useStore, type KitchenSummary } from '@/lib/store';
 
 interface KitchenInvite {
   id: string;
-  email: string;
+  email: string | null;
   role: 'owner' | 'editor' | 'viewer';
   status: 'pending' | 'accepted' | 'revoked' | 'expired';
   kitchen_id: string;
+  created_at: string;
+  invite_token: string;
+  expires_at: string | null;
 }
 
 interface KitchenMember {
@@ -17,10 +20,11 @@ interface KitchenMember {
   role: 'owner' | 'editor' | 'viewer';
   created_at: string;
   display_name: string | null;
+  username: string | null;
 }
 
 export function useKitchens() {
-  const { activeKitchenId, setActiveKitchen } = useStore();
+  const { activeKitchenId, kitchenViewMode, setActiveKitchen } = useStore();
   const [kitchens, setKitchens] = useState<KitchenSummary[]>([]);
   const [invites, setInvites] = useState<KitchenInvite[]>([]);
   const [membersByKitchen, setMembersByKitchen] = useState<Record<string, KitchenMember[]>>({});
@@ -68,13 +72,15 @@ export function useKitchens() {
 
       setKitchens(kitchenList);
 
-      if (!activeKitchenId || !kitchenList.some((kitchen) => kitchen.id === activeKitchenId)) {
+      if (kitchenViewMode === 'solo') {
+        setActiveKitchen(null);
+      } else if (!activeKitchenId || !kitchenList.some((kitchen) => kitchen.id === activeKitchenId)) {
         setActiveKitchen(kitchenList[0] || null);
       }
 
       const { data: inviteRows, error: inviteError } = await supabase
         .from('kitchen_invites')
-        .select('id, email, role, status, kitchen_id')
+        .select('id, email, role, status, kitchen_id, created_at, invite_token, expires_at')
         .in('kitchen_id', kitchenIds)
         .order('created_at', { ascending: false });
 
@@ -83,7 +89,7 @@ export function useKitchens() {
     } finally {
       setLoading(false);
     }
-  }, [activeKitchenId, setActiveKitchen]);
+  }, [activeKitchenId, kitchenViewMode, setActiveKitchen]);
 
   useEffect(() => {
     void loadKitchens();
@@ -114,22 +120,47 @@ export function useKitchens() {
     return createdKitchen;
   }, [loadKitchens, setActiveKitchen]);
 
-  const inviteToKitchen = useCallback(async (kitchenId: string, email: string, role: KitchenInvite['role']) => {
+  const inviteToKitchen = useCallback(async (kitchenId: string, email: string | null, role: KitchenInvite['role']) => {
     const { data: authData } = await supabase.auth.getUser();
     const user = authData.user;
     if (!user) throw new Error('Please sign in to send invites.');
 
-    const { error } = await supabase
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 14).toISOString();
+
+    const { data, error } = await supabase
       .from('kitchen_invites')
       .insert({
         kitchen_id: kitchenId,
         email,
         role,
         invited_by: user.id,
-      });
+        expires_at: expiresAt,
+      })
+      .select('id, email, role, status, kitchen_id, created_at, invite_token, expires_at')
+      .single();
 
     if (error) throw error;
     await loadKitchens();
+    return data as KitchenInvite;
+  }, [loadKitchens]);
+
+  const resendInvite = useCallback(async (inviteId: string) => {
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 14).toISOString();
+
+    const { data, error } = await supabase
+      .from('kitchen_invites')
+      .update({
+        status: 'pending',
+        invite_token: crypto.randomUUID(),
+        expires_at: expiresAt,
+      })
+      .eq('id', inviteId)
+      .select('id, email, role, status, kitchen_id, created_at, invite_token, expires_at')
+      .single();
+
+    if (error) throw error;
+    await loadKitchens();
+    return data as KitchenInvite;
   }, [loadKitchens]);
 
   const loadKitchenMembers = useCallback(async (kitchenId: string) => {
@@ -142,16 +173,19 @@ export function useKitchens() {
     if (membershipError) throw membershipError;
 
     const userIds = Array.from(new Set((membershipRows || []).map((row: any) => String(row.user_id))));
-    let nameMap: Record<string, string | null> = {};
+    let profileMap: Record<string, { display_name: string | null; username: string | null }> = {};
 
     if (userIds.length > 0) {
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('user_id, display_name')
+        .select('user_id, display_name, username')
         .in('user_id', userIds);
 
-      nameMap = Object.fromEntries(
-        (profiles || []).map((profile: any) => [String(profile.user_id), profile.display_name ? String(profile.display_name) : null]),
+      profileMap = Object.fromEntries(
+        (profiles || []).map((profile: any) => [String(profile.user_id), {
+          display_name: profile.display_name ? String(profile.display_name) : null,
+          username: profile.username ? String(profile.username) : null,
+        }]),
       );
     }
 
@@ -161,7 +195,8 @@ export function useKitchens() {
       user_id: String(row.user_id),
       role: row.role as KitchenMember['role'],
       created_at: String(row.created_at),
-      display_name: nameMap[String(row.user_id)] || null,
+      display_name: profileMap[String(row.user_id)]?.display_name || null,
+      username: profileMap[String(row.user_id)]?.username || null,
     }));
 
     setMembersByKitchen((current) => ({
@@ -171,6 +206,70 @@ export function useKitchens() {
 
     return members;
   }, []);
+
+  const addKitchenMemberByUsername = useCallback(async (
+    kitchenId: string,
+    username: string,
+    role: 'editor' | 'viewer',
+  ) => {
+    const normalized = username.trim().toLowerCase();
+    if (!normalized) throw new Error('Enter a username first.');
+
+    const { data: authData } = await supabase.auth.getUser();
+    const user = authData.user;
+    if (!user) throw new Error('Please sign in to send invites.');
+
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('user_id, display_name, username')
+      .eq('username', normalized)
+      .maybeSingle();
+
+    if (profileError) throw profileError;
+    if (!profile?.user_id) throw new Error(`No Munch user found for @${normalized}.`);
+    if (profile.user_id === user.id) throw new Error('You are already in this kitchen.');
+
+    const { error } = await supabase
+      .from('kitchen_memberships')
+      .upsert({
+        kitchen_id: kitchenId,
+        user_id: profile.user_id,
+        role,
+        invited_by: user.id,
+      }, { onConflict: 'kitchen_id,user_id' });
+
+    if (error) throw error;
+
+    const { data: inviterProfile } = await supabase
+      .from('profiles')
+      .select('display_name, username')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    const inviterName = inviterProfile?.display_name?.trim() || inviterProfile?.username || 'A Munch cook';
+
+    await supabase
+      .from('app_notifications')
+      .insert({
+        user_id: profile.user_id,
+        type: 'kitchen_invite',
+        title: 'You were added to a kitchen',
+        body: `${inviterName} added you to a kitchen as ${role}.`,
+        metadata: {
+          kitchen_id: kitchenId,
+          kitchen_name: kitchens.find((kitchen) => kitchen.id === kitchenId)?.name || '',
+          role,
+          invited_by: user.id,
+        },
+      });
+
+    await Promise.all([loadKitchens(), loadKitchenMembers(kitchenId)]);
+    return {
+      user_id: String(profile.user_id),
+      display_name: profile.display_name ? String(profile.display_name) : null,
+      username: profile.username ? String(profile.username) : normalized,
+    };
+  }, [kitchens, loadKitchenMembers, loadKitchens]);
 
   const updateKitchenMemberRole = useCallback(async (
     membershipId: string,
@@ -197,6 +296,52 @@ export function useKitchens() {
     await loadKitchens();
   }, [loadKitchenMembers, loadKitchens]);
 
+  const leaveKitchen = useCallback(async (kitchenId: string) => {
+    const { data: authData } = await supabase.auth.getUser();
+    const user = authData.user;
+    if (!user) throw new Error('Please sign in to leave a kitchen.');
+
+    const { data: membership, error: membershipError } = await supabase
+      .from('kitchen_memberships')
+      .select('id, role')
+      .eq('kitchen_id', kitchenId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (membershipError) throw membershipError;
+    if (!membership?.id) throw new Error('You are not a member of this kitchen.');
+
+    if (membership.role === 'owner') {
+      const { count, error: countError } = await supabase
+        .from('kitchen_memberships')
+        .select('id', { count: 'exact', head: true })
+        .eq('kitchen_id', kitchenId);
+
+      if (countError) throw countError;
+
+      if ((count || 0) > 1) {
+        throw new Error('Owners need to remove other members before leaving this kitchen.');
+      }
+
+      const { error: deleteKitchenError } = await supabase
+        .from('kitchens')
+        .delete()
+        .eq('id', kitchenId);
+
+      if (deleteKitchenError) throw deleteKitchenError;
+    } else {
+      const { error: deleteMembershipError } = await supabase
+        .from('kitchen_memberships')
+        .delete()
+        .eq('id', membership.id);
+
+      if (deleteMembershipError) throw deleteMembershipError;
+    }
+
+    setActiveKitchen(null);
+    await loadKitchens();
+  }, [loadKitchens, setActiveKitchen]);
+
   return {
     kitchens,
     invites,
@@ -205,8 +350,11 @@ export function useKitchens() {
     loadKitchens,
     createKitchen,
     inviteToKitchen,
+    addKitchenMemberByUsername,
+    resendInvite,
     loadKitchenMembers,
     updateKitchenMemberRole,
     removeKitchenMember,
+    leaveKitchen,
   };
 }
