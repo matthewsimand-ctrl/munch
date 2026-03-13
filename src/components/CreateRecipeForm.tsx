@@ -242,6 +242,7 @@ export default function CreateRecipeForm({ onClose }: Props) {
   const [difficulty, setDifficulty] = useState('Beginner');
   const [cuisine, setCuisine] = useState('');
   const [chef, setChef] = useState('');
+  const [isOriginalRecipe, setIsOriginalRecipe] = useState(true);
   const [servings, setServings] = useState('4');
   const [ingredientInput, setIngredientInput] = useState('');
   const [ingredientQuantity, setIngredientQuantity] = useState('1 unit');
@@ -400,9 +401,11 @@ export default function CreateRecipeForm({ onClose }: Props) {
         .maybeSingle();
 
       const typedDisplayName = chef.trim();
-      const displayChefName = typedDisplayName || profile?.display_name?.trim() || null;
+      const displayChefName = isOriginalRecipe
+        ? (typedDisplayName || profile?.display_name?.trim() || null)
+        : null;
 
-      if (typedDisplayName && typedDisplayName !== profile?.display_name?.trim()) {
+      if (isOriginalRecipe && typedDisplayName && typedDisplayName !== profile?.display_name?.trim()) {
         await supabase
           .from('profiles')
           .update({ display_name: typedDisplayName })
@@ -421,6 +424,7 @@ export default function CreateRecipeForm({ onClose }: Props) {
         tags,
         instructions: stepList,
         source: 'community',
+        chef: displayChefName,
         created_by: userId,
         is_public: isPublic,
         servings: parseInt(servings) || 4,
@@ -565,10 +569,32 @@ export default function CreateRecipeForm({ onClose }: Props) {
           <label className="text-sm font-medium text-foreground">Cuisine</label>
           <Input value={cuisine} onChange={e => setCuisine(e.target.value)} placeholder="Italian" />
         </div>
-        <div>
-          <label className="text-sm font-medium text-foreground">Display name (optional)</label>
-          <Input value={chef} onChange={e => setChef(e.target.value)} placeholder="Shown as recipe author name" />
+      </div>
+
+      <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-3">
+        <div className="flex items-start space-x-3">
+          <Checkbox
+            id="is-original-recipe"
+            checked={isOriginalRecipe}
+            onCheckedChange={(checked) => setIsOriginalRecipe(checked === true)}
+            className="mt-0.5"
+          />
+          <div className="space-y-0.5">
+            <label htmlFor="is-original-recipe" className="text-sm font-medium text-foreground cursor-pointer">
+              This is my original recipe
+            </label>
+            <p className="text-xs text-muted-foreground">
+              Show your chef name on the recipe and let people discover other recipes you created.
+            </p>
+          </div>
         </div>
+
+        {isOriginalRecipe && (
+          <div>
+            <label className="text-sm font-medium text-foreground">Chef Name</label>
+            <Input value={chef} onChange={e => setChef(e.target.value)} placeholder="Shown as recipe author name" />
+          </div>
+        )}
       </div>
 
       <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-3">

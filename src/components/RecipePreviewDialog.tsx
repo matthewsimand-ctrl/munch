@@ -10,6 +10,7 @@ import { Clock, BarChart3, Check, ShoppingCart, MapPin, ChefHat, Users, Heart, P
 import MatchBadge from '@/components/MatchBadge';
 import RecipeTweakDialog from '@/components/RecipeTweakDialog';
 import NutritionCard from '@/components/NutritionCard';
+import { getRecipeSourceBadge, isImportedCommunityRecipe } from '@/lib/recipeAttribution';
 
 interface Props {
   recipe: Recipe | null;
@@ -201,6 +202,11 @@ export default function RecipePreviewDialog({
                 <Badge variant="secondary" className="gap-1"><Clock className="h-3 w-3" /> {recipe.cook_time}</Badge>
                 <Badge variant="secondary" className="gap-1"><BarChart3 className="h-3 w-3" /> {recipe.difficulty}</Badge>
                 <MatchBadge percentage={displayMatch.percentage} />
+                {isImportedCommunityRecipe(recipe) && (
+                  <Badge variant="outline" className="gap-1 text-orange-700 border-orange-200 bg-orange-50">
+                    <FileText className="h-3 w-3" /> {getRecipeSourceBadge(recipe)}
+                  </Badge>
+                )}
                 {recipe.cuisine && <Badge variant="outline" className="gap-1"><MapPin className="h-3 w-3" /> {recipe.cuisine}</Badge>}
                 {recipe.servings && <Badge variant="secondary" className="gap-1"><Users className="h-3 w-3" /> Serves {recipe.servings}</Badge>}
               </div>

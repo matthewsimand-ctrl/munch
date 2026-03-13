@@ -34,6 +34,7 @@ export default function ChefProfile() {
         .select('*')
         .eq('created_by', userId!)
         .eq('is_public', true)
+        .not('chef', 'is', null)
         .order('created_at', { ascending: false });
       if (error) throw error;
       return (data || []).map((r: any) => normalizeRecipe(r));

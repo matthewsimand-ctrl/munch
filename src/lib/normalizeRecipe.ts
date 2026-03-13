@@ -49,6 +49,7 @@ export function normalizeRecipe(recipe: any, idFallback?: string): Recipe {
     source_url: recipe?.source_url ? String(recipe.source_url) : undefined,
     raw_api_payload: recipe?.raw_api_payload ?? undefined,
     created_by: recipe?.created_by ?? null,
+    chef: recipe?.chef ? String(recipe.chef) : null,
     is_public: typeof recipe?.is_public === 'boolean' ? recipe.is_public : undefined,
     servings: Number(recipe?.servings || 4),
   };

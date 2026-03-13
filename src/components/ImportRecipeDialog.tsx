@@ -110,6 +110,41 @@ function sourceUrlCandidates(url: string): string[] {
   return Array.from(variants);
 }
 
+async function getCurrentSharer() {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { user: null, sharedByName: null };
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('display_name')
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  const sharedByName = profile?.display_name?.trim()
+    || user.user_metadata?.display_name?.trim()
+    || user.email?.split('@')[0]
+    || null;
+
+  return { user, sharedByName };
+}
+
+function withSharedMetadata(rawPayload: unknown, userId: string, sharedByName: string | null) {
+  const basePayload =
+    rawPayload && typeof rawPayload === 'object' && !Array.isArray(rawPayload)
+      ? { ...(rawPayload as Record<string, unknown>) }
+      : {};
+
+  return {
+    ...basePayload,
+    shared_by_user_id: userId,
+    shared_by_name: sharedByName,
+    shared_at: new Date().toISOString(),
+  };
+}
+
 export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
@@ -254,16 +289,20 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
       return { reusedExisting: true, payload: existingPayload };
     }
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { user, sharedByName } = await getCurrentSharer();
+    const payloadWithShareMetadata = user && isDiscoverable
+      ? {
+        ...payload,
+        raw_api_payload: withSharedMetadata(payload.raw_api_payload, user.id, sharedByName),
+      }
+      : payload;
 
     if (user && isDiscoverable) {
       // Safely serialize raw_api_payload — some AI responses contain non-serializable objects
       let safeRawPayload: any = null;
-      if (payload.raw_api_payload && typeof payload.raw_api_payload === 'object') {
+      if (payloadWithShareMetadata.raw_api_payload && typeof payloadWithShareMetadata.raw_api_payload === 'object') {
         try {
-          safeRawPayload = JSON.parse(JSON.stringify(payload.raw_api_payload));
+          safeRawPayload = JSON.parse(JSON.stringify(payloadWithShareMetadata.raw_api_payload));
         } catch {
           safeRawPayload = null;
         }
@@ -308,8 +347,8 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
       }
     }
 
-    likeRecipe(payload.id, payload);
-    return { reusedExisting: false, payload };
+    likeRecipe(payloadWithShareMetadata.id, payloadWithShareMetadata);
+    return { reusedExisting: false, payload: payloadWithShareMetadata };
   };
 
   const saveWebsitePreview = async () => {
@@ -522,11 +561,12 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
     const id = crypto.randomUUID();
 
     try {
-      if (isDiscoverable) {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+      const { user, sharedByName } = await getCurrentSharer();
+      const sharedMetadata = user && isDiscoverable
+        ? withSharedMetadata(null, user.id, sharedByName)
+        : null;
 
+      if (isDiscoverable) {
         if (!user) {
           toast.info('Not logged in — saved privately. Log in to make it discoverable.');
         } else {
@@ -545,6 +585,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
             created_by: user.id,
             is_public: true,
             servings: parseInt(reviewData.servings) || 4,
+            raw_api_payload: sharedMetadata,
           };
 
           const { error } = await supabase.from('recipes').insert(coreInsertData);
@@ -571,6 +612,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
         tags: reviewData.tags,
         image: reviewData.image,
         source: 'imported',
+        raw_api_payload: sharedMetadata,
         servings: parseInt(reviewData.servings) || 4,
       };
 

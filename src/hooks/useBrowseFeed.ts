@@ -44,6 +44,7 @@ function normalizeRecipe(raw: any): BrowseRecipe | null {
     raw_api_payload: raw.raw_api_payload ?? undefined,
     cuisine: raw.cuisine ? String(raw.cuisine) : undefined,
     chef: raw.chef ? String(raw.chef) : null,
+    created_by: raw.created_by ? String(raw.created_by) : null,
   };
 }
 
