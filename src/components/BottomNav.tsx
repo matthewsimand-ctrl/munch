@@ -10,6 +10,7 @@ const TUTORIAL_MAP: Record<string, string> = {
   Saved: 'nav-recipes',
   Plan: 'nav-plan',
   Grocery: 'nav-grocery',
+  'Grocery List': 'nav-grocery',
 };
 
 const NAV_ITEMS = [
@@ -18,7 +19,7 @@ const NAV_ITEMS = [
   { path: '/swipe', label: 'Find Recipes', icon: BookOpen },
   { path: '/saved', label: 'My Recipes', icon: Heart },
   { path: '/meal-prep', label: 'Plan', icon: CalendarDays },
-  { path: '/grocery', label: 'Grocery', icon: ShoppingCart },
+  { path: '/grocery', label: 'Grocery List', icon: ShoppingCart },
 ];
 
 export default function BottomNav() {

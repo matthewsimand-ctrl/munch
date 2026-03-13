@@ -8,7 +8,6 @@ import {
   ShoppingCart,
   Package,
   CalendarDays,
-  ChefHat,
   ChevronLeft,
   ChevronRight,
   BookMarked,
@@ -17,6 +16,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useStore } from "@/lib/store";
+import { MunchLogo } from "@/components/MunchLogo";
 
 const NAV_ITEMS = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -24,7 +24,7 @@ const NAV_ITEMS = [
   { to: "/saved", icon: Heart, label: "My Recipes" },
   { to: "/let-me-cook", icon: CookingPot, label: "Let me Cook" },
   { to: "/pantry", icon: Package, label: "Pantry" },
-  { to: "/grocery", icon: ShoppingCart, label: "Grocery" },
+  { to: "/grocery", icon: ShoppingCart, label: "Grocery List" },
   { to: "/meal-prep", icon: CalendarDays, label: "Meal Prep" },
   { to: "/cooked-history", icon: History, label: "Cooked" },
   { to: "/dictionary", icon: BookMarked, label: "Dictionary" },
@@ -96,12 +96,11 @@ export default function AppLayout() {
             className={`flex items-center gap-2.5 transition-all ${collapsed ? "mx-auto" : "ml-2"
               }`}
           >
-            <div className="w-8 h-8 bg-orange-500 rounded-xl flex items-center justify-center shadow-sm">
-              <ChefHat className="text-white" size={18} />
-            </div>
-            {!collapsed && (
-              <span className="text-lg font-bold text-gray-900 tracking-tight">munch</span>
-            )}
+            <MunchLogo
+              size={collapsed ? 32 : 36}
+              showWordmark={!collapsed}
+              wordmarkClassName="text-lg font-bold text-gray-900 tracking-tight"
+            />
           </div>
         </div>
 

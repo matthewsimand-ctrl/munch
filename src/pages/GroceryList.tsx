@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import {
   ShoppingCart, Plus, X, Check, FileText, Trash2,
-  Search, ChevronDown, Sparkles, MapPin, Minus,
+  Search, ChevronDown, Sparkles, MapPin, Minus, Upload,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getAiDisabledMessage, isAiAgentCallsDisabledError } from "@/lib/ai";
@@ -9,7 +9,9 @@ import { useStore } from "@/lib/store";
 import { invokeAppFunction } from "@/lib/functionClient";
 import { toast } from "sonner";
 import { detectCategories } from "@/lib/categorizeItem";
-import { adjustQuantityString } from "@/lib/ingredientText";
+import { adjustQuantityString, canDecreaseQuantity, parseIngredientLine, suggestQuantityForItem } from "@/lib/ingredientText";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { getPantryImage } from "@/lib/pantryImages";
 
 const STORE_SECTIONS: Record<string, string> = {
   produce: "🥦 Produce",
@@ -64,6 +66,11 @@ function GroceryRow({
 }) {
   const [editingQty, setEditingQty] = useState(false);
   const [qty, setQty] = useState(item.quantity || item.qty || "");
+  const suggestedQty = suggestQuantityForItem(item.name);
+  const normalizedCategory = item.category || item.section || "Other";
+  const itemImage = getPantryImage(item.name, normalizedCategory);
+  const displayQty = item.quantity || item.qty || (item.checked ? "" : suggestedQty);
+  const showDecrease = !item.checked && canDecreaseQuantity(displayQty || suggestedQty);
 
   useEffect(() => {
     setQty(item.quantity || item.qty || "");
@@ -77,6 +84,12 @@ function GroceryRow({
       exit={{ opacity: 0, x: 20 }}
       className={`flex items-center gap-3 px-4 py-3 group transition-colors rounded-xl ${item.checked ? "opacity-50" : "hover:bg-stone-50"}`}
     >
+      <img
+        src={itemImage.src}
+        alt={itemImage.alt}
+        className="w-10 h-10 rounded-xl object-cover shrink-0 border border-stone-200 bg-white"
+      />
+
       {/* Checkbox */}
       <button
         onClick={onToggle}
@@ -102,7 +115,7 @@ function GroceryRow({
 
       {/* Qty */}
       <div className="flex items-center gap-1">
-        {!item.checked && (
+        {showDecrease && (
           <button
             onClick={() => onAdjustQty(-1)}
             className="w-6 h-6 rounded-full border border-stone-200 bg-white text-stone-400 hover:border-orange-300 hover:text-orange-500 transition-colors flex items-center justify-center"
@@ -118,16 +131,15 @@ function GroceryRow({
             onChange={(e) => setQty(e.target.value)}
             onBlur={() => { setEditingQty(false); onEditQty(qty); }}
             onKeyDown={(e) => { if (e.key === "Enter") { setEditingQty(false); onEditQty(qty); } }}
-            className="w-20 text-xs text-stone-600 border border-orange-300 rounded-lg px-2 py-1 outline-none bg-white"
-            placeholder="qty"
+            className="w-24 text-xs text-stone-600 border border-orange-300 rounded-lg px-2 py-1 outline-none bg-white"
+            placeholder={suggestedQty}
           />
         ) : (
           <button
             onClick={() => !item.checked && setEditingQty(true)}
-            className="text-[11px] font-semibold text-stone-400 bg-stone-100/30 hover:bg-orange-50 hover:text-orange-500 px-2 py-0.5 rounded-lg border border-transparent hover:border-orange-100 transition-all flex items-center gap-1 min-h-[20px]"
+            className="text-[11px] font-semibold text-stone-400 bg-stone-100/30 hover:bg-orange-50 hover:text-orange-500 px-2 py-0.5 rounded-lg border border-transparent hover:border-orange-100 transition-all flex items-center min-h-[20px]"
           >
-            <span>{item.quantity || item.qty || (item.checked ? "" : "qty")}</span>
-            {!item.checked && <Plus size={8} />}
+            <span>{displayQty}</span>
           </button>
         )}
         {!item.checked && (
@@ -169,6 +181,8 @@ export default function GroceryScreen() {
   const [search, setSearch] = useState("");
   const [showChecked, setShowChecked] = useState(true);
   const [estimating, setEstimating] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importText, setImportText] = useState("");
   const [priceEstimate, setPriceEstimate] = useState<{ total: number; low: number; high: number; nearbyStores: string[]; currency: string; location: string; notes?: string } | null>(null);
 
 
@@ -211,6 +225,47 @@ export default function GroceryScreen() {
     setNewItem("");
     setNewQty("");
     setNewSection("other");
+  };
+
+  const importLinesToGrocery = (rawText: string) => {
+    const parsedItems = rawText
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .map((line) => line.replace(/^[-*]\s*/, ""))
+      .map((line) => line.replace(/^\[\s?[xX]?\]\s*/, ""))
+      .filter(Boolean)
+      .map((line) => {
+        const parsed = parseIngredientLine(line);
+        const name = parsed.name.toLowerCase().trim();
+        if (!name) return null;
+        const detected = detectCategories(name);
+        return {
+          name,
+          qty: parsed.quantity?.trim() || undefined,
+          section: detected.grocerySection,
+        };
+      })
+      .filter((item): item is { name: string; qty?: string; section: string } => Boolean(item));
+
+    parsedItems.forEach((item) => addCustomGroceryItem(item.name, { qty: item.qty, section: item.section }));
+    return parsedItems.length;
+  };
+
+  const handleImportText = () => {
+    const importedCount = importLinesToGrocery(importText);
+    if (importedCount === 0) {
+      toast.info("No grocery items were found in that note.");
+      return;
+    }
+    setImportDialogOpen(false);
+    setImportText("");
+    toast.success(`Imported ${importedCount} grocery item${importedCount === 1 ? "" : "s"}.`);
+  };
+
+  const handleImportFile = async (file: File) => {
+    const text = await file.text();
+    setImportText(text);
+    setImportDialogOpen(true);
   };
 
   const handleExport = async () => {
@@ -318,6 +373,12 @@ export default function GroceryScreen() {
                   <Sparkles size={13} /> {estimating ? "Estimating..." : "AI estimate"}
                 </button>
               )}
+              <button
+                onClick={() => setImportDialogOpen(true)}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-stone-200 text-xs font-semibold text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
+              >
+                <Upload size={13} /> Import note
+              </button>
               {totalCount > 0 && (
                 <button
                   onClick={handleClearAll}
@@ -497,7 +558,7 @@ export default function GroceryScreen() {
                           onToggle={() => toggleGroceryItem?.(item.id)}
                           onRemove={() => removeCustomGroceryItem?.(item.id)}
                           onEditQty={(qty) => updateGroceryItem?.(item.id, { qty })}
-                          onAdjustQty={(delta) => updateGroceryItem?.(item.id, { qty: adjustQuantityString(item.quantity || item.qty, delta) })}
+                          onAdjustQty={(delta) => updateGroceryItem?.(item.id, { qty: adjustQuantityString(item.quantity || item.qty || suggestQuantityForItem(item.name), delta) })}
                         />
                       ))}
                     </AnimatePresence>
@@ -518,6 +579,42 @@ export default function GroceryScreen() {
           </div>
         )}
       </div>
+
+      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Import grocery note</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <label className="flex items-center justify-center gap-2 text-sm font-semibold border border-stone-200 bg-white text-stone-700 rounded-xl py-2.5 hover:border-orange-300 hover:text-orange-600 cursor-pointer">
+              <Upload size={14} /> Upload text file
+              <input
+                type="file"
+                accept=".txt,.md,.csv,text/plain,text/markdown,text/csv"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void handleImportFile(file);
+                  e.currentTarget.value = "";
+                }}
+              />
+            </label>
+            <textarea
+              value={importText}
+              onChange={(e) => setImportText(e.target.value)}
+              placeholder={"Paste a note or raw list here...\n\n- 2 avocados\n- milk\n- bread\n- [ ] eggs"}
+              className="w-full min-h-[220px] rounded-xl border border-stone-200 px-4 py-3 text-sm text-stone-700 outline-none focus:border-orange-300 resize-y"
+            />
+            <button
+              onClick={handleImportText}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90 active:scale-95"
+              style={{ background: "linear-gradient(135deg,#FB923C,#F97316,#EA580C)", boxShadow: "0 4px 16px rgba(249,115,22,0.24)" }}
+            >
+              <Upload size={14} /> Import into Grocery List
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 {
-	"appId": "com.matt.munchchef",
-	"appName": "Munch",
+	"appId": "com.munchfood.app",
+	"appName": "munch",
 	"webDir": "dist",
 	"packageClassList": []
 }

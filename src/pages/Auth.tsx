@@ -6,8 +6,9 @@ import { useStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { UtensilsCrossed, Mail, Ghost } from 'lucide-react';
+import { Mail, Ghost } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { MunchLogo } from '@/components/MunchLogo';
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -118,8 +119,7 @@ export default function Auth() {
     <div className="min-h-screen bg-background flex items-center justify-center px-6">
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center">
-          <UtensilsCrossed className="h-12 w-12 text-primary mx-auto mb-3" />
-          <h1 className="font-display text-3xl font-bold text-foreground">Munch</h1>
+          <MunchLogo className="justify-center mb-3" size={62} wordmarkClassName="font-display text-3xl font-bold text-foreground" />
           <p className="text-muted-foreground text-sm mt-1">
             {isLogin ? 'Welcome back, chef!' : 'Create your account'}
           </p>
