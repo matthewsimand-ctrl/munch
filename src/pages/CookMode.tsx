@@ -18,6 +18,7 @@ import { buildDictionaryRegex, lookupTerm } from "@/lib/cookingDictionary";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCookedMeals } from "@/hooks/useCookedMeals";
 import { parseIngredientLine } from "@/lib/ingredientText";
+import { useKitchenPantry } from "@/hooks/useKitchenPantry";
 
 interface ActiveTimer {
   id: string;
@@ -328,7 +329,10 @@ export default function CookMode() {
     pantryList,
     updatePantryItem,
     removePantryItem,
+    activeKitchenId,
   } = useStore();
+  const kitchenPantry = useKitchenPantry(activeKitchenId);
+  const isKitchenMode = Boolean(activeKitchenId);
   const { data: dbRecipes = [] } = useDbRecipes();
   const { isSpeaking, speak, stop } = useSpeechSynthesis();
   const { trackCookedMeal } = useCookedMeals(1);
@@ -378,17 +382,20 @@ export default function CookMode() {
     return "😋";
   }, [activeTimers.length, done, stepIndex, steps.length]);
   const pantryItemsToUse = useMemo(() => {
+    const availablePantryItems = isKitchenMode
+      ? kitchenPantry.items.map((item) => ({ ...item, category: item.category ?? undefined }))
+      : pantryList;
     const recipeIngredientNames = ingredients
       .map((ingredient) => parseIngredientLine(ingredient).name.toLowerCase().trim())
       .filter(Boolean);
 
-    return pantryList.filter((item) => {
+    return availablePantryItems.filter((item) => {
       const pantryName = item.name.toLowerCase().trim();
       return recipeIngredientNames.some((ingredient) =>
         ingredient.includes(pantryName) || pantryName.includes(ingredient)
       );
     });
-  }, [ingredients, pantryList]);
+  }, [ingredients, isKitchenMode, kitchenPantry.items, pantryList]);
 
   const awardXp = useCallback((amount: number, label: string) => {
     addXp(amount);
@@ -475,15 +482,23 @@ export default function CookMode() {
     pantryItemsToUse.forEach((item) => {
       const quantityNumber = Number.parseFloat(item.quantity || "");
       if (Number.isFinite(quantityNumber) && quantityNumber > 1) {
-        updatePantryItem(item.id, { quantity: String(quantityNumber - 1) });
+        if (isKitchenMode) {
+          void kitchenPantry.updateItem(item.id, { quantity: String(quantityNumber - 1) });
+        } else {
+          updatePantryItem(item.id, { quantity: String(quantityNumber - 1) });
+        }
       } else {
-        removePantryItem(item.id);
+        if (isKitchenMode) {
+          void kitchenPantry.removeItem(item.id);
+        } else {
+          removePantryItem(item.id);
+        }
       }
     });
 
     setPantryDecisionMade(true);
     toast.success("Pantry updated after cooking");
-  }, [pantryDecisionMade, pantryItemsToUse, removePantryItem, updatePantryItem]);
+  }, [isKitchenMode, kitchenPantry, pantryDecisionMade, pantryItemsToUse, removePantryItem, updatePantryItem]);
 
   useEffect(() => {
     if (stepIndex <= 0) return;

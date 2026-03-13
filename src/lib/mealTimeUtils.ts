@@ -72,7 +72,7 @@ export function getTimeBasedCategory(): MealCategory {
 export function getTimeBoost(recipe: Recipe): number {
   const preferred = getTimeBasedCategory();
   const categories = classifyMealType(recipe);
-  if (categories.includes(preferred)) return 25;
+  if (categories.includes(preferred)) return 35;
   // Adjacent time slots get a smaller boost
   const adjacent: Record<MealCategory, MealCategory[]> = {
     breakfast: ['snack', 'lunch'],
@@ -82,7 +82,7 @@ export function getTimeBoost(recipe: Recipe): number {
     snack: ['breakfast', 'lunch', 'dessert'],
     all: [],
   };
-  if (categories.some(c => adjacent[preferred]?.includes(c))) return 10;
+  if (categories.some(c => adjacent[preferred]?.includes(c))) return 15;
   return 0;
 }
 

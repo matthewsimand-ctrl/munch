@@ -23,8 +23,21 @@ interface KitchenMember {
   username: string | null;
 }
 
+interface KitchenSeedOptions {
+  importPantry?: boolean;
+  importGrocery?: boolean;
+  importMealPlan?: boolean;
+}
+
 export function useKitchens() {
-  const { activeKitchenId, kitchenViewMode, setActiveKitchen } = useStore();
+  const {
+    activeKitchenId,
+    kitchenViewMode,
+    setActiveKitchen,
+    pantryList,
+    customGroceryItems,
+    mealPlan,
+  } = useStore();
   const [kitchens, setKitchens] = useState<KitchenSummary[]>([]);
   const [invites, setInvites] = useState<KitchenInvite[]>([]);
   const [membersByKitchen, setMembersByKitchen] = useState<Record<string, KitchenMember[]>>({});
@@ -95,7 +108,7 @@ export function useKitchens() {
     void loadKitchens();
   }, [loadKitchens]);
 
-  const createKitchen = useCallback(async (name: string) => {
+  const createKitchen = useCallback(async (name: string, options?: KitchenSeedOptions) => {
     const { data: authData } = await supabase.auth.getUser();
     const user = authData.user;
     if (!user) throw new Error('Please sign in to create a kitchen.');
@@ -114,11 +127,117 @@ export function useKitchens() {
 
     if (membershipError) throw membershipError;
 
+    if (options?.importPantry && pantryList.length > 0) {
+      const pantryRows = pantryList.map((item) => ({
+        kitchen_id: kitchenId,
+        name: item.name.toLowerCase().trim(),
+        quantity: item.quantity || '1',
+        category: item.category ?? null,
+        added_by: user.id,
+      }));
+
+      const { error: pantryError } = await supabase
+        .from('kitchen_pantry_items')
+        .insert(pantryRows);
+
+      if (pantryError) throw pantryError;
+    }
+
+    if (options?.importGrocery && customGroceryItems.length > 0) {
+      const { data: groceryList, error: groceryListError } = await supabase
+        .from('kitchen_grocery_lists')
+        .insert({
+          kitchen_id: kitchenId,
+          name: 'Shared Grocery List',
+          created_by: user.id,
+          is_active: true,
+        })
+        .select('id')
+        .single();
+
+      if (groceryListError) throw groceryListError;
+
+      const groceryRows = customGroceryItems.map((item) => ({
+        grocery_list_id: groceryList.id,
+        name: item.name.toLowerCase().trim(),
+        quantity: item.quantity || item.qty || '1',
+        category: item.category ?? null,
+        section: item.section ?? null,
+        checked: Boolean(item.checked),
+        added_by: user.id,
+      }));
+
+      const { error: groceryItemsError } = await supabase
+        .from('kitchen_grocery_items')
+        .insert(groceryRows);
+
+      if (groceryItemsError) throw groceryItemsError;
+    }
+
+    if (options?.importMealPlan && mealPlan.length > 0) {
+      const mealsByWeek = mealPlan.reduce<Record<string, typeof mealPlan>>((acc, item) => {
+        const weekStart = item.weekStart || new Date().toISOString().slice(0, 10);
+        if (!acc[weekStart]) acc[weekStart] = [];
+        acc[weekStart].push(item);
+        return acc;
+      }, {});
+
+      for (const [weekStart, items] of Object.entries(mealsByWeek)) {
+        const { data: kitchenMealPlan, error: kitchenMealPlanError } = await supabase
+          .from('kitchen_meal_plans')
+          .insert({
+            kitchen_id: kitchenId,
+            week_start: weekStart,
+            created_by: user.id,
+          })
+          .select('id')
+          .single();
+
+        if (kitchenMealPlanError) throw kitchenMealPlanError;
+
+        const dayToIndex: Record<string, number> = {
+          Mon: 0,
+          Tue: 1,
+          Wed: 2,
+          Thu: 3,
+          Fri: 4,
+          Sat: 5,
+          Sun: 6,
+        };
+
+        const mealRows = items.map((item) => ({
+          meal_plan_id: kitchenMealPlan.id,
+          day_of_week: dayToIndex[item.day] ?? 0,
+          meal_type: item.mealType.toLowerCase(),
+          recipe_id: /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(item.recipeId)
+            ? item.recipeId
+            : null,
+          recipe_data: {
+            id: item.recipeId,
+            recipeName: item.recipeName,
+            cookTime: item.cookTime,
+            recipeSnapshot: item.recipeSnapshot ?? null,
+            externalRecipeId: /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(item.recipeId)
+              ? null
+              : item.recipeId,
+          },
+          servings: 2,
+          created_by: user.id,
+        }));
+
+        const { error: mealItemsError } = await supabase
+          .from('kitchen_meal_plan_items')
+          .insert(mealRows);
+
+        if (mealItemsError) throw mealItemsError;
+      }
+    }
+
     await loadKitchens();
     const createdKitchen = { id: kitchenId, name, role: 'owner' as const };
     setActiveKitchen(createdKitchen);
     return createdKitchen;
-  }, [loadKitchens, setActiveKitchen]);
+  }, [customGroceryItems, loadKitchens, mealPlan, pantryList, setActiveKitchen]);
 
   const inviteToKitchen = useCallback(async (kitchenId: string, email: string | null, role: KitchenInvite['role']) => {
     const { data: authData } = await supabase.auth.getUser();

@@ -37,7 +37,7 @@ for (const [index, line] of lines.entries()) {
   const servings = Number.parseInt(String(recipe.servings || 0), 10);
   const nameKey = name.toLowerCase();
 
-  if (!name || !sourceUrl || ingredients.length < 3 || instructions.length < 2) {
+  if (!name || ingredients.length < 3 || instructions.length < 2) {
     rejected.push({ line: index + 1, reason: "Missing required recipe data" });
     continue;
   }
@@ -47,12 +47,14 @@ for (const [index, line] of lines.entries()) {
     continue;
   }
 
-  if (seenSourceUrls.has(sourceUrl) || seenNameKeys.has(nameKey)) {
+  if ((sourceUrl && seenSourceUrls.has(sourceUrl)) || seenNameKeys.has(nameKey)) {
     rejected.push({ line: index + 1, reason: "Duplicate recipe" });
     continue;
   }
 
-  seenSourceUrls.add(sourceUrl);
+  if (sourceUrl) {
+    seenSourceUrls.add(sourceUrl);
+  }
   seenNameKeys.add(nameKey);
 
   validRecipes.push({
@@ -65,7 +67,7 @@ for (const [index, line] of lines.entries()) {
     tags,
     instructions,
     source: "community-seed",
-    source_url: sourceUrl,
+    source_url: sourceUrl || null,
     chef: String(recipe.chef || "").trim() || null,
     cuisine: String(recipe.cuisine || "").trim() || null,
     servings: Number.isFinite(servings) && servings > 0 ? servings : 4,
