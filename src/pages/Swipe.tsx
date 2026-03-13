@@ -14,6 +14,7 @@ import RecipePreviewDialog from "@/components/RecipePreviewDialog";
 import { ChefProfileModal } from "@/components/ChefProfileModal";
 import { Input } from "@/components/ui/input";
 import { classifyMealType } from "@/lib/mealTimeUtils";
+import { getRecipeSourceBadge, isImportedCommunityRecipe } from "@/lib/recipeAttribution";
 
 /* ── Filter pill ───────────────────────────────────────────── */
 function FilterPill({
@@ -126,6 +127,14 @@ function SwipeCard({
         {/* Top badges */}
         <div className="absolute top-4 left-4 right-4 flex items-start justify-between">
           <div className="flex flex-col gap-2">
+            {isImportedCommunityRecipe(recipe) && (
+              <span
+                className="px-2.5 py-1 rounded-full text-xs font-bold"
+                style={{ background: "rgba(255,255,255,0.92)", color: "#9A3412", backdropFilter: "blur(8px)" }}
+              >
+                {getRecipeSourceBadge(recipe)}
+              </span>
+            )}
             {matchPercent >= 80 && (
               <span
                 className="px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1"
@@ -208,6 +217,11 @@ function SwipeCard({
               </span>
             )}
           </div>
+          {isImportedCommunityRecipe(recipe) && (
+            <p className="mt-2 text-xs text-orange-100/95 font-medium">
+              {getRecipeSourceBadge(recipe)}
+            </p>
+          )}
           {(recipe.protein || recipe.carbs || recipe.fat) && (
             <p className="mt-2 text-xs text-white/80">
               {recipe.protein ? `${Math.round(recipe.protein)}g protein` : null}

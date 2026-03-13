@@ -41,6 +41,7 @@ export function ChefProfileModal({ chefId, chefName, open, onOpenChange }: ChefP
                 .select('*')
                 .eq('created_by', chefId)
                 .eq('is_public', true)
+                .not('chef', 'is', null)
                 .order('created_at', { ascending: false });
             if (error) throw error;
             return (data || []).map((r: any) => normalizeRecipe(r));

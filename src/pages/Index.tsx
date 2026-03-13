@@ -15,6 +15,7 @@ import {
 import { useStore } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
 import { MunchHeroLogo, MunchLogo } from "@/components/MunchLogo";
+import { isNativeAppPlatform } from "@/lib/platform";
 
 const DESKTOP_BREAKPOINT = 768;
 
@@ -132,17 +133,21 @@ async function resolveAppStartRoute({
 const Index = () => {
   const navigate = useNavigate();
   const { onboardingComplete, isGuest, completeOnboarding, setDisplayName } = useStore();
-  const [isDesktop, setIsDesktop] = useState(() => window.innerWidth >= DESKTOP_BREAKPOINT);
+  const [isDesktopBrowser, setIsDesktopBrowser] = useState(
+    () => window.innerWidth >= DESKTOP_BREAKPOINT && !isNativeAppPlatform()
+  );
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const onResize = () => setIsDesktop(window.innerWidth >= DESKTOP_BREAKPOINT);
+    const onResize = () => {
+      setIsDesktopBrowser(window.innerWidth >= DESKTOP_BREAKPOINT && !isNativeAppPlatform());
+    };
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
   useEffect(() => {
-    if (isDesktop) return;
+    if (isDesktopBrowser) return;
 
     const redirectToApp = async () => {
       const target = await resolveAppStartRoute({
@@ -155,7 +160,7 @@ const Index = () => {
     };
 
     void redirectToApp();
-  }, [completeOnboarding, isDesktop, isGuest, navigate, onboardingComplete, setDisplayName]);
+  }, [completeOnboarding, isDesktopBrowser, isGuest, navigate, onboardingComplete, setDisplayName]);
 
   const handleGetStarted = async () => {
     setLoading(true);
@@ -172,7 +177,7 @@ const Index = () => {
     }
   };
 
-  if (!isDesktop) return null;
+  if (!isDesktopBrowser) return null;
 
   return (
     <div

@@ -26,6 +26,7 @@ async function fetchRecipes(): Promise<Recipe[]> {
     source_url: r.source_url || undefined,
     raw_api_payload: r.raw_api_payload ?? undefined,
     created_by: r.created_by,
+    chef: r.chef || null,
     is_public: r.is_public,
     servings: r.servings ?? 4,
   }));

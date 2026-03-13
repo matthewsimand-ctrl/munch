@@ -21,6 +21,7 @@ interface NormalizedRecipe {
   raw_api_payload?: unknown;
   cuisine?: string;
   chef?: string | null;
+  created_by?: string | null;
 }
 
 const EXTERNAL_CACHE_TTL_DAYS = 14;
@@ -42,7 +43,7 @@ async function fetchPublicRecipes(query?: string): Promise<NormalizedRecipe[]> {
   try {
     const request = supabase
       .from('recipes')
-      .select('id, name, image, cook_time, difficulty, ingredients, tags, instructions, source, source_url, raw_api_payload, cuisine, chef')
+      .select('id, name, image, cook_time, difficulty, ingredients, tags, instructions, source, source_url, raw_api_payload, cuisine, chef, created_by')
       .eq('is_public', true)
       .order('created_at', { ascending: false })
       .limit(query ? 200 : 100);
@@ -73,6 +74,7 @@ async function fetchPublicRecipes(query?: string): Promise<NormalizedRecipe[]> {
       raw_api_payload: recipe.raw_api_payload ?? undefined,
       cuisine: recipe.cuisine ? String(recipe.cuisine) : undefined,
       chef: recipe.chef ? String(recipe.chef) : null,
+      created_by: recipe.created_by ? String(recipe.created_by) : null,
     }));
 
     if (!query) return normalized;
