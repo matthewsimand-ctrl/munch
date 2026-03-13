@@ -14,6 +14,255 @@ export type Database = {
   }
   public: {
     Tables: {
+      kitchen_invites: {
+        Row: {
+          created_at: string
+          email: string
+          expires_at: string | null
+          id: string
+          invite_token: string
+          invited_by: string
+          kitchen_id: string
+          role: Database["public"]["Enums"]["kitchen_member_role"]
+          status: Database["public"]["Enums"]["kitchen_invite_status"]
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          expires_at?: string | null
+          id?: string
+          invite_token?: string
+          invited_by: string
+          kitchen_id: string
+          role?: Database["public"]["Enums"]["kitchen_member_role"]
+          status?: Database["public"]["Enums"]["kitchen_invite_status"]
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          expires_at?: string | null
+          id?: string
+          invite_token?: string
+          invited_by?: string
+          kitchen_id?: string
+          role?: Database["public"]["Enums"]["kitchen_member_role"]
+          status?: Database["public"]["Enums"]["kitchen_invite_status"]
+        }
+        Relationships: []
+      }
+      kitchen_memberships: {
+        Row: {
+          created_at: string
+          id: string
+          invited_by: string | null
+          kitchen_id: string
+          role: Database["public"]["Enums"]["kitchen_member_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invited_by?: string | null
+          kitchen_id: string
+          role?: Database["public"]["Enums"]["kitchen_member_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invited_by?: string | null
+          kitchen_id?: string
+          role?: Database["public"]["Enums"]["kitchen_member_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      kitchen_grocery_items: {
+        Row: {
+          added_by: string | null
+          category: string | null
+          checked: boolean
+          created_at: string
+          grocery_list_id: string
+          id: string
+          name: string
+          quantity: string
+          section: string | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          added_by?: string | null
+          category?: string | null
+          checked?: boolean
+          created_at?: string
+          grocery_list_id: string
+          id?: string
+          name: string
+          quantity?: string
+          section?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          added_by?: string | null
+          category?: string | null
+          checked?: boolean
+          created_at?: string
+          grocery_list_id?: string
+          id?: string
+          name?: string
+          quantity?: string
+          section?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      kitchen_grocery_lists: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          is_active: boolean
+          kitchen_id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          is_active?: boolean
+          kitchen_id: string
+          name?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_active?: boolean
+          kitchen_id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      kitchen_meal_plan_items: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          day_of_week: number
+          id: string
+          meal_plan_id: string
+          meal_type: string
+          recipe_data: Json | null
+          recipe_id: string | null
+          servings: number
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          day_of_week: number
+          id?: string
+          meal_plan_id: string
+          meal_type?: string
+          recipe_data?: Json | null
+          recipe_id?: string | null
+          servings?: number
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          day_of_week?: number
+          id?: string
+          meal_plan_id?: string
+          meal_type?: string
+          recipe_data?: Json | null
+          recipe_id?: string | null
+          servings?: number
+          sort_order?: number
+        }
+        Relationships: []
+      }
+      kitchen_meal_plans: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          kitchen_id: string
+          updated_at: string
+          week_start: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          kitchen_id: string
+          updated_at?: string
+          week_start: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          kitchen_id?: string
+          updated_at?: string
+          week_start?: string
+        }
+        Relationships: []
+      }
+      kitchen_recipe_shares: {
+        Row: {
+          created_at: string
+          id: string
+          kitchen_id: string
+          recipe_id: string
+          shared_by_user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kitchen_id: string
+          recipe_id: string
+          shared_by_user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kitchen_id?: string
+          recipe_id?: string
+          shared_by_user_id?: string
+        }
+        Relationships: []
+      }
+      kitchens: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          owner_user_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          owner_user_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          owner_user_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       cooked_meals: {
         Row: {
           cooked_at: string
@@ -216,7 +465,8 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      kitchen_invite_status: "accepted" | "expired" | "pending" | "revoked"
+      kitchen_member_role: "editor" | "owner" | "viewer"
     }
     CompositeTypes: {
       [_ in never]: never

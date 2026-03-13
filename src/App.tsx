@@ -22,6 +22,7 @@ import Auth from "./pages/Auth";
 import ChefProfile from "./pages/ChefProfile";
 import Dictionary from "./pages/Dictionary";
 import CookedHistory from "./pages/CookedHistory";
+import Kitchens from "./pages/Kitchens";
 import NotFound from "./pages/NotFound";
 import SpotlightTutorial from "./components/SpotlightTutorial";
 
@@ -55,6 +56,7 @@ function AppRoutes() {
           <Route path="/pantry" element={<Pantry />} />
           <Route path="/grocery" element={<GroceryList />} />
           <Route path="/meal-prep" element={<MealPrep />} />
+          <Route path="/kitchens" element={<Kitchens />} />
           <Route path="/cooked-history" element={<CookedHistory />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/dictionary" element={<Dictionary />} />

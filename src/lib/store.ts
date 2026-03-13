@@ -47,6 +47,12 @@ export interface RecipeFolder {
   recipeIds: string[];
 }
 
+export interface KitchenSummary {
+  id: string;
+  name: string;
+  role: 'owner' | 'editor' | 'viewer';
+}
+
 interface AppState {
   userProfile: UserProfile;
   pantryList: PantryItem[];
@@ -60,6 +66,8 @@ interface AppState {
   recipeTags: Record<string, string[]>; // recipeId -> custom user tags
   recipeIngredientOverrides: Record<string, string[]>; // recipeId -> user-edited ingredient list
   recipeFolders: RecipeFolder[];
+  activeKitchenId: string | null;
+  activeKitchenName: string | null;
   displayName: string;
   setDisplayName: (name: string) => void;
   onboardingComplete: boolean;
@@ -109,6 +117,7 @@ interface AppState {
   setRecipeIngredients: (recipeId: string, ingredients: string[]) => void;
   createFolder: (name: string, coverImage?: string) => void;
   createCookbook: (name: string, recipeIds: string[], coverImage?: string) => void;
+  setActiveKitchen: (kitchen: KitchenSummary | null) => void;
   addFolder: (name: string) => void;
   renameFolder: (folderId: string, name: string) => void;
   updateFolderCover: (folderId: string, coverImage: string) => void;
@@ -153,6 +162,8 @@ export const useStore = create<AppState>()(
       recipeTags: {},
       recipeIngredientOverrides: {},
       recipeFolders: [],
+      activeKitchenId: null,
+      activeKitchenName: null,
       displayName: '',
       setDisplayName: (displayName) => set({ displayName }),
       onboardingComplete: false,
@@ -474,6 +485,11 @@ export const useStore = create<AppState>()(
           ],
         })),
 
+      setActiveKitchen: (kitchen) => set({
+        activeKitchenId: kitchen?.id ?? null,
+        activeKitchenName: kitchen?.name ?? null,
+      }),
+
       addFolder: (name) =>
         set((state) => ({
           recipeFolders: [
@@ -593,6 +609,8 @@ export const useStore = create<AppState>()(
           recipeMealTags: {},
           recipeIngredientOverrides: {},
           recipeFolders: [],
+          activeKitchenId: null,
+          activeKitchenName: null,
           displayName: '',
           onboardingComplete: false,
           isGuest: false,

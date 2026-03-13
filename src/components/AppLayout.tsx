@@ -13,10 +13,13 @@ import {
   BookMarked,
   CookingPot,
   History,
+  Users,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useStore } from "@/lib/store";
 import { MunchLogo } from "@/components/MunchLogo";
+import { useKitchens } from "@/hooks/useKitchens";
+import BottomNav from "@/components/BottomNav";
 
 const NAV_ITEMS = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -26,6 +29,7 @@ const NAV_ITEMS = [
   { to: "/pantry", icon: Package, label: "Pantry" },
   { to: "/grocery", icon: ShoppingCart, label: "Grocery List" },
   { to: "/meal-prep", icon: CalendarDays, label: "Meal Prep" },
+  { to: "/kitchens", icon: Users, label: "Kitchens" },
   { to: "/cooked-history", icon: History, label: "Cooked" },
   { to: "/dictionary", icon: BookMarked, label: "Dictionary" },
 ];
@@ -34,7 +38,8 @@ export default function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [planType, setPlanType] = useState("Free Plan");
-  const { displayName: storeDisplayName } = useStore();
+  const { displayName: storeDisplayName, activeKitchenName } = useStore();
+  const { kitchens } = useKitchens();
 
   useEffect(() => {
     const hydrateFooterProfile = async () => {
@@ -103,6 +108,16 @@ export default function AppLayout() {
             />
           </div>
         </div>
+
+        {!collapsed && kitchens.length > 0 && (
+          <div className="mx-3 mt-3 rounded-2xl border border-orange-100 bg-orange-50/70 px-3 py-3">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-orange-500">Kitchen Mode</p>
+            <p className="mt-1 text-sm font-semibold text-stone-800 truncate">{activeKitchenName || "Choose a kitchen"}</p>
+            <NavLink to="/kitchens" className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-orange-600 hover:text-orange-700">
+              <Users size={12} /> Manage kitchens
+            </NavLink>
+          </div>
+        )}
 
         {/* Nav links */}
         <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
@@ -175,26 +190,9 @@ export default function AppLayout() {
         </div>
 
         {/* ── Mobile Bottom Nav ── */}
-        <nav className="md:hidden fixed bottom-0 inset-x-0 bg-white border-t border-gray-100 flex z-50">
-          {NAV_ITEMS.map(({ to, icon: Icon, label }) => (
-            <NavLink
-              key={to}
-              to={to}
-              data-tutorial={`nav-${to.replace("/", "") || "dashboard"}`}
-              className={({ isActive }) =>
-                `flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-xs font-medium transition-colors
-                ${isActive ? "text-orange-500" : "text-gray-400"}`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <Icon size={20} strokeWidth={isActive ? 2.5 : 1.8} />
-                  <span className="text-[10px] leading-tight">{label}</span>
-                </>
-              )}
-            </NavLink>
-          ))}
-        </nav>
+        <div className="md:hidden">
+          <BottomNav />
+        </div>
       </main>
     </div>
   );

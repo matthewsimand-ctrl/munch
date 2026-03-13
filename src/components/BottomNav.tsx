@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
-import { Home, UtensilsCrossed, BookOpen, CookingPot, Ellipsis, Heart, ShoppingCart, CalendarDays, History, BookMarked, Settings, BookOpenCheck } from 'lucide-react';
+import { Home, UtensilsCrossed, BookOpen, CookingPot, Ellipsis, Heart, ShoppingCart, CalendarDays, History, BookMarked, Settings, BookOpenCheck, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
@@ -28,6 +28,7 @@ const NAV_ITEMS = [
 const MORE_ITEMS = [
   { path: '/grocery', label: 'Grocery List', icon: ShoppingCart },
   { path: '/meal-prep', label: 'Meal Prep', icon: CalendarDays },
+  { path: '/kitchens', label: 'Kitchens', icon: Users },
   { path: '/saved', label: 'My Recipes', icon: Heart },
   { path: '/cookbooks', label: 'Cookbooks', icon: BookOpenCheck },
   { path: '/cooked-history', label: 'Cooked', icon: History },

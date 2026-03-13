@@ -14,6 +14,8 @@ import { jsPDF } from "jspdf";
 import { format, startOfWeek } from "date-fns";
 import { usePremiumAccess } from "@/hooks/usePremiumAccess";
 import { calculateMatch } from "@/lib/matchLogic";
+import { useKitchenMealPlan } from "@/hooks/useKitchenMealPlan";
+import { useKitchenGroceryList } from "@/hooks/useKitchenGroceryList";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MEAL_TYPES = ["Breakfast", "Lunch", "Dinner"] as const;
@@ -110,7 +112,7 @@ function MealSlot({
 
 export default function MealPrepScreen() {
   const navigate = useNavigate();
-  const { mealPlan, addMealPlanItem, removeMealPlanItem, clearMealPlanWeek, savedApiRecipes, likedRecipes, likeRecipe, addCustomGroceryItem, pantryList } = useStore();
+  const { mealPlan, addMealPlanItem, removeMealPlanItem, clearMealPlanWeek, savedApiRecipes, likedRecipes, likeRecipe, addCustomGroceryItem, pantryList, activeKitchenId, activeKitchenName } = useStore();
   const { isPremium } = usePremiumAccess();
 
   const [weekOffset, setWeekOffset] = useState(0);
@@ -136,6 +138,9 @@ export default function MealPrepScreen() {
   }, []);
 
   const weekStart = useMemo(() => getWeekStartForOffset(weekOffset), [getWeekStartForOffset, weekOffset]);
+  const kitchenMealPlan = useKitchenMealPlan(activeKitchenId, weekStart);
+  const kitchenGrocery = useKitchenGroceryList(activeKitchenId);
+  const isKitchenMode = Boolean(activeKitchenId);
 
   const weekLabel = useMemo(() => {
     const start = new Date(`${weekStart}T00:00:00`);
@@ -144,12 +149,13 @@ export default function MealPrepScreen() {
     return `${start.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${end.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
   }, [weekStart]);
 
-  const plannedMeals: PlannedMeal[] = (mealPlan ?? [])
+  const localPlannedMeals: PlannedMeal[] = (mealPlan ?? [])
     .filter((item) => (item.weekStart ?? getWeekStartForOffset(0)) === weekStart)
     .map((item, idx) => ({
       ...item,
       id: item.id ?? `${item.day}-${item.mealType}-${item.recipeId}-${idx}`,
     }));
+  const plannedMeals: PlannedMeal[] = isKitchenMode ? kitchenMealPlan.items : localPlannedMeals;
 
   const getMeal = (day: string, mealType: MealType) =>
     plannedMeals.find((m) => m.day === day && m.mealType === mealType);
@@ -171,14 +177,26 @@ export default function MealPrepScreen() {
 
   const handleAddMeal = (recipe: any) => {
     if (!showAddModal) return;
-    addMealPlanItem?.({
-      weekStart,
-      day: showAddModal.day,
-      mealType: showAddModal.mealType,
-      recipeName: recipe.name,
-      recipeId: recipe.id,
-      cookTime: recipe.cook_time,
-    });
+    if (isKitchenMode) {
+      void kitchenMealPlan.addMeal({
+        weekStart,
+        day: showAddModal.day,
+        mealType: showAddModal.mealType,
+        recipeName: recipe.name,
+        recipeId: recipe.id,
+        cookTime: recipe.cook_time,
+        recipeSnapshot: recipe,
+      });
+    } else {
+      addMealPlanItem?.({
+        weekStart,
+        day: showAddModal.day,
+        mealType: showAddModal.mealType,
+        recipeName: recipe.name,
+        recipeId: recipe.id,
+        cookTime: recipe.cook_time,
+      });
+    }
     toast.success(`Added ${recipe.name}`);
     setShowAddModal(null);
     setSearchRecipe("");
@@ -242,7 +260,11 @@ export default function MealPrepScreen() {
     if (emptySlots.length > 0) {
       emptySlots.forEach(({ day, mealType }) => {
         const recipe = pickRecipe();
-        addMealPlanItem?.({ weekStart, day, mealType, recipeName: recipe.name, recipeId: recipe.id, cookTime: recipe.cook_time, recipeSnapshot: recipe });
+        if (isKitchenMode) {
+          void kitchenMealPlan.addMeal({ weekStart, day, mealType, recipeName: recipe.name, recipeId: recipe.id, cookTime: recipe.cook_time, recipeSnapshot: recipe });
+        } else {
+          addMealPlanItem?.({ weekStart, day, mealType, recipeName: recipe.name, recipeId: recipe.id, cookTime: recipe.cook_time, recipeSnapshot: recipe });
+        }
       });
       toast.success(`🎲 Filled ${emptySlots.length} open slots with ${sourceLabel} picks!`);
       return;
@@ -254,16 +276,29 @@ export default function MealPrepScreen() {
 
     slotsToReplace.forEach((meal) => {
       const recipe = pickRecipe();
-      removeMealPlanItem?.(meal.id);
-      addMealPlanItem?.({
-        weekStart,
-        day: meal.day,
-        mealType: meal.mealType,
-        recipeName: recipe.name,
-        recipeId: recipe.id,
-        cookTime: recipe.cook_time,
-        recipeSnapshot: recipe,
-      });
+      if (isKitchenMode) {
+        void kitchenMealPlan.removeMeal(meal.id);
+        void kitchenMealPlan.addMeal({
+          weekStart,
+          day: meal.day,
+          mealType: meal.mealType,
+          recipeName: recipe.name,
+          recipeId: recipe.id,
+          cookTime: recipe.cook_time,
+          recipeSnapshot: recipe,
+        });
+      } else {
+        removeMealPlanItem?.(meal.id);
+        addMealPlanItem?.({
+          weekStart,
+          day: meal.day,
+          mealType: meal.mealType,
+          recipeName: recipe.name,
+          recipeId: recipe.id,
+          cookTime: recipe.cook_time,
+          recipeSnapshot: recipe,
+        });
+      }
     });
 
     toast.success(`🎲 Swapped ${slotsToReplace.length} meals with ${sourceLabel} surprises!`);
@@ -305,10 +340,18 @@ export default function MealPrepScreen() {
     const recipeIds = [...new Set(plannedMeals.map((m) => m.recipeId))];
     let added = 0;
     recipeIds.forEach((id) => {
-      const recipe = savedApiRecipes[id];
+      const recipe = savedApiRecipes[id] ?? plannedMeals.find((meal) => meal.recipeId === id)?.recipeSnapshot;
       if (recipe?.ingredients) {
         recipe.ingredients.forEach((ing: string) => {
-          addCustomGroceryItem?.(ing);
+          if (isKitchenMode) {
+            const parsed = ing;
+            void kitchenGrocery.addItem({
+              name: parsed,
+              quantity: "1",
+            });
+          } else {
+            addCustomGroceryItem?.(ing);
+          }
           added++;
         });
       }
@@ -325,7 +368,11 @@ export default function MealPrepScreen() {
       toast.info("This week is already empty.");
       return;
     }
-    clearMealPlanWeek?.(weekStart);
+    if (isKitchenMode) {
+      void kitchenMealPlan.clearWeek();
+    } else {
+      clearMealPlanWeek?.(weekStart);
+    }
     toast.success("Cleared all meals for this week.");
   };
 
@@ -335,20 +382,40 @@ export default function MealPrepScreen() {
     if (!draggedMeal) return;
 
     const existingTargetMeal = getMeal(targetDay, targetMealType);
-    addMealPlanItem?.({
-      weekStart,
-      day: targetDay,
-      mealType: targetMealType,
-      recipeId: draggedMeal.recipeId,
-      recipeName: draggedMeal.recipeName,
-      cookTime: draggedMeal.cookTime,
-      recipeSnapshot: draggedMeal.recipeSnapshot,
-    });
+    if (isKitchenMode) {
+      void kitchenMealPlan.addMeal({
+        weekStart,
+        day: targetDay,
+        mealType: targetMealType,
+        recipeId: draggedMeal.recipeId,
+        recipeName: draggedMeal.recipeName,
+        cookTime: draggedMeal.cookTime,
+        recipeSnapshot: draggedMeal.recipeSnapshot,
+      });
+    } else {
+      addMealPlanItem?.({
+        weekStart,
+        day: targetDay,
+        mealType: targetMealType,
+        recipeId: draggedMeal.recipeId,
+        recipeName: draggedMeal.recipeName,
+        cookTime: draggedMeal.cookTime,
+        recipeSnapshot: draggedMeal.recipeSnapshot,
+      });
+    }
 
     if (existingTargetMeal && existingTargetMeal.id !== draggedMeal.id) {
-      removeMealPlanItem?.(existingTargetMeal.id);
+      if (isKitchenMode) {
+        void kitchenMealPlan.removeMeal(existingTargetMeal.id);
+      } else {
+        removeMealPlanItem?.(existingTargetMeal.id);
+      }
     }
-    removeMealPlanItem?.(draggedMeal.id);
+    if (isKitchenMode) {
+      void kitchenMealPlan.removeMeal(draggedMeal.id);
+    } else {
+      removeMealPlanItem?.(draggedMeal.id);
+    }
     setDraggedMealId(null);
     toast.success(`Moved ${draggedMeal.recipeName} to ${targetDay} ${targetMealType}`);
   };
@@ -606,6 +673,9 @@ export default function MealPrepScreen() {
               <h1 className="text-2xl font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
                 Meal Planner
               </h1>
+              {isKitchenMode && (
+                <p className="text-[11px] font-semibold text-orange-500 mt-1">Shared with {activeKitchenName || "Kitchen"}</p>
+              )}
               <p className="text-xs text-stone-400 mt-1">{plannedCount} of {totalSlots} slots filled</p>
             </div>
             <div className="flex items-center gap-2">
@@ -692,7 +762,14 @@ export default function MealPrepScreen() {
                     mealType={mealType}
                     meal={meal}
                     onAdd={() => setShowAddModal({ day, mealType })}
-                    onRemove={() => { removeMealPlanItem?.(meal!.id); toast.success("Removed from plan"); }}
+                    onRemove={() => {
+                      if (isKitchenMode) {
+                        void kitchenMealPlan.removeMeal(meal!.id);
+                      } else {
+                        removeMealPlanItem?.(meal!.id);
+                      }
+                      toast.success("Removed from plan");
+                    }}
                     onMealClick={() => meal && setShowMealActionModal(meal)}
                     onDragMeal={() => meal && setDraggedMealId(meal.id)}
                     onDropMeal={() => moveMeal(day, mealType)}

@@ -40,7 +40,7 @@ function StatCard({ label, value, icon: Icon, palette }: StatDef) {
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      className="relative overflow-hidden rounded-2xl p-5 border border-white/60"
+      className="relative overflow-hidden rounded-2xl p-3.5 sm:p-5 border border-white/60"
       style={{ background: palette.bg, boxShadow: "0 2px 12px rgba(28,25,23,0.06)" }}
     >
       <div
@@ -52,12 +52,12 @@ function StatCard({ label, value, icon: Icon, palette }: StatDef) {
           <p className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: palette.text, opacity: 0.6 }}>
             {label}
           </p>
-          <p className="text-3xl font-bold leading-none" style={{ fontFamily: "'Fraunces', Georgia, serif", color: palette.text }}>
+          <p className="text-2xl sm:text-3xl font-bold leading-none" style={{ fontFamily: "'Fraunces', Georgia, serif", color: palette.text }}>
             {value}
           </p>
         </div>
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "rgba(255,255,255,0.45)" }}>
-          <Icon size={18} className={palette.icon} />
+        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center" style={{ background: "rgba(255,255,255,0.45)" }}>
+          <Icon size={16} className={palette.icon} />
         </div>
       </div>
     </motion.div>
@@ -434,21 +434,21 @@ export default function Dashboard() {
           className="absolute inset-0 opacity-30"
           style={{ backgroundImage: "radial-gradient(circle, #FDA97440 1px, transparent 1px)", backgroundSize: "24px 24px" }}
         />
-        <div className="relative max-w-7xl mx-auto px-6 py-6 flex items-center justify-between">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-5 sm:py-6 flex items-center justify-between gap-3">
           <div>
             <p className="text-xs font-semibold text-orange-400 uppercase tracking-widest mb-1">
               {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
             </p>
             <h1
               data-tutorial="dashboard-greeting"
-              className="text-2xl sm:text-3xl font-bold text-stone-900 leading-tight"
+              className="text-xl sm:text-3xl font-bold text-stone-900 leading-tight"
               style={{ fontFamily: "'Fraunces', Georgia, serif" }}
             >
               {greeting}, <span className="text-orange-500">Chef {displayName || ""}</span> 👋
             </h1>
-            <p className="text-sm text-stone-500 mt-1">Here's what's cooking this week</p>
+            <p className="text-xs sm:text-sm text-stone-500 mt-1">Here's what's cooking this week</p>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             <div className="hidden md:block min-w-[220px] rounded-xl border px-3 py-2" style={{ background: "rgba(255,255,255,0.72)", borderColor: "rgba(249,115,22,0.20)" }}>
               <div className="flex items-center justify-between text-[11px] font-bold text-stone-600 mb-1">
                 <span className="inline-flex items-center gap-1"><Star size={11} className="text-amber-500 fill-amber-500" /> Level {levelInfo.level}</span>
@@ -466,7 +466,7 @@ export default function Dashboard() {
             </div>
             <button
               onClick={() => setAvatarDialogOpen(true)}
-              className="relative w-12 h-12 rounded-full overflow-hidden ring-2 ring-orange-200 ring-offset-2 group shrink-0"
+              className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden ring-2 ring-orange-200 ring-offset-2 group shrink-0"
               disabled={uploadingAvatar}
             >
               <img src={chefAvatarUrl || defaultChefAvatar} alt="Chef" className="w-full h-full object-cover" />
@@ -487,7 +487,7 @@ export default function Dashboard() {
       </div>
 
       {/* Body */}
-      <div className="max-w-7xl mx-auto px-6 py-7 space-y-7">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5 sm:py-7 space-y-5 sm:space-y-7">
 
         {/* Stats */}
         <div className="grid grid-cols-2 xl:grid-cols-4 gap-3" data-tutorial="dashboard-stats">
@@ -506,7 +506,7 @@ export default function Dashboard() {
             {/* Suggestions */}
             <section
               data-tutorial="dashboard-suggestions"
-              className="rounded-2xl border p-5"
+              className="rounded-2xl border p-4 sm:p-5"
               style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}
             >
               <SectionHeader
@@ -524,7 +524,7 @@ export default function Dashboard() {
                 }
               />
               {browseLoading ? (
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                   {[0, 1, 2].map((i) => (
                     <div key={i} className="animate-pulse">
                       <div className="rounded-xl bg-stone-100 aspect-[4/3] mb-3" />
@@ -560,7 +560,7 @@ export default function Dashboard() {
             </section>
 
             {/* This week */}
-            <section className="rounded-2xl border p-5" style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}>
+            <section className="rounded-2xl border p-4 sm:p-5" style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}>
               <SectionHeader
                 icon={Calendar}
                 title="This week"
@@ -622,14 +622,14 @@ export default function Dashboard() {
             {/* Quick actions */}
             <section
               data-tutorial="dashboard-quick-actions"
-              className="rounded-2xl border p-5"
+              className="rounded-2xl border p-4 sm:p-5"
               style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}
             >
               <h2 className="text-[15px] font-bold text-stone-800 mb-3">Quick actions</h2>
               <div className="grid grid-cols-2 gap-2">
                 {QUICK_ACTIONS.map(({ label, to, emoji, color }) => (
-                  <Link key={label} to={to} className={`flex flex-col items-center gap-2 p-4 rounded-xl bg-gradient-to-br ${color} hover:opacity-80 transition-all active:scale-95 text-center group`}>
-                    <span className="text-2xl">{emoji}</span>
+                  <Link key={label} to={to} className={`flex flex-col items-center gap-1.5 p-3 sm:p-4 rounded-xl bg-gradient-to-br ${color} hover:opacity-80 transition-all active:scale-95 text-center group`}>
+                    <span className="text-xl sm:text-2xl">{emoji}</span>
                     <span className="text-xs font-semibold text-stone-600 group-hover:text-stone-800 leading-tight">{label}</span>
                   </Link>
                 ))}
@@ -637,7 +637,7 @@ export default function Dashboard() {
             </section>
 
             {/* Cooked history */}
-            <section className="rounded-2xl border p-5" style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}>
+            <section className="rounded-2xl border p-4 sm:p-5" style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}>
               <SectionHeader icon={Sparkles} title="Cooked history" />
               {cookedMealsLoading ? (
                 <p className="text-xs text-stone-400">Loading meals...</p>
@@ -673,7 +673,7 @@ export default function Dashboard() {
             </section>
 
             {/* Recent activity */}
-            <section className="rounded-2xl border p-5" style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}>
+            <section className="rounded-2xl border p-4 sm:p-5" style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}>
               <h2 className="text-[15px] font-bold text-stone-800 mb-4">Recent activity</h2>
               <div className="space-y-3">
                 {recentActivity.map((item, i) => (
@@ -692,7 +692,7 @@ export default function Dashboard() {
 
         {isPremium && (
           <section
-            className="rounded-2xl border p-5"
+            className="rounded-2xl border p-4 sm:p-5"
             style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}
           >
             <SectionHeader icon={Sparkles} title="Nutrition consumed" />
@@ -742,7 +742,7 @@ export default function Dashboard() {
         )}
 
         {/* Badges */}
-        <section className="rounded-2xl border p-5" style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}>
+        <section className="rounded-2xl border p-4 sm:p-5" style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-lg bg-violet-50 flex items-center justify-center">
