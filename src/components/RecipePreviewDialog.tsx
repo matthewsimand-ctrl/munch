@@ -6,11 +6,14 @@ import type { MatchResult } from '@/lib/matchLogic';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Clock, BarChart3, Check, ShoppingCart, MapPin, ChefHat, Users, Heart, Play, Sparkles, ExternalLink, FileText } from 'lucide-react';
+import { Clock, BarChart3, Check, ShoppingCart, MapPin, ChefHat, Users, Heart, Play, Sparkles, ExternalLink, FileText, Share2 } from 'lucide-react';
 import MatchBadge from '@/components/MatchBadge';
 import RecipeTweakDialog from '@/components/RecipeTweakDialog';
 import NutritionCard from '@/components/NutritionCard';
 import { getRecipeSourceBadge, isImportedCommunityRecipe } from '@/lib/recipeAttribution';
+import { useStore } from '@/lib/store';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface Props {
   recipe: Recipe | null;
@@ -29,6 +32,7 @@ const SCALE_OPTIONS = [
   { label: '1x', factor: 1 },
   { label: '2x', factor: 2 },
 ] as const;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /** Domains that block iframe embedding via frame-ancestors CSP (e.g. Food Network) */
 const EMBED_BLOCKED_DOMAINS = [
@@ -104,6 +108,7 @@ export default function RecipePreviewDialog({
   const [portionFactor, setPortionFactor] = useState(1);
   const [tweakOpen, setTweakOpen] = useState(false);
   const [addedToGrocery, setAddedToGrocery] = useState(false);
+  const { activeKitchenId, activeKitchenName } = useStore();
 
   const fallbackMatch: MatchResult = useMemo(() => ({
     percentage: 0,
@@ -163,11 +168,78 @@ export default function RecipePreviewDialog({
 
   if (!recipe) return null;
 
+  const handleShareRecipe = async () => {
+    const shareUrl = recipe.source_url || window.location.origin;
+    const sharePayload = {
+      title: recipe.name,
+      text: `Check out this recipe on Munch: ${recipe.name}`,
+      url: shareUrl,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(sharePayload);
+      } else {
+        await navigator.clipboard.writeText(`${sharePayload.text}\n${sharePayload.url}`);
+      }
+    } catch {
+      // Ignore cancelled shares; clipboard fallback only runs when share API is unavailable.
+    }
+  };
+
   const handleAddMissingToGrocery = () => {
     if (!onAddMissingToGrocery || displayMatch.missing.length === 0) return;
     onAddMissingToGrocery(recipe, displayMatch.missing);
     setAddedToGrocery(true);
     window.setTimeout(() => setAddedToGrocery(false), 1400);
+  };
+
+  const handleShareToKitchen = async () => {
+    if (!activeKitchenId) {
+      toast.info('Pick an active kitchen first.');
+      return;
+    }
+
+    if (!UUID_PATTERN.test(recipe.id)) {
+      toast.info('Save or import this recipe into Munch before sharing it to a kitchen.');
+      return;
+    }
+
+    try {
+      const { data: existing, error: existingError } = await supabase
+        .from('kitchen_recipe_shares')
+        .select('id')
+        .eq('kitchen_id', activeKitchenId)
+        .eq('recipe_id', recipe.id)
+        .maybeSingle();
+
+      if (existingError) throw existingError;
+      if (existing) {
+        toast.info(`Already shared to ${activeKitchenName || 'this kitchen'}.`);
+        return;
+      }
+
+      const { data: authData } = await supabase.auth.getUser();
+      const user = authData.user;
+      if (!user) {
+        toast.error('Please sign in to share recipes to a kitchen.');
+        return;
+      }
+
+      const { error } = await supabase
+        .from('kitchen_recipe_shares')
+        .insert({
+          kitchen_id: activeKitchenId,
+          recipe_id: recipe.id,
+          shared_by_user_id: user.id,
+        });
+
+      if (error) throw error;
+      toast.success(`Shared to ${activeKitchenName || 'your kitchen'}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not share recipe to kitchen';
+      toast.error(message);
+    }
   };
 
   return (
@@ -405,6 +477,20 @@ export default function RecipePreviewDialog({
           </ScrollArea>
 
           <div className="px-4 pb-4 pt-2 border-t grid grid-cols-2 gap-2">
+            <button
+              onClick={handleShareRecipe}
+              className="col-span-2 px-3 py-2 rounded-lg border text-sm font-medium inline-flex items-center justify-center gap-1.5"
+            >
+              <Share2 className="h-4 w-4" /> Share Recipe
+            </button>
+            {activeKitchenId && (
+              <button
+                onClick={() => void handleShareToKitchen()}
+                className="col-span-2 px-3 py-2 rounded-lg border text-sm font-medium inline-flex items-center justify-center gap-1.5"
+              >
+                <Users className="h-4 w-4" /> Share to {activeKitchenName || 'Kitchen'}
+              </button>
+            )}
             {mode === 'default' ? (
               <button onClick={() => setTweakOpen(true)} className="col-span-2 px-3 py-2 rounded-lg border text-sm font-medium inline-flex items-center justify-center gap-1.5">
                 <Sparkles className="h-4 w-4" /> Remix Recipe

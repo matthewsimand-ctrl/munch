@@ -465,13 +465,13 @@ export default function SwipeScreen() {
       )}
 
       {/* Carousel area */}
-      <div className="flex-1 flex flex-col items-center justify-start p-6 pt-8 md:pt-6 overflow-hidden">
+      <div className="flex-1 flex flex-col items-center justify-start p-4 sm:p-6 pt-5 sm:pt-8 md:pt-6 overflow-hidden">
         <div className="w-full max-w-5xl flex flex-col items-center">
-          <div className="relative flex items-center justify-center h-[520px] w-full">
+          <div className="relative flex items-center justify-center h-[400px] sm:h-[520px] w-full">
           {loading ? (
             <div className="aspect-[3/4] rounded-3xl bg-stone-100 animate-pulse" />
           ) : filtered.length === cardIndex ? (
-            <div className="w-[340px] aspect-[3/4] rounded-3xl flex flex-col items-center justify-center gap-4 border-2 border-dashed border-stone-200 bg-white shadow-sm">
+            <div className="w-[300px] sm:w-[340px] aspect-[3/4] rounded-3xl flex flex-col items-center justify-center gap-4 border-2 border-dashed border-stone-200 bg-white shadow-sm">
               <span className="text-6xl">🍳</span>
               <div className="text-center">
                 <p className="font-bold text-stone-700" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
@@ -498,7 +498,7 @@ export default function SwipeScreen() {
                     animate={{ opacity: 0.4, scale: 0.75, x: -260, rotateY: 35, filter: 'blur(8px)' }}
                     exit={{ opacity: 0, scale: 0.5, x: -400 }}
                     transition={{ duration: 0.4 }}
-                    className="absolute z-0 w-[300px] h-[400px] pointer-events-none"
+                    className="absolute z-0 hidden sm:block w-[300px] h-[400px] pointer-events-none"
                     style={{ perspective: 1000 }}
                   >
                     <SwipeCard
@@ -521,7 +521,7 @@ export default function SwipeScreen() {
                     animate={{ opacity: 0.4, scale: 0.75, x: 260, rotateY: -35, filter: 'blur(8px)' }}
                     exit={{ opacity: 0, scale: 0.5, x: 400 }}
                     transition={{ duration: 0.4 }}
-                    className="absolute z-0 w-[300px] h-[400px] pointer-events-none"
+                    className="absolute z-0 hidden sm:block w-[300px] h-[400px] pointer-events-none"
                     style={{ perspective: 1000 }}
                   >
                     <SwipeCard
@@ -548,7 +548,7 @@ export default function SwipeScreen() {
                       transition: { duration: 0.2 }
                     }}
                     transition={{ type: 'spring', damping: 20, stiffness: 100 }}
-                    className="z-10 w-[340px] h-[460px]"
+                    className="z-10 w-[300px] sm:w-[340px] h-[380px] sm:h-[460px]"
                     style={{ perspective: 1000 }}
                   >
                     <AnimatePresence>
@@ -586,25 +586,25 @@ export default function SwipeScreen() {
 
           {/* Action buttons - below carousel */}
           {(current || loading) && !loading && (
-            <div className="flex items-center justify-center gap-5 mt-6">
+            <div className="flex items-center justify-center gap-4 mt-4 sm:mt-6">
               {/* Skip */}
               <button
                 onClick={handleSkip}
-                className="w-14 h-14 rounded-full bg-white border border-stone-200 flex items-center justify-center text-stone-400 hover:border-red-300 hover:text-red-400 transition-all active:scale-90 shadow-sm hover:shadow-md"
+                className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white border border-stone-200 flex items-center justify-center text-stone-400 hover:border-red-300 hover:text-red-400 transition-all active:scale-90 shadow-sm hover:shadow-md"
               >
-                <X size={22} />
+                <X size={20} />
               </button>
 
               {/* Save */}
               <button
                 onClick={handleSave}
                 data-tutorial="like-button"
-                className="w-14 h-14 rounded-full flex items-center justify-center text-white transition-all active:scale-90 shadow-lg hover:shadow-orange-200/50"
+                className="w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center text-white transition-all active:scale-90 shadow-lg hover:shadow-orange-200/50"
                 style={{
                   background: likedSet.has(current?.id ?? "") ? "#10B981" : "linear-gradient(135deg,#FB923C,#F97316,#EA580C)",
                 }}
               >
-                <Heart size={22} fill={likedSet.has(current?.id ?? "") ? "#fff" : "none"} />
+                <Heart size={20} fill={likedSet.has(current?.id ?? "") ? "#fff" : "none"} />
               </button>
             </div>
           )}

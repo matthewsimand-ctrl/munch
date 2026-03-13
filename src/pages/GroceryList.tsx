@@ -12,6 +12,7 @@ import { detectCategories } from "@/lib/categorizeItem";
 import { adjustQuantityString, canDecreaseQuantity, parseIngredientLine, suggestQuantityForItem } from "@/lib/ingredientText";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { getPantryImage } from "@/lib/pantryImages";
+import { useKitchenGroceryList } from "@/hooks/useKitchenGroceryList";
 
 const STORE_SECTIONS: Record<string, string> = {
   produce: "🥦 Produce",
@@ -173,7 +174,11 @@ export default function GroceryScreen() {
     updateGroceryItem,
     clearCheckedGroceryItems,
     userProfile,
+    activeKitchenId,
+    activeKitchenName,
   } = useStore();
+  const kitchenGrocery = useKitchenGroceryList(activeKitchenId);
+  const isKitchenMode = Boolean(activeKitchenId);
 
   const [newItem, setNewItem] = useState("");
   const [newQty, setNewQty] = useState("");
@@ -186,7 +191,7 @@ export default function GroceryScreen() {
   const [priceEstimate, setPriceEstimate] = useState<{ total: number; low: number; high: number; nearbyStores: string[]; currency: string; location: string; notes?: string } | null>(null);
 
 
-  const items: GroceryItem[] = (customGroceryItems ?? []).map((item, idx) => {
+  const localItems: GroceryItem[] = (customGroceryItems ?? []).map((item, idx) => {
     const legacy = toLegacyDetails(item.quantity);
     const section = toText(item.section ?? item.category) ?? legacy.section ?? "other";
 
@@ -197,6 +202,13 @@ export default function GroceryScreen() {
       qty: toText(item.qty) ?? toText(item.quantity) ?? legacy.qty,
     };
   });
+  const kitchenItems: GroceryItem[] = (kitchenGrocery.items ?? []).map((item, idx) => ({
+    ...item,
+    id: item.id ?? `${item.name}-${idx}`,
+    section: toText(item.section ?? item.category) ?? "other",
+    qty: toText(item.quantity),
+  }));
+  const items = isKitchenMode ? kitchenItems : localItems;
   const filteredItems = useMemo(() => {
     let list = items;
     if (search) list = list.filter((i) => i.name.toLowerCase().includes(search.toLowerCase()));
@@ -221,7 +233,16 @@ export default function GroceryScreen() {
     if (!itemName) return;
     const detected = detectCategories(itemName);
     const section = newSection === "other" ? detected.grocerySection : newSection;
-    addCustomGroceryItem(itemName, { qty: newQty.trim() || undefined, section });
+    if (isKitchenMode) {
+      void kitchenGrocery.addItem({
+        name: itemName,
+        quantity: newQty.trim() || suggestQuantityForItem(itemName),
+        category: section,
+        section,
+      });
+    } else {
+      addCustomGroceryItem(itemName, { qty: newQty.trim() || undefined, section });
+    }
     setNewItem("");
     setNewQty("");
     setNewSection("other");
@@ -247,7 +268,18 @@ export default function GroceryScreen() {
       })
       .filter((item): item is { name: string; qty?: string; section: string } => Boolean(item));
 
-    parsedItems.forEach((item) => addCustomGroceryItem(item.name, { qty: item.qty, section: item.section }));
+    parsedItems.forEach((item) => {
+      if (isKitchenMode) {
+        void kitchenGrocery.addItem({
+          name: item.name,
+          quantity: item.qty || suggestQuantityForItem(item.name),
+          category: item.section,
+          section: item.section,
+        });
+      } else {
+        addCustomGroceryItem(item.name, { qty: item.qty, section: item.section });
+      }
+    });
     return parsedItems.length;
   };
 
@@ -290,12 +322,20 @@ export default function GroceryScreen() {
   };
 
   const handleClearChecked = () => {
-    clearCheckedGroceryItems?.();
+    if (isKitchenMode) {
+      void kitchenGrocery.clearChecked();
+    } else {
+      clearCheckedGroceryItems?.();
+    }
     toast.success("Cleared checked items");
   };
 
   const handleClearAll = () => {
-    items.forEach((item) => removeCustomGroceryItem?.(item.id));
+    if (isKitchenMode) {
+      void kitchenGrocery.clearAll();
+    } else {
+      items.forEach((item) => removeCustomGroceryItem?.(item.id));
+    }
     toast.success("Cleared grocery list");
   };
 
@@ -349,6 +389,9 @@ export default function GroceryScreen() {
               <h1 className="text-2xl font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
                 Grocery List
               </h1>
+              {isKitchenMode && (
+                <p className="text-[11px] font-semibold text-orange-500 mt-1">Shared with {activeKitchenName || "Kitchen"}</p>
+              )}
               {totalCount > 0 && (
                 <p className="text-xs text-stone-400 mt-1">
                   {checkedCount}/{totalCount} items checked off
@@ -555,10 +598,35 @@ export default function GroceryScreen() {
                         <GroceryRow
                           key={item.id}
                           item={item}
-                          onToggle={() => toggleGroceryItem?.(item.id)}
-                          onRemove={() => removeCustomGroceryItem?.(item.id)}
-                          onEditQty={(qty) => updateGroceryItem?.(item.id, { qty })}
-                          onAdjustQty={(delta) => updateGroceryItem?.(item.id, { qty: adjustQuantityString(item.quantity || item.qty || suggestQuantityForItem(item.name), delta) })}
+                          onToggle={() => {
+                            if (isKitchenMode) {
+                              void kitchenGrocery.updateItem(item.id, { checked: !item.checked });
+                            } else {
+                              toggleGroceryItem?.(item.id);
+                            }
+                          }}
+                          onRemove={() => {
+                            if (isKitchenMode) {
+                              void kitchenGrocery.removeItem(item.id);
+                            } else {
+                              removeCustomGroceryItem?.(item.id);
+                            }
+                          }}
+                          onEditQty={(qty) => {
+                            if (isKitchenMode) {
+                              void kitchenGrocery.updateItem(item.id, { quantity: qty });
+                            } else {
+                              updateGroceryItem?.(item.id, { qty });
+                            }
+                          }}
+                          onAdjustQty={(delta) => {
+                            const nextQty = adjustQuantityString(item.quantity || item.qty || suggestQuantityForItem(item.name), delta);
+                            if (isKitchenMode) {
+                              void kitchenGrocery.updateItem(item.id, { quantity: nextQty });
+                            } else {
+                              updateGroceryItem?.(item.id, { qty: nextQty });
+                            }
+                          }}
                         />
                       ))}
                     </AnimatePresence>
