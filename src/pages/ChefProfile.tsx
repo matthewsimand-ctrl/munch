@@ -17,7 +17,7 @@ export default function ChefProfile() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('display_name, avatar_url')
+        .select('display_name, avatar_url, username')
         .eq('user_id', userId!)
         .single();
       if (error) throw error;
@@ -75,6 +75,9 @@ export default function ChefProfile() {
           )}
           <div>
             <h2 className="font-display text-xl font-bold text-foreground">{displayName}</h2>
+            {(profile as any)?.username && (
+              <p className="text-xs text-muted-foreground mt-1">@{(profile as any).username}</p>
+            )}
             <p className="text-sm text-muted-foreground">
               {recipes.length} public recipe{recipes.length !== 1 ? 's' : ''}
             </p>

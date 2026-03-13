@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Crown, Home, MailPlus, Plus, Settings2, Trash2, Users } from 'lucide-react';
+import { Copy, Crown, DoorOpen, Home, Link2, MailPlus, Plus, RotateCcw, Settings2, Trash2, User, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { useKitchens } from '@/hooks/useKitchens';
 import { useStore } from '@/lib/store';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { isValidUsername, normalizeUsername } from '@/lib/username';
 
 export default function KitchensPage() {
   const {
@@ -13,16 +14,23 @@ export default function KitchensPage() {
     loading,
     createKitchen,
     inviteToKitchen,
+    addKitchenMemberByUsername,
+    resendInvite,
     loadKitchenMembers,
     updateKitchenMemberRole,
     removeKitchenMember,
+    leaveKitchen,
   } = useKitchens();
-  const { activeKitchenId, setActiveKitchen } = useStore();
+  const { activeKitchenId, kitchenViewMode, displayName, setActiveKitchen } = useStore();
   const [newKitchenName, setNewKitchenName] = useState('');
-  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteUsername, setInviteUsername] = useState('');
   const [inviteRole, setInviteRole] = useState<'editor' | 'viewer'>('editor');
   const [submitting, setSubmitting] = useState(false);
   const [manageKitchenId, setManageKitchenId] = useState<string | null>(null);
+  const [leaveKitchenId, setLeaveKitchenId] = useState<string | null>(null);
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const emailInvites = useMemo(() => invites.filter((invite) => Boolean(invite.email)), [invites]);
+  const personalKitchenName = displayName?.trim() ? `${displayName.trim()}'s Kitchen` : 'My Kitchen';
 
   const activeKitchen = useMemo(
     () => kitchens.find((kitchen) => kitchen.id === activeKitchenId) || null,
@@ -32,6 +40,10 @@ export default function KitchensPage() {
   const managedKitchen = useMemo(
     () => kitchens.find((kitchen) => kitchen.id === manageKitchenId) || null,
     [kitchens, manageKitchenId],
+  );
+  const kitchenToLeave = useMemo(
+    () => kitchens.find((kitchen) => kitchen.id === leaveKitchenId) || null,
+    [kitchens, leaveKitchenId],
   );
   const managedMembers = managedKitchen ? membersByKitchen[managedKitchen.id] || [] : [];
 
@@ -62,21 +74,26 @@ export default function KitchensPage() {
       return;
     }
 
-    const email = inviteEmail.trim().toLowerCase();
-    if (!email) return;
+    const username = normalizeUsername(inviteUsername);
+    if (!isValidUsername(username)) {
+      toast.info('Enter a valid username.');
+      return;
+    }
 
     setSubmitting(true);
     try {
-      await inviteToKitchen(activeKitchen.id, email, inviteRole);
-      setInviteEmail('');
-      toast.success(`Invite created for ${email}`);
+      const member = await addKitchenMemberByUsername(activeKitchen.id, username, inviteRole);
+      setInviteUsername('');
+      toast.success(`Added @${member.username || username} to ${activeKitchen.name}`);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Could not create invite';
+      const message = error instanceof Error ? error.message : 'Could not send invite';
       toast.error(message);
     } finally {
       setSubmitting(false);
     }
   };
+
+  const buildInviteLink = (inviteToken: string) => `${origin}/invite/kitchen/${inviteToken}`;
 
   const handleRoleChange = async (membershipId: string, kitchenId: string, role: 'editor' | 'viewer') => {
     setSubmitting(true);
@@ -98,6 +115,96 @@ export default function KitchensPage() {
       toast.success('Member removed');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Could not remove member';
+      toast.error(message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const openInviteDraft = async (invite: { email: string | null; role: 'owner' | 'editor' | 'viewer'; kitchen_id: string; invite_token?: string }) => {
+    if (!invite.email) {
+      const shareUrl = buildInviteLink(invite.invite_token || '');
+      if (navigator.share) {
+        await navigator.share({
+          title: 'Join my Munch kitchen',
+          text: 'Open this link to join my kitchen on Munch.',
+          url: shareUrl,
+        });
+      } else {
+        await navigator.clipboard.writeText(shareUrl);
+      }
+      return;
+    }
+
+    const kitchenName = kitchens.find((kitchen) => kitchen.id === invite.kitchen_id)?.name || 'your kitchen';
+    const subject = encodeURIComponent(`Join ${kitchenName} on Munch`);
+    const body = encodeURIComponent(
+      `Hi,\n\nI'd love for you to join "${kitchenName}" on Munch as a ${invite.role}.\n\nOpen this invite link in Munch:\n${buildInviteLink(invite.invite_token || '')}\n\nThanks!`,
+    );
+    const mailtoUrl = `mailto:${invite.email}?subject=${subject}&body=${body}`;
+
+    try {
+      window.location.href = mailtoUrl;
+    } catch {
+      await navigator.clipboard.writeText(
+        `To: ${invite.email}\nSubject: Join ${kitchenName} on Munch\n\nI'd love for you to join "${kitchenName}" on Munch as a ${invite.role}.\n${buildInviteLink(invite.invite_token || '')}`,
+      );
+      toast.success('Invite message copied to clipboard');
+    }
+  };
+
+  const handleResendInvite = async (invite: { id: string; email: string | null; role: 'owner' | 'editor' | 'viewer'; kitchen_id: string }) => {
+    setSubmitting(true);
+    try {
+      const refreshedInvite = await resendInvite(invite.id);
+      await openInviteDraft(refreshedInvite);
+      toast.success(invite.email ? `Invite reissued for ${invite.email}` : 'Invite link refreshed');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not resend invite';
+      toast.error(message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCopyInvite = async (invite: { email: string | null; role: 'owner' | 'editor' | 'viewer'; kitchen_id: string; invite_token: string }) => {
+    const kitchenName = kitchens.find((kitchen) => kitchen.id === invite.kitchen_id)?.name || 'your kitchen';
+    const inviteLink = buildInviteLink(invite.invite_token);
+    await navigator.clipboard.writeText(
+      invite.email
+        ? `Join "${kitchenName}" on Munch as a ${invite.role}. Invite email: ${invite.email}\n${inviteLink}`
+        : `Join "${kitchenName}" on Munch as a ${invite.role}.\n${inviteLink}`,
+    );
+    toast.success(invite.email ? 'Invite details copied' : 'Invite link copied');
+  };
+
+  const handleCreateShareLink = async () => {
+    if (!activeKitchen) {
+      toast.info('Select or create a kitchen first.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const invite = await inviteToKitchen(activeKitchen.id, null, inviteRole);
+      await handleCopyInvite(invite);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not create share link';
+      toast.error(message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleLeaveKitchen = async () => {
+    if (!kitchenToLeave) return;
+    setSubmitting(true);
+    try {
+      await leaveKitchen(kitchenToLeave.id);
+      setLeaveKitchenId(null);
+      toast.success(kitchenToLeave.role === 'owner' ? `Closed ${kitchenToLeave.name}` : `Left ${kitchenToLeave.name}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not leave kitchen';
       toast.error(message);
     } finally {
       setSubmitting(false);
@@ -138,6 +245,32 @@ export default function KitchensPage() {
             </div>
 
             <div className="space-y-3">
+              <button
+                onClick={() => setActiveKitchen(null)}
+                className={`w-full rounded-2xl border px-4 py-4 text-left transition-colors ${
+                  kitchenViewMode === 'solo'
+                    ? 'border-orange-300 bg-orange-50'
+                    : 'border-stone-200 bg-white hover:border-orange-200 hover:bg-orange-50/60'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold text-stone-900">{personalKitchenName}</p>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-stone-600">
+                        <User size={10} /> Personal
+                      </span>
+                    </div>
+                    <p className="text-xs text-stone-500 mt-1">Use your personal pantry, grocery list, and meal plan.</p>
+                  </div>
+                  {kitchenViewMode === 'solo' && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-orange-500 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white">
+                      <Home size={11} /> Active
+                    </span>
+                  )}
+                </div>
+              </button>
+
               {loading ? (
                 <div className="rounded-2xl border border-dashed border-stone-200 px-4 py-6 text-sm text-stone-400 text-center">
                   Loading kitchens...
@@ -162,7 +295,12 @@ export default function KitchensPage() {
                           onClick={() => setActiveKitchen(kitchen)}
                           className="flex-1 text-left"
                         >
-                          <p className="text-sm font-semibold text-stone-900">{kitchen.name}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-semibold text-stone-900">{kitchen.name}</p>
+                            <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-orange-700">
+                              <Users size={10} /> Shared
+                            </span>
+                          </div>
                           <p className="text-xs text-stone-500 mt-1">Role: {kitchen.role}</p>
                         </button>
                         <div className="flex items-center gap-2">
@@ -171,6 +309,12 @@ export default function KitchensPage() {
                               <Home size={11} /> Active
                             </span>
                           )}
+                          <button
+                            onClick={() => setLeaveKitchenId(kitchen.id)}
+                            className="inline-flex items-center gap-1 rounded-full border border-stone-200 bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-stone-600 hover:border-red-200 hover:text-red-500"
+                          >
+                            <DoorOpen size={11} /> Leave
+                          </button>
                           <button
                             onClick={() => setManageKitchenId(kitchen.id)}
                             className="inline-flex items-center gap-1 rounded-full border border-stone-200 bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-stone-600 hover:border-orange-300 hover:text-orange-500"
@@ -209,7 +353,9 @@ export default function KitchensPage() {
           <div className="rounded-3xl border border-stone-200 bg-white p-5 space-y-4">
             <div>
               <p className="text-sm font-semibold text-stone-900">Invite people</p>
-              <p className="text-xs text-stone-500 mt-1">Invite collaborators to your active kitchen. Invites are stored now and can power an acceptance flow next.</p>
+              <p className="text-xs text-stone-500 mt-1">
+                Add existing Munch users by username, or create a share link for anyone else.
+              </p>
             </div>
 
             <div className={`rounded-2xl border px-4 py-3 ${activeKitchen ? 'border-orange-200 bg-orange-50/70' : 'border-dashed border-stone-200 bg-stone-50'}`}>
@@ -225,10 +371,14 @@ export default function KitchensPage() {
             </div>
 
             <div className="space-y-3">
+              <div>
+                <p className="text-xs font-semibold text-stone-700 mb-1.5">Munch User ID</p>
+                <p className="text-[11px] text-stone-500 mb-2">Enter the person’s unique username to add them directly to this kitchen.</p>
+              </div>
               <input
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                placeholder="chef@example.com"
+                value={inviteUsername}
+                onChange={(e) => setInviteUsername(normalizeUsername(e.target.value))}
+                placeholder="munch_userid"
                 className="w-full rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-700 outline-none focus:border-orange-300"
               />
               <select
@@ -241,29 +391,51 @@ export default function KitchensPage() {
               </select>
               <button
                 onClick={() => void handleInvite()}
-                disabled={submitting || !inviteEmail.trim() || !activeKitchen}
+                disabled={submitting || !activeKitchen || !inviteUsername.trim()}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm font-semibold text-stone-600 hover:border-orange-300 hover:text-orange-500 disabled:opacity-50"
               >
-                <MailPlus size={14} /> Create Invite
+                <MailPlus size={14} /> Send Invite
+              </button>
+              <button
+                onClick={() => void handleCreateShareLink()}
+                disabled={submitting || !activeKitchen}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                <Link2 size={14} /> Create Share Link
               </button>
             </div>
 
             <div className="pt-2">
               <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-3">Recent invites</p>
               <div className="space-y-2">
-                {invites.length === 0 ? (
+                {emailInvites.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-stone-200 px-4 py-5 text-xs text-stone-400 text-center">
                     No invites yet for your kitchens.
                   </div>
                 ) : (
-                  invites.slice(0, 8).map((invite) => (
+                  emailInvites.slice(0, 8).map((invite) => (
                     <div key={invite.id} className="rounded-2xl border border-stone-200 px-4 py-3">
                       <div className="flex items-center justify-between gap-3">
                         <div>
-                          <p className="text-sm font-medium text-stone-800">{invite.email}</p>
+                          <p className="text-sm font-medium text-stone-800">{invite.email || 'Share link invite'}</p>
                           <p className="text-xs text-stone-500 mt-1">
                             {(kitchens.find((kitchen) => kitchen.id === invite.kitchen_id)?.name || 'Kitchen')} · {invite.role} · {invite.status}
                           </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => void handleCopyInvite(invite)}
+                            className="inline-flex items-center gap-1 rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-stone-600 hover:border-orange-300 hover:text-orange-500"
+                          >
+                            <Copy size={12} /> Copy
+                          </button>
+                          <button
+                            onClick={() => void handleResendInvite(invite)}
+                            disabled={submitting}
+                            className="inline-flex items-center gap-1 rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-stone-600 hover:border-orange-300 hover:text-orange-500 disabled:opacity-50"
+                          >
+                            <RotateCcw size={12} /> Resend
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -311,6 +483,9 @@ export default function KitchensPage() {
                             <p className="text-sm font-semibold text-stone-900">
                               {member.display_name || 'Kitchen member'}
                             </p>
+                            {member.username && (
+                              <p className="mt-1 text-xs text-stone-400">@{member.username}</p>
+                            )}
                             <p className="mt-1 text-xs text-stone-500 break-all">{member.user_id}</p>
                           </div>
 
@@ -349,6 +524,38 @@ export default function KitchensPage() {
                     );
                   })
                 )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!kitchenToLeave} onOpenChange={(open) => !open && setLeaveKitchenId(null)}>
+        <DialogContent className="max-w-sm rounded-3xl">
+          <DialogHeader>
+            <DialogTitle>Leave Kitchen?</DialogTitle>
+          </DialogHeader>
+          {kitchenToLeave && (
+            <div className="space-y-4">
+              <p className="text-sm text-stone-600">
+                {kitchenToLeave.role === 'owner'
+                  ? `If you leave ${kitchenToLeave.name} as the owner and you're the only member, the kitchen will be closed.`
+                  : `You'll stop seeing shared items from ${kitchenToLeave.name} in your app.`}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setLeaveKitchenId(null)}
+                  className="flex-1 rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm font-semibold text-stone-600"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => void handleLeaveKitchen()}
+                  disabled={submitting}
+                  className="flex-1 rounded-xl bg-red-500 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+                >
+                  {kitchenToLeave.role === 'owner' ? 'Leave / Close' : 'Leave Kitchen'}
+                </button>
               </div>
             </div>
           )}

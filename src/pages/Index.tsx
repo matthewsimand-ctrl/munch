@@ -100,11 +100,11 @@ async function resolveAppStartRoute({
   if (session && !onboardingComplete) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("display_name")
+      .select("display_name, username")
       .eq("user_id", session.user.id)
       .maybeSingle();
 
-    if (profile?.display_name) {
+    if (profile?.display_name && (profile as any)?.username) {
       setDisplayName(profile.display_name);
       completeOnboarding();
       return "/dashboard";
@@ -114,13 +114,15 @@ async function resolveAppStartRoute({
   if (session) {
     const { data: profileCheck } = await supabase
       .from("profiles")
-      .select("display_name")
+      .select("display_name, username")
       .eq("user_id", session.user.id)
       .maybeSingle();
 
-    if (profileCheck?.display_name || onboardingComplete) {
+    if (profileCheck?.display_name && (profileCheck as any)?.username) {
       return "/dashboard";
     }
+
+    return "/onboarding";
   }
 
   if (isGuest) {

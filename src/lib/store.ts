@@ -68,6 +68,7 @@ interface AppState {
   recipeFolders: RecipeFolder[];
   activeKitchenId: string | null;
   activeKitchenName: string | null;
+  kitchenViewMode: 'solo' | 'kitchen';
   displayName: string;
   setDisplayName: (name: string) => void;
   onboardingComplete: boolean;
@@ -164,6 +165,7 @@ export const useStore = create<AppState>()(
       recipeFolders: [],
       activeKitchenId: null,
       activeKitchenName: null,
+      kitchenViewMode: 'solo',
       displayName: '',
       setDisplayName: (displayName) => set({ displayName }),
       onboardingComplete: false,
@@ -488,6 +490,7 @@ export const useStore = create<AppState>()(
       setActiveKitchen: (kitchen) => set({
         activeKitchenId: kitchen?.id ?? null,
         activeKitchenName: kitchen?.name ?? null,
+        kitchenViewMode: kitchen ? 'kitchen' : 'solo',
       }),
 
       addFolder: (name) =>

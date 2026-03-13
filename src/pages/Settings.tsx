@@ -14,6 +14,7 @@ import { setAiAgentCallsDisabled } from '@/lib/ai';
 import { getPremiumOverride, setPremiumOverride } from '@/lib/premium';
 import RecipeScraperTester from '@/components/RecipeScraperTester';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { isValidUsername, normalizeUsername } from '@/lib/username';
 
 const DIETARY_OPTIONS = ['Vegetarian', 'Vegan', 'Gluten-Free', 'Dairy-Free', 'Nut-Free', 'None'];
 const SKILL_OPTIONS = ['Beginner', 'Intermediate', 'Advanced'];
@@ -56,6 +57,8 @@ export default function Settings() {
   } = useStore();
   const [user, setUser] = useState<any>(null);
   const [displayName, setDisplayName] = useState('');
+  const [username, setUsername] = useState('');
+  const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
   const [defaultServings, setDefaultServings] = useState(mapServingPreference(2));
   const [loading, setLoading] = useState(false);
   const aiAgentCallsDisabled = useAiAgentCallsDisabled();
@@ -75,17 +78,39 @@ export default function Settings() {
       setUser(session.user);
       supabase
         .from('profiles')
-        .select('display_name, default_servings')
+        .select('display_name, username, default_servings')
         .eq('user_id', session.user.id)
         .single()
         .then(({ data }) => {
           if (data) {
             setDisplayName(data.display_name || '');
+            setUsername((data as any).username || '');
             setDefaultServings(mapServingPreference((data as any).default_servings));
           }
         });
     });
   }, [navigate]);
+
+  useEffect(() => {
+    const normalized = normalizeUsername(username);
+    if (!normalized || !isValidUsername(normalized)) {
+      setUsernameStatus(username.trim().length === 0 ? 'idle' : 'invalid');
+      return;
+    }
+
+    setUsernameStatus('checking');
+    const timeout = window.setTimeout(() => {
+      void supabase.rpc('is_username_available', { candidate: normalized }).then(({ data, error }) => {
+        if (error) {
+          setUsernameStatus('invalid');
+          return;
+        }
+        setUsernameStatus(data ? 'available' : 'taken');
+      });
+    }, 250);
+
+    return () => window.clearTimeout(timeout);
+  }, [username]);
 
   const toggleDietary = (item: string) => {
     if (item === 'None') {
@@ -149,12 +174,18 @@ export default function Settings() {
       return;
     }
 
+    if (!isValidUsername(normalizeUsername(username)) || usernameStatus !== 'available') {
+      toast({ title: 'Choose an available username', variant: 'destructive' });
+      return;
+    }
+
     setLoading(true);
     const { error } = await supabase
       .from('profiles')
       .upsert({
         user_id: userId,
         display_name: displayName.trim() || null,
+        username: normalizeUsername(username),
         default_servings: parseInt(defaultServings) || 2,
       } as any, { onConflict: 'user_id' });
 
@@ -204,6 +235,23 @@ export default function Settings() {
                   placeholder="Your name"
                   maxLength={50}
                 />
+              </div>
+              <div>
+                <Label htmlFor="username">Username</Label>
+                <Input
+                  id="username"
+                  value={username}
+                  onChange={(e) => setUsername(normalizeUsername(e.target.value))}
+                  placeholder="chefname"
+                  maxLength={24}
+                />
+                <p className={`mt-1 text-xs ${usernameStatus === 'taken' || usernameStatus === 'invalid' ? 'text-red-500' : 'text-muted-foreground'}`}>
+                  {usernameStatus === 'checking' && 'Checking username...'}
+                  {usernameStatus === 'available' && `@${normalizeUsername(username)} is available`}
+                  {usernameStatus === 'taken' && 'That username is already taken'}
+                  {usernameStatus === 'invalid' && 'Use 3-24 lowercase letters, numbers, or underscores'}
+                  {usernameStatus === 'idle' && 'People can use this to find and invite you'}
+                </p>
               </div>
             </div>
           </section>

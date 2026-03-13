@@ -14,10 +14,43 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_notifications: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          metadata: Json
+          read_at: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          body?: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          read_at?: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          read_at?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       kitchen_invites: {
         Row: {
           created_at: string
-          email: string
+          email: string | null
           expires_at: string | null
           id: string
           invite_token: string
@@ -28,7 +61,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          email: string
+          email?: string | null
           expires_at?: string | null
           id?: string
           invite_token?: string
@@ -39,7 +72,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          email?: string
+          email?: string | null
           expires_at?: string | null
           id?: string
           invite_token?: string
@@ -373,6 +406,7 @@ export type Database = {
           id: string
           updated_at: string
           user_id: string
+          username: string
         }
         Insert: {
           avatar_url?: string | null
@@ -382,6 +416,7 @@ export type Database = {
           id?: string
           updated_at?: string
           user_id: string
+          username?: string
         }
         Update: {
           avatar_url?: string | null
@@ -391,6 +426,7 @@ export type Database = {
           id?: string
           updated_at?: string
           user_id?: string
+          username?: string
         }
         Relationships: []
       }
@@ -462,7 +498,35 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      accept_kitchen_invite: {
+        Args: {
+          invite_uuid: string
+        }
+        Returns: {
+          kitchen_id: string
+          kitchen_name: string
+        }[]
+      }
+      get_kitchen_invite_preview: {
+        Args: {
+          invite_uuid: string
+        }
+        Returns: {
+          email: string | null
+          expires_at: string | null
+          invite_id: string
+          kitchen_id: string
+          kitchen_name: string
+          role: Database["public"]["Enums"]["kitchen_member_role"]
+          status: Database["public"]["Enums"]["kitchen_invite_status"]
+        }[]
+      }
+      is_username_available: {
+        Args: {
+          candidate: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       kitchen_invite_status: "accepted" | "expired" | "pending" | "revoked"
