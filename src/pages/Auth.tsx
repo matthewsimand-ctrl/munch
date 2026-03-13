@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Mail, Ghost } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { MunchLogo } from '@/components/MunchLogo';
+import { isNativeAppPlatform } from '@/lib/platform';
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -111,9 +112,20 @@ export default function Auth() {
   };
 
   const handleGoogle = async () => {
-    const { error } = await lovable.auth.signInWithOAuth('google', {
-      redirect_uri: `${window.location.origin}/auth${nextPath !== '/' ? `?next=${encodeURIComponent(nextPath)}` : ''}`,
-    });
+    const redirectUri = `${window.location.origin}/auth${nextPath !== '/' ? `?next=${encodeURIComponent(nextPath)}` : ''}`;
+
+    const result = isNativeAppPlatform()
+      ? await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: redirectUri,
+          },
+        })
+      : await lovable.auth.signInWithOAuth('google', {
+          redirect_uri: redirectUri,
+        });
+
+    const error = 'error' in result ? result.error : null;
     if (error) toast({ title: 'Error', description: String(error), variant: 'destructive' });
   };
 
