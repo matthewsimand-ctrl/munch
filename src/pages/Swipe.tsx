@@ -267,6 +267,8 @@ export default function SwipeScreen() {
   const [previewRecipe, setPreviewRecipe] = useState<Recipe | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [saveButtonPulse, setSaveButtonPulse] = useState(false);
+  const [likedBurst, setLikedBurst] = useState<{ id: number; recipeId: string } | null>(null);
+  const [cardActionStamp, setCardActionStamp] = useState<"save" | "skip" | null>(null);
 
   const pantryNames = useMemo(() => pantryList.map((p) => p.name), [pantryList]);
   const likedSet = useMemo(() => new Set(likedRecipes), [likedRecipes]);
@@ -346,22 +348,61 @@ export default function SwipeScreen() {
 
   const advance = useCallback(() => setCardIndex((i) => i + 1), []);
 
+  const triggerLikedAnimation = useCallback((recipeId: string) => {
+    setLikedBurst({ id: Date.now(), recipeId });
+  }, []);
+
+  useEffect(() => {
+    if (!likedBurst) return;
+    const timeout = window.setTimeout(() => setLikedBurst(null), 700);
+    return () => window.clearTimeout(timeout);
+  }, [likedBurst]);
+
+  const saveAndAdvance = useCallback((recipe: Recipe, options?: { closePreview?: boolean; advanceCard?: boolean }) => {
+    likeRecipe(recipe.id, recipe);
+    triggerLikedAnimation(recipe.id);
+
+    if (options?.closePreview) {
+      setPreviewOpen(false);
+      setPreviewRecipe(null);
+    }
+
+    if (options?.advanceCard !== false) {
+      advance();
+    }
+  }, [advance, likeRecipe, triggerLikedAnimation]);
+
   const handleSave = useCallback(() => {
     if (!current) return;
-    likeRecipe(current.id, current);
-    advance();
-  }, [current, likeRecipe, advance]);
+    saveAndAdvance(current);
+  }, [current, saveAndAdvance]);
 
   const handleSkip = useCallback(() => {
     if (!current) return;
     advance();
   }, [current, advance]);
 
+  const handleSkipButton = useCallback(() => {
+    if (!current) return;
+    setCardActionStamp("skip");
+    window.setTimeout(() => setCardActionStamp(null), 220);
+    window.setTimeout(() => {
+      advance();
+    }, 120);
+  }, [advance, current]);
+
   const handleSaveButton = useCallback(() => {
+    if (!current) return;
     setSaveButtonPulse(true);
     window.setTimeout(() => setSaveButtonPulse(false), 280);
-    handleSave();
-  }, [handleSave]);
+    setCardActionStamp("save");
+    window.setTimeout(() => setCardActionStamp(null), 220);
+    likeRecipe(current.id, current);
+    triggerLikedAnimation(current.id);
+    window.setTimeout(() => {
+      advance();
+    }, 120);
+  }, [advance, current, likeRecipe, triggerLikedAnimation]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -494,6 +535,25 @@ export default function SwipeScreen() {
             </div>
           ) : (
             <div className="flex items-center justify-center gap-4 w-full h-full relative" data-tutorial="swipe-carousel">
+              <AnimatePresence>
+                {likedBurst && (
+                  <motion.div
+                    key={likedBurst.id}
+                    initial={{ opacity: 0, scale: 0.6, y: 30 }}
+                    animate={{ opacity: 1, scale: 1.15, y: -10 }}
+                    exit={{ opacity: 0, scale: 1.4, y: -40 }}
+                    transition={{ duration: 0.55, ease: "easeOut" }}
+                    className="pointer-events-none absolute z-20 flex flex-col items-center gap-2"
+                  >
+                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/92 text-white shadow-2xl">
+                      <Heart size={28} fill="currentColor" />
+                    </div>
+                    <div className="rounded-full bg-white/92 px-3 py-1 text-xs font-bold text-emerald-700 shadow-sm">
+                      Saved
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
               <AnimatePresence mode="popLayout">
                 {/* Previous Card (Left) */}
                 {prev && (
@@ -556,6 +616,28 @@ export default function SwipeScreen() {
                     className="z-10 w-[300px] sm:w-[340px] h-[380px] sm:h-[460px]"
                     style={{ perspective: 1000 }}
                   >
+                    <AnimatePresence>
+                      {cardActionStamp === "save" && (
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.8, x: -18, rotate: -18 }}
+                          animate={{ opacity: 1, scale: 1, x: 0, rotate: -15 }}
+                          exit={{ opacity: 0, scale: 1.08 }}
+                          className="pointer-events-none absolute left-6 top-8 z-30 rounded-xl border-4 border-emerald-400 px-4 py-2 text-2xl font-black text-emerald-400"
+                        >
+                          SAVE
+                        </motion.div>
+                      )}
+                      {cardActionStamp === "skip" && (
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.8, x: 18, rotate: 18 }}
+                          animate={{ opacity: 1, scale: 1, x: 0, rotate: 15 }}
+                          exit={{ opacity: 0, scale: 1.08 }}
+                          className="pointer-events-none absolute right-6 top-8 z-30 rounded-xl border-4 border-red-400 px-4 py-2 text-2xl font-black text-red-400"
+                        >
+                          SKIP
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                     <SwipeCard
                       recipe={current}
                       matchPercent={currentMatch?.percentage ?? 0}
@@ -580,7 +662,7 @@ export default function SwipeScreen() {
             <div className="flex items-center justify-center gap-4 mt-4 sm:mt-6">
               {/* Skip */}
               <button
-                onClick={handleSkip}
+                onClick={handleSkipButton}
                 className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white border border-stone-200 flex items-center justify-center text-stone-400 hover:border-red-300 hover:text-red-400 transition-all active:scale-90 shadow-sm hover:shadow-md"
               >
                 <X size={20} />
@@ -625,7 +707,7 @@ export default function SwipeScreen() {
           toast.success(`Added ${missingIngredients.length} items from "${recipe.name}" to grocery list`);
         }}
         onSave={(recipe) => {
-          likeRecipe(recipe.id, recipe);
+          saveAndAdvance(recipe, { closePreview: true, advanceCard: true });
         }}
       />
 
