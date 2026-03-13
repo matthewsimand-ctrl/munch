@@ -1,7 +1,7 @@
-import { useState, useMemo } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   ArrowLeft, Search, CheckCircle2, Circle,
-  Trash2, Plus, Camera, Upload, Lock, ChevronDown, X
+  Trash2, Plus, Camera, Upload, Lock, ChevronDown, X, Minus
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "@/lib/store";
@@ -9,6 +9,9 @@ import { toast } from "sonner";
 import { detectCategories } from "@/lib/categorizeItem";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { getPremiumOverride } from "@/lib/premium";
+import { adjustQuantityString, parseIngredientLine } from "@/lib/ingredientText";
+import { invokeAppFunction } from "@/lib/functionClient";
+import { getAiDisabledMessage, isAiAgentCallsDisabledError } from "@/lib/ai";
 
 const CATEGORIES = ["All", "Produce", "Dairy", "Meat & Fish", "Dry Goods", "Pasta / Noodles", "Condiments", "Bakery", "Frozen", "Other"];
 const CATEGORY_ICONS: Record<string, string> = {
@@ -36,11 +39,13 @@ function PantryItemRow({
   item,
   onRemove,
   onEdit,
+  onAdjustQty,
   dataTutorial,
 }: {
   item: PantryItem;
   onRemove: () => void;
   onEdit: (field: "quantity", value: string) => void;
+  onAdjustQty: (delta: number) => void;
   dataTutorial?: string;
 }) {
   const [editing, setEditing] = useState(false);
@@ -61,25 +66,41 @@ function PantryItemRow({
       <span className="text-xl w-8 text-center">{catIcon}</span>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-stone-800 truncate">{item.name}</p>
-        {editing ? (
-          <input
-            autoFocus
-            value={qty}
-            onChange={(e) => setQty(e.target.value)}
-            onBlur={() => { setEditing(false); onEdit("quantity", qty); }}
-            onKeyDown={(e) => { if (e.key === "Enter") { setEditing(false); onEdit("quantity", qty); } }}
-            className="text-xs text-stone-500 outline-none border-b border-orange-300 bg-transparent w-20 mt-0.5"
-            placeholder="qty"
-          />
-        ) : (
+        <div className="mt-1 flex items-center gap-1">
           <button
-            onClick={() => setEditing(true)}
-            className="text-[10px] text-stone-400 bg-stone-100/50 hover:bg-orange-100 hover:text-orange-600 px-2 py-0.5 rounded-md transition-all mt-1 w-fit flex items-center gap-1.5 font-medium"
+            onClick={() => onAdjustQty(-1)}
+            className="w-6 h-6 rounded-full border border-stone-200 bg-white text-stone-400 hover:border-orange-300 hover:text-orange-500 transition-colors flex items-center justify-center"
+            aria-label={`Decrease quantity for ${item.name}`}
           >
-            <span>{item.quantity || "Add qty"}</span>
-            <Plus size={8} />
+            <Minus size={10} />
           </button>
-        )}
+          {editing ? (
+            <input
+              autoFocus
+              value={qty}
+              onChange={(e) => setQty(e.target.value)}
+              onBlur={() => { setEditing(false); onEdit("quantity", qty); }}
+              onKeyDown={(e) => { if (e.key === "Enter") { setEditing(false); onEdit("quantity", qty); } }}
+              className="text-xs text-stone-500 outline-none border-b border-orange-300 bg-transparent w-20 mt-0.5"
+              placeholder="qty"
+            />
+          ) : (
+            <button
+              onClick={() => setEditing(true)}
+              className="text-[10px] text-stone-400 bg-stone-100/50 hover:bg-orange-100 hover:text-orange-600 px-2 py-0.5 rounded-md transition-all w-fit flex items-center gap-1.5 font-medium"
+            >
+              <span>{item.quantity || "Add qty"}</span>
+              <Plus size={8} />
+            </button>
+          )}
+          <button
+            onClick={() => onAdjustQty(1)}
+            className="w-6 h-6 rounded-full border border-stone-200 bg-white text-stone-400 hover:border-orange-300 hover:text-orange-500 transition-colors flex items-center justify-center"
+            aria-label={`Increase quantity for ${item.name}`}
+          >
+            <Plus size={10} />
+          </button>
+        </div>
       </div>
       <span
         className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
@@ -105,7 +126,10 @@ export default function PantryScreen() {
   const [newCategory, setNewCategory] = useState("Other");
   const [newQty, setNewQty] = useState("");
   const [scanDialogOpen, setScanDialogOpen] = useState(false);
+  const [importingReceipt, setImportingReceipt] = useState(false);
   const isPremium = getPremiumOverride();
+  const receiptInputRef = useRef<HTMLInputElement>(null);
+  const fridgeImageInputRef = useRef<HTMLInputElement>(null);
 
   const filtered = useMemo(() => {
     let list: PantryItem[] = (pantryList ?? []).map((item, idx) => ({
@@ -145,6 +169,113 @@ export default function PantryScreen() {
     toast.success(`Removed ${name}`);
   };
 
+  const parseTextImport = (text: string) => {
+    return text
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .map((line) => line.replace(/^[-*[\]0-9).\s]+/, ""))
+      .map((line) => line.replace(/\s+\$?\d+[.,]?\d{0,2}\s*$/, ""))
+      .filter((line) => line.length >= 2)
+      .filter((line) => !/^(subtotal|total|tax|change|cash|visa|mastercard|debit|credit|thank you|balance|receipt|store|cashier)$/i.test(line))
+      .filter((line) => /[a-zA-Z]/.test(line))
+      .map((line) => {
+        const parsed = parseIngredientLine(line);
+        return {
+          name: parsed.name.toLowerCase().trim(),
+          quantity: parsed.quantity?.trim() || undefined,
+        };
+      })
+      .filter((item) => item.name.length > 1);
+  };
+
+  const applyImportedItems = (items: Array<{ name: string; quantity?: string }>) => {
+    const uniqueItems = items.filter((item, index, arr) =>
+      item.name && arr.findIndex((candidate) => candidate.name === item.name) === index
+    );
+
+    uniqueItems.forEach((item) => {
+      const detected = detectCategories(item.name);
+      addPantryItem({
+        name: item.name,
+        quantity: item.quantity || "1",
+        category: normalizeCategory(detected.pantryCategory),
+      });
+    });
+
+    return uniqueItems.length;
+  };
+
+  const readFileAsText = async (file: File) => file.text();
+
+  const readFileAsDataUrl = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () => reject(new Error("Could not read file"));
+      reader.readAsDataURL(file);
+    });
+
+  const handleImportedFile = async (file: File, source: "receipt" | "fridge") => {
+    setImportingReceipt(true);
+    try {
+      const isTextFile = file.type.startsWith("text/") || /\.(txt|csv|md)$/i.test(file.name);
+      let importedCount = 0;
+
+      if (isTextFile) {
+        const text = await readFileAsText(file);
+        importedCount = applyImportedItems(parseTextImport(text));
+      } else if (file.type.startsWith("image/")) {
+        const imageBase64 = await readFileAsDataUrl(file);
+        const { data, error } = await invokeAppFunction<{
+          items?: Array<{ name?: string; quantity?: string }>;
+          ingredients?: string[];
+          error?: string;
+        }>("scan-fridge", {
+          body: { imageBase64, source },
+        });
+
+        if (error) throw new Error(error.message || "Could not read this image");
+
+        const structuredItems = (data?.items || [])
+          .map((item) => ({
+            name: (item.name || "").toLowerCase().trim(),
+            quantity: item.quantity?.trim() || undefined,
+          }))
+          .filter((item) => item.name);
+
+        const fallbackItems = (data?.ingredients || []).map((name) => ({
+          name: name.toLowerCase().trim(),
+          quantity: undefined,
+        }));
+
+        importedCount = applyImportedItems(structuredItems.length > 0 ? structuredItems : fallbackItems);
+      } else {
+        toast.info("Please upload an image, text file, or CSV list.");
+        return;
+      }
+
+      if (importedCount === 0) {
+        toast.info("No grocery items were found to add to your pantry.");
+        return;
+      }
+
+      toast.success(`Added ${importedCount} pantry item${importedCount === 1 ? "" : "s"}.`);
+      setScanDialogOpen(false);
+    } catch (error) {
+      if (isAiAgentCallsDisabledError(error)) {
+        toast.info(getAiDisabledMessage("receipt and pantry scanning"));
+        return;
+      }
+
+      const message = error instanceof Error ? error.message : "Could not import this file";
+      toast.error(message);
+    } finally {
+      setImportingReceipt(false);
+      if (receiptInputRef.current) receiptInputRef.current.value = "";
+      if (fridgeImageInputRef.current) fridgeImageInputRef.current.value = "";
+    }
+  };
+
   return (
     <div className="min-h-full" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", background: "#FFFAF5" }}>
 
@@ -167,6 +298,14 @@ export default function PantryScreen() {
               <p className="text-xs text-stone-400 mt-1">{pantryList?.length ?? 0} items stocked</p>
             </div>
             <div className="flex items-center gap-2">
+              <button
+                title="Import receipt or grocery list"
+                onClick={() => receiptInputRef.current?.click()}
+                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-stone-200 text-sm font-semibold text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
+                disabled={importingReceipt}
+              >
+                <Upload size={14} /> {importingReceipt ? "Importing..." : "Import receipt/list"}
+              </button>
               <button
                 title="Scan fridge"
                 onClick={() => {
@@ -199,6 +338,29 @@ export default function PantryScreen() {
         </div>
       </div>
 
+      <input
+        ref={receiptInputRef}
+        type="file"
+        accept="image/*,.txt,.csv,.md,text/plain,text/csv,text/markdown"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) void handleImportedFile(file, "receipt");
+        }}
+      />
+
+      <input
+        ref={fridgeImageInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        capture="environment"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) void handleImportedFile(file, "fridge");
+        }}
+      />
+
       <Dialog open={scanDialogOpen} onOpenChange={setScanDialogOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
@@ -207,30 +369,21 @@ export default function PantryScreen() {
           <div className="space-y-3">
             <button
               onClick={() => {
-                const liveInput = document.createElement("input");
-                liveInput.type = "file";
-                liveInput.accept = "image/*";
-                liveInput.setAttribute("capture", "environment");
-                liveInput.click();
-                setScanDialogOpen(false);
-                toast.info("Fridge scanning is coming soon — live photo support is ready.");
+                fridgeImageInputRef.current?.click();
               }}
-              className="w-full flex items-center justify-center gap-2 text-sm font-semibold border border-orange-200 bg-orange-50 text-orange-600 rounded-xl py-2.5 hover:bg-orange-100"
+              disabled={importingReceipt}
+              className="w-full flex items-center justify-center gap-2 text-sm font-semibold border border-orange-200 bg-orange-50 text-orange-600 rounded-xl py-2.5 hover:bg-orange-100 disabled:opacity-60"
             >
-              <Camera size={14} /> Take live photo
+              <Camera size={14} /> {importingReceipt ? "Scanning..." : "Take live photo"}
             </button>
             <button
               onClick={() => {
-                const uploadInput = document.createElement("input");
-                uploadInput.type = "file";
-                uploadInput.accept = "image/*";
-                uploadInput.click();
-                setScanDialogOpen(false);
-                toast.info("Fridge scanning is coming soon — upload support is ready.");
+                receiptInputRef.current?.click();
               }}
-              className="w-full flex items-center justify-center gap-2 text-sm font-semibold border border-stone-200 bg-white text-stone-700 rounded-xl py-2.5 hover:border-orange-300 hover:text-orange-600"
+              disabled={importingReceipt}
+              className="w-full flex items-center justify-center gap-2 text-sm font-semibold border border-stone-200 bg-white text-stone-700 rounded-xl py-2.5 hover:border-orange-300 hover:text-orange-600 disabled:opacity-60"
             >
-              <Upload size={14} /> Upload photo
+              <Upload size={14} /> Upload receipt or list
             </button>
           </div>
         </DialogContent>
@@ -366,6 +519,7 @@ export default function PantryScreen() {
                     dataTutorial={index === 0 ? "pantry-item-0" : undefined}
                     onRemove={() => handleRemove(item.id, item.name)}
                     onEdit={(field, value) => updatePantryItem?.(item.id, { [field]: value })}
+                    onAdjustQty={(delta) => updatePantryItem?.(item.id, { quantity: adjustQuantityString(item.quantity, delta) })}
                   />
                 ))}
               </AnimatePresence>

@@ -25,6 +25,7 @@ const PROXY_FETCHERS: Array<{ label: string; buildUrl: (url: string) => string; 
 
 const NON_CONTENT_TAGS = ['script', 'style', 'noscript', 'svg', 'canvas', 'iframe'];
 const NON_ESSENTIAL_SECTIONS = ['header', 'footer', 'nav', 'aside', 'form'];
+const AD_SECTION_HINTS = ['ad', 'ads', 'advert', 'advertisement', 'promo', 'promotion', 'sponsor', 'newsletter', 'cookie', 'popup', 'banner'];
 const INGREDIENT_SECTION_HEADERS = ['ingredients'];
 const RECIPE_SECTION_END_HEADERS = ['instructions', 'directions', 'method', 'preparation', 'steps', 'nutrition', 'notes'];
 
@@ -401,6 +402,14 @@ function cleanHtmlForAi(html: string): string {
   for (const tag of NON_ESSENTIAL_SECTIONS) {
     cleaned = cleaned.replace(new RegExp(`<${tag}[^>]*>[\\s\\S]*?<\\/${tag}>`, 'gi'), ' ');
   }
+
+  cleaned = cleaned.replace(
+    new RegExp(
+      `<([a-z0-9:-]+)[^>]*(?:id|class|aria-label|data-testid|data-component)=["'][^"']*(?:${AD_SECTION_HINTS.join('|')})[^"']*["'][^>]*>[\\s\\S]*?<\\/\\1>`,
+      'gi',
+    ),
+    ' ',
+  );
 
   cleaned = cleaned
     .replace(/<!--([\s\S]*?)-->/g, ' ')

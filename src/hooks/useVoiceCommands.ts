@@ -4,7 +4,7 @@ interface VoiceCommandHandlers {
   onNext: () => void;
   onPrevious: () => void;
   onRepeat: () => void;
-  onStartTimer?: (seconds?: number) => void;
+  onStartTimer?: (seconds?: number) => boolean | void;
   onPauseTimer?: () => void;
   onStopTimer?: () => void;
 }
@@ -126,11 +126,19 @@ export function useVoiceCommands({ onNext, onPrevious, onRepeat, onStartTimer, o
           }
 
           if (durationSeconds > 0) {
-            showCommand(`Timer started for ${mins > 0 ? mins + 'm ' : ''}${secs > 0 ? secs + 's ' : ''}⏱️`.trim(), 'success');
-            handlersRef.current.onStartTimer(durationSeconds);
+            const started = handlersRef.current.onStartTimer(durationSeconds);
+            if (started === false) {
+              showCommand('No timer on this step', 'error');
+            } else {
+              showCommand(`Timer started for ${mins > 0 ? mins + 'm ' : ''}${secs > 0 ? secs + 's ' : ''}⏱️`.trim(), 'success');
+            }
           } else {
-            showCommand('Timer started ⏱️', 'success');
-            handlersRef.current.onStartTimer(); // Start default timer
+            const started = handlersRef.current.onStartTimer();
+            if (started === false) {
+              showCommand('No timer on this step', 'error');
+            } else {
+              showCommand('Timer started ⏱️', 'success');
+            }
           }
         } else {
           showCommand('No timer on this step', 'error');

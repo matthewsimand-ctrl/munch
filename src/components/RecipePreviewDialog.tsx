@@ -58,14 +58,16 @@ function hasStructuredRecipeContent(recipe: Recipe): boolean {
   return recipe.ingredients.length > 0 || recipe.instructions.length > 0;
 }
 
+const EMPTY_IMPORTED_PREVIEW = {
+  previewText: '',
+  structuredText: '',
+  sourceUrl: '',
+  rawPayloadKeys: [] as string[],
+};
+
 function getImportedPreviewData(recipe: Recipe) {
   if (!recipe.raw_api_payload || typeof recipe.raw_api_payload !== 'object' || Array.isArray(recipe.raw_api_payload)) {
-    return {
-      previewText: '',
-      structuredText: '',
-      sourceUrl: '',
-      rawPayloadKeys: [] as string[],
-    };
+    return EMPTY_IMPORTED_PREVIEW;
   }
 
   const payload = recipe.raw_api_payload as Record<string, unknown>;
@@ -109,17 +111,17 @@ export default function RecipePreviewDialog({
     status: 'needs-shopping',
   }), [recipe]);
 
-  if (!recipe) return null;
   const displayMatch = match ?? fallbackMatch;
-  const importedRecipe = isImportedRecipe(recipe);
-  const embedBlockReason = recipe.source_url ? getEmbedBlockReason(recipe.source_url) : null;
-  const canEmbedSource = Boolean(recipe.source_url) && !embedBlockReason;
-  const importedPreview = useMemo(() => getImportedPreviewData(recipe), [recipe]);
+  const importedRecipe = recipe ? isImportedRecipe(recipe) : false;
+  const embedBlockReason = recipe?.source_url ? getEmbedBlockReason(recipe.source_url) : null;
+  const importedPreview = useMemo(() => recipe ? getImportedPreviewData(recipe) : EMPTY_IMPORTED_PREVIEW, [recipe]);
+  const hasCleanReaderContent = Boolean(importedPreview.previewText || importedPreview.structuredText);
+  const canEmbedSource = Boolean(recipe?.source_url) && !embedBlockReason && !hasCleanReaderContent;
   const readerPreviewText = importedPreview.previewText || importedPreview.structuredText;
   const hasReaderPreview = readerPreviewText.length > 0;
-  const showStructuredFallback = importedRecipe && hasStructuredRecipeContent(recipe);
+  const showStructuredFallback = recipe ? importedRecipe && hasStructuredRecipeContent(recipe) : false;
   const sourceHostname = useMemo(() => {
-    const url = recipe.source_url || importedPreview.sourceUrl;
+    const url = recipe?.source_url || importedPreview.sourceUrl;
 
     if (!url) return '';
 
@@ -128,10 +130,10 @@ export default function RecipePreviewDialog({
     } catch {
       return '';
     }
-  }, [importedPreview.sourceUrl, recipe.source_url]);
+  }, [importedPreview.sourceUrl, recipe?.source_url]);
 
   useEffect(() => {
-    if (!open || !importedRecipe || !recipe.source_url || !embedBlockReason) return;
+    if (!open || !recipe || !importedRecipe || !recipe.source_url || !embedBlockReason) return;
 
     console.info('[RecipePreviewDialog] Source embed disabled', {
       recipeId: recipe.id,
@@ -152,11 +154,13 @@ export default function RecipePreviewDialog({
     importedPreview.structuredText.length,
     importedRecipe,
     open,
-    recipe.id,
-    recipe.name,
-    recipe.source_url,
+    recipe?.id,
+    recipe?.name,
+    recipe?.source_url,
     showStructuredFallback,
   ]);
+
+  if (!recipe) return null;
 
   const handleAddMissingToGrocery = () => {
     if (!onAddMissingToGrocery || displayMatch.missing.length === 0) return;
@@ -260,14 +264,14 @@ export default function RecipePreviewDialog({
                         <div className="space-y-1">
                           <p className="text-sm font-medium text-stone-800">
                             {hasReaderPreview
-                              ? 'Showing Reader View for this recipe'
+                              ? 'Showing cleaned Reader View for this recipe'
                               : canEmbedSource
                                 ? 'Viewing imported recipe details'
                                 : 'This site doesn&apos;t allow direct embedding'}
                           </p>
                           <p className="text-xs text-stone-500">
                             {hasReaderPreview
-                              ? 'This site blocks iframe embedding, so we&apos;re showing the imported page content in-app.'
+                              ? 'We removed navigation and ad-heavy page content so you can read the imported recipe in-app.'
                               : showStructuredFallback
                                 ? 'Showing the saved recipe details we imported.'
                               : 'Open the original page in your browser to view it.'}

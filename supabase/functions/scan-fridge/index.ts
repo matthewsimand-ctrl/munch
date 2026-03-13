@@ -17,7 +17,7 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const { imageBase64 } = await req.json();
+    const { imageBase64, source } = await req.json();
     if (!imageBase64) {
       return new Response(
         JSON.stringify({ error: "imageBase64 is required" }),
@@ -36,14 +36,16 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `You are a kitchen ingredient identifier. Given a photo of a fridge, pantry, or groceries, identify all visible food ingredients and produce. Return ONLY a JSON array of ingredient names as lowercase strings. Be specific but use common names (e.g. "chicken thighs" not "poultry"). Do not include non-food items. If you cannot identify ingredients, return an empty array [].`,
+            content: `You extract grocery items from pantry photos, grocery photos, handwritten lists, and grocery receipts. Return ONLY a JSON array where each item is an object with "name" and optional "quantity". Use lowercase common food names. Exclude non-food items and store metadata. If quantity is visible, include it as a short string like "2", "1 lb", or "12 oz". If no food items are identifiable, return [].`,
           },
           {
             role: "user",
             content: [
               {
                 type: "text",
-                text: "Identify all food ingredients visible in this image. Return a JSON array of ingredient names.",
+                text: source === "receipt"
+                  ? "Extract grocery items from this receipt or shopping list image. Return only a JSON array of objects with name and optional quantity."
+                  : "Identify all food ingredients visible in this image. Return only a JSON array of objects with name and optional quantity.",
               },
               {
                 type: "image_url",
@@ -81,19 +83,33 @@ serve(async (req) => {
     const content = data.choices?.[0]?.message?.content || "[]";
 
     // Extract JSON array from response (handle markdown code blocks)
-    let ingredients: string[] = [];
+    let items: Array<{ name: string; quantity?: string }> = [];
     try {
       const jsonMatch = content.match(/\[[\s\S]*?\]/);
       if (jsonMatch) {
-        ingredients = JSON.parse(jsonMatch[0]);
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (Array.isArray(parsed)) {
+          items = parsed
+            .map((entry) => {
+              if (typeof entry === "string") {
+                return { name: entry.toLowerCase().trim() };
+              }
+              if (!entry || typeof entry !== "object") return null;
+              const record = entry as { name?: unknown; quantity?: unknown };
+              const name = typeof record.name === "string" ? record.name.toLowerCase().trim() : "";
+              const quantity = typeof record.quantity === "string" ? record.quantity.trim() : undefined;
+              return name ? { name, quantity } : null;
+            })
+            .filter((entry): entry is { name: string; quantity?: string } => Boolean(entry));
+        }
       }
     } catch {
-      console.error("Failed to parse ingredients from:", content);
-      ingredients = [];
+      console.error("Failed to parse items from:", content);
+      items = [];
     }
 
     return new Response(
-      JSON.stringify({ ingredients }),
+      JSON.stringify({ items, ingredients: items.map((item) => item.name) }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {

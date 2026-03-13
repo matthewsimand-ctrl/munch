@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft, ArrowRight, ChefHat, CheckCircle2, Circle, X,
   Volume2, VolumeX, RotateCcw, Check, Star, CircleHelp,
-  Mic, MicOff, Timer, Pause, Play as PlayIcon
+  Mic, MicOff, Timer, Pause, Play as PlayIcon, Zap
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "@/lib/store";
@@ -13,10 +13,19 @@ import { useSpeechSynthesis } from "@/hooks/useSpeechSynthesis";
 import { toast } from "sonner";
 import type { Recipe } from "@/data/recipes";
 import { useVoiceCommands } from "@/hooks/useVoiceCommands";
-import { ChefPath, CookingXpBar } from "@/components/ChefCompanion";
+import { getLevel } from "@/components/ChefCompanion";
 import { buildDictionaryRegex, lookupTerm } from "@/lib/cookingDictionary";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCookedMeals } from "@/hooks/useCookedMeals";
+
+interface ActiveTimer {
+  id: string;
+  label: string;
+  totalSeconds: number;
+  remainingSeconds: number;
+  isPaused: boolean;
+  sourceStep: number;
+}
 
 /* ─── Helpers ──────────────────────────────────────────────── */
 function cleanInstruction(raw: string): string {
@@ -28,6 +37,8 @@ function cleanInstruction(raw: string): string {
 
 const dictionaryRegex = buildDictionaryRegex();
 const timerRegex = /\b(\d+(?:\.\d+)?)\s*(min|minute|minutes|hr|hour|hours|sec|second|seconds)\b/gi;
+const XP_PER_STEP = 15;
+const COMPLETION_BONUS_XP = 50;
 
 function renderInstructionWithDefinitions(step: string, onTimerClick?: (seconds: number, label: string) => void) {
   // Combine both dictionary and timer matches
@@ -119,20 +130,6 @@ function renderInstructionWithDefinitions(step: string, onTimerClick?: (seconds:
   return nodes;
 }
 
-function getTimerDisplay(seconds: number) {
-  if (seconds >= 60) {
-    return {
-      value: String(Math.max(1, Math.ceil(seconds / 60))),
-      unit: "min",
-    };
-  }
-
-  return {
-    value: String(Math.max(0, seconds)),
-    unit: "sec",
-  };
-}
-
 function formatTimerClock(seconds: number) {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
@@ -159,12 +156,12 @@ function StepTimerCard({
   onEnd: () => void;
 }) {
   const seconds = isActive ? remainingSeconds ?? totalSeconds : totalSeconds;
-  const display = getTimerDisplay(seconds);
   const safeTotal = Math.max(totalSeconds, 1);
   const progress = isActive ? Math.max(0, Math.min(1, seconds / safeTotal)) : 1;
   const radius = 24;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference * (1 - progress);
+  const strokeDasharray = `${circumference * progress} ${circumference}`;
   const ringColor = isActive && seconds <= 10 ? "#DC2626" : "#F97316";
 
   return (
@@ -176,7 +173,7 @@ function StepTimerCard({
         boxShadow: isActive ? "0 10px 24px rgba(249,115,22,0.12)" : "0 4px 14px rgba(249,115,22,0.06)",
       }}
     >
-      <div className="flex items-center gap-3">
+      <div className="flex flex-col items-center text-center gap-3">
         <div
           className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
           style={{ background: "rgba(249,115,22,0.12)", color: "#EA580C" }}
@@ -188,16 +185,11 @@ function StepTimerCard({
           <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-orange-400">
             {isActive ? "Timer Running" : "Detected Timer"}
           </p>
-          <p className="text-sm font-bold text-stone-800 truncate">{label}</p>
-          {isActive && (
-            <p className="text-[11px] font-semibold text-stone-400 mt-0.5">
-              {formatTimerClock(seconds)} remaining
-            </p>
-          )}
+          <p className="text-sm font-bold text-stone-800">{label}</p>
         </div>
 
-        <div className="ml-auto relative w-16 h-16 shrink-0">
-          <svg className="w-16 h-16 -rotate-90" viewBox="0 0 56 56" aria-hidden="true">
+        <div className="relative w-20 h-20 shrink-0">
+          <svg className="w-20 h-20 -rotate-90" viewBox="0 0 56 56" aria-hidden="true">
             <circle
               cx="28"
               cy="28"
@@ -214,24 +206,22 @@ function StepTimerCard({
               stroke={ringColor}
               strokeWidth="4"
               strokeLinecap="round"
-              strokeDasharray={circumference}
+              strokeDasharray={strokeDasharray}
               strokeDashoffset={strokeDashoffset}
               className="transition-[stroke-dashoffset] duration-1000 ease-linear"
             />
           </svg>
 
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-base font-black text-stone-900 leading-none" style={{ fontVariantNumeric: "tabular-nums" }}>
-              {display.value}
-            </span>
-            <span className="text-[9px] font-bold uppercase tracking-wide text-stone-400">
-              {display.unit}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-sm font-black text-stone-900 leading-none" style={{ fontVariantNumeric: "tabular-nums" }}>
+              {formatTimerClock(seconds)}
             </span>
           </div>
         </div>
+
       </div>
 
-      <div className="mt-4 flex items-center gap-2">
+      <div className="mt-4 flex items-center justify-center gap-2">
         {isActive ? (
           <>
             <button
@@ -295,7 +285,7 @@ function ProgressDots({ total, current }: { total: number; current: number }) {
 export default function CookMode() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { savedApiRecipes, markRecipeCooked, rateRecipe, recipeRatings } = useStore();
+  const { savedApiRecipes, markRecipeCooked, rateRecipe, recipeRatings, totalXp, addXp, cookingStreak } = useStore();
   const { data: dbRecipes = [] } = useDbRecipes();
   const { isSpeaking, speak, stop } = useSpeechSynthesis();
   const { trackCookedMeal } = useCookedMeals(1);
@@ -306,11 +296,12 @@ export default function CookMode() {
   const [ttsEnabled, setTtsEnabled] = useState(true);
   const [done, setDone] = useState(false);
   const [showIngredients, setShowIngredients] = useState(false);
-  const [timerLeft, setTimerLeft] = useState<number | null>(null);
-  const [timerDuration, setTimerDuration] = useState<number | null>(null);
-  const [isTimerPaused, setIsTimerPaused] = useState(false);
-  const [timerLabel, setTimerLabel] = useState<string>('');
+  const [activeTimers, setActiveTimers] = useState<ActiveTimer[]>([]);
+  const [earnedSessionXp, setEarnedSessionXp] = useState(0);
+  const [xpPopup, setXpPopup] = useState<{ id: number; amount: number; label: string } | null>(null);
   const hasTrackedCookRef = useRef(false);
+  const awardedStepsRef = useRef<Set<number>>(new Set());
+  const awardedCompletionRef = useRef(false);
 
   /* ── Resolve recipe ── */
   const recipe = useMemo<Recipe | null>(() => {
@@ -330,6 +321,24 @@ export default function CookMode() {
   const isLastStep = stepIndex === steps.length - 1;
   const sessionXp = Math.max(0, (steps.length - 1) * 15) + 50;
   const currentRating = recipe && id ? recipeRatings[id] ?? 0 : 0;
+  const levelInfo = getLevel(totalXp);
+  const headerProgress = steps.length > 1 ? stepIndex / (steps.length - 1) : 0;
+  const headerChefEmoji = useMemo(() => {
+    if (done) return "🎉";
+    if (activeTimers.length > 0) return "⏳";
+    const progress = stepIndex / Math.max(steps.length - 1, 1);
+    if (progress < 0.2) return "👨‍🍳";
+    if (progress < 0.45) return "🔪";
+    if (progress < 0.7) return "🥘";
+    if (progress < 0.95) return "🍳";
+    return "😋";
+  }, [activeTimers.length, done, stepIndex, steps.length]);
+
+  const awardXp = useCallback((amount: number, label: string) => {
+    addXp(amount);
+    setEarnedSessionXp((prev) => prev + amount);
+    setXpPopup({ id: Date.now() + amount, amount, label });
+  }, [addXp]);
 
   /* ── TTS: speak is ONLY called from button click handlers ──
      Never put speak() in a useEffect — browsers block speech
@@ -397,57 +406,64 @@ export default function CookMode() {
 
   useEffect(() => {
     hasTrackedCookRef.current = false;
+    awardedStepsRef.current = new Set();
+    awardedCompletionRef.current = false;
+    setEarnedSessionXp(0);
+    setXpPopup(null);
   }, [id]);
 
   useEffect(() => {
-    if (timerLeft === null || isTimerPaused) return;
-    if (timerLeft <= 0) {
-      toast.success("Timer done! ⏱️");
-      speak("Timer is done!");
-      setTimerLeft(null);
-      setTimerDuration(null);
-      setTimerLabel('');
-      return;
-    }
+    if (stepIndex <= 0) return;
+    if (awardedStepsRef.current.has(stepIndex)) return;
+
+    awardedStepsRef.current.add(stepIndex);
+    awardXp(XP_PER_STEP, `Step ${stepIndex + 1} complete`);
+  }, [awardXp, stepIndex]);
+
+  useEffect(() => {
+    if (!done || awardedCompletionRef.current) return;
+
+    awardedCompletionRef.current = true;
+    awardXp(COMPLETION_BONUS_XP, "Recipe complete");
+  }, [awardXp, done]);
+
+  useEffect(() => {
+    if (!xpPopup) return;
+    const timeout = window.setTimeout(() => setXpPopup(null), 1400);
+    return () => window.clearTimeout(timeout);
+  }, [xpPopup]);
+
+  useEffect(() => {
+    if (activeTimers.length === 0) return;
+
+    const hasRunningTimer = activeTimers.some((timer) => !timer.isPaused);
+    if (!hasRunningTimer) return;
+
     const interval = setTimeout(() => {
-      setTimerLeft(t => t! - 1);
+      const completedLabels: string[] = [];
+
+      setActiveTimers((prev) => prev.flatMap((timer) => {
+        if (timer.isPaused) return [timer];
+
+        if (timer.remainingSeconds <= 1) {
+          completedLabels.push(timer.label);
+          return [];
+        }
+
+        return [{
+          ...timer,
+          remainingSeconds: timer.remainingSeconds - 1,
+        }];
+      }));
+
+      completedLabels.forEach((label) => {
+        toast.success(`${label} done! ⏱️`);
+        speak(`${label} timer is done!`);
+      });
     }, 1000);
+
     return () => clearTimeout(interval);
-  }, [timerLeft, isTimerPaused, speak]);
-
-  const {
-    isListening, lastCommand, commandStatus, error, toggleListening
-  } = useVoiceCommands({
-    onNext: goNext,
-    onPrevious: goPrev,
-    onRepeat: handleReadStep,
-    onStartTimer: (seconds = 300) => {
-      setTimerLeft(seconds);
-      setTimerDuration(seconds);
-      setIsTimerPaused(false);
-      setTimerLabel('');
-    },
-    onPauseTimer: () => setIsTimerPaused(true),
-    onStopTimer: () => {
-      setTimerLeft(null);
-      setTimerDuration(null);
-      setTimerLabel('');
-    },
-  });
-
-  useEffect(() => {
-    if (error) toast.error(error);
-  }, [error]);
-
-  /* ── Keyboard nav ── */
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "ArrowRight" || e.key === "ArrowDown") { e.preventDefault(); goNext(); }
-      if (e.key === "ArrowLeft" || e.key === "ArrowUp") { e.preventDefault(); goPrev(); }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [goNext, goPrev]);
+  }, [activeTimers, speak]);
 
   /* ── Auto-Detect Timers ── */
   const detectedTimers = useMemo(() => {
@@ -475,33 +491,131 @@ export default function CookMode() {
     return timers;
   }, [steps, stepIndex]);
 
-  const handleStartTimer = useCallback((seconds: number, label: string) => {
-    setTimerLeft(seconds);
-    setTimerDuration(seconds);
-    setIsTimerPaused(false);
-    setTimerLabel(label);
-    toast.success(`Timer set for ${label}`);
-  }, []);
+  const buildTimerId = useCallback((sourceStep: number, label: string) => `${sourceStep}:${label.toLowerCase()}`, []);
 
-  const isDetectedTimerActive = useCallback((timer: { label: string; seconds: number }) => {
-    if (timerLeft === null) return false;
+  const upsertTimer = useCallback((sourceStep: number, label: string, totalSeconds: number, remainingSeconds = totalSeconds) => {
+    const timerId = buildTimerId(sourceStep, label);
 
-    if (timerLabel) {
-      return timerLabel.toLowerCase() === timer.label.toLowerCase();
+    setActiveTimers((prev) => {
+      const existingIndex = prev.findIndex((timer) => timer.id === timerId);
+      const nextTimer: ActiveTimer = {
+        id: timerId,
+        label,
+        totalSeconds,
+        remainingSeconds,
+        isPaused: false,
+        sourceStep,
+      };
+
+      if (existingIndex === -1) {
+        return [...prev, nextTimer];
+      }
+
+      const next = [...prev];
+      next[existingIndex] = nextTimer;
+      return next;
+    });
+  }, [buildTimerId]);
+
+  const currentStepActiveTimers = useMemo(
+    () => activeTimers.filter((timer) => timer.sourceStep === stepIndex),
+    [activeTimers, stepIndex],
+  );
+
+  const detachedActiveTimers = useMemo(
+    () => activeTimers.filter((timer) => timer.sourceStep !== stepIndex),
+    [activeTimers, stepIndex],
+  );
+
+  const mostRecentActiveTimer = activeTimers[activeTimers.length - 1] ?? null;
+
+  const resolveVoiceTimerTarget = useCallback((seconds?: number) => {
+    if (typeof seconds === "number" && seconds > 0) {
+      const matchedTimer = detectedTimers.find((timer) => timer.seconds === seconds);
+      return matchedTimer
+        ? { seconds: matchedTimer.seconds, label: matchedTimer.label, sourceStep: stepIndex }
+        : { seconds, label: `${Math.round(seconds / 60)} min`, sourceStep: stepIndex };
     }
 
-    return timerDuration === timer.seconds && detectedTimers.length === 1;
-  }, [detectedTimers.length, timerDuration, timerLabel, timerLeft]);
+    const pausedCurrentStepTimer = currentStepActiveTimers.find((timer) => timer.isPaused);
+    if (pausedCurrentStepTimer) {
+      return {
+        seconds: pausedCurrentStepTimer.totalSeconds,
+        label: pausedCurrentStepTimer.label,
+        sourceStep: pausedCurrentStepTimer.sourceStep,
+        remainingSeconds: pausedCurrentStepTimer.remainingSeconds,
+      };
+    }
 
-  const detachedActiveTimer = useMemo(() => {
-    if (timerLeft === null) return null;
-    if (detectedTimers.some((timer) => isDetectedTimerActive(timer))) return null;
+    if (detectedTimers.length > 0) {
+      return { ...detectedTimers[0], sourceStep: stepIndex };
+    }
 
-    return {
-      label: timerLabel || "Active Timer",
-      seconds: timerDuration ?? timerLeft,
+    if (mostRecentActiveTimer) {
+      return {
+        seconds: mostRecentActiveTimer.totalSeconds,
+        label: mostRecentActiveTimer.label,
+        sourceStep: mostRecentActiveTimer.sourceStep,
+        remainingSeconds: mostRecentActiveTimer.remainingSeconds,
+      };
+    }
+
+    return null;
+  }, [currentStepActiveTimers, detectedTimers, mostRecentActiveTimer, stepIndex]);
+
+  const {
+    isListening, lastCommand, commandStatus, error, toggleListening
+  } = useVoiceCommands({
+    onNext: goNext,
+    onPrevious: goPrev,
+    onRepeat: handleReadStep,
+    onStartTimer: (seconds) => {
+      const targetTimer = resolveVoiceTimerTarget(seconds);
+      if (!targetTimer) {
+        return false;
+      }
+
+      upsertTimer(
+        targetTimer.sourceStep,
+        targetTimer.label,
+        targetTimer.seconds,
+        targetTimer.remainingSeconds ?? targetTimer.seconds,
+      );
+      return true;
+    },
+    onPauseTimer: () => {
+      if (!mostRecentActiveTimer) return;
+      setActiveTimers((prev) => prev.map((timer) => timer.id === mostRecentActiveTimer.id ? { ...timer, isPaused: true } : timer));
+    },
+    onStopTimer: () => {
+      if (!mostRecentActiveTimer) return;
+      setActiveTimers((prev) => prev.filter((timer) => timer.id !== mostRecentActiveTimer.id));
+    },
+  });
+
+  useEffect(() => {
+    if (error) toast.error(error);
+  }, [error]);
+
+  /* ── Keyboard nav ── */
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "ArrowRight" || e.key === "ArrowDown") { e.preventDefault(); goNext(); }
+      if (e.key === "ArrowLeft" || e.key === "ArrowUp") { e.preventDefault(); goPrev(); }
     };
-  }, [detectedTimers, isDetectedTimerActive, timerDuration, timerLabel, timerLeft]);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [goNext, goPrev]);
+
+  const handleStartTimer = useCallback((seconds: number, label: string) => {
+    upsertTimer(stepIndex, label, seconds);
+    toast.success(`Timer set for ${label}`);
+  }, [stepIndex, upsertTimer]);
+
+  const isDetectedTimerActive = useCallback((timer: { label: string; seconds: number }) => {
+    const timerId = buildTimerId(stepIndex, timer.label);
+    return activeTimers.some((activeTimer) => activeTimer.id === timerId);
+  }, [activeTimers, buildTimerId, stepIndex]);
 
   if (!recipe) {
     return (
@@ -714,7 +828,15 @@ export default function CookMode() {
 
           <div className="flex gap-3 justify-center">
             <button
-              onClick={() => { hasTrackedCookRef.current = false; setDone(false); setStepIndex(0); }}
+              onClick={() => {
+                hasTrackedCookRef.current = false;
+                awardedStepsRef.current = new Set();
+                awardedCompletionRef.current = false;
+                setEarnedSessionXp(0);
+                setXpPopup(null);
+                setDone(false);
+                setStepIndex(0);
+              }}
               className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold bg-white border border-stone-200 text-stone-600 hover:border-orange-300 transition-colors"
             >
               <RotateCcw size={14} /> Cook again
@@ -740,59 +862,125 @@ export default function CookMode() {
     >
       {/* Top bar */}
       <div
-        className="border-b px-6 py-4 flex items-center justify-between gap-4"
+        className="border-b px-6 py-4"
         style={{
           background: "linear-gradient(135deg,#FFF7ED 0%,#FFFAF5 100%)",
           borderColor: "rgba(249,115,22,0.12)",
         }}
       >
-        <button
-          onClick={() => { stop(); navigate(-1); }}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-stone-200 text-xs font-semibold text-stone-600 hover:border-orange-300 transition-colors"
-        >
-          <ArrowLeft size={13} /> Exit
-        </button>
+        <div className="max-w-4xl mx-auto">
+          <div className="flex items-center justify-between gap-4">
+            <button
+              onClick={() => { stop(); navigate(-1); }}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-stone-200 text-xs font-semibold text-stone-600 hover:border-orange-300 transition-colors"
+            >
+              <ArrowLeft size={13} /> Exit
+            </button>
 
-        <div className="text-center flex-1">
-          <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest">Now cooking</p>
-          <p
-            className="text-sm font-bold text-stone-800 line-clamp-1"
-            style={{ fontFamily: "'Fraunces', Georgia, serif" }}
-          >
-            {recipe.name}
-          </p>
-        </div>
+            <div className="text-center flex-1 min-w-0">
+              <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest">Now cooking</p>
+              <div className="flex items-center justify-center gap-2 min-w-0">
+                <motion.span
+                  key={headerChefEmoji}
+                  initial={{ scale: 0.85, opacity: 0.6 }}
+                  animate={{ scale: 1, opacity: 1, y: activeTimers.length > 0 ? [0, -3, 0] : [0, -1, 0] }}
+                  transition={{
+                    opacity: { duration: 0.2 },
+                    scale: { duration: 0.2 },
+                    y: { duration: activeTimers.length > 0 ? 0.6 : 1, repeat: Infinity, repeatType: "loop", ease: "easeInOut" },
+                  }}
+                  className="text-lg shrink-0"
+                  aria-hidden="true"
+                >
+                  {headerChefEmoji}
+                </motion.span>
+                <p
+                  className="text-sm font-bold text-stone-800 line-clamp-1"
+                  style={{ fontFamily: "'Fraunces', Georgia, serif" }}
+                >
+                  {recipe.name}
+                </p>
+                <span className="shrink-0 rounded-full bg-white/90 border border-orange-200 px-2 py-0.5 text-[10px] font-bold text-orange-600">
+                  Lv.{levelInfo.level}
+                </span>
+                <span className="shrink-0 rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-bold text-amber-600 inline-flex items-center gap-1">
+                  <Zap size={10} className="fill-current" />
+                  +{earnedSessionXp} XP
+                </span>
+                {cookingStreak > 0 && (
+                  <span className="shrink-0 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-bold text-emerald-600">
+                    Streak {cookingStreak}
+                  </span>
+                )}
+              </div>
+              <div className="mt-2 flex items-center justify-center">
+                <div className="relative w-full max-w-xs h-7 px-5">
+                  <div className="absolute left-5 right-5 top-1/2 -translate-y-1/2 h-1.5 rounded-full bg-orange-100" />
+                  <motion.div
+                    className="absolute left-5 top-1/2 -translate-y-1/2 h-1.5 rounded-full bg-gradient-to-r from-orange-300 to-orange-500"
+                    animate={{ width: `calc(${Math.min(headerProgress, 1) * 100}% * (100% - 2.5rem) / 100%)` }}
+                    transition={{ type: "spring", stiffness: 90, damping: 18 }}
+                    style={{ maxWidth: "calc(100% - 2.5rem)" }}
+                  />
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 text-sm">🍽️</span>
+                  <span className="absolute right-0 top-1/2 -translate-y-1/2 text-sm">🏁</span>
+                  <motion.span
+                    className="absolute top-1/2 -translate-y-1/2 text-base"
+                    animate={{ left: `calc(${Math.min(headerProgress, 1) * 100}% * (100% - 2.5rem) / 100% + 1rem)` }}
+                    transition={{ type: "spring", stiffness: 110, damping: 16 }}
+                  >
+                    {headerChefEmoji}
+                  </motion.span>
+                </div>
+              </div>
+              <div className="h-5 mt-1 flex items-center justify-center">
+                <AnimatePresence mode="wait">
+                  {xpPopup && (
+                    <motion.div
+                      key={xpPopup.id}
+                      initial={{ opacity: 0, y: 6, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                      className="inline-flex items-center gap-1 rounded-full bg-amber-100/90 border border-amber-200 px-2.5 py-0.5 text-[10px] font-bold text-amber-700"
+                    >
+                      <Zap size={10} className="fill-current" />
+                      +{xpPopup.amount} XP · {xpPopup.label}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
 
-        <div className="flex items-center gap-2">
-          {/* Ingredients toggle */}
-          <button
-            onClick={() => setShowIngredients((v) => !v)}
-            className="px-3 py-2 rounded-xl bg-white border border-stone-200 text-xs font-semibold text-stone-600 hover:border-orange-300 transition-colors"
-          >
-            Ingredients
-          </button>
-          {/* Hands-Free toggle */}
-          <button
-            onClick={toggleListening}
-            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${isListening
-              ? "bg-emerald-500 text-white border border-emerald-500"
-              : "bg-white border border-stone-200 text-stone-400 hover:border-emerald-300"
-              }`}
-            title={isListening ? "Stop listening" : "Enable hands-free mode"}
-          >
-            {isListening ? <Mic size={15} /> : <MicOff size={15} />}
-          </button>
-          {/* TTS toggle */}
-          <button
-            onClick={handleToggleTts}
-            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${ttsEnabled
-              ? "bg-orange-500 text-white border border-orange-500"
-              : "bg-white border border-stone-200 text-stone-400 hover:border-orange-300"
-              }`}
-            title={ttsEnabled ? "Mute voice" : "Enable voice"}
-          >
-            {ttsEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
-          </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowIngredients((v) => !v)}
+                className="px-3 py-2 rounded-xl bg-white border border-stone-200 text-xs font-semibold text-stone-600 hover:border-orange-300 transition-colors"
+              >
+                Ingredients
+              </button>
+              <button
+                onClick={toggleListening}
+                className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${isListening
+                  ? "bg-emerald-500 text-white border border-emerald-500"
+                  : "bg-white border border-stone-200 text-stone-400 hover:border-emerald-300"
+                  }`}
+                title={isListening ? "Stop listening" : "Enable hands-free mode"}
+              >
+                {isListening ? <Mic size={15} /> : <MicOff size={15} />}
+              </button>
+              <button
+                onClick={handleToggleTts}
+                className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${ttsEnabled
+                  ? "bg-orange-500 text-white border border-orange-500"
+                  : "bg-white border border-stone-200 text-stone-400 hover:border-orange-300"
+                  }`}
+                title={ttsEnabled ? "Mute voice" : "Enable voice"}
+              >
+                {ttsEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
+              </button>
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -869,16 +1057,6 @@ export default function CookMode() {
       {/* Step area */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-8">
         <div className="w-full max-w-2xl space-y-6">
-          <div
-            className="rounded-2xl border px-4 py-3"
-            style={{ background: "#fff", borderColor: "rgba(249,115,22,0.14)", boxShadow: "0 4px 18px rgba(249,115,22,0.08)" }}
-          >
-            <ChefPath currentStep={stepIndex} totalSteps={steps.length} timerRunning={timerLeft !== null} isDone={done} />
-            <div className="mt-2 pt-2 border-t" style={{ borderColor: "rgba(249,115,22,0.12)" }}>
-              <CookingXpBar currentStep={stepIndex} isDone={done} />
-            </div>
-          </div>
-
           {/* Progress */}
           <div className="flex items-center justify-between text-xs font-semibold text-stone-400">
             <span>Step {stepIndex + 1} of {steps.length}</span>
@@ -940,57 +1118,69 @@ export default function CookMode() {
               </TooltipProvider>
 
               {/* Step Timers */}
-              {(detectedTimers.length > 0 || detachedActiveTimer) && (
+              {(detectedTimers.length > 0 || detachedActiveTimers.length > 0) && (
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   data-tutorial="timers-section"
-                  className="mt-6 pt-5 space-y-3"
+                  className="mt-6 pt-5 flex flex-col items-center space-y-3"
                   style={{ borderTop: "1px dashed rgba(249,115,22,0.2)" }}
                 >
                   <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest">
                     Step Timers
                   </p>
 
-                  <div className="grid gap-3 sm:grid-cols-2">
+                  <div className={`grid gap-3 w-full ${detectedTimers.length + detachedActiveTimers.length > 1 ? "sm:grid-cols-2" : "max-w-sm mx-auto"}`}>
                     {detectedTimers.map((timer, index) => {
-                      const isActive = isDetectedTimerActive(timer);
+                      const timerId = buildTimerId(stepIndex, timer.label);
+                      const activeTimer = activeTimers.find((item) => item.id === timerId);
+                      const isActive = Boolean(activeTimer);
 
                       return (
                         <StepTimerCard
                           key={`${timer.label}-${index}`}
                           label={timer.label}
                           totalSeconds={timer.seconds}
-                          remainingSeconds={isActive ? timerLeft ?? timer.seconds : timer.seconds}
+                          remainingSeconds={isActive ? activeTimer?.remainingSeconds ?? timer.seconds : timer.seconds}
                           isActive={isActive}
-                          isPaused={isActive && isTimerPaused}
+                          isPaused={activeTimer?.isPaused ?? false}
                           onStart={() => handleStartTimer(timer.seconds, timer.label)}
-                          onTogglePause={() => setIsTimerPaused((paused) => !paused)}
+                          onTogglePause={() => {
+                            if (!activeTimer) return;
+                            setActiveTimers((prev) => prev.map((item) => (
+                              item.id === activeTimer.id
+                                ? { ...item, isPaused: !item.isPaused }
+                                : item
+                            )));
+                          }}
                           onEnd={() => {
-                            setTimerLeft(null);
-                            setTimerDuration(null);
-                            setTimerLabel('');
+                            setActiveTimers((prev) => prev.filter((item) => item.id !== timerId));
                           }}
                         />
                       );
                     })}
 
-                    {detachedActiveTimer && (
+                    {detachedActiveTimers.map((timer) => (
                       <StepTimerCard
-                        label={detachedActiveTimer.label}
-                        totalSeconds={detachedActiveTimer.seconds}
-                        remainingSeconds={timerLeft ?? detachedActiveTimer.seconds}
+                        key={timer.id}
+                        label={timer.label}
+                        totalSeconds={timer.totalSeconds}
+                        remainingSeconds={timer.remainingSeconds}
                         isActive
-                        isPaused={isTimerPaused}
+                        isPaused={timer.isPaused}
                         onStart={() => {}}
-                        onTogglePause={() => setIsTimerPaused((paused) => !paused)}
+                        onTogglePause={() => {
+                          setActiveTimers((prev) => prev.map((item) => (
+                            item.id === timer.id
+                              ? { ...item, isPaused: !item.isPaused }
+                              : item
+                          )));
+                        }}
                         onEnd={() => {
-                          setTimerLeft(null);
-                          setTimerDuration(null);
-                          setTimerLabel('');
+                          setActiveTimers((prev) => prev.filter((item) => item.id !== timer.id));
                         }}
                       />
-                    )}
+                    ))}
                   </div>
                 </motion.div>
               )}

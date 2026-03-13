@@ -41,6 +41,25 @@ function isCookedMealsTableMissing(error: { code?: string | null; message?: stri
     );
 }
 
+function readLocalMeals(): CookedMeal[] {
+  try {
+    const raw = localStorage.getItem(LOCAL_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as CookedMeal[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalMeals(meals: CookedMeal[]) {
+  try {
+    localStorage.setItem(LOCAL_KEY, JSON.stringify(meals.slice(0, 200)));
+  } catch {
+    // Ignore local storage failures.
+  }
+}
+
 export function useCookedMeals(limit = 12) {
   const [meals, setMeals] = useState<CookedMeal[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,25 +69,14 @@ export function useCookedMeals(limit = 12) {
     setLoading(true);
     const { data: { session } } = await supabase.auth.getSession();
 
-    const getLocalMeals = (): CookedMeal[] => {
-      try {
-        const raw = localStorage.getItem(LOCAL_KEY);
-        if (!raw) return [];
-        const parsed = JSON.parse(raw) as CookedMeal[];
-        return Array.isArray(parsed) ? parsed : [];
-      } catch {
-        return [];
-      }
-    };
-
     if (!session?.user) {
-      setMeals(getLocalMeals().slice(0, limit));
+      setMeals(readLocalMeals().slice(0, limit));
       setLoading(false);
       return;
     }
 
     if (cookedMealsTableUnavailableRef.current) {
-      setMeals(getLocalMeals().slice(0, limit));
+      setMeals(readLocalMeals().slice(0, limit));
       setLoading(false);
       return;
     }
@@ -84,13 +92,13 @@ export function useCookedMeals(limit = 12) {
       if (isCookedMealsTableMissing(error)) {
         cookedMealsTableUnavailableRef.current = true;
       }
-      setMeals(getLocalMeals().slice(0, limit));
+      setMeals(readLocalMeals().slice(0, limit));
       setLoading(false);
       return;
     }
 
     const remoteMeals = (data || []) as CookedMeal[];
-    const localMeals = getLocalMeals();
+    const localMeals = readLocalMeals();
     const merged = [...remoteMeals];
     const existingIds = new Set(remoteMeals.map((meal) => meal.id));
     for (const localMeal of localMeals) {
@@ -134,16 +142,11 @@ export function useCookedMeals(limit = 12) {
     };
 
     try {
-      const raw = localStorage.getItem(LOCAL_KEY);
-      const parsed = raw ? (JSON.parse(raw) as CookedMeal[]) : [];
-      const existing = Array.isArray(parsed) ? parsed : [];
+      const existing = readLocalMeals();
       if (existing.some((meal) => isDuplicateCookSession(meal, localMeal))) return;
 
-      const next = [localMeal, ...existing].slice(0, 200);
-      localStorage.setItem(LOCAL_KEY, JSON.stringify(next));
-    } catch {
-      // Ignore local storage failures.
-    }
+      writeLocalMeals([localMeal, ...existing]);
+    } catch {}
 
     setMeals((prev) => {
       if (prev.some((meal) => isDuplicateCookSession(meal, localMeal))) return prev;
@@ -204,12 +207,32 @@ export function useCookedMeals(limit = 12) {
   }, [limit]);
 
   const estimateMealSavings = useCallback(async (meal: CookedMeal) => {
-    if (cookedMealsTableUnavailableRef.current) return null;
-
     const estimated = estimateSavingsFromRecipe({
       cookTime: meal.metadata?.cook_time ?? undefined,
       ingredientCount: meal.metadata?.ingredient_count ?? undefined,
     });
+
+    const applyLocalEstimate = (nextMeal: CookedMeal) => {
+      setMeals((prev) => prev.map((item) => (item.id === nextMeal.id ? nextMeal : item)));
+
+      const localMeals = readLocalMeals();
+      if (localMeals.some((item) => item.id === nextMeal.id)) {
+        writeLocalMeals(localMeals.map((item) => (item.id === nextMeal.id ? nextMeal : item)));
+      }
+    };
+
+    if (cookedMealsTableUnavailableRef.current) {
+      const locallyUpdated = { ...meal, estimated_savings: estimated };
+      applyLocalEstimate(locallyUpdated);
+      return locallyUpdated;
+    }
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) {
+      const locallyUpdated = { ...meal, estimated_savings: estimated };
+      applyLocalEstimate(locallyUpdated);
+      return locallyUpdated;
+    }
 
     const { data: updated, error } = await supabase
       .from("cooked_meals")
@@ -221,14 +244,22 @@ export function useCookedMeals(limit = 12) {
     if (error) {
       if (isCookedMealsTableMissing(error)) {
         cookedMealsTableUnavailableRef.current = true;
+        const locallyUpdated = { ...meal, estimated_savings: estimated };
+        applyLocalEstimate(locallyUpdated);
+        return locallyUpdated;
       }
       return null;
     }
 
-    if (!updated) return null;
+    if (!updated) {
+      const locallyUpdated = { ...meal, estimated_savings: estimated };
+      applyLocalEstimate(locallyUpdated);
+      return locallyUpdated;
+    }
 
-    setMeals((prev) => prev.map((item) => (item.id === meal.id ? (updated as CookedMeal) : item)));
-    return updated as CookedMeal;
+    const updatedMeal = updated as CookedMeal;
+    applyLocalEstimate(updatedMeal);
+    return updatedMeal;
   }, []);
 
   return { meals, loading, loadMeals, trackCookedMeal, estimateMealSavings };
