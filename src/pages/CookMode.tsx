@@ -17,6 +17,7 @@ import { getLevel } from "@/components/ChefCompanion";
 import { buildDictionaryRegex, lookupTerm } from "@/lib/cookingDictionary";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCookedMeals } from "@/hooks/useCookedMeals";
+import { parseIngredientLine } from "@/lib/ingredientText";
 
 interface ActiveTimer {
   id: string;
@@ -258,25 +259,56 @@ function StepTimerCard({
 }
 
 /* ─── Sub-components ───────────────────────────────────────── */
-function ProgressDots({ total, current }: { total: number; current: number }) {
+function CookingJourneyTrack({
+  progress,
+  emoji,
+}: {
+  progress: number;
+  emoji: string;
+}) {
+  const clampedProgress = Math.min(progress, 1);
+
   return (
-    <div className="flex items-center gap-1.5 flex-wrap justify-center">
-      {Array.from({ length: total }).map((_, i) => (
-        <div
-          key={i}
-          className="rounded-full transition-all duration-300"
-          style={{
-            width: i === current ? 20 : 8,
-            height: 8,
-            background:
-              i < current
-                ? "#10B981"
-                : i === current
-                  ? "linear-gradient(90deg,#FB923C,#F97316)"
-                  : "rgba(0,0,0,0.10)",
-          }}
-        />
-      ))}
+    <div className="relative w-full max-w-xs h-7 px-5">
+      <div className="absolute left-5 right-5 top-1/2 -translate-y-1/2 h-1.5 rounded-full bg-orange-100" />
+      <motion.div
+        className="absolute left-5 top-1/2 -translate-y-1/2 h-1.5 rounded-full bg-gradient-to-r from-orange-300 to-orange-500"
+        animate={{ width: `calc(${clampedProgress * 100}% * (100% - 2.5rem) / 100%)` }}
+        transition={{ type: "spring", stiffness: 90, damping: 18 }}
+        style={{ maxWidth: "calc(100% - 2.5rem)" }}
+      />
+      <span className="absolute left-0 top-1/2 -translate-y-1/2 text-sm">🍽️</span>
+      <span className="absolute right-0 top-1/2 -translate-y-1/2 text-sm">🏁</span>
+      <motion.span
+        className="absolute top-1/2 -translate-y-1/2 text-base"
+        animate={{ left: `calc(${clampedProgress * 100}% * (100% - 2.5rem) / 100% + 1rem)` }}
+        transition={{ type: "spring", stiffness: 110, damping: 16 }}
+      >
+        {emoji}
+      </motion.span>
+    </div>
+  );
+}
+
+function StepProgressHeader({
+  total,
+  current,
+  progress,
+  emoji,
+}: {
+  total: number;
+  current: number;
+  progress: number;
+  emoji: string;
+}) {
+  const stepNumber = current + 1;
+
+  return (
+    <div className="flex items-center gap-4 text-xs font-semibold text-stone-400">
+      <span className="shrink-0">Step {stepNumber} of {total}</span>
+      <div className="flex-1 min-w-0 flex items-center justify-center">
+        <CookingJourneyTrack progress={progress} emoji={emoji} />
+      </div>
     </div>
   );
 }
@@ -285,7 +317,18 @@ function ProgressDots({ total, current }: { total: number; current: number }) {
 export default function CookMode() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { savedApiRecipes, markRecipeCooked, rateRecipe, recipeRatings, totalXp, addXp, cookingStreak } = useStore();
+  const {
+    savedApiRecipes,
+    markRecipeCooked,
+    rateRecipe,
+    recipeRatings,
+    totalXp,
+    addXp,
+    cookingStreak,
+    pantryList,
+    updatePantryItem,
+    removePantryItem,
+  } = useStore();
   const { data: dbRecipes = [] } = useDbRecipes();
   const { isSpeaking, speak, stop } = useSpeechSynthesis();
   const { trackCookedMeal } = useCookedMeals(1);
@@ -299,6 +342,7 @@ export default function CookMode() {
   const [activeTimers, setActiveTimers] = useState<ActiveTimer[]>([]);
   const [earnedSessionXp, setEarnedSessionXp] = useState(0);
   const [xpPopup, setXpPopup] = useState<{ id: number; amount: number; label: string } | null>(null);
+  const [pantryDecisionMade, setPantryDecisionMade] = useState(false);
   const hasTrackedCookRef = useRef(false);
   const awardedStepsRef = useRef<Set<number>>(new Set());
   const awardedCompletionRef = useRef(false);
@@ -333,6 +377,18 @@ export default function CookMode() {
     if (progress < 0.95) return "🍳";
     return "😋";
   }, [activeTimers.length, done, stepIndex, steps.length]);
+  const pantryItemsToUse = useMemo(() => {
+    const recipeIngredientNames = ingredients
+      .map((ingredient) => parseIngredientLine(ingredient).name.toLowerCase().trim())
+      .filter(Boolean);
+
+    return pantryList.filter((item) => {
+      const pantryName = item.name.toLowerCase().trim();
+      return recipeIngredientNames.some((ingredient) =>
+        ingredient.includes(pantryName) || pantryName.includes(ingredient)
+      );
+    });
+  }, [ingredients, pantryList]);
 
   const awardXp = useCallback((amount: number, label: string) => {
     addXp(amount);
@@ -410,7 +466,24 @@ export default function CookMode() {
     awardedCompletionRef.current = false;
     setEarnedSessionXp(0);
     setXpPopup(null);
+    setPantryDecisionMade(false);
   }, [id]);
+
+  const handlePantryUseConfirmed = useCallback(() => {
+    if (pantryDecisionMade || pantryItemsToUse.length === 0) return;
+
+    pantryItemsToUse.forEach((item) => {
+      const quantityNumber = Number.parseFloat(item.quantity || "");
+      if (Number.isFinite(quantityNumber) && quantityNumber > 1) {
+        updatePantryItem(item.id, { quantity: String(quantityNumber - 1) });
+      } else {
+        removePantryItem(item.id);
+      }
+    });
+
+    setPantryDecisionMade(true);
+    toast.success("Pantry updated after cooking");
+  }, [pantryDecisionMade, pantryItemsToUse, removePantryItem, updatePantryItem]);
 
   useEffect(() => {
     if (stepIndex <= 0) return;
@@ -826,6 +899,46 @@ export default function CookMode() {
             </div>
           </div>
 
+          {pantryItemsToUse.length > 0 && (
+            <div
+              className="rounded-2xl border px-4 py-4 mb-7 text-left"
+              style={{ borderColor: "rgba(249,115,22,0.16)", background: "rgba(255,247,237,0.82)" }}
+            >
+              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-orange-500 mb-2">Pantry update</p>
+              <p className="text-sm font-semibold text-stone-800">Remove the ingredients used from your pantry?</p>
+              <p className="text-xs text-stone-500 mt-1">
+                We matched {pantryItemsToUse.length} pantry item{pantryItemsToUse.length === 1 ? "" : "s"} to this recipe.
+              </p>
+              <div className="flex flex-wrap gap-2 mt-3">
+                {pantryItemsToUse.slice(0, 5).map((item) => (
+                  <span
+                    key={item.id}
+                    className="inline-flex px-2.5 py-1 rounded-full bg-white border border-orange-100 text-[11px] font-semibold text-orange-700"
+                  >
+                    {item.name}
+                  </span>
+                ))}
+              </div>
+              <div className="flex gap-3 mt-4">
+                <button
+                  onClick={handlePantryUseConfirmed}
+                  disabled={pantryDecisionMade}
+                  className="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-70"
+                  style={{ background: "linear-gradient(135deg,#FB923C,#F97316,#EA580C)" }}
+                >
+                  {pantryDecisionMade ? "Pantry Updated" : "Yes, update pantry"}
+                </button>
+                <button
+                  onClick={() => setPantryDecisionMade(true)}
+                  disabled={pantryDecisionMade}
+                  className="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold bg-white border border-stone-200 text-stone-600 disabled:opacity-70"
+                >
+                  Keep as is
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="flex gap-3 justify-center">
             <button
               onClick={() => {
@@ -834,6 +947,7 @@ export default function CookMode() {
                 awardedCompletionRef.current = false;
                 setEarnedSessionXp(0);
                 setXpPopup(null);
+                setPantryDecisionMade(false);
                 setDone(false);
                 setStepIndex(0);
               }}
@@ -912,26 +1026,6 @@ export default function CookMode() {
                     Streak {cookingStreak}
                   </span>
                 )}
-              </div>
-              <div className="mt-2 flex items-center justify-center">
-                <div className="relative w-full max-w-xs h-7 px-5">
-                  <div className="absolute left-5 right-5 top-1/2 -translate-y-1/2 h-1.5 rounded-full bg-orange-100" />
-                  <motion.div
-                    className="absolute left-5 top-1/2 -translate-y-1/2 h-1.5 rounded-full bg-gradient-to-r from-orange-300 to-orange-500"
-                    animate={{ width: `calc(${Math.min(headerProgress, 1) * 100}% * (100% - 2.5rem) / 100%)` }}
-                    transition={{ type: "spring", stiffness: 90, damping: 18 }}
-                    style={{ maxWidth: "calc(100% - 2.5rem)" }}
-                  />
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 text-sm">🍽️</span>
-                  <span className="absolute right-0 top-1/2 -translate-y-1/2 text-sm">🏁</span>
-                  <motion.span
-                    className="absolute top-1/2 -translate-y-1/2 text-base"
-                    animate={{ left: `calc(${Math.min(headerProgress, 1) * 100}% * (100% - 2.5rem) / 100% + 1rem)` }}
-                    transition={{ type: "spring", stiffness: 110, damping: 16 }}
-                  >
-                    {headerChefEmoji}
-                  </motion.span>
-                </div>
               </div>
               <div className="h-5 mt-1 flex items-center justify-center">
                 <AnimatePresence mode="wait">
@@ -1058,11 +1152,12 @@ export default function CookMode() {
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-8">
         <div className="w-full max-w-2xl space-y-6">
           {/* Progress */}
-          <div className="flex items-center justify-between text-xs font-semibold text-stone-400">
-            <span>Step {stepIndex + 1} of {steps.length}</span>
-            <ProgressDots total={steps.length} current={stepIndex} />
-            <span>{Math.round(((stepIndex + 1) / steps.length) * 100)}%</span>
-          </div>
+          <StepProgressHeader
+            total={steps.length}
+            current={stepIndex}
+            progress={headerProgress}
+            emoji={headerChefEmoji}
+          />
 
           {/* Step card */}
           <AnimatePresence mode="wait">

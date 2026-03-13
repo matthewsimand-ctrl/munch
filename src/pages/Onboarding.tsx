@@ -6,7 +6,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ChefHat, ArrowRight, ArrowLeft } from 'lucide-react';
+import { ArrowRight, ArrowLeft } from 'lucide-react';
+import { MunchLogo } from '@/components/MunchLogo';
 
 const DIETARY_OPTIONS = ['Vegetarian', 'Vegan', 'Gluten-Free', 'Dairy-Free', 'Nut-Free', 'None'];
 const SKILL_OPTIONS = ['Beginner', 'Intermediate', 'Advanced'];
@@ -140,10 +141,7 @@ export default function Onboarding() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <div className="px-6 pt-8 pb-4 max-w-md mx-auto w-full">
-        <div className="flex items-center gap-2 mb-6">
-          <ChefHat className="h-7 w-7 text-primary" />
-          <span className="font-display text-xl font-bold text-foreground">Munch</span>
-        </div>
+        <MunchLogo className="mb-6" size={38} wordmarkClassName="font-display text-xl font-bold text-foreground" />
         <Progress value={((step + 1) / TOTAL_STEPS) * 100} className="h-2 bg-secondary" />
         <p className="text-xs text-muted-foreground mt-2">Step {step + 1} of {TOTAL_STEPS}</p>
       </div>

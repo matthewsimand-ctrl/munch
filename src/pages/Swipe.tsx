@@ -378,6 +378,25 @@ export default function SwipeScreen() {
       >
         <div className="max-w-2xl mx-auto">
           <div className="flex flex-col gap-3">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1">Discover</p>
+                <h1
+                  className="text-2xl font-bold text-stone-900"
+                  style={{ fontFamily: "'Fraunces', Georgia, serif" }}
+                >
+                  Find Recipes
+                </h1>
+              </div>
+              <button
+                onClick={() => setShowFilters((v) => !v)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-orange-600 bg-white border border-orange-100 hover:bg-orange-50 transition-colors shrink-0"
+              >
+                <Filter size={12} /> {showFilters ? "Hide Filters" : "Filters"}
+                <ChevronDown size={11} className={`transition-transform ${showFilters ? "rotate-180" : ""}`} />
+              </button>
+            </div>
+
             <div className="relative">
               <Input
                 value={searchQuery}
@@ -391,18 +410,9 @@ export default function SwipeScreen() {
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" size={16} />
             </div>
 
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-stone-400 font-medium">
-                {filtered.length - cardIndex} recipes matching your taste
-              </p>
-              <button
-                onClick={() => setShowFilters((v) => !v)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-orange-600 hover:bg-orange-50 transition-colors"
-              >
-                <Filter size={12} /> {showFilters ? "Hide Filters" : "Filter Tags"}
-                <ChevronDown size={11} className={`transition-transform ${showFilters ? "rotate-180" : ""}`} />
-              </button>
-            </div>
+            <p className="text-xs text-stone-400 font-medium">
+              {filtered.length - cardIndex} recipes matching your taste
+            </p>
           </div>
 
           <AnimatePresence>
@@ -441,7 +451,7 @@ export default function SwipeScreen() {
       )}
 
       {/* Carousel area */}
-      <div className="flex-1 flex flex-col items-center justify-center p-6 overflow-hidden">
+      <div className="flex-1 flex flex-col items-center justify-start p-6 pt-8 md:pt-6 overflow-hidden">
         <div className="w-full max-w-5xl flex flex-col items-center">
           <div className="relative flex items-center justify-center h-[520px] w-full">
           {loading ? (

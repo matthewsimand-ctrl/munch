@@ -27,7 +27,7 @@ const ROUTE_TAB_TARGET: Record<string, { target: string; label: string }> = {
   '/saved': { target: 'nav-saved', label: 'My Recipes' },
   '/let-me-cook': { target: 'nav-let-me-cook', label: 'Let me Cook' },
   '/pantry': { target: 'nav-pantry', label: 'Pantry' },
-  '/grocery': { target: 'nav-grocery', label: 'Grocery' },
+  '/grocery': { target: 'nav-grocery', label: 'Grocery List' },
   '/meal-prep': { target: 'nav-meal-prep', label: 'Meal Prep' },
   '/cooked-history': { target: 'nav-cooked-history', label: 'Cooked' },
   '/dictionary': { target: 'nav-dictionary', label: 'Dictionary' },

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { normalizeIngredients } from '@/lib/normalizeIngredients';
-import { parseIngredientLine } from '@/lib/ingredientText';
+import { parseIngredientLine, suggestQuantityForItem } from '@/lib/ingredientText';
 
 export interface UserProfile {
   dietaryRestrictions: string[];
@@ -216,7 +216,7 @@ export const useStore = create<AppState>()(
             pantryList: [...state.pantryList, {
               id: crypto.randomUUID(),
               name: normalized,
-              quantity: input.quantity ?? '1',
+              quantity: input.quantity ?? suggestQuantityForItem(normalized),
               category: input.category,
             }],
           };
@@ -322,7 +322,7 @@ export const useStore = create<AppState>()(
 
         const parsed = {
           ...explicit,
-          qty: explicit.qty ?? parsedIngredient.quantity ?? undefined,
+          qty: explicit.qty ?? parsedIngredient.quantity ?? suggestQuantityForItem(normalizedName),
         };
 
         set((state) => {
@@ -351,7 +351,7 @@ export const useStore = create<AppState>()(
             customGroceryItems: [...state.customGroceryItems, {
               id: crypto.randomUUID(),
               name: normalized,
-              quantity: parsed.qty ?? '1',
+              quantity: parsed.qty ?? suggestQuantityForItem(normalized),
               category: parsed.section ?? parsed.category,
               checked: false,
             }],

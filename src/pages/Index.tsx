@@ -1,62 +1,410 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useStore } from '@/lib/store';
-import { supabase } from '@/integrations/supabase/client';
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  ArrowRight,
+  BookOpen,
+  CalendarDays,
+  Crown,
+  Package,
+  ShoppingCart,
+  Sparkles,
+  TimerReset,
+  Trophy,
+  WandSparkles,
+} from "lucide-react";
+import { useStore } from "@/lib/store";
+import { supabase } from "@/integrations/supabase/client";
+import { MunchHeroLogo, MunchLogo } from "@/components/MunchLogo";
+
+const DESKTOP_BREAKPOINT = 768;
+
+const FEATURE_CARDS = [
+  {
+    icon: WandSparkles,
+    title: "AI recipe guidance",
+    body: "Generate ideas from what you already have, import recipes from the web, and get help turning inspiration into a cookable plan.",
+  },
+  {
+    icon: TimerReset,
+    title: "Hands-free cooking flow",
+    body: "Cook with step-by-step guidance, timers, voice commands, and a focused flow built to keep you moving in the kitchen.",
+  },
+  {
+    icon: CalendarDays,
+    title: "Meal planning that connects",
+    body: "Plan meals, carry ingredients into grocery lists, and launch straight into Let Me Cook when it is time to make dinner.",
+  },
+  {
+    icon: Trophy,
+    title: "Gamified progress",
+    body: "Earn XP, build streaks, level up your chef profile, and turn everyday cooking into something that feels rewarding.",
+  },
+];
+
+const DETAIL_ITEMS = [
+  { icon: Package, label: "Pantry tracking", text: "Keep tabs on what is in stock, import receipts or grocery lists, and match recipes to ingredients you already own." },
+  { icon: ShoppingCart, label: "Smart grocery list", text: "Generate lists from recipes and plans, estimate totals, and export a clean checklist for Notes." },
+  { icon: BookOpen, label: "Recipe library", text: "Save favorites, organize cookbooks, and bring in recipes from URLs without messy ad-heavy pages." },
+  { icon: Sparkles, label: "Premium intelligence", text: "Unlock savings estimates, nutrition insights, and deeper AI assistance across the cooking experience." },
+];
+
+const PRICING = [
+  {
+    name: "Free",
+    price: "$0",
+    subtitle: "Great for getting started",
+    points: [
+      "Save recipes and build your pantry",
+      "Use meal planning and grocery workflows",
+      "Cook with guided steps and timers",
+    ],
+  },
+  {
+    name: "Premium",
+    price: "Upgrade in app",
+    subtitle: "For cooks who want smarter insights",
+    points: [
+      "Nutrition facts across recipes and meals",
+      "AI savings estimates and premium helpers",
+      "Enhanced import and planning experiences",
+    ],
+    featured: true,
+  },
+];
+
+const SECTION_TABS = [
+  { href: "#overview", label: "Overview" },
+  { href: "#features", label: "Features" },
+  { href: "#story", label: "Story" },
+  { href: "#pricing", label: "Pricing" },
+];
+
+async function resolveAppStartRoute({
+  onboardingComplete,
+  isGuest,
+  completeOnboarding,
+  setDisplayName,
+}: {
+  onboardingComplete: boolean;
+  isGuest: boolean;
+  completeOnboarding: () => void;
+  setDisplayName: (name: string) => void;
+}) {
+  const { data: { session } } = await supabase.auth.getSession();
+
+  if (!session && !isGuest) {
+    return "/auth";
+  }
+
+  if (session && !onboardingComplete) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("display_name")
+      .eq("user_id", session.user.id)
+      .maybeSingle();
+
+    if (profile?.display_name) {
+      setDisplayName(profile.display_name);
+      completeOnboarding();
+      return "/dashboard";
+    }
+  }
+
+  if (session) {
+    const { data: profileCheck } = await supabase
+      .from("profiles")
+      .select("display_name")
+      .eq("user_id", session.user.id)
+      .maybeSingle();
+
+    if (profileCheck?.display_name || onboardingComplete) {
+      return "/dashboard";
+    }
+  }
+
+  if (isGuest) {
+    return onboardingComplete ? "/dashboard" : "/onboarding";
+  }
+
+  return "/onboarding";
+}
 
 const Index = () => {
   const navigate = useNavigate();
   const { onboardingComplete, isGuest, completeOnboarding, setDisplayName } = useStore();
-  const [checked, setChecked] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(() => window.innerWidth >= DESKTOP_BREAKPOINT);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+    const onResize = () => setIsDesktop(window.innerWidth >= DESKTOP_BREAKPOINT);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
-      if (!session && !isGuest) {
-        navigate('/auth', { replace: true });
-        setChecked(true);
-        return;
-      }
+  useEffect(() => {
+    if (isDesktop) return;
 
-      if (session && !onboardingComplete) {
-        // Sync from DB if user is logging back in
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('display_name')
-          .eq('user_id', session.user.id)
-          .maybeSingle();
-
-        if (profile?.display_name) {
-          setDisplayName(profile.display_name);
-          completeOnboarding();
-          // We don't return here, let the logic below handle navigation
-        }
-      }
-
-      // Re-read from store as it might have been updated above
-      const isComplete = onboardingComplete || !!isGuest;
-      // Actually completeOnboarding() updates the store ref, but we need to check the current logic
-      // If we called completeOnboarding(), the next render will have it. 
-      // But for this effect run, we can just navigate directly if we found a profile.
-
-      const { data: profileCheck } = session ? await supabase.from('profiles').select('display_name').eq('user_id', session.user.id).maybeSingle() : { data: null };
-
-      if (profileCheck?.display_name || onboardingComplete) {
-        navigate('/dashboard', { replace: true });
-      } else if (isGuest) {
-        // Guests go to onboarding first, then dashboard
-        navigate(onboardingComplete ? '/dashboard' : '/onboarding', { replace: true });
-      } else {
-        navigate('/onboarding', { replace: true });
-      }
-
-      setChecked(true);
+    const redirectToApp = async () => {
+      const target = await resolveAppStartRoute({
+        onboardingComplete,
+        isGuest,
+        completeOnboarding,
+        setDisplayName,
+      });
+      navigate(target, { replace: true });
     };
 
-    checkAuth();
-  }, [onboardingComplete, isGuest, navigate, completeOnboarding, setDisplayName]);
+    void redirectToApp();
+  }, [completeOnboarding, isDesktop, isGuest, navigate, onboardingComplete, setDisplayName]);
 
-  return null;
+  const handleGetStarted = async () => {
+    setLoading(true);
+    try {
+      const target = await resolveAppStartRoute({
+        onboardingComplete,
+        isGuest,
+        completeOnboarding,
+        setDisplayName,
+      });
+      navigate(target);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isDesktop) return null;
+
+  return (
+    <div
+      className="min-h-screen text-stone-900"
+      style={{
+        background:
+          "radial-gradient(circle at top left, rgba(251,146,60,0.18), transparent 26%), radial-gradient(circle at top right, rgba(251,191,36,0.16), transparent 20%), linear-gradient(180deg, #fffaf5 0%, #fff7ed 42%, #ffffff 100%)",
+        fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+      }}
+    >
+      <header className="sticky top-0 z-20 border-b border-orange-100/70 backdrop-blur bg-white/78">
+        <div className="max-w-7xl mx-auto px-8 py-4 flex items-center justify-between gap-6">
+          <MunchLogo
+            size={48}
+            subtitle="Cook smarter with the food you already have"
+            wordmarkClassName="text-lg font-bold tracking-tight text-stone-900"
+            subtitleClassName="text-xs text-stone-500"
+          />
+
+          <nav className="hidden lg:flex items-center gap-2 rounded-full border border-stone-200 bg-white/90 px-2 py-2 shadow-[0_10px_30px_rgba(28,25,23,0.05)]">
+            {SECTION_TABS.map((tab) => (
+              <a
+                key={tab.href}
+                href={tab.href}
+                className="rounded-full px-4 py-2 text-sm font-semibold text-stone-600 transition-colors hover:bg-orange-50 hover:text-orange-600"
+              >
+                {tab.label}
+              </a>
+            ))}
+          </nav>
+
+          <button
+            onClick={() => void handleGetStarted()}
+            disabled={loading}
+            className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold text-white transition-all hover:opacity-90 active:scale-95 disabled:opacity-70"
+            style={{ background: "linear-gradient(135deg,#FB923C,#F97316,#EA580C)", boxShadow: "0 10px 30px rgba(249,115,22,0.22)" }}
+          >
+            {loading ? "Opening..." : "Get Started"}
+            <ArrowRight size={15} />
+          </button>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-8 py-12 space-y-14">
+        <section id="overview" className="grid lg:grid-cols-[1.1fr_0.9fr] gap-8 items-center scroll-mt-28">
+          <div className="space-y-6">
+            <div className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-white/80 px-3 py-1.5 text-xs font-semibold text-orange-700">
+              <Sparkles size={13} />
+              Your kitchen, pantry, plan, and cook flow in one place
+            </div>
+
+            <div className="space-y-4">
+              <h1
+                className="text-5xl xl:text-6xl font-bold leading-[1.05] text-stone-900"
+                style={{ fontFamily: "'Fraunces', Georgia, serif" }}
+              >
+                Munch helps people turn ingredients, recipes, and routines into a cooking habit that sticks.
+              </h1>
+              <p className="text-lg text-stone-600 max-w-2xl leading-8">
+                It started as a better way to answer one daily question: what can I actually make right now? From there, Munch grew into a full cooking companion that helps you discover recipes, plan meals, manage your pantry, shop faster, and enjoy the cooking process.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={() => void handleGetStarted()}
+                disabled={loading}
+                className="inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-bold text-white transition-all hover:opacity-90 active:scale-95 disabled:opacity-70"
+                style={{ background: "linear-gradient(135deg,#FB923C,#F97316,#EA580C)", boxShadow: "0 12px 34px rgba(249,115,22,0.24)" }}
+              >
+                {loading ? "Opening..." : "Get Started"}
+                <ArrowRight size={16} />
+              </button>
+              <a
+                href="#pricing"
+                className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white px-6 py-3 text-sm font-bold text-stone-700 transition-colors hover:border-orange-200 hover:text-orange-600"
+              >
+                See pricing
+              </a>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3 max-w-2xl">
+              {[
+                { value: "Recipe to stove", label: "Discovery, planning, and cooking in one workflow" },
+                { value: "AI + utility", label: "Smart help without losing practical control" },
+                { value: "Built for habit", label: "Progress, streaks, XP, and momentum" },
+              ].map((item) => (
+                <div key={item.value} className="rounded-2xl border border-white/70 bg-white/80 p-4 shadow-[0_12px_40px_rgba(28,25,23,0.05)]">
+                  <p className="text-sm font-bold text-stone-900">{item.value}</p>
+                  <p className="text-xs text-stone-500 mt-2 leading-5">{item.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="relative">
+            <div className="absolute inset-0 rounded-[2rem] bg-gradient-to-br from-orange-200/50 via-amber-100/40 to-transparent blur-3xl" />
+            <div className="relative rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-[0_24px_80px_rgba(28,25,23,0.12)]">
+              <div className="grid gap-6 items-center">
+                <div className="flex justify-center">
+                  <MunchHeroLogo size={340} />
+                </div>
+                <div className="rounded-[1.5rem] bg-gradient-to-br from-stone-900 via-orange-950 to-orange-700 p-6 text-white overflow-hidden">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.24em] text-orange-200">Let Me Cook</p>
+                      <p className="text-2xl font-bold mt-2" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>A calmer way to cook</p>
+                    </div>
+                    <MunchLogo size={54} showWordmark={false} />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 mt-6">
+                    <div className="rounded-2xl bg-white/10 border border-white/10 p-4">
+                      <p className="text-xs text-orange-100">Voice-ready steps</p>
+                      <p className="text-lg font-bold mt-1">Hands-free prompts, timers, and pacing</p>
+                    </div>
+                    <div className="rounded-2xl bg-white/10 border border-white/10 p-4">
+                      <p className="text-xs text-orange-100">Session rewards</p>
+                      <p className="text-lg font-bold mt-1">XP, streaks, and progress as you cook</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 rounded-2xl bg-white text-stone-900 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-orange-500">Why it feels different</p>
+                    <p className="text-sm text-stone-600 mt-2 leading-6">
+                      Munch is not just a recipe archive. It connects what is in your pantry, what is on your plan, and what is happening at the stove so the product feels like a cooking companion instead of a pile of disconnected tools.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="features" className="grid lg:grid-cols-2 gap-5 scroll-mt-28">
+          {FEATURE_CARDS.map(({ icon: Icon, title, body }) => (
+            <article key={title} className="rounded-[1.75rem] border border-white/70 bg-white/85 p-6 shadow-[0_18px_60px_rgba(28,25,23,0.06)]">
+              <div className="w-11 h-11 rounded-2xl bg-orange-50 text-orange-500 flex items-center justify-center">
+                <Icon size={20} />
+              </div>
+              <h2 className="text-2xl font-bold text-stone-900 mt-5" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+                {title}
+              </h2>
+              <p className="text-sm text-stone-600 mt-3 leading-7">{body}</p>
+            </article>
+          ))}
+        </section>
+
+        <section id="story" className="grid lg:grid-cols-[0.85fr_1.15fr] gap-8 items-start scroll-mt-28">
+          <div className="rounded-[2rem] border border-orange-100 bg-gradient-to-br from-orange-50 via-white to-amber-50 p-7 shadow-[0_18px_60px_rgba(28,25,23,0.06)]">
+            <p className="text-xs font-bold uppercase tracking-[0.28em] text-orange-500">The story</p>
+            <h2 className="text-4xl font-bold text-stone-900 mt-3 leading-tight" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+              Built for the messy middle between inspiration and dinner.
+            </h2>
+            <p className="text-sm text-stone-600 mt-4 leading-7">
+              Most cooking apps are good at one thing: storing recipes, planning a week, or helping at the stove. Munch is designed to connect the entire loop so the path from “I have chicken, rice, and spinach” to “Dinner is done” feels shorter, clearer, and more fun.
+            </p>
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-4">
+            {DETAIL_ITEMS.map(({ icon: Icon, label, text }) => (
+              <article key={label} className="rounded-[1.5rem] border border-stone-200/70 bg-white p-5 shadow-[0_14px_40px_rgba(28,25,23,0.05)]">
+                <div className="w-10 h-10 rounded-xl bg-stone-900 text-white flex items-center justify-center">
+                  <Icon size={18} />
+                </div>
+                <h3 className="text-lg font-bold text-stone-900 mt-4">{label}</h3>
+                <p className="text-sm text-stone-600 mt-2 leading-6">{text}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section id="pricing" className="rounded-[2rem] border border-stone-200/80 bg-white/90 p-8 shadow-[0_18px_60px_rgba(28,25,23,0.06)] scroll-mt-28">
+          <div className="flex items-end justify-between gap-6 flex-wrap">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.28em] text-orange-500">Pricing</p>
+              <h2 className="text-4xl font-bold text-stone-900 mt-3" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+                Start free, upgrade when you want deeper insights.
+              </h2>
+              <p className="text-sm text-stone-600 mt-3 max-w-2xl leading-7">
+                Munch is approachable from day one, and premium unlocks the AI-powered nutrition, savings, and enhanced planning features that make the experience even more useful.
+              </p>
+            </div>
+            <button
+              onClick={() => void handleGetStarted()}
+              disabled={loading}
+              className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-5 py-2.5 text-sm font-bold text-orange-700 transition-colors hover:bg-orange-100 disabled:opacity-70"
+            >
+              Get Started
+              <ArrowRight size={15} />
+            </button>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-5 mt-8">
+            {PRICING.map((plan) => (
+              <article
+                key={plan.name}
+                className={`rounded-[1.5rem] border p-6 ${plan.featured ? "border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50" : "border-stone-200 bg-stone-50/60"}`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-bold text-stone-900">{plan.name}</p>
+                    <p className="text-3xl font-bold text-stone-900 mt-2" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+                      {plan.price}
+                    </p>
+                    <p className="text-sm text-stone-500 mt-2">{plan.subtitle}</p>
+                  </div>
+                  {plan.featured && (
+                    <div className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1 text-xs font-bold text-orange-600 border border-orange-200">
+                      <Crown size={12} />
+                      Premium
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-3 mt-6">
+                  {plan.points.map((point) => (
+                    <div key={point} className="flex items-start gap-3">
+                      <div className="w-6 h-6 rounded-full bg-white border border-stone-200 flex items-center justify-center shrink-0 mt-0.5">
+                        <Sparkles size={12} className="text-orange-500" />
+                      </div>
+                      <p className="text-sm text-stone-600 leading-6">{point}</p>
+                    </div>
+                  ))}
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      </main>
+    </div>
+  );
 };
 
 export default Index;

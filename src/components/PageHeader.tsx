@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
-import { UtensilsCrossed, User } from 'lucide-react';
+import { User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { MunchLogo } from '@/components/MunchLogo';
 
 interface Props {
   title: string;
@@ -13,7 +14,7 @@ export default function PageHeader({ title, children }: Props) {
   return (
     <div className="app-section mb-6 flex items-center gap-3 px-4 py-3">
       <button onClick={() => navigate('/dashboard')} className="flex items-center gap-2 shrink-0">
-        <UtensilsCrossed className="h-6 w-6 text-primary" />
+        <MunchLogo size={28} showWordmark={false} />
         <span className="font-display text-xl font-bold text-foreground">{title}</span>
       </button>
       <div className="ml-auto flex items-center gap-2">

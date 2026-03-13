@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import {
   ArrowLeft, Search, CheckCircle2, Circle,
-  Trash2, Plus, Camera, Upload, Lock, ChevronDown, X, Minus
+  Trash2, Plus, Camera, Upload, Lock, ChevronDown, X, Minus, Sparkles, CircleHelp
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "@/lib/store";
@@ -9,9 +9,14 @@ import { toast } from "sonner";
 import { detectCategories } from "@/lib/categorizeItem";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { getPremiumOverride } from "@/lib/premium";
-import { adjustQuantityString, parseIngredientLine } from "@/lib/ingredientText";
+import { adjustQuantityString, canDecreaseQuantity, parseIngredientLine, suggestQuantityForItem } from "@/lib/ingredientText";
 import { invokeAppFunction } from "@/lib/functionClient";
 import { getAiDisabledMessage, isAiAgentCallsDisabledError } from "@/lib/ai";
+import { calculateMatch } from "@/lib/matchLogic";
+import RecipePreviewDialog from "@/components/RecipePreviewDialog";
+import type { Recipe } from "@/data/recipes";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { getPantryImage } from "@/lib/pantryImages";
 
 const CATEGORIES = ["All", "Produce", "Dairy", "Meat & Fish", "Dry Goods", "Pasta / Noodles", "Condiments", "Bakery", "Frozen", "Other"];
 const CATEGORY_ICONS: Record<string, string> = {
@@ -50,9 +55,12 @@ function PantryItemRow({
 }) {
   const [editing, setEditing] = useState(false);
   const [qty, setQty] = useState(item.quantity ?? "");
+  const suggestedQty = suggestQuantityForItem(item.name);
+  const displayQty = item.quantity || suggestedQty;
+  const showDecrease = canDecreaseQuantity(displayQty);
 
   const cat = normalizeCategory(item.category);
-  const catIcon = CATEGORY_ICONS[cat] ?? "📦";
+  const itemImage = getPantryImage(item.name, cat);
 
   return (
     <motion.div
@@ -63,17 +71,23 @@ function PantryItemRow({
       data-tutorial={dataTutorial}
       className="flex items-center gap-3 px-4 py-3 rounded-xl group hover:bg-orange-50/50 transition-colors"
     >
-      <span className="text-xl w-8 text-center">{catIcon}</span>
+      <img
+        src={itemImage.src}
+        alt={itemImage.alt}
+        className="w-10 h-10 rounded-xl object-cover shrink-0 border border-stone-200 bg-white"
+      />
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-stone-800 truncate">{item.name}</p>
         <div className="mt-1 flex items-center gap-1">
-          <button
-            onClick={() => onAdjustQty(-1)}
-            className="w-6 h-6 rounded-full border border-stone-200 bg-white text-stone-400 hover:border-orange-300 hover:text-orange-500 transition-colors flex items-center justify-center"
-            aria-label={`Decrease quantity for ${item.name}`}
-          >
-            <Minus size={10} />
-          </button>
+          {showDecrease && (
+            <button
+              onClick={() => onAdjustQty(-1)}
+              className="w-6 h-6 rounded-full border border-stone-200 bg-white text-stone-400 hover:border-orange-300 hover:text-orange-500 transition-colors flex items-center justify-center"
+              aria-label={`Decrease quantity for ${item.name}`}
+            >
+              <Minus size={10} />
+            </button>
+          )}
           {editing ? (
             <input
               autoFocus
@@ -81,16 +95,15 @@ function PantryItemRow({
               onChange={(e) => setQty(e.target.value)}
               onBlur={() => { setEditing(false); onEdit("quantity", qty); }}
               onKeyDown={(e) => { if (e.key === "Enter") { setEditing(false); onEdit("quantity", qty); } }}
-              className="text-xs text-stone-500 outline-none border-b border-orange-300 bg-transparent w-20 mt-0.5"
-              placeholder="qty"
+              className="text-xs text-stone-500 outline-none border-b border-orange-300 bg-transparent w-24 mt-0.5"
+              placeholder={suggestedQty}
             />
           ) : (
             <button
               onClick={() => setEditing(true)}
-              className="text-[10px] text-stone-400 bg-stone-100/50 hover:bg-orange-100 hover:text-orange-600 px-2 py-0.5 rounded-md transition-all w-fit flex items-center gap-1.5 font-medium"
+              className="text-[10px] text-stone-400 bg-stone-100/50 hover:bg-orange-100 hover:text-orange-600 px-2 py-0.5 rounded-md transition-all w-fit flex items-center font-medium"
             >
-              <span>{item.quantity || "Add qty"}</span>
-              <Plus size={8} />
+              <span>{displayQty}</span>
             </button>
           )}
           <button
@@ -106,7 +119,7 @@ function PantryItemRow({
         className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
         style={{ background: "rgba(249,115,22,0.08)", color: "#C2410C" }}
       >
-        {cat}
+        {itemImage.matched ? `${cat} match` : cat}
       </span>
       <button
         onClick={onRemove}
@@ -119,14 +132,18 @@ function PantryItemRow({
 }
 
 export default function PantryScreen() {
-  const { pantryList, addPantryItem, removePantryItem, updatePantryItem } = useStore();
+  const { pantryList, addPantryItem, removePantryItem, updatePantryItem, likeRecipe, addCustomGroceryItem } = useStore();
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
+  const [sortMode, setSortMode] = useState<"recent" | "category">("recent");
   const [newItem, setNewItem] = useState("");
   const [newCategory, setNewCategory] = useState("Other");
   const [newQty, setNewQty] = useState("");
   const [scanDialogOpen, setScanDialogOpen] = useState(false);
   const [importingReceipt, setImportingReceipt] = useState(false);
+  const [generatingRecipe, setGeneratingRecipe] = useState(false);
+  const [generatedRecipe, setGeneratedRecipe] = useState<Recipe | null>(null);
+  const [generatedRecipeOpen, setGeneratedRecipeOpen] = useState(false);
   const isPremium = getPremiumOverride();
   const receiptInputRef = useRef<HTMLInputElement>(null);
   const fridgeImageInputRef = useRef<HTMLInputElement>(null);
@@ -139,8 +156,17 @@ export default function PantryScreen() {
     }));
     if (search) list = list.filter((i) => i.name.toLowerCase().includes(search.toLowerCase()));
     if (activeCategory !== "All") list = list.filter((i) => normalizeCategory(i.category) === activeCategory);
+    if (sortMode === "category") {
+      list = [...list].sort((a, b) => {
+        const categoryCompare = normalizeCategory(a.category).localeCompare(normalizeCategory(b.category));
+        if (categoryCompare !== 0) return categoryCompare;
+        return a.name.localeCompare(b.name);
+      });
+    } else {
+      list = [...list].sort((a, b) => (b.addedAt ?? 0) - (a.addedAt ?? 0));
+    }
     return list;
-  }, [pantryList, search, activeCategory]);
+  }, [pantryList, search, activeCategory, sortMode]);
 
   const groupedCounts = useMemo(() => {
     const counts: Record<string, number> = { All: pantryList?.length ?? 0 };
@@ -167,6 +193,90 @@ export default function PantryScreen() {
   const handleRemove = (id: string, name: string) => {
     removePantryItem(id);
     toast.success(`Removed ${name}`);
+  };
+
+  const normalizeGeneratedRecipe = (raw: any): Recipe | null => {
+    const name = String(raw?.name || "").trim();
+    const ingredients = Array.isArray(raw?.ingredients)
+      ? raw.ingredients.map((item: unknown) => String(item).trim()).filter(Boolean)
+      : [];
+    const instructions = Array.isArray(raw?.instructions)
+      ? raw.instructions.map((item: unknown) => String(item).trim()).filter(Boolean)
+      : [];
+
+    if (!name || ingredients.length === 0 || instructions.length === 0) return null;
+
+    return {
+      id: String(raw?.id || `pantry-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`),
+      name,
+      image: String(raw?.image || "/placeholder.svg"),
+      cook_time: String(raw?.cook_time || "30 min"),
+      difficulty: String(raw?.difficulty || "Intermediate"),
+      ingredients,
+      instructions,
+      tags: Array.isArray(raw?.tags) ? raw.tags.map((item: unknown) => String(item)) : [],
+      cuisine: raw?.cuisine ? String(raw.cuisine) : undefined,
+      chef: raw?.chef ? String(raw.chef) : undefined,
+      source: String(raw?.source || "AI Pantry"),
+      source_url: raw?.source_url ? String(raw.source_url) : undefined,
+      raw_api_payload: raw?.raw_api_payload,
+      servings: raw?.servings ? Number(raw.servings) : undefined,
+      calories: raw?.calories ? Number(raw.calories) : undefined,
+      protein: raw?.protein ? Number(raw.protein) : undefined,
+      carbs: raw?.carbs ? Number(raw.carbs) : undefined,
+      fat: raw?.fat ? Number(raw.fat) : undefined,
+      is_public: Boolean(raw?.is_public),
+    };
+  };
+
+  const handleGenerateRecipe = async () => {
+    if (!isPremium) {
+      toast.info("AI pantry recipes are a Premium feature.");
+      return;
+    }
+
+    if ((pantryList?.length ?? 0) < 2) {
+      toast.info("Add a few pantry items first so we have something to cook with.");
+      return;
+    }
+
+    setGeneratingRecipe(true);
+    try {
+      const pantryNames = pantryList.map((item) => item.name);
+      const query = pantryNames.slice(0, 6).join(" ");
+      const { data, error } = await invokeAppFunction<{ recipes?: unknown[]; error?: string }>("search-recipes", {
+        body: { query },
+      });
+
+      if (error) throw new Error(error.message || "Could not generate a recipe");
+
+      const candidates = (data?.recipes || [])
+        .map(normalizeGeneratedRecipe)
+        .filter((recipe): recipe is Recipe => Boolean(recipe));
+
+      if (candidates.length === 0) {
+        toast.info("I couldn't find a pantry-based recipe right now. Try adding a few more ingredients.");
+        return;
+      }
+
+      const bestRecipe = [...candidates].sort(
+        (a, b) => calculateMatch(pantryNames, b.ingredients || []).percentage - calculateMatch(pantryNames, a.ingredients || []).percentage
+      )[0];
+
+      setGeneratedRecipe(bestRecipe);
+      setGeneratedRecipeOpen(true);
+      toast.success(`Found a recipe using your pantry: ${bestRecipe.name}`);
+    } catch (error) {
+      if (isAiAgentCallsDisabledError(error)) {
+        toast.info(getAiDisabledMessage("AI pantry recipes"));
+        return;
+      }
+
+      const message = error instanceof Error ? error.message : "Could not generate a recipe";
+      toast.error(message);
+    } finally {
+      setGeneratingRecipe(false);
+    }
   };
 
   const parseTextImport = (text: string) => {
@@ -299,12 +409,36 @@ export default function PantryScreen() {
             </div>
             <div className="flex items-center gap-2">
               <button
-                title="Import receipt or grocery list"
+                title="Import Receipts"
                 onClick={() => receiptInputRef.current?.click()}
                 className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-stone-200 text-sm font-semibold text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
                 disabled={importingReceipt}
               >
-                <Upload size={14} /> {importingReceipt ? "Importing..." : "Import receipt/list"}
+                <Upload size={14} /> {importingReceipt ? "Importing..." : "Import Receipts"}
+              </button>
+              <button
+                title="Fridge Cleanup"
+                onClick={() => void handleGenerateRecipe()}
+                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-stone-200 text-sm font-semibold text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
+                disabled={generatingRecipe}
+              >
+                {!isPremium && <Lock size={12} className="text-stone-400" />}
+                <Sparkles size={14} /> {generatingRecipe ? "Generating..." : "Fridge Cleanup"}
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span
+                        className="inline-flex items-center text-stone-400 hover:text-orange-500"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <CircleHelp size={13} />
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs">Generates a recipe for you based on the ingredients currently in your pantry.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </button>
               <button
                 title="Scan fridge"
@@ -389,6 +523,22 @@ export default function PantryScreen() {
         </DialogContent>
       </Dialog>
 
+      <RecipePreviewDialog
+        recipe={generatedRecipe}
+        match={generatedRecipe ? calculateMatch((pantryList ?? []).map((item) => item.name), generatedRecipe.ingredients || []) : null}
+        open={generatedRecipeOpen}
+        onOpenChange={setGeneratedRecipeOpen}
+        mode="explore"
+        onSave={(recipe) => {
+          likeRecipe(recipe.id, recipe);
+          toast.success(`Saved ${recipe.name}`);
+        }}
+        onAddMissingToGrocery={(recipe, missingIngredients) => {
+          missingIngredients.forEach((ingredient) => addCustomGroceryItem(ingredient));
+          toast.success(`Added ${missingIngredients.length} missing items from ${recipe.name}`);
+        }}
+      />
+
       <div className="max-w-4xl mx-auto px-6 py-5 space-y-5">
 
         {/* Add form */}
@@ -445,20 +595,34 @@ export default function PantryScreen() {
         </motion.div>
 
         {/* Search */}
-        <div className="relative">
-          <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-300" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search your pantry…"
-            className="w-full pl-10 pr-4 py-3 rounded-xl border text-sm text-stone-700 placeholder:text-stone-300 outline-none focus:border-orange-300 transition-colors"
-            style={{ background: "#fff", borderColor: "rgba(0,0,0,0.09)" }}
-          />
-          {search && (
-            <button onClick={() => setSearch("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-300 hover:text-stone-500">
-              <X size={13} />
-            </button>
-          )}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-300" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search your pantry…"
+              className="w-full pl-10 pr-4 py-3 rounded-xl border text-sm text-stone-700 placeholder:text-stone-300 outline-none focus:border-orange-300 transition-colors"
+              style={{ background: "#fff", borderColor: "rgba(0,0,0,0.09)" }}
+            />
+            {search && (
+              <button onClick={() => setSearch("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-300 hover:text-stone-500">
+                <X size={13} />
+              </button>
+            )}
+          </div>
+          <div className="relative sm:w-52">
+            <select
+              value={sortMode}
+              onChange={(e) => setSortMode(e.target.value as "recent" | "category")}
+              className="appearance-none w-full pl-3 pr-8 py-3 rounded-xl border text-sm font-medium text-stone-600 outline-none cursor-pointer"
+              style={{ background: "#fff", borderColor: "rgba(0,0,0,0.09)" }}
+            >
+              <option value="recent">Sort: Recent</option>
+              <option value="category">Sort: Category</option>
+            </select>
+            <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
+          </div>
         </div>
 
         {/* Category tabs */}
@@ -519,7 +683,7 @@ export default function PantryScreen() {
                     dataTutorial={index === 0 ? "pantry-item-0" : undefined}
                     onRemove={() => handleRemove(item.id, item.name)}
                     onEdit={(field, value) => updatePantryItem?.(item.id, { [field]: value })}
-                    onAdjustQty={(delta) => updatePantryItem?.(item.id, { quantity: adjustQuantityString(item.quantity, delta) })}
+                    onAdjustQty={(delta) => updatePantryItem?.(item.id, { quantity: adjustQuantityString(item.quantity || suggestQuantityForItem(item.name), delta) })}
                   />
                 ))}
               </AnimatePresence>
