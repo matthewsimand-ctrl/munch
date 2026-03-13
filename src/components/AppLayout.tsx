@@ -14,13 +14,11 @@ import {
   CookingPot,
   History,
   Users,
-  Bell,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useStore } from "@/lib/store";
 import { MunchLogo } from "@/components/MunchLogo";
 import { useKitchens } from "@/hooks/useKitchens";
-import { useNotifications } from "@/hooks/useNotifications";
 import BottomNav from "@/components/BottomNav";
 
 const NAV_ITEMS = [
@@ -32,7 +30,6 @@ const NAV_ITEMS = [
   { to: "/grocery", icon: ShoppingCart, label: "Grocery List" },
   { to: "/meal-prep", icon: CalendarDays, label: "Meal Prep" },
   { to: "/kitchens", icon: Users, label: "Kitchens" },
-  { to: "/notifications", icon: Bell, label: "Notifications" },
   { to: "/cooked-history", icon: History, label: "Cooked" },
   { to: "/dictionary", icon: BookMarked, label: "Dictionary" },
 ];
@@ -43,7 +40,6 @@ export default function AppLayout() {
   const [planType, setPlanType] = useState("Free Plan");
   const { displayName: storeDisplayName, activeKitchenName } = useStore();
   const { kitchens } = useKitchens();
-  const { unreadCount } = useNotifications();
 
   useEffect(() => {
     const hydrateFooterProfile = async () => {
@@ -151,11 +147,6 @@ export default function AppLayout() {
                   {!collapsed && (
                     <>
                       <span>{label}</span>
-                      {to === "/notifications" && unreadCount > 0 && (
-                        <span className="ml-2 inline-flex min-w-5 items-center justify-center rounded-full bg-orange-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                          {unreadCount > 9 ? "9+" : unreadCount}
-                        </span>
-                      )}
                       {isActive && (
                         <div className="ml-auto w-1.5 h-1.5 rounded-full bg-orange-400" />
                       )}
