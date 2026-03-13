@@ -23,6 +23,9 @@ export default function KitchensPage() {
   } = useKitchens();
   const { activeKitchenId, kitchenViewMode, displayName, setActiveKitchen } = useStore();
   const [newKitchenName, setNewKitchenName] = useState('');
+  const [importPantryOnCreate, setImportPantryOnCreate] = useState(true);
+  const [importGroceryOnCreate, setImportGroceryOnCreate] = useState(true);
+  const [importMealPlanOnCreate, setImportMealPlanOnCreate] = useState(false);
   const [inviteUsername, setInviteUsername] = useState('');
   const [inviteRole, setInviteRole] = useState<'editor' | 'viewer'>('editor');
   const [submitting, setSubmitting] = useState(false);
@@ -57,8 +60,15 @@ export default function KitchensPage() {
     if (!name) return;
     setSubmitting(true);
     try {
-      await createKitchen(name);
+      await createKitchen(name, {
+        importPantry: importPantryOnCreate,
+        importGrocery: importGroceryOnCreate,
+        importMealPlan: importMealPlanOnCreate,
+      });
       setNewKitchenName('');
+      setImportPantryOnCreate(true);
+      setImportGroceryOnCreate(true);
+      setImportMealPlanOnCreate(false);
       toast.success(`Created kitchen "${name}"`);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Could not create kitchen';
@@ -346,6 +356,36 @@ export default function KitchensPage() {
                 >
                   <Plus size={14} /> Create
                 </button>
+              </div>
+              <div className="mt-3 space-y-2 rounded-2xl border border-orange-200 bg-white/80 px-3 py-3">
+                <p className="text-[11px] font-bold uppercase tracking-widest text-orange-500">Start with my current personal lists</p>
+                <label className="flex items-center gap-2 text-sm text-stone-700">
+                  <input
+                    type="checkbox"
+                    checked={importPantryOnCreate}
+                    onChange={(e) => setImportPantryOnCreate(e.target.checked)}
+                    className="rounded border-stone-300 text-orange-500 focus:ring-orange-300"
+                  />
+                  Import pantry
+                </label>
+                <label className="flex items-center gap-2 text-sm text-stone-700">
+                  <input
+                    type="checkbox"
+                    checked={importGroceryOnCreate}
+                    onChange={(e) => setImportGroceryOnCreate(e.target.checked)}
+                    className="rounded border-stone-300 text-orange-500 focus:ring-orange-300"
+                  />
+                  Import grocery list
+                </label>
+                <label className="flex items-center gap-2 text-sm text-stone-700">
+                  <input
+                    type="checkbox"
+                    checked={importMealPlanOnCreate}
+                    onChange={(e) => setImportMealPlanOnCreate(e.target.checked)}
+                    className="rounded border-stone-300 text-orange-500 focus:ring-orange-300"
+                  />
+                  Import meal plan
+                </label>
               </div>
             </div>
           </div>

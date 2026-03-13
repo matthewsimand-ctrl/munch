@@ -271,10 +271,10 @@ export function rankByRecommendation(
       recipe: r,
       recScore: scoreRecipe(r, profile, userPrefs, pantryItems),
     }))
-    // Add time-of-day boost + small random factor for discovery
+    // Add a stronger time-of-day boost, while keeping a little randomness for discovery.
     .map(item => ({
       ...item,
-      recScore: item.recScore + getTimeBoost(item.recipe) + (Math.random() * 15 - 7),
+      recScore: item.recScore + getTimeBoost(item.recipe) + (Math.random() * 8 - 4),
     }))
     .sort((a, b) => b.recScore - a.recScore);
 }

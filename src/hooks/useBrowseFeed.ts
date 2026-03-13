@@ -1,10 +1,11 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useStore } from '@/lib/store';
 import type { Recipe } from '@/data/recipes';
 import { invokeAppFunction } from '@/lib/functionClient';
 import { rankByRecommendation } from '@/lib/recommendations';
 import { normalizeIngredients } from '@/lib/normalizeIngredients';
 import { classifyMealType } from '@/lib/mealTimeUtils';
+import { supabase } from '@/integrations/supabase/client';
 
 interface BrowseRecipe extends Recipe {
   source: string;
@@ -52,7 +53,58 @@ export function useBrowseFeed() {
   const [recipes, setRecipes] = useState<BrowseRecipe[]>([]);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  const { likedRecipes, savedApiRecipes, userProfile, pantryList } = useStore();
+  const [kitchenPantryNames, setKitchenPantryNames] = useState<string[]>([]);
+  const {
+    likedRecipes,
+    savedApiRecipes,
+    userProfile,
+    pantryList,
+    activeKitchenId,
+    kitchenViewMode,
+  } = useStore();
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadKitchenPantry = async () => {
+      if (!activeKitchenId || kitchenViewMode !== 'kitchen') {
+        setKitchenPantryNames([]);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('kitchen_pantry_items')
+        .select('name')
+        .eq('kitchen_id', activeKitchenId);
+
+      if (error) {
+        console.error('Kitchen pantry load error:', error);
+        if (!cancelled) setKitchenPantryNames([]);
+        return;
+      }
+
+      if (!cancelled) {
+        setKitchenPantryNames(
+          (data || [])
+            .map((item: any) => String(item.name || '').trim())
+            .filter(Boolean),
+        );
+      }
+    };
+
+    void loadKitchenPantry();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeKitchenId, kitchenViewMode]);
+
+  const effectivePantryNames = useMemo(() => {
+    if (activeKitchenId && kitchenViewMode === 'kitchen') {
+      return kitchenPantryNames;
+    }
+    return pantryList.map((p) => p.name);
+  }, [activeKitchenId, kitchenPantryNames, kitchenViewMode, pantryList]);
 
   const diversifyBrowseOrder = useCallback((rankedRecipes: BrowseRecipe[]) => {
     const desserts = rankedRecipes.filter((recipe) => classifyMealType(recipe).includes('dessert'));
@@ -99,13 +151,12 @@ export function useBrowseFeed() {
         .map(normalizeRecipe)
         .filter((recipe): recipe is BrowseRecipe => Boolean(recipe) && !likedIds.has(String(recipe.id)));
 
-      const pantryNames = pantryList.map(p => p.name);
       const likedRecipesList: Recipe[] = likedRecipes
         .map((id) => savedApiRecipes[id])
         .filter(Boolean);
 
-      if (likedRecipesList.length > 0 || userProfile.cuisinePreferences.length > 0 || userProfile.skillLevel || pantryNames.length > 0) {
-        const ranked = rankByRecommendation(fetched, likedRecipesList, likedIds, userProfile, pantryNames);
+      if (likedRecipesList.length > 0 || userProfile.cuisinePreferences.length > 0 || userProfile.skillLevel || effectivePantryNames.length > 0) {
+        const ranked = rankByRecommendation(fetched, likedRecipesList, likedIds, userProfile, effectivePantryNames);
         setRecipes(diversifyBrowseOrder(ranked.map((item) => item.recipe as BrowseRecipe)));
       } else {
         const shuffled = [...fetched].sort(() => Math.random() - 0.5);
@@ -118,7 +169,7 @@ export function useBrowseFeed() {
     } finally {
       setLoading(false);
     }
-  }, [loaded, loading, likedRecipes, savedApiRecipes, userProfile, pantryList, diversifyBrowseOrder]);
+  }, [loaded, loading, likedRecipes, savedApiRecipes, userProfile, effectivePantryNames, diversifyBrowseOrder]);
 
   return { recipes, loading, loaded, loadFeed };
 }

@@ -248,6 +248,39 @@ export type Database = {
         }
         Relationships: []
       }
+      kitchen_pantry_items: {
+        Row: {
+          added_by: string | null
+          category: string | null
+          created_at: string
+          id: string
+          kitchen_id: string
+          name: string
+          quantity: string
+          updated_at: string
+        }
+        Insert: {
+          added_by?: string | null
+          category?: string | null
+          created_at?: string
+          id?: string
+          kitchen_id: string
+          name: string
+          quantity?: string
+          updated_at?: string
+        }
+        Update: {
+          added_by?: string | null
+          category?: string | null
+          created_at?: string
+          id?: string
+          kitchen_id?: string
+          name?: string
+          quantity?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       kitchen_recipe_shares: {
         Row: {
           created_at: string

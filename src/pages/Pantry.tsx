@@ -17,6 +17,7 @@ import RecipePreviewDialog from "@/components/RecipePreviewDialog";
 import type { Recipe } from "@/data/recipes";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getPantryImage } from "@/lib/pantryImages";
+import { useKitchenPantry } from "@/hooks/useKitchenPantry";
 
 const CATEGORIES = ["All", "Produce", "Dairy", "Meat & Fish", "Dry Goods", "Pasta / Noodles", "Condiments", "Bakery", "Frozen", "Other"];
 const CATEGORY_ICONS: Record<string, string> = {
@@ -132,7 +133,18 @@ function PantryItemRow({
 }
 
 export default function PantryScreen() {
-  const { pantryList, addPantryItem, removePantryItem, updatePantryItem, likeRecipe, addCustomGroceryItem } = useStore();
+  const {
+    pantryList,
+    addPantryItem,
+    removePantryItem,
+    updatePantryItem,
+    likeRecipe,
+    addCustomGroceryItem,
+    activeKitchenId,
+    activeKitchenName,
+  } = useStore();
+  const kitchenPantry = useKitchenPantry(activeKitchenId);
+  const isKitchenMode = Boolean(activeKitchenId);
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
   const [sortMode, setSortMode] = useState<"recent" | "category">("recent");
@@ -147,9 +159,12 @@ export default function PantryScreen() {
   const isPremium = getPremiumOverride();
   const receiptInputRef = useRef<HTMLInputElement>(null);
   const fridgeImageInputRef = useRef<HTMLInputElement>(null);
+  const pantryItems = isKitchenMode
+    ? kitchenPantry.items.map((item) => ({ ...item, category: item.category ?? undefined }))
+    : pantryList;
 
   const filtered = useMemo(() => {
-    let list: PantryItem[] = (pantryList ?? []).map((item, idx) => ({
+    let list: PantryItem[] = (pantryItems ?? []).map((item, idx) => ({
       ...item,
       key: `${item.id ?? item.name}-${idx}`,
       id: item.id ?? item.name,
@@ -166,16 +181,16 @@ export default function PantryScreen() {
       list = [...list].sort((a, b) => (b.addedAt ?? 0) - (a.addedAt ?? 0));
     }
     return list;
-  }, [pantryList, search, activeCategory, sortMode]);
+  }, [pantryItems, search, activeCategory, sortMode]);
 
   const groupedCounts = useMemo(() => {
-    const counts: Record<string, number> = { All: pantryList?.length ?? 0 };
-    (pantryList ?? []).forEach((i) => {
+    const counts: Record<string, number> = { All: pantryItems?.length ?? 0 };
+    (pantryItems ?? []).forEach((i) => {
       const c = normalizeCategory(i.category);
       counts[c] = (counts[c] || 0) + 1;
     });
     return counts;
-  }, [pantryList]);
+  }, [pantryItems]);
 
   const handleAdd = () => {
     const itemName = newItem.trim();
@@ -183,7 +198,15 @@ export default function PantryScreen() {
     const detected = detectCategories(itemName);
     let category = newCategory === "Other" ? detected.pantryCategory : newCategory;
     category = normalizeCategory(category);
-    addPantryItem({ name: itemName, category, quantity: newQty.trim() || undefined });
+    if (isKitchenMode) {
+      void kitchenPantry.addItem({
+        name: itemName,
+        category,
+        quantity: newQty.trim() || suggestQuantityForItem(itemName),
+      });
+    } else {
+      addPantryItem({ name: itemName, category, quantity: newQty.trim() || undefined });
+    }
     toast.success(`Added ${itemName} to pantry`);
     setNewItem("");
     setNewQty("");
@@ -191,7 +214,11 @@ export default function PantryScreen() {
   };
 
   const handleRemove = (id: string, name: string) => {
-    removePantryItem(id);
+    if (isKitchenMode) {
+      void kitchenPantry.removeItem(id);
+    } else {
+      removePantryItem(id);
+    }
     toast.success(`Removed ${name}`);
   };
 
@@ -235,14 +262,14 @@ export default function PantryScreen() {
       return;
     }
 
-    if ((pantryList?.length ?? 0) < 2) {
+    if ((pantryItems?.length ?? 0) < 2) {
       toast.info("Add a few pantry items first so we have something to cook with.");
       return;
     }
 
     setGeneratingRecipe(true);
     try {
-      const pantryNames = pantryList.map((item) => item.name);
+      const pantryNames = pantryItems.map((item) => item.name);
       const query = pantryNames.slice(0, 6).join(" ");
       const { data, error } = await invokeAppFunction<{ recipes?: unknown[]; error?: string }>("search-recipes", {
         body: { query },
@@ -305,11 +332,19 @@ export default function PantryScreen() {
 
     uniqueItems.forEach((item) => {
       const detected = detectCategories(item.name);
-      addPantryItem({
-        name: item.name,
-        quantity: item.quantity || "1",
-        category: normalizeCategory(detected.pantryCategory),
-      });
+      if (isKitchenMode) {
+        void kitchenPantry.addItem({
+          name: item.name,
+          quantity: item.quantity || "1",
+          category: normalizeCategory(detected.pantryCategory),
+        });
+      } else {
+        addPantryItem({
+          name: item.name,
+          quantity: item.quantity || "1",
+          category: normalizeCategory(detected.pantryCategory),
+        });
+      }
     });
 
     return uniqueItems.length;
@@ -405,7 +440,10 @@ export default function PantryScreen() {
               <h1 className="text-2xl font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
                 Pantry
               </h1>
-              <p className="text-xs text-stone-400 mt-1">{pantryList?.length ?? 0} items stocked</p>
+              <p className="text-xs text-stone-400 mt-1">
+                {pantryItems?.length ?? 0} items stocked
+                {isKitchenMode && <span className="ml-2 font-semibold text-orange-500">Shared with {activeKitchenName || "Kitchen"}</span>}
+              </p>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -460,7 +498,7 @@ export default function PantryScreen() {
           {/* Stat row */}
           <div className="flex items-center gap-4">
             {[
-              { label: "In stock", value: pantryList?.length ?? 0, color: "#10B981" },
+              { label: "In stock", value: pantryItems?.length ?? 0, color: "#10B981" },
               { label: "Categories", value: Object.keys(groupedCounts).length - 1, color: "#F97316" },
             ].map(({ label, value, color }) => (
               <div key={label} className="flex items-center gap-2">
@@ -525,7 +563,7 @@ export default function PantryScreen() {
 
       <RecipePreviewDialog
         recipe={generatedRecipe}
-        match={generatedRecipe ? calculateMatch((pantryList ?? []).map((item) => item.name), generatedRecipe.ingredients || []) : null}
+        match={generatedRecipe ? calculateMatch((pantryItems ?? []).map((item) => item.name), generatedRecipe.ingredients || []) : null}
         open={generatedRecipeOpen}
         onOpenChange={setGeneratedRecipeOpen}
         mode="explore"
@@ -659,12 +697,12 @@ export default function PantryScreen() {
         >
           {filtered.length === 0 ? (
             <div className="py-16 text-center">
-              {(pantryList?.length ?? 0) === 0 ? (
+              {(pantryItems?.length ?? 0) === 0 ? (
                 <div className="flex flex-col items-center gap-3">
                   <div className="w-16 h-16 rounded-2xl bg-orange-50 flex items-center justify-center text-3xl">📦</div>
                   <div>
                     <p className="font-bold text-stone-700" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
-                      Your pantry is empty
+                      {isKitchenMode ? "This shared pantry is empty" : "Your pantry is empty"}
                     </p>
                     <p className="text-xs text-stone-400 mt-1">Add items to get ingredient match suggestions</p>
                   </div>
@@ -682,8 +720,21 @@ export default function PantryScreen() {
                     item={item}
                     dataTutorial={index === 0 ? "pantry-item-0" : undefined}
                     onRemove={() => handleRemove(item.id, item.name)}
-                    onEdit={(field, value) => updatePantryItem?.(item.id, { [field]: value })}
-                    onAdjustQty={(delta) => updatePantryItem?.(item.id, { quantity: adjustQuantityString(item.quantity || suggestQuantityForItem(item.name), delta) })}
+                    onEdit={(field, value) => {
+                      if (isKitchenMode) {
+                        void kitchenPantry.updateItem(item.id, { [field]: value });
+                      } else {
+                        updatePantryItem?.(item.id, { [field]: value });
+                      }
+                    }}
+                    onAdjustQty={(delta) => {
+                      const quantity = adjustQuantityString(item.quantity || suggestQuantityForItem(item.name), delta);
+                      if (isKitchenMode) {
+                        void kitchenPantry.updateItem(item.id, { quantity });
+                      } else {
+                        updatePantryItem?.(item.id, { quantity });
+                      }
+                    }}
                   />
                 ))}
               </AnimatePresence>
@@ -692,7 +743,7 @@ export default function PantryScreen() {
         </div>
 
         {/* Tips */}
-        {(pantryList?.length ?? 0) > 0 && (
+        {(pantryItems?.length ?? 0) > 0 && (
           <div
             className="rounded-2xl border p-4 flex items-start gap-3"
             style={{ background: "linear-gradient(135deg,#FFF7ED,#FFF3E4)", borderColor: "rgba(249,115,22,0.15)" }}
