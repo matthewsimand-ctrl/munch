@@ -18,9 +18,7 @@ export default function LetMeCook() {
   const { data: dbRecipes = [] } = useDbRecipes();
   const { meal: currentPlannedMeal, nextMeal, loading: currentMealLoading } = useCurrentMealPlan();
 
-
-  const handleStartPlannedMeal = () => {
-    const plannedMeal = nextMeal || currentPlannedMeal;
+  const startPlannedMeal = (plannedMeal = nextMeal || currentPlannedMeal) => {
     if (!plannedMeal) return;
 
     const recipeId = plannedMeal.recipe_id;
@@ -37,6 +35,10 @@ export default function LetMeCook() {
     }
 
     navigate(`/cook/${recipeId}`);
+  };
+
+  const handleStartPlannedMeal = () => {
+    startPlannedMeal();
   };
 
   const recipes = useMemo(() => likedRecipes.map((id) => {
@@ -142,7 +144,7 @@ export default function LetMeCook() {
                 </div>
               </div>
               <button
-                onClick={() => navigate(`/cook/${featuredMeal.recipe_id}`)}
+                onClick={() => startPlannedMeal(featuredMeal)}
                 className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold text-white transition-all hover:opacity-90 active:scale-95 shrink-0"
                 style={{
                   background: "linear-gradient(135deg,#FB923C,#F97316,#EA580C)",

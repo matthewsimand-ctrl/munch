@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { normalizeIngredients } from '@/lib/normalizeIngredients';
+import { parseIngredientLine } from '@/lib/ingredientText';
 
 export interface UserProfile {
   dietaryRestrictions: string[];
@@ -313,12 +314,16 @@ export const useStore = create<AppState>()(
         })),
 
       addCustomGroceryItem: (name, quantity = '1') => {
-        const normalized = name.toLowerCase().trim();
+        const explicit = typeof quantity === 'string' ? { qty: quantity } : (quantity || {});
+        const parsedIngredient = parseIngredientLine(name);
+        const normalizedName = (parsedIngredient.name || name).toLowerCase().trim();
+        const normalized = normalizedName;
         if (!normalized) return;
 
-        const parsed = typeof quantity === 'string'
-          ? { qty: quantity }
-          : (quantity || {});
+        const parsed = {
+          ...explicit,
+          qty: explicit.qty ?? parsedIngredient.quantity ?? undefined,
+        };
 
         set((state) => {
           const existingIndex = state.customGroceryItems.findIndex(i => i.name === normalized);

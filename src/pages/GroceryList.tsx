@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import {
-  ShoppingCart, Plus, X, Check, Share2, Trash2,
-  Search, ChevronDown, Sparkles, MapPin,
+  ShoppingCart, Plus, X, Check, FileText, Trash2,
+  Search, ChevronDown, Sparkles, MapPin, Minus,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getAiDisabledMessage, isAiAgentCallsDisabledError } from "@/lib/ai";
@@ -9,6 +9,7 @@ import { useStore } from "@/lib/store";
 import { invokeAppFunction } from "@/lib/functionClient";
 import { toast } from "sonner";
 import { detectCategories } from "@/lib/categorizeItem";
+import { adjustQuantityString } from "@/lib/ingredientText";
 
 const STORE_SECTIONS: Record<string, string> = {
   produce: "🥦 Produce",
@@ -53,11 +54,13 @@ function GroceryRow({
   onToggle,
   onRemove,
   onEditQty,
+  onAdjustQty,
 }: {
   item: GroceryItem;
   onToggle: () => void;
   onRemove: () => void;
   onEditQty: (qty: string) => void;
+  onAdjustQty: (delta: number) => void;
 }) {
   const [editingQty, setEditingQty] = useState(false);
   const [qty, setQty] = useState(item.quantity || item.qty || "");
@@ -98,25 +101,45 @@ function GroceryRow({
       </div>
 
       {/* Qty */}
-      {editingQty ? (
-        <input
-          autoFocus
-          value={qty}
-          onChange={(e) => setQty(e.target.value)}
-          onBlur={() => { setEditingQty(false); onEditQty(qty); }}
-          onKeyDown={(e) => { if (e.key === "Enter") { setEditingQty(false); onEditQty(qty); } }}
-          className="w-20 text-xs text-stone-600 border border-orange-300 rounded-lg px-2 py-1 outline-none bg-white"
-          placeholder="qty"
-        />
-      ) : (
-        <button
-          onClick={() => !item.checked && setEditingQty(true)}
-          className="text-[11px] font-semibold text-stone-400 bg-stone-100/30 hover:bg-orange-50 hover:text-orange-500 px-2 py-0.5 rounded-lg border border-transparent hover:border-orange-100 transition-all flex items-center gap-1 min-h-[20px]"
-        >
-          <span>{item.quantity || item.qty || (item.checked ? "" : "qty")}</span>
-          {!item.checked && <Plus size={8} />}
-        </button>
-      )}
+      <div className="flex items-center gap-1">
+        {!item.checked && (
+          <button
+            onClick={() => onAdjustQty(-1)}
+            className="w-6 h-6 rounded-full border border-stone-200 bg-white text-stone-400 hover:border-orange-300 hover:text-orange-500 transition-colors flex items-center justify-center"
+            aria-label={`Decrease quantity for ${item.name}`}
+          >
+            <Minus size={10} />
+          </button>
+        )}
+        {editingQty ? (
+          <input
+            autoFocus
+            value={qty}
+            onChange={(e) => setQty(e.target.value)}
+            onBlur={() => { setEditingQty(false); onEditQty(qty); }}
+            onKeyDown={(e) => { if (e.key === "Enter") { setEditingQty(false); onEditQty(qty); } }}
+            className="w-20 text-xs text-stone-600 border border-orange-300 rounded-lg px-2 py-1 outline-none bg-white"
+            placeholder="qty"
+          />
+        ) : (
+          <button
+            onClick={() => !item.checked && setEditingQty(true)}
+            className="text-[11px] font-semibold text-stone-400 bg-stone-100/30 hover:bg-orange-50 hover:text-orange-500 px-2 py-0.5 rounded-lg border border-transparent hover:border-orange-100 transition-all flex items-center gap-1 min-h-[20px]"
+          >
+            <span>{item.quantity || item.qty || (item.checked ? "" : "qty")}</span>
+            {!item.checked && <Plus size={8} />}
+          </button>
+        )}
+        {!item.checked && (
+          <button
+            onClick={() => onAdjustQty(1)}
+            className="w-6 h-6 rounded-full border border-stone-200 bg-white text-stone-400 hover:border-orange-300 hover:text-orange-500 transition-colors flex items-center justify-center"
+            aria-label={`Increase quantity for ${item.name}`}
+          >
+            <Plus size={10} />
+          </button>
+        )}
+      </div>
 
       {/* Remove */}
       <button
@@ -190,11 +213,25 @@ export default function GroceryScreen() {
     setNewSection("other");
   };
 
-  const handleShare = () => {
-    const unchecked = items.filter((i) => !i.checked).map((i) => `• ${i.name}${i.qty ? ` (${i.qty})` : ""}`).join("\n");
-    if (!unchecked) { toast.info("Nothing left to share!"); return; }
-    navigator.clipboard?.writeText(`🛒 Grocery List\n\n${unchecked}`);
-    toast.success("Copied to clipboard!");
+  const handleExport = async () => {
+    const unchecked = items
+      .filter((i) => !i.checked)
+      .map((i) => `- [ ] ${i.name}${i.qty ? ` (${i.qty})` : ""}`)
+      .join("\n");
+
+    if (!unchecked) {
+      toast.info("Nothing left to export.");
+      return;
+    }
+
+    const checklist = `# Grocery List\n\n${unchecked}`;
+
+    try {
+      await navigator.clipboard?.writeText(checklist);
+      toast.success("Checklist copied for Notes.");
+    } catch {
+      toast.error("Could not export the checklist.");
+    }
   };
 
   const handleClearChecked = () => {
@@ -290,11 +327,11 @@ export default function GroceryScreen() {
                 </button>
               )}
               <button
-                onClick={handleShare}
+                onClick={handleExport}
                 className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90 active:scale-95"
                 style={{ background: "linear-gradient(135deg,#FB923C,#F97316,#EA580C)", boxShadow: "0 4px 16px rgba(249,115,22,0.30)" }}
               >
-                <Share2 size={14} /> Share
+                <FileText size={14} /> Export
               </button>
             </div>
           </div>
@@ -460,6 +497,7 @@ export default function GroceryScreen() {
                           onToggle={() => toggleGroceryItem?.(item.id)}
                           onRemove={() => removeCustomGroceryItem?.(item.id)}
                           onEditQty={(qty) => updateGroceryItem?.(item.id, { qty })}
+                          onAdjustQty={(delta) => updateGroceryItem?.(item.id, { qty: adjustQuantityString(item.quantity || item.qty, delta) })}
                         />
                       ))}
                     </AnimatePresence>

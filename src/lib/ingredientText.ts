@@ -110,3 +110,19 @@ export function scaleIngredientQuantity(quantity: string, multiplier: number): s
   const scaled = Math.round(numeric * multiplier * 100) / 100;
   return quantity.replace(/[\d./¼½¾⅓⅔⅛⅜⅝⅞]+(?:\s+[\d./¼½¾⅓⅔⅛⅜⅝⅞]+)?/, `${scaled}`);
 }
+
+export function adjustQuantityString(quantity: string | undefined, delta: number): string {
+  const current = String(quantity ?? '').trim();
+  if (!current) {
+    return delta > 0 ? String(delta) : '';
+  }
+
+  const tokenMatch = current.match(/[\d./¼½¾⅓⅔⅛⅜⅝⅞]+(?:\s+[\d./¼½¾⅓⅔⅛⅜⅝⅞]+)?/);
+  const numeric = parseQuantityValue(current);
+  if (!tokenMatch || numeric === null) return current;
+
+  const nextValue = Math.max(0, Math.round((numeric + delta) * 100) / 100);
+  if (nextValue === 0) return '';
+
+  return current.replace(tokenMatch[0], `${nextValue}`);
+}

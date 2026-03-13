@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
-import { Sparkles, RefreshCw, Utensils, ChevronRight, Lock } from "lucide-react";
+import { Sparkles, RefreshCw, Utensils, ChevronRight, Lock, Flame, Beef, Wheat, Droplets } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useCookedMeals } from "@/hooks/useCookedMeals";
+import { useStore } from "@/lib/store";
+import { getConsumedNutritionSummary } from "@/lib/consumedNutrition";
 import { toast } from "sonner";
 import { usePremiumAccess } from "@/hooks/usePremiumAccess";
 
@@ -16,9 +18,14 @@ function formatCookedAt(dateString: string) {
 export default function CookedHistory() {
   const navigate = useNavigate();
   const { meals, loading, estimateMealSavings, loadMeals } = useCookedMeals(60);
+  const { cachedNutrition } = useStore();
   const { isPremium } = usePremiumAccess();
   const [estimatingMealId, setEstimatingMealId] = useState<string | null>(null);
   const [showSavings, setShowSavings] = useState(false);
+  const nutritionSummary = useMemo(
+    () => getConsumedNutritionSummary(meals, cachedNutrition),
+    [meals, cachedNutrition],
+  );
 
   const totals = useMemo(() => {
     const estimatedMeals = meals.filter((meal) => meal.estimated_savings != null);
@@ -153,6 +160,52 @@ export default function CookedHistory() {
             )}
           </div>
         </section>
+
+        {isPremium && (
+          <section className="rounded-2xl border p-5 md:p-6" style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-stone-400">Premium nutrition</p>
+                <h2 className="text-xl font-bold text-stone-800 mt-1">What you've consumed</h2>
+                <p className="text-sm text-stone-500 mt-1">
+                  Based on nutrition facts for {nutritionSummary.coveredMeals} of {nutritionSummary.totalMeals} cooked meal{nutritionSummary.totalMeals === 1 ? "" : "s"}.
+                </p>
+              </div>
+              {nutritionSummary.coveredMeals > 0 && (
+                <div className="rounded-xl bg-emerald-50 border border-emerald-100 px-3 py-2 text-right">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700/70">Avg health score</p>
+                  <p className="text-lg font-bold text-emerald-700">{nutritionSummary.averageHealthScore.toFixed(1)}/10</p>
+                </div>
+              )}
+            </div>
+
+            {nutritionSummary.coveredMeals === 0 ? (
+              <div className="rounded-xl border border-dashed border-stone-200 bg-stone-50 p-4 mt-4">
+                <p className="text-sm font-semibold text-stone-600">No consumed nutrition yet</p>
+                <p className="text-xs text-stone-400 mt-1">Once recipes have nutrition facts analyzed, your cooked totals will show up here.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-2.5 mt-4">
+                {[
+                  { label: "Calories", value: `${Math.round(nutritionSummary.totals.calories)}`, detail: "kcal", icon: Flame, tone: "text-orange-500 bg-orange-50" },
+                  { label: "Protein", value: `${Math.round(nutritionSummary.totals.protein)}g`, detail: "protein", icon: Beef, tone: "text-sky-500 bg-sky-50" },
+                  { label: "Carbs", value: `${Math.round(nutritionSummary.totals.carbs)}g`, detail: "carbs", icon: Wheat, tone: "text-amber-500 bg-amber-50" },
+                  { label: "Fat", value: `${Math.round(nutritionSummary.totals.fat)}g`, detail: "fat", icon: Droplets, tone: "text-rose-500 bg-rose-50" },
+                  { label: "Fiber", value: `${Math.round(nutritionSummary.totals.fiber)}g`, detail: "fiber", icon: Sparkles, tone: "text-emerald-500 bg-emerald-50" },
+                ].map((stat) => (
+                  <div key={stat.label} className="rounded-xl border border-stone-100 px-3 py-3 bg-stone-50">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${stat.tone}`}>
+                      <stat.icon size={14} />
+                    </div>
+                    <p className="text-[11px] text-stone-400 font-semibold uppercase tracking-wide mt-3">{stat.label}</p>
+                    <p className="text-lg font-bold text-stone-800 mt-1">{stat.value}</p>
+                    <p className="text-[10px] text-stone-400 mt-0.5">{stat.detail}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
 
         <section className="rounded-2xl border p-5" style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}>
           {loading ? (

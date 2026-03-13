@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import {
   Flame, Clock, Heart, ShoppingCart, ChevronRight,
   Calendar, Star, Plus, Check, Users, MapPin, X, RotateCw,
-  Trophy, ChefHat, Zap, Award, Camera, Sparkles, TrendingUp, Play,
+  Trophy, ChefHat, Zap, Award, Camera, Sparkles, TrendingUp, Play, Beef, Wheat, Droplets,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,6 +23,7 @@ import { useCurrentMealPlan } from "@/hooks/useCurrentMealPlan";
 import { getMealPlanWeekStart } from "@/lib/mealPlanUtils";
 import { useCookedMeals } from "@/hooks/useCookedMeals";
 import { usePremiumAccess } from "@/hooks/usePremiumAccess";
+import { getConsumedNutritionSummary } from "@/lib/consumedNutrition";
 
 const WEEK_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MEAL_PREP_TYPES = new Set(["Breakfast", "Lunch", "Dinner"]);
@@ -162,6 +163,7 @@ export default function Dashboard() {
     addCustomGroceryItem, customGroceryItems, recipeFolders,
     cookingStreak, totalMealsCooked, cookedRecipeIds, totalXp,
     earnedBadges, earnBadge, lastCookedDate, chefAvatarUrl, setChefAvatarUrl,
+    cachedNutrition,
     mealPlan, displayName: storeDisplayName
   } = useStore();
 
@@ -178,6 +180,29 @@ export default function Dashboard() {
   const { meal: currentPlannedMeal, loading: currentMealLoading } = useCurrentMealPlan();
   const { meals: cookedMeals, loading: cookedMealsLoading, estimateMealSavings } = useCookedMeals();
   const [estimatingMealId, setEstimatingMealId] = useState<string | null>(null);
+  const nutritionSummary = useMemo(
+    () => getConsumedNutritionSummary(cookedMeals, cachedNutrition),
+    [cookedMeals, cachedNutrition],
+  );
+
+  const startCurrentPlannedMeal = () => {
+    if (!currentPlannedMeal) return;
+
+    const recipeId = currentPlannedMeal.recipe_id;
+    const hasRecipeLocally = Boolean(savedApiRecipes[recipeId]);
+
+    if (!hasRecipeLocally && currentPlannedMeal.recipe_data) {
+      likeRecipe(recipeId, currentPlannedMeal.recipe_data);
+    }
+
+    const canStart = hasRecipeLocally || Boolean(currentPlannedMeal.recipe_data);
+    if (!canStart) {
+      toast.info("We couldn't load this planned recipe yet. Open Meal Prep and re-save it first.");
+      return;
+    }
+
+    navigate(`/cook/${recipeId}`);
+  };
 
   const AVATAR_PRESETS = [
     defaultChefAvatar,
@@ -473,6 +498,57 @@ export default function Dashboard() {
           ))}
         </div>
 
+        {isPremium && (
+          <section
+            className="rounded-2xl border p-5 mt-2"
+            style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}
+          >
+            <SectionHeader icon={Sparkles} title="Nutrition consumed" />
+            <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+              <div>
+                <p className="text-sm text-stone-500">
+                  Premium nutrition totals from {nutritionSummary.coveredMeals} of {nutritionSummary.totalMeals} cooked meal{nutritionSummary.totalMeals === 1 ? "" : "s"}.
+                </p>
+                {nutritionSummary.coveredMeals > 0 && (
+                  <p className="text-xs text-emerald-700 mt-2 font-semibold">
+                    Average meal health score: {nutritionSummary.averageHealthScore.toFixed(1)}/10
+                  </p>
+                )}
+              </div>
+              {nutritionSummary.coveredMeals > 0 && (
+                <div className="rounded-xl border border-orange-100 bg-orange-50 px-4 py-3 min-w-[180px]">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-orange-600/70">Calories consumed</p>
+                  <p className="text-2xl font-bold text-orange-700 mt-1">{Math.round(nutritionSummary.totals.calories)}</p>
+                </div>
+              )}
+            </div>
+
+            {nutritionSummary.coveredMeals === 0 ? (
+              <div className="rounded-xl border border-dashed border-stone-200 bg-stone-50 p-4 mt-4">
+                <p className="text-sm font-semibold text-stone-600">No nutrition totals yet</p>
+                <p className="text-xs text-stone-400 mt-1">Analyze nutrition on your recipes and your cooked totals will start building here.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+                {[
+                  { label: "Protein", value: `${Math.round(nutritionSummary.totals.protein)}g`, icon: Beef, tone: "bg-sky-50 text-sky-500" },
+                  { label: "Carbs", value: `${Math.round(nutritionSummary.totals.carbs)}g`, icon: Wheat, tone: "bg-amber-50 text-amber-500" },
+                  { label: "Fat", value: `${Math.round(nutritionSummary.totals.fat)}g`, icon: Droplets, tone: "bg-rose-50 text-rose-500" },
+                  { label: "Fiber", value: `${Math.round(nutritionSummary.totals.fiber)}g`, icon: Sparkles, tone: "bg-emerald-50 text-emerald-500" },
+                ].map((stat) => (
+                  <div key={stat.label} className="rounded-xl border border-stone-100 px-3 py-3 bg-stone-50">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${stat.tone}`}>
+                      <stat.icon size={14} />
+                    </div>
+                    <p className="text-[11px] text-stone-400 font-semibold uppercase tracking-wide mt-3">{stat.label}</p>
+                    <p className="text-lg font-bold text-stone-800 mt-1">{stat.value}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
         {/* 2-col layout */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
@@ -557,7 +633,7 @@ export default function Dashboard() {
                   </div>
                   {currentPlannedMeal && (
                     <button
-                      onClick={() => navigate(`/cook/${currentPlannedMeal.recipe_id}`)}
+                      onClick={startCurrentPlannedMeal}
                       className="text-xs font-bold text-orange-600 bg-orange-100 hover:bg-orange-200 px-3 py-1.5 rounded-full transition-colors shrink-0"
                     >
                       Cook →

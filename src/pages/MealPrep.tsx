@@ -110,7 +110,7 @@ function MealSlot({
 
 export default function MealPrepScreen() {
   const navigate = useNavigate();
-  const { mealPlan, addMealPlanItem, removeMealPlanItem, clearMealPlanWeek, savedApiRecipes, likedRecipes, addCustomGroceryItem, pantryList } = useStore();
+  const { mealPlan, addMealPlanItem, removeMealPlanItem, clearMealPlanWeek, savedApiRecipes, likedRecipes, likeRecipe, addCustomGroceryItem, pantryList } = useStore();
   const { isPremium } = usePremiumAccess();
 
   const [weekOffset, setWeekOffset] = useState(0);
@@ -195,6 +195,20 @@ export default function MealPrepScreen() {
     instructions: Array.isArray(recipe.instructions) ? recipe.instructions : [],
     cuisine: recipe.cuisine ? String(recipe.cuisine) : undefined,
   });
+
+  const startPlannedMealCooking = (meal: PlannedMeal) => {
+    const recipe = savedApiRecipes[meal.recipeId] ?? meal.recipeSnapshot;
+    if (!recipe) {
+      toast.info("Recipe details are unavailable for this meal.");
+      return;
+    }
+
+    if (!savedApiRecipes[meal.recipeId]) {
+      likeRecipe(meal.recipeId, recipe);
+    }
+
+    navigate(`/cook/${meal.recipeId}`);
+  };
 
   const applySurpriseMe = (sourceRecipes: any[], sourceLabel: string) => {
     if (sourceRecipes.length === 0) {
@@ -840,7 +854,7 @@ export default function MealPrepScreen() {
                   </button>
                   <button
                     onClick={() => {
-                      navigate(`/cook/${showMealActionModal.recipeId}`);
+                      startPlannedMealCooking(showMealActionModal);
                       setShowMealActionModal(null);
                     }}
                     className="rounded-xl py-2 text-sm font-semibold text-white"
