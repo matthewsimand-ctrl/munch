@@ -347,6 +347,7 @@ export default function CookMode() {
   const [earnedSessionXp, setEarnedSessionXp] = useState(0);
   const [xpPopup, setXpPopup] = useState<{ id: number; amount: number; label: string } | null>(null);
   const [pantryDecisionMade, setPantryDecisionMade] = useState(false);
+  const [showAllStepsView, setShowAllStepsView] = useState(false);
   const hasTrackedCookRef = useRef(false);
   const awardedStepsRef = useRef<Set<number>>(new Set());
   const awardedCompletionRef = useRef(false);
@@ -1062,6 +1063,15 @@ export default function CookMode() {
 
             <div className="flex items-center gap-2">
               <button
+                onClick={() => setShowAllStepsView((value) => !value)}
+                className={`px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${showAllStepsView
+                  ? "bg-orange-500 text-white border border-orange-500"
+                  : "bg-white border border-stone-200 text-stone-600 hover:border-orange-300"
+                  }`}
+              >
+                {showAllStepsView ? "Step View" : "All Steps"}
+              </button>
+              <button
                 onClick={() => setShowIngredients((v) => !v)}
                 className="px-3 py-2 rounded-xl bg-white border border-stone-200 text-xs font-semibold text-stone-600 hover:border-orange-300 transition-colors"
               >
@@ -1175,127 +1185,192 @@ export default function CookMode() {
           />
 
           {/* Step card */}
-          <AnimatePresence mode="wait">
+          {showAllStepsView ? (
             <motion.div
-              key={stepIndex}
-              initial={{ opacity: 0, y: 16 }}
+              initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -16 }}
-              transition={{ duration: 0.25, ease: "easeOut" }}
               data-tutorial="cooking-step-card"
-              className="rounded-2xl border p-8"
+              className="rounded-2xl border p-6 sm:p-8"
               style={{
                 background: "#fff",
                 borderColor: "rgba(249,115,22,0.15)",
                 boxShadow: "0 4px 24px rgba(249,115,22,0.08)",
               }}
             >
-              {/* Step number pill */}
-              <div className="flex items-center gap-3 mb-5">
-                <div
-                  className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-black shrink-0"
-                  style={{ background: "linear-gradient(135deg,#FB923C,#F97316)" }}
-                >
-                  {stepIndex + 1}
+              <div className="flex items-center justify-between gap-3 mb-5">
+                <div>
+                  <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Full recipe view</p>
+                  <p className="text-sm font-semibold text-stone-700">See every step before you move through the flow</p>
                 </div>
-                <p
-                  className="text-[10px] font-bold text-stone-400 uppercase tracking-widest"
-                >
-                  {isLastStep ? "Final step" : `Step ${stepIndex + 1}`}
-                </p>
-
-                {/* Read aloud button — direct user gesture → TTS always works here */}
                 <button
                   onClick={handleReadStep}
                   data-tutorial="read-aloud-btn"
-                  className={`ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${isSpeaking
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${isSpeaking
                     ? "bg-orange-100 text-orange-600 border border-orange-200"
                     : "bg-stone-100 text-stone-500 border border-stone-200 hover:bg-orange-50 hover:text-orange-500 hover:border-orange-200"
                     }`}
                 >
                   {isSpeaking ? <VolumeX size={12} /> : <Volume2 size={12} />}
-                  {isSpeaking ? "Stop" : "Read aloud"}
+                  {isSpeaking ? "Stop" : "Read current"}
                 </button>
               </div>
 
               <TooltipProvider delayDuration={120}>
-                <div
-                  className="text-xl font-medium text-stone-800 leading-relaxed"
-                  style={{ fontFamily: "'Fraunces', Georgia, serif" }}
-                >
-                  {renderInstructionWithDefinitions(steps[stepIndex], handleStartTimer)}
+                <div className="space-y-3">
+                  {steps.map((step, index) => {
+                    const active = index === stepIndex;
+                    return (
+                      <button
+                        key={`${index}-${step}`}
+                        type="button"
+                        onClick={() => setStepIndex(index)}
+                        className={`w-full text-left rounded-2xl border px-4 py-4 transition-colors ${active ? "border-orange-200 bg-orange-50/70" : "border-stone-200 bg-stone-50/70 hover:border-orange-200 hover:bg-orange-50/40"}`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div
+                            className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm font-black shrink-0 ${active ? "text-white" : "text-stone-600 bg-white border border-stone-200"}`}
+                            style={active ? { background: "linear-gradient(135deg,#FB923C,#F97316)" } : undefined}
+                          >
+                            {index + 1}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1">
+                              {active ? "Current step" : `Step ${index + 1}`}
+                            </p>
+                            <div
+                              className="text-base sm:text-lg font-medium text-stone-800 leading-relaxed"
+                              style={{ fontFamily: "'Fraunces', Georgia, serif" }}
+                            >
+                              {renderInstructionWithDefinitions(step, handleStartTimer)}
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </TooltipProvider>
-
-              {/* Step Timers */}
-              {(detectedTimers.length > 0 || detachedActiveTimers.length > 0) && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  data-tutorial="timers-section"
-                  className="mt-6 pt-5 flex flex-col items-center space-y-3"
-                  style={{ borderTop: "1px dashed rgba(249,115,22,0.2)" }}
-                >
-                  <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest">
-                    Step Timers
+            </motion.div>
+          ) : (
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={stepIndex}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -16 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+                data-tutorial="cooking-step-card"
+                className="rounded-2xl border p-8"
+                style={{
+                  background: "#fff",
+                  borderColor: "rgba(249,115,22,0.15)",
+                  boxShadow: "0 4px 24px rgba(249,115,22,0.08)",
+                }}
+              >
+                <div className="flex items-center gap-3 mb-5">
+                  <div
+                    className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-black shrink-0"
+                    style={{ background: "linear-gradient(135deg,#FB923C,#F97316)" }}
+                  >
+                    {stepIndex + 1}
+                  </div>
+                  <p
+                    className="text-[10px] font-bold text-stone-400 uppercase tracking-widest"
+                  >
+                    {isLastStep ? "Final step" : `Step ${stepIndex + 1}`}
                   </p>
 
-                  <div className={`grid gap-3 w-full ${detectedTimers.length + detachedActiveTimers.length > 1 ? "sm:grid-cols-2" : "max-w-sm mx-auto"}`}>
-                    {detectedTimers.map((timer, index) => {
-                      const timerId = buildTimerId(stepIndex, timer.label);
-                      const activeTimer = activeTimers.find((item) => item.id === timerId);
-                      const isActive = Boolean(activeTimer);
+                  <button
+                    onClick={handleReadStep}
+                    data-tutorial="read-aloud-btn"
+                    className={`ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${isSpeaking
+                      ? "bg-orange-100 text-orange-600 border border-orange-200"
+                      : "bg-stone-100 text-stone-500 border border-stone-200 hover:bg-orange-50 hover:text-orange-500 hover:border-orange-200"
+                      }`}
+                  >
+                    {isSpeaking ? <VolumeX size={12} /> : <Volume2 size={12} />}
+                    {isSpeaking ? "Stop" : "Read aloud"}
+                  </button>
+                </div>
 
-                      return (
+                <TooltipProvider delayDuration={120}>
+                  <div
+                    className="text-xl font-medium text-stone-800 leading-relaxed"
+                    style={{ fontFamily: "'Fraunces', Georgia, serif" }}
+                  >
+                    {renderInstructionWithDefinitions(steps[stepIndex], handleStartTimer)}
+                  </div>
+                </TooltipProvider>
+
+                {(detectedTimers.length > 0 || detachedActiveTimers.length > 0) && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    data-tutorial="timers-section"
+                    className="mt-6 pt-5 flex flex-col items-center space-y-3"
+                    style={{ borderTop: "1px dashed rgba(249,115,22,0.2)" }}
+                  >
+                    <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest">
+                      Step Timers
+                    </p>
+
+                    <div className={`grid gap-3 w-full ${detectedTimers.length + detachedActiveTimers.length > 1 ? "sm:grid-cols-2" : "max-w-sm mx-auto"}`}>
+                      {detectedTimers.map((timer, index) => {
+                        const timerId = buildTimerId(stepIndex, timer.label);
+                        const activeTimer = activeTimers.find((item) => item.id === timerId);
+                        const isActive = Boolean(activeTimer);
+
+                        return (
+                          <StepTimerCard
+                            key={`${timer.label}-${index}`}
+                            label={timer.label}
+                            totalSeconds={timer.seconds}
+                            remainingSeconds={isActive ? activeTimer?.remainingSeconds ?? timer.seconds : timer.seconds}
+                            isActive={isActive}
+                            isPaused={activeTimer?.isPaused ?? false}
+                            onStart={() => handleStartTimer(timer.seconds, timer.label)}
+                            onTogglePause={() => {
+                              if (!activeTimer) return;
+                              setActiveTimers((prev) => prev.map((item) => (
+                                item.id === activeTimer.id
+                                  ? { ...item, isPaused: !item.isPaused }
+                                  : item
+                              )));
+                            }}
+                            onEnd={() => {
+                              setActiveTimers((prev) => prev.filter((item) => item.id !== timerId));
+                            }}
+                          />
+                        );
+                      })}
+
+                      {detachedActiveTimers.map((timer) => (
                         <StepTimerCard
-                          key={`${timer.label}-${index}`}
+                          key={timer.id}
                           label={timer.label}
-                          totalSeconds={timer.seconds}
-                          remainingSeconds={isActive ? activeTimer?.remainingSeconds ?? timer.seconds : timer.seconds}
-                          isActive={isActive}
-                          isPaused={activeTimer?.isPaused ?? false}
-                          onStart={() => handleStartTimer(timer.seconds, timer.label)}
+                          totalSeconds={timer.totalSeconds}
+                          remainingSeconds={timer.remainingSeconds}
+                          isActive
+                          isPaused={timer.isPaused}
+                          onStart={() => {}}
                           onTogglePause={() => {
-                            if (!activeTimer) return;
                             setActiveTimers((prev) => prev.map((item) => (
-                              item.id === activeTimer.id
+                              item.id === timer.id
                                 ? { ...item, isPaused: !item.isPaused }
                                 : item
                             )));
                           }}
                           onEnd={() => {
-                            setActiveTimers((prev) => prev.filter((item) => item.id !== timerId));
+                            setActiveTimers((prev) => prev.filter((item) => item.id !== timer.id));
                           }}
                         />
-                      );
-                    })}
-
-                    {detachedActiveTimers.map((timer) => (
-                      <StepTimerCard
-                        key={timer.id}
-                        label={timer.label}
-                        totalSeconds={timer.totalSeconds}
-                        remainingSeconds={timer.remainingSeconds}
-                        isActive
-                        isPaused={timer.isPaused}
-                        onStart={() => {}}
-                        onTogglePause={() => {
-                          setActiveTimers((prev) => prev.map((item) => (
-                            item.id === timer.id
-                              ? { ...item, isPaused: !item.isPaused }
-                              : item
-                          )));
-                        }}
-                        onEnd={() => {
-                          setActiveTimers((prev) => prev.filter((item) => item.id !== timer.id));
-                        }}
-                      />
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-            </motion.div>
-          </AnimatePresence>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </motion.div>
+            </AnimatePresence>
+          )}
 
           {/* Navigation */}
           <div className="flex items-center gap-3">

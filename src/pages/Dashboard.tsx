@@ -3,6 +3,7 @@ import {
   Flame, Clock, Heart, ShoppingCart, ChevronRight,
   Calendar, Star, Plus, Check, Users, MapPin, X, RotateCw,
   Trophy, ChefHat, Zap, Award, Camera, Sparkles, TrendingUp, Play, Beef, Wheat, Droplets, Bell, CheckCheck,
+  Settings,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -25,6 +26,7 @@ import { useCookedMeals } from "@/hooks/useCookedMeals";
 import { usePremiumAccess } from "@/hooks/usePremiumAccess";
 import { getConsumedNutritionSummary } from "@/lib/consumedNutrition";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const WEEK_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MEAL_PREP_TYPES = new Set(["Breakfast", "Lunch", "Dinner"]);
@@ -159,6 +161,7 @@ function RecipeSuggestionCard({
 }
 
 export default function Dashboard() {
+  const isMobile = useIsMobile();
   const navigate = useNavigate();
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [greeting] = useState(() => {
@@ -458,9 +461,10 @@ export default function Dashboard() {
 
   const QUICK_ACTIONS = [
     { label: "Find Recipe", to: "/swipe", emoji: "🔍", color: "from-orange-50 to-amber-50" },
-    { label: "Add to Pantry", to: "/pantry", emoji: "📦", color: "from-emerald-50 to-teal-50" },
-    { label: "Grocery List", to: "/grocery", emoji: "🛒", color: "from-sky-50 to-blue-50" },
+    { label: "Saved", to: "/saved", emoji: "❤️", color: "from-rose-50 to-orange-50" },
+    { label: "Groceries", to: "/groceries", emoji: "🛒", color: "from-sky-50 to-blue-50" },
     { label: "Plan Meals", to: "/meal-prep", emoji: "📅", color: "from-violet-50 to-purple-50" },
+    ...(isMobile ? [{ label: "Settings", to: "/settings", emoji: "⚙️", color: "from-stone-50 to-slate-100" }] : [{ label: "Add to Pantry", to: "/pantry", emoji: "📦", color: "from-emerald-50 to-teal-50" }]),
   ];
 
   return (
@@ -500,6 +504,13 @@ export default function Dashboard() {
                   {unreadCount > 9 ? "9+" : unreadCount}
                 </span>
               )}
+            </button>
+            <button
+              onClick={() => navigate("/settings")}
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-orange-200 bg-white/85 text-stone-700 shadow-sm transition-colors hover:bg-orange-50 md:hidden"
+              aria-label="Open settings"
+            >
+              <Settings size={18} />
             </button>
             <div className="hidden md:block min-w-[220px] rounded-xl border px-3 py-2" style={{ background: "rgba(255,255,255,0.72)", borderColor: "rgba(249,115,22,0.20)" }}>
               <div className="flex items-center justify-between text-[11px] font-bold text-stone-600 mb-1">
@@ -542,7 +553,7 @@ export default function Dashboard() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5 sm:py-7 space-y-5 sm:space-y-7">
 
         {/* Stats */}
-        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3" data-tutorial="dashboard-stats">
+        <div className={`grid gap-3 ${isMobile ? "grid-cols-2" : "grid-cols-2 xl:grid-cols-4"}`} data-tutorial="dashboard-stats">
           {stats.map((s, i) => (
             <motion.div key={s.label} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06, duration: 0.4, ease: "easeOut" }}>
               <StatCard {...s} />
@@ -689,7 +700,7 @@ export default function Dashboard() {
             </section>
 
             {/* Cooked history */}
-            <section className="rounded-2xl border p-4 sm:p-5" style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}>
+            <section className={`rounded-2xl border p-4 sm:p-5 ${isMobile ? "hidden" : ""}`} style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}>
               <SectionHeader icon={Sparkles} title="Cooked history" />
               {cookedMealsLoading ? (
                 <p className="text-xs text-stone-400">Loading meals...</p>
@@ -725,7 +736,7 @@ export default function Dashboard() {
             </section>
 
             {/* Recent activity */}
-            <section className="rounded-2xl border p-4 sm:p-5" style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}>
+            <section className={`rounded-2xl border p-4 sm:p-5 ${isMobile ? "hidden" : ""}`} style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}>
               <h2 className="text-[15px] font-bold text-stone-800 mb-4">Recent activity</h2>
               <div className="space-y-3">
                 {recentActivity.map((item, i) => (
@@ -742,7 +753,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {isPremium && (
+        {isPremium && !isMobile && (
           <section
             className="rounded-2xl border p-4 sm:p-5"
             style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}
@@ -794,7 +805,7 @@ export default function Dashboard() {
         )}
 
         {/* Badges */}
-        <section className="rounded-2xl border p-4 sm:p-5" style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}>
+        <section className={`rounded-2xl border p-4 sm:p-5 ${isMobile ? "hidden" : ""}`} style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-lg bg-violet-50 flex items-center justify-center">

@@ -68,7 +68,7 @@ function MealSlot({
         onDragStart={onDragMeal}
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => { e.preventDefault(); onDropMeal(); }}
-        className="group relative rounded-full px-3 py-2 border transition-all cursor-grab active:cursor-grabbing hover:shadow-md"
+        className="group relative rounded-2xl px-3 py-3 border transition-all cursor-grab active:cursor-grabbing hover:shadow-md"
         style={{ background: colors.bg, borderColor: colors.border }}
         onClick={onMealClick}
       >
@@ -84,7 +84,7 @@ function MealSlot({
           </div>
           <button
             onClick={(e) => { e.stopPropagation(); onRemove(); }}
-            className="w-5 h-5 rounded-full flex items-center justify-center text-stone-300 hover:text-red-400 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100 shrink-0 mt-0.5"
+            className="w-5 h-5 rounded-lg flex items-center justify-center text-stone-300 hover:text-red-400 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100 shrink-0 mt-0.5"
           >
             <X size={10} />
           </button>
@@ -823,11 +823,12 @@ export default function MealPrepScreen() {
               initial={{ opacity: 0, y: 20, scale: 0.97 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.97 }}
-              className="fixed top-1/2 left-1/2 w-[calc(100%-1.5rem)] max-w-md -translate-x-1/2 -translate-y-1/2 z-50 rounded-3xl overflow-hidden"
+              className="fixed bottom-0 left-0 right-0 sm:bottom-auto sm:top-1/2 sm:left-1/2 sm:w-[calc(100%-1.5rem)] sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 z-50 rounded-t-3xl sm:rounded-3xl overflow-hidden max-h-[88vh] flex flex-col"
               style={{ background: "#fff", boxShadow: "0 -8px 40px rgba(0,0,0,0.15)" }}
             >
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
+              <div className="flex-1 min-h-0 overflow-y-auto">
+                <div className="p-6">
+                <div className="flex items-center justify-between mb-4 sticky top-0 bg-white pb-3 z-10">
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-widest mb-0.5" style={{ color: MEAL_COLORS[showAddModal.mealType].dot }}>
                       {showAddModal.mealType}
@@ -853,7 +854,7 @@ export default function MealPrepScreen() {
                   <Utensils size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-300" />
                 </div>
 
-                <div className="space-y-1 max-h-72 overflow-y-auto">
+              <div className="space-y-1 max-h-72 overflow-y-auto">
                   {filteredRecipes.length === 0 ? (
                     <div className="py-8 text-center">
                       <p className="text-sm text-stone-400">No saved recipes found</p>
@@ -866,7 +867,7 @@ export default function MealPrepScreen() {
                       <button
                         key={recipe.id}
                         onClick={() => handleAddMeal(recipe)}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-orange-50 transition-colors text-left group"
+                        className="w-full flex items-center gap-3 px-3 py-3 rounded-2xl border border-stone-100 hover:border-orange-200 hover:bg-orange-50/70 transition-colors text-left group bg-white"
                       >
                         <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 bg-stone-100">
                           {recipe.image && recipe.image !== "/placeholder.svg" ? (
@@ -877,12 +878,23 @@ export default function MealPrepScreen() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-stone-800 truncate group-hover:text-orange-700 transition-colors">{recipe.name}</p>
-                          <p className="text-[10px] text-stone-400 flex items-center gap-1 mt-0.5"><Clock size={9} /> {recipe.cook_time}</p>
+                          <div className="mt-1 flex items-center gap-2 text-[10px] text-stone-400">
+                            <span className="inline-flex items-center gap-1"><Clock size={9} /> {recipe.cook_time}</span>
+                            {recipe.cuisine && (
+                              <span className="inline-flex items-center gap-1">
+                                <span className="h-1 w-1 rounded-full bg-stone-300" />
+                                {recipe.cuisine}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <Plus size={14} className="text-stone-300 group-hover:text-orange-400 transition-colors" />
+                        <div className="shrink-0 rounded-xl border border-stone-200 px-2.5 py-1.5 text-[11px] font-semibold text-stone-500 group-hover:border-orange-300 group-hover:text-orange-600 transition-colors">
+                          Add
+                        </div>
                       </button>
                     ))
                   )}
+                </div>
                 </div>
               </div>
             </motion.div>

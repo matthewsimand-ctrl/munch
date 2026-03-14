@@ -13,6 +13,134 @@ interface BrowseRecipe extends Recipe {
   chef?: string | null;
 }
 
+function normalizeText(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/https?:\/\/|www\./g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function normalizeUrl(value?: string) {
+  if (!value) return '';
+  try {
+    const parsed = new URL(value);
+    return `${parsed.hostname.replace(/^www\./, '')}${parsed.pathname}`.replace(/\/+$/, '').toLowerCase();
+  } catch {
+    return normalizeText(value);
+  }
+}
+
+function extractIngredientTokens(recipe: BrowseRecipe) {
+  return recipe.ingredients
+    .slice(0, 4)
+    .map((ingredient) => normalizeText(ingredient).split(' ').slice(-2).join(' '))
+    .filter(Boolean)
+    .join('|');
+}
+
+function buildRecipeDedupKeys(recipe: BrowseRecipe) {
+  const normalizedName = normalizeText(recipe.name);
+  const normalizedUrl = normalizeUrl(recipe.source_url);
+  const ingredientTokens = extractIngredientTokens(recipe);
+
+  return [
+    normalizedUrl ? `url:${normalizedUrl}` : '',
+    normalizedName ? `name:${normalizedName}` : '',
+    normalizedName && ingredientTokens ? `fingerprint:${normalizedName}|${ingredientTokens}` : '',
+  ].filter(Boolean);
+}
+
+function dedupeRecipes(recipes: BrowseRecipe[]) {
+  const seen = new Set<string>();
+  return recipes.filter((recipe) => {
+    const keys = buildRecipeDedupKeys(recipe);
+    if (keys.length === 0) return false;
+    if (keys.some((key) => seen.has(key))) return false;
+    keys.forEach((key) => seen.add(key));
+    return recipe.ingredients.length > 0 && recipe.instructions.length > 0;
+  });
+}
+
+function curateBrowseCatalog(recipes: BrowseRecipe[]) {
+  const imported: BrowseRecipe[] = [];
+  const community: BrowseRecipe[] = [];
+  const external: BrowseRecipe[] = [];
+
+  recipes.forEach((recipe) => {
+    const source = String(recipe.source || '').toLowerCase();
+    if (source === 'imported') {
+      imported.push(recipe);
+      return;
+    }
+
+    if (source === 'community' || source === 'community-seed') {
+      community.push(recipe);
+      return;
+    }
+
+    external.push(recipe);
+  });
+
+  const importedLimit = Math.max(8, Math.floor(recipes.length * 0.18));
+  return [
+    ...external,
+    ...community,
+    ...imported.slice(0, importedLimit),
+  ];
+}
+
+async function fetchPublicRecipesFallback(): Promise<BrowseRecipe[]> {
+  const { data, error } = await supabase
+    .from('recipes')
+    .select('*')
+    .eq('is_public', true)
+    .order('created_at', { ascending: false })
+    .limit(200);
+
+  if (error) throw error;
+
+  return (data || [])
+    .map(normalizeRecipe)
+    .filter((recipe): recipe is BrowseRecipe => Boolean(recipe));
+}
+
+async function fetchMealDbBrowseFallback(): Promise<BrowseRecipe[]> {
+  const letters = 'abcdefghijklmnopqrstuvwxyz'.split('');
+  const results = await Promise.allSettled(
+    letters.map(async (letter) => {
+      const response = await fetch(`https://www.themealdb.com/api/json/v1/1/search.php?f=${letter}`);
+      const data = await response.json();
+      return Array.isArray(data?.meals) ? data.meals : [];
+    }),
+  );
+
+  return results
+    .filter((result): result is PromiseFulfilledResult<any[]> => result.status === 'fulfilled')
+    .flatMap((result) => result.value)
+    .map((meal: any) => normalizeRecipe({
+      id: `mealdb-${meal.idMeal}`,
+      name: meal.strMeal,
+      image: meal.strMealThumb,
+      cook_time: '30 min',
+      difficulty: 'Intermediate',
+      ingredients: Array.from({ length: 20 }, (_, index) => {
+        const ingredient = String(meal[`strIngredient${index + 1}`] || '').trim();
+        const measure = String(meal[`strMeasure${index + 1}`] || '').trim();
+        return ingredient ? `${measure ? `${measure} ` : ''}${ingredient}`.trim() : '';
+      }).filter(Boolean),
+      tags: meal.strTags ? String(meal.strTags).split(',').map((tag) => tag.trim()) : [],
+      instructions: typeof meal.strInstructions === 'string'
+        ? meal.strInstructions.split(/\r?\n/).map((line: string) => line.trim()).filter(Boolean)
+        : [],
+      source: 'TheMealDB',
+      source_url: meal.strSource || meal.strYoutube || undefined,
+      raw_api_payload: meal,
+      cuisine: meal.strArea || undefined,
+    }))
+    .filter((recipe): recipe is BrowseRecipe => Boolean(recipe));
+}
+
 function normalizeStringArray(value: unknown): string[] {
   if (Array.isArray(value)) return value.map((v) => String(v).trim()).filter(Boolean);
   if (typeof value === 'string') {
@@ -140,16 +268,43 @@ export function useBrowseFeed() {
     if (loaded || loading) return;
     setLoading(true);
     try {
-      const { data, error } = await invokeAppFunction('search-recipes', {
-        body: { mode: 'browse' },
-      });
-      if (error) throw error;
-
       const likedIds = new Set(likedRecipes);
+      let fetched: BrowseRecipe[] = [];
 
-      const fetched: BrowseRecipe[] = (data?.recipes || [])
-        .map(normalizeRecipe)
-        .filter((recipe): recipe is BrowseRecipe => Boolean(recipe) && !likedIds.has(String(recipe.id)));
+      try {
+        const { data, error } = await invokeAppFunction('search-recipes', {
+          body: { mode: 'browse' },
+        });
+        if (error) throw error;
+
+        fetched = (data?.recipes || [])
+          .map(normalizeRecipe)
+          .filter((recipe): recipe is BrowseRecipe => Boolean(recipe) && !likedIds.has(String(recipe.id)));
+      } catch (edgeError) {
+        console.error('Browse feed edge fallback triggered:', edgeError);
+      }
+
+      if (fetched.length === 0) {
+        fetched = (await fetchPublicRecipesFallback())
+          .filter((recipe) => !likedIds.has(String(recipe.id)));
+      }
+
+      const externalCount = fetched.filter((recipe) => {
+        const source = String(recipe.source || '').toLowerCase();
+        return source !== 'imported' && source !== 'community' && source !== 'community-seed';
+      }).length;
+
+      if (fetched.length < 80 || externalCount < 30) {
+        const mealDbFallback = await fetchMealDbBrowseFallback();
+        fetched = dedupeRecipes([
+          ...fetched,
+          ...mealDbFallback.filter((recipe) => !likedIds.has(String(recipe.id))),
+        ]);
+      } else {
+        fetched = dedupeRecipes(fetched);
+      }
+
+      fetched = curateBrowseCatalog(fetched);
 
       const likedRecipesList: Recipe[] = likedRecipes
         .map((id) => savedApiRecipes[id])

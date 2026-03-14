@@ -77,8 +77,8 @@ function SwipeCard({
   const handleDragEnd = (_: unknown, info: { offset: { x: number; y: number } }) => {
     if (info.offset.x > 100) { onSwipeRight(); return; }
     if (info.offset.x < -100) { onSwipeLeft(); return; }
-    animate(x, 0, { type: "spring", stiffness: 360, damping: 28 });
-    animate(y, 0, { type: "spring", stiffness: 360, damping: 28 });
+    animate(x, 0, { type: "spring", stiffness: 260, damping: 24 });
+    animate(y, 0, { type: "spring", stiffness: 260, damping: 24 });
   };
 
   const diffBadge =
@@ -92,7 +92,7 @@ function SwipeCard({
     <motion.div
       drag={isTop}
       dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
-      dragElastic={0.12}
+      dragElastic={0.2}
       dragMomentum={false}
       onDragEnd={handleDragEnd}
       onPanStart={() => {

@@ -25,7 +25,6 @@ const PROXY_FETCHERS: Array<{ label: string; buildUrl: (url: string) => string; 
 
 const NON_CONTENT_TAGS = ['script', 'style', 'noscript', 'svg', 'canvas', 'iframe'];
 const NON_ESSENTIAL_SECTIONS = ['header', 'footer', 'nav', 'aside', 'form'];
-const AD_SECTION_HINTS = ['ad', 'ads', 'advert', 'advertisement', 'promo', 'promotion', 'sponsor', 'newsletter', 'cookie', 'popup', 'banner'];
 const INGREDIENT_SECTION_HEADERS = ['ingredients'];
 const RECIPE_SECTION_END_HEADERS = ['instructions', 'directions', 'method', 'preparation', 'steps', 'nutrition', 'notes'];
 
@@ -431,33 +430,7 @@ function extractRecipeWindow(text: string): string {
 }
 
 function cleanHtmlForAi(html: string): string {
-  let cleaned = html;
-
-  for (const tag of NON_CONTENT_TAGS) {
-    cleaned = cleaned.replace(new RegExp(`<${tag}[^>]*>[\\s\\S]*?<\\/${tag}>`, 'gi'), ' ');
-  }
-
-  for (const tag of NON_ESSENTIAL_SECTIONS) {
-    cleaned = cleaned.replace(new RegExp(`<${tag}[^>]*>[\\s\\S]*?<\\/${tag}>`, 'gi'), ' ');
-  }
-
-  cleaned = cleaned.replace(
-    new RegExp(
-      `<([a-z0-9:-]+)[^>]*(?:id|class|aria-label|data-testid|data-component)=["'][^"']*(?:${AD_SECTION_HINTS.join('|')})[^"']*["'][^>]*>[\\s\\S]*?<\\/\\1>`,
-      'gi',
-    ),
-    ' ',
-  );
-
-  cleaned = cleaned
-    .replace(/<!--([\s\S]*?)-->/g, ' ')
-    .replace(/<(?:button|input|select|option|label)[^>]*>[\s\S]*?<\/(?:button|select|option|label)>/gi, ' ')
-    .replace(/<(?:button|input|select|option|label)[^>]*\/?>/gi, ' ')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  return extractRecipeWindow(cleaned);
+  return extractRecipeWindow(extractStructuredText(html));
 }
 
 function extractRecipeFromJsonLd(html: string): Record<string, unknown> | null {
@@ -617,7 +590,6 @@ Deno.serve(async (req) => {
 
     let content = textContent || '';
     let recipe: Record<string, unknown> | null = null;
-    let previewText = '';
     let structuredText = '';
     let extractedIngredientLines: string[] = [];
     let wasBlocked = false;
@@ -695,11 +667,11 @@ Deno.serve(async (req) => {
       if (html) {
         structuredText = extractStructuredText(html);
         extractedIngredientLines = extractIngredientSectionLines(structuredText);
-        previewText = cleanHtmlForAi(html);
+        content = cleanHtmlForAi(html);
       }
 
-      if (!recipe && previewText) {
-        content = previewText;
+      if (!recipe && structuredText) {
+        content = cleanHtmlForAi(html);
       }
     }
 
@@ -735,8 +707,6 @@ Deno.serve(async (req) => {
         raw_api_payload: {
           import_type: 'website',
           source_url: normalizedUrl,
-          preview_text: previewText || content || '',
-          structured_text: structuredText,
           extracted_ingredient_lines: extractedIngredientLines,
         },
       };

@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Plus, X, Loader2, Camera, ClipboardPaste, Globe, Upload, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
@@ -392,6 +393,10 @@ export default function CreateRecipeForm({ onClose }: Props) {
   };
 
   const quantityConfig = detectQuantityConfig(ingredientInput);
+  const basicsReady = Boolean(name.trim());
+  const ingredientCount = ingredients.length;
+  const instructionCount = instructions.length;
+  const metadataCount = tags.length + (isOriginalRecipe ? 1 : 0) + (isPublic ? 1 : 0);
 
   const handleSubmit = async () => {
     if (!name.trim() || ingredients.length === 0) {
@@ -482,270 +487,325 @@ export default function CreateRecipeForm({ onClose }: Props) {
 
   return (
     <div className="space-y-4 px-1 pb-1">
-      {/* Paste & Auto-Parse */}
-      {showPaste ? (
-        <div className="space-y-3 p-4 rounded-xl bg-muted/50 border border-border">
-          <label className="text-sm font-medium text-foreground">Paste recipe text</label>
-          <p className="text-xs text-muted-foreground">
-            Paste the full recipe text and we'll auto-detect the name, ingredients, and steps.
-          </p>
-          <Textarea
-            value={pasteText}
-            onChange={(e) => setPasteText(e.target.value)}
-            placeholder={"Grandma's Famous Pasta\n\nIngredients:\n2 cups flour\n3 eggs\n...\n\nInstructions:\n1. Mix flour and eggs...\n2. Knead the dough..."}
-            rows={8}
-            autoFocus
-          />
-          <div className="flex gap-2">
-            <Button onClick={handleParsePaste} disabled={!pasteText.trim()} className="flex-1">
-              <ClipboardPaste className="h-4 w-4 mr-1" /> Auto-Fill Fields
-            </Button>
-            <Button variant="outline" onClick={() => { setShowPaste(false); setPasteText(''); }}>
-              Cancel
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <Button
-          variant="outline"
-          className="w-full border-dashed"
-          onClick={() => setShowPaste(true)}
-        >
-          <ClipboardPaste className="h-4 w-4 mr-2" /> Paste & Auto-Parse Recipe Text
-        </Button>
-      )}
-
-      <div>
-        <label className="text-sm font-medium text-foreground">Recipe Name *</label>
-        <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Grandma's Pasta" />
-      </div>
-
-      <div>
-        <label className="text-sm font-medium text-foreground">Photo</label>
-        <div className="flex gap-2 mt-1">
-          <Input value={image} onChange={e => setImage(e.target.value)} placeholder="Image URL (optional)" className="flex-1" />
-          <input
-            ref={photoInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handlePhotoUpload}
-            className="hidden"
-          />
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => photoInputRef.current?.click()}
-            disabled={uploadingPhoto}
-            title="Upload photo"
-          >
-            {uploadingPhoto ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={fetchRandomPhoto}
-            disabled={fetchingPhoto}
-            title="Use random photo"
-            className="gap-1.5"
-          >
-            {fetchingPhoto ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
-            <span className="hidden sm:inline">Random Photo</span>
-          </Button>
-        </div>
-        {image && (
-          <img src={image} alt="Preview" className="mt-2 h-24 w-full object-cover rounded-lg" />
-        )}
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="text-sm font-medium text-foreground">Cook Time</label>
-          <Input value={cookTime} onChange={e => setCookTime(e.target.value)} placeholder="25 min" />
-        </div>
-        <div>
-          <label className="text-sm font-medium text-foreground">Servings</label>
-          <Select value={servings} onValueChange={setServings}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {[1, 2, 3, 4, 5, 6, 8, 10, 12].map(n => (
-                <SelectItem key={n} value={String(n)}>{n} {n === 1 ? 'serving' : 'servings'}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <label className="text-sm font-medium text-foreground">Difficulty</label>
-          <Select value={difficulty} onValueChange={setDifficulty}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Beginner">Beginner</SelectItem>
-              <SelectItem value="Intermediate">Intermediate</SelectItem>
-              <SelectItem value="Advanced">Advanced</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <label className="text-sm font-medium text-foreground">Cuisine</label>
-          <Input value={cuisine} onChange={e => setCuisine(e.target.value)} placeholder="Italian" />
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-3">
-        <div className="flex items-start space-x-3">
-          <Checkbox
-            id="is-original-recipe"
-            checked={isOriginalRecipe}
-            onCheckedChange={(checked) => setIsOriginalRecipe(checked === true)}
-            className="mt-0.5"
-          />
-          <div className="space-y-0.5">
-            <label htmlFor="is-original-recipe" className="text-sm font-medium text-foreground cursor-pointer">
-              This is my original recipe
-            </label>
-            <p className="text-xs text-muted-foreground">
-              Show your chef name on the recipe and let people discover other recipes you created.
-            </p>
-          </div>
-        </div>
-
-        {isOriginalRecipe && (
-          <div>
-            <label className="text-sm font-medium text-foreground">Chef Name</label>
-            <Input value={chef} onChange={e => setChef(e.target.value)} placeholder="Shown as recipe author name" />
-            {chefUsername && (
-              <p className="mt-1 text-xs text-muted-foreground">
-                Linked to @{chefUsername} so people land on your profile.
-              </p>
-            )}
-          </div>
-        )}
-      </div>
-
-      <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-3">
-        <div className="flex items-center justify-between">
-          <label className="text-sm font-medium text-foreground">Ingredients *</label>
-          <span className="text-[11px] text-muted-foreground inline-flex items-center gap-1"><Sparkles className="h-3 w-3" /> smart quantity suggestions</span>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-[1fr_160px_auto] gap-2">
-          <Input
-            value={ingredientInput}
-            onChange={e => {
-              const next = e.target.value;
-              setIngredientInput(next);
-              if (next.trim().length > 2) {
-                setIngredientQuantity(detectQuantityConfig(next).defaultValue);
-              }
-            }}
-            placeholder="Ingredient name"
-            onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addIngredient())}
-          />
-          <Select value={ingredientQuantity} onValueChange={setIngredientQuantity}>
-            <SelectTrigger><SelectValue placeholder="Quantity" /></SelectTrigger>
-            <SelectContent>
-              {quantityConfig.options.map((option) => (
-                <SelectItem key={option} value={option}>{option}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button type="button" variant="outline" onClick={addIngredient}>
-            <Plus className="h-4 w-4 mr-1" /> Add
-          </Button>
-        </div>
-        <div className="space-y-1.5 pt-2">
-          {ingredients.map((ingredient, index) => (
-            <div key={`${ingredient}-${index}`} className="flex items-center gap-2 group">
-              <Input
-                value={ingredient}
-                onChange={(e) => updateIngredient(index, e.target.value)}
-                className="h-9 bg-white border-transparent hover:border-border focus:border-orange-300 focus:bg-white transition-all transition-colors px-3 py-1 text-sm shadow-sm"
-              />
-              <button
-                type="button"
-                onClick={() => setIngredients((prev) => prev.filter((_, i) => i !== index))}
-                className="w-8 h-8 flex items-center justify-center rounded-lg text-stone-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+      <Accordion
+        type="multiple"
+        defaultValue={["quick-start", "basics", "ingredients", "instructions"]}
+        className="rounded-2xl border border-border bg-background/80 px-4"
+      >
+        <AccordionItem value="quick-start" className="border-b border-border/70">
+          <AccordionTrigger className="py-4 text-left hover:no-underline">
+            <div>
+              <p className="text-sm font-semibold text-foreground">Quick Start</p>
+              <p className="text-xs text-muted-foreground">Paste recipe text to auto-fill the form</p>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="space-y-3">
+            {showPaste ? (
+              <div className="space-y-3 p-4 rounded-xl bg-muted/50 border border-border">
+                <label className="text-sm font-medium text-foreground">Paste recipe text</label>
+                <p className="text-xs text-muted-foreground">
+                  Paste the full recipe text and we'll auto-detect the name, ingredients, and steps.
+                </p>
+                <Textarea
+                  value={pasteText}
+                  onChange={(e) => setPasteText(e.target.value)}
+                  placeholder={"Grandma's Famous Pasta\n\nIngredients:\n2 cups flour\n3 eggs\n...\n\nInstructions:\n1. Mix flour and eggs...\n2. Knead the dough..."}
+                  rows={8}
+                  autoFocus
+                />
+                <div className="flex gap-2">
+                  <Button onClick={handleParsePaste} disabled={!pasteText.trim()} className="flex-1">
+                    <ClipboardPaste className="h-4 w-4 mr-1" /> Auto-Fill Fields
+                  </Button>
+                  <Button variant="outline" onClick={() => { setShowPaste(false); setPasteText(''); }}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button
+                variant="outline"
+                className="w-full border-dashed"
+                onClick={() => setShowPaste(true)}
               >
-                <X className="h-4 w-4" />
-              </button>
+                <ClipboardPaste className="h-4 w-4 mr-2" /> Paste & Auto-Parse Recipe Text
+              </Button>
+            )}
+          </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem value="basics" className="border-b border-border/70">
+          <AccordionTrigger className="py-4 text-left hover:no-underline">
+            <div>
+              <p className="text-sm font-semibold text-foreground">Basics</p>
+              <p className="text-xs text-muted-foreground">{basicsReady ? "Name and recipe details are filled in" : "Start with the recipe name, image, and timing"}</p>
             </div>
-          ))}
-        </div>
-      </div>
+          </AccordionTrigger>
+          <AccordionContent className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-foreground">Recipe Name *</label>
+              <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Grandma's Pasta" />
+            </div>
 
-      <div>
-        <label className="text-sm font-medium text-foreground">Tags</label>
-        <div className="flex gap-2 mt-1">
-          <Input
-            value={tagInput}
-            onChange={e => setTagInput(e.target.value)}
-            placeholder="e.g. spicy, vegan"
-            onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addTag())}
-          />
-          <Button type="button" variant="outline" size="icon" onClick={addTag}>
-            <Plus className="h-4 w-4" />
-          </Button>
-        </div>
-        <div className="flex flex-wrap gap-1.5 mt-2">
-          {tags.map(tag => (
-            <Badge key={tag} variant="outline" className="gap-1">
-              {tag}
-              <button onClick={() => setTags(prev => prev.filter(t => t !== tag))}>
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          ))}
-        </div>
-      </div>
+            <div>
+              <label className="text-sm font-medium text-foreground">Photo</label>
+              <div className="flex gap-2 mt-1">
+                <Input value={image} onChange={e => setImage(e.target.value)} placeholder="Image URL (optional)" className="flex-1" />
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoUpload}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => photoInputRef.current?.click()}
+                  disabled={uploadingPhoto}
+                  title="Upload photo"
+                >
+                  {uploadingPhoto ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={fetchRandomPhoto}
+                  disabled={fetchingPhoto}
+                  title="Use random photo"
+                  className="gap-1.5"
+                >
+                  {fetchingPhoto ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+                  <span className="hidden sm:inline">Random Photo</span>
+                </Button>
+              </div>
+              {image && (
+                <img src={image} alt="Preview" className="mt-2 h-24 w-full object-cover rounded-lg" />
+              )}
+            </div>
 
-      <div>
-        <label className="text-sm font-medium text-foreground">Steps / Instructions</label>
-        <div className="flex gap-2 mt-1">
-          <Input
-            value={instructionInput}
-            onChange={(e) => setInstructionInput(e.target.value)}
-            placeholder="Add a cooking step"
-            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addInstruction())}
-          />
-          <Button type="button" variant="outline" size="icon" onClick={addInstruction}>
-            <Plus className="h-4 w-4" />
-          </Button>
-        </div>
-        <div className="space-y-1.5 mt-2">
-          {instructions.map((step, index) => (
-            <div key={`${step}-${index}`} className="flex items-start gap-2 rounded-md border border-border bg-muted/40 px-2 py-1.5 text-sm">
-              <span className="text-xs font-semibold text-muted-foreground pt-0.5">{index + 1}.</span>
-              <Input
-                value={step}
-                onChange={(e) => updateInstruction(index, e.target.value)}
-                className="h-8 flex-1"
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm font-medium text-foreground">Cook Time</label>
+                <Input value={cookTime} onChange={e => setCookTime(e.target.value)} placeholder="25 min" />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-foreground">Servings</label>
+                <Select value={servings} onValueChange={setServings}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {[1, 2, 3, 4, 5, 6, 8, 10, 12].map(n => (
+                      <SelectItem key={n} value={String(n)}>{n} {n === 1 ? 'serving' : 'servings'}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-foreground">Difficulty</label>
+                <Select value={difficulty} onValueChange={setDifficulty}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Beginner">Beginner</SelectItem>
+                    <SelectItem value="Intermediate">Intermediate</SelectItem>
+                    <SelectItem value="Advanced">Advanced</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-foreground">Cuisine</label>
+                <Input value={cuisine} onChange={e => setCuisine(e.target.value)} placeholder="Italian" />
+              </div>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem value="ingredients" className="border-b border-border/70">
+          <AccordionTrigger className="py-4 text-left hover:no-underline">
+            <div>
+              <p className="text-sm font-semibold text-foreground">Ingredients</p>
+              <p className="text-xs text-muted-foreground">{ingredientCount} ingredient{ingredientCount === 1 ? '' : 's'} added</p>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="space-y-3">
+            <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-foreground">Ingredients *</label>
+                <span className="text-[11px] text-muted-foreground inline-flex items-center gap-1"><Sparkles className="h-3 w-3" /> smart quantity suggestions</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-[1fr_160px_auto] gap-2">
+                <Input
+                  value={ingredientInput}
+                  onChange={e => {
+                    const next = e.target.value;
+                    setIngredientInput(next);
+                    if (next.trim().length > 2) {
+                      setIngredientQuantity(detectQuantityConfig(next).defaultValue);
+                    }
+                  }}
+                  placeholder="Ingredient name"
+                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addIngredient())}
+                />
+                <Select value={ingredientQuantity} onValueChange={setIngredientQuantity}>
+                  <SelectTrigger><SelectValue placeholder="Quantity" /></SelectTrigger>
+                  <SelectContent>
+                    {quantityConfig.options.map((option) => (
+                      <SelectItem key={option} value={option}>{option}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button type="button" variant="outline" onClick={addIngredient}>
+                  <Plus className="h-4 w-4 mr-1" /> Add
+                </Button>
+              </div>
+              <div className="space-y-1.5 pt-2">
+                {ingredients.map((ingredient, index) => (
+                  <div key={`${ingredient}-${index}`} className="flex items-center gap-2 group">
+                    <Input
+                      value={ingredient}
+                      onChange={(e) => updateIngredient(index, e.target.value)}
+                      className="h-9 bg-white border-transparent hover:border-border focus:border-orange-300 focus:bg-white transition-all transition-colors px-3 py-1 text-sm shadow-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setIngredients((prev) => prev.filter((_, i) => i !== index))}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg text-stone-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem value="instructions" className="border-b border-border/70">
+          <AccordionTrigger className="py-4 text-left hover:no-underline">
+            <div>
+              <p className="text-sm font-semibold text-foreground">Instructions & Tags</p>
+              <p className="text-xs text-muted-foreground">{instructionCount} step{instructionCount === 1 ? '' : 's'} and {tags.length} tag{tags.length === 1 ? '' : 's'}</p>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-foreground">Tags</label>
+              <div className="flex gap-2 mt-1">
+                <Input
+                  value={tagInput}
+                  onChange={e => setTagInput(e.target.value)}
+                  placeholder="e.g. spicy, vegan"
+                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addTag())}
+                />
+                <Button type="button" variant="outline" size="icon" onClick={addTag}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {tags.map(tag => (
+                  <Badge key={tag} variant="outline" className="gap-1">
+                    {tag}
+                    <button onClick={() => setTags(prev => prev.filter(t => t !== tag))}>
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-foreground">Steps / Instructions</label>
+              <div className="flex gap-2 mt-1">
+                <Input
+                  value={instructionInput}
+                  onChange={(e) => setInstructionInput(e.target.value)}
+                  placeholder="Add a cooking step"
+                  onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addInstruction())}
+                />
+                <Button type="button" variant="outline" size="icon" onClick={addInstruction}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="space-y-1.5 mt-2">
+                {instructions.map((step, index) => (
+                  <div key={`${step}-${index}`} className="flex items-start gap-2 rounded-md border border-border bg-muted/40 px-2 py-1.5 text-sm">
+                    <span className="text-xs font-semibold text-muted-foreground pt-0.5">{index + 1}.</span>
+                    <Input
+                      value={step}
+                      onChange={(e) => updateInstruction(index, e.target.value)}
+                      className="h-8 flex-1"
+                    />
+                    <button type="button" onClick={() => removeInstruction(index)} className="text-muted-foreground hover:text-destructive">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Add one step at a time.</p>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem value="sharing">
+          <AccordionTrigger className="py-4 text-left hover:no-underline">
+            <div>
+              <p className="text-sm font-semibold text-foreground">Author & Sharing</p>
+              <p className="text-xs text-muted-foreground">{metadataCount} sharing or author option{metadataCount === 1 ? '' : 's'} set</p>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="space-y-4">
+            <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-3">
+              <div className="flex items-start space-x-3">
+                <Checkbox
+                  id="is-original-recipe"
+                  checked={isOriginalRecipe}
+                  onCheckedChange={(checked) => setIsOriginalRecipe(checked === true)}
+                  className="mt-0.5"
+                />
+                <div className="space-y-0.5">
+                  <label htmlFor="is-original-recipe" className="text-sm font-medium text-foreground cursor-pointer">
+                    This is my original recipe
+                  </label>
+                  <p className="text-xs text-muted-foreground">
+                    Show your chef name on the recipe and let people discover other recipes you created.
+                  </p>
+                </div>
+              </div>
+
+              {isOriginalRecipe && (
+                <div>
+                  <label className="text-sm font-medium text-foreground">Chef Name</label>
+                  <Input value={chef} onChange={e => setChef(e.target.value)} placeholder="Shown as recipe author name" />
+                  {chefUsername && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Linked to @{chefUsername} so people land on your profile.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-start space-x-3 rounded-lg border border-border p-3 bg-muted/30">
+              <Checkbox
+                id="is-public"
+                checked={isPublic}
+                onCheckedChange={(checked) => setIsPublic(checked === true)}
+                className="mt-0.5"
               />
-              <button type="button" onClick={() => removeInstruction(index)} className="text-muted-foreground hover:text-destructive">
-                <X className="h-3.5 w-3.5" />
-              </button>
+              <div className="space-y-0.5">
+                <label htmlFor="is-public" className="text-sm font-medium text-foreground flex items-center gap-1.5 cursor-pointer">
+                  <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+                  Make discoverable by other users
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  Your recipe will appear in the Browse section for everyone to find.
+                </p>
+              </div>
             </div>
-          ))}
-        </div>
-        <p className="text-xs text-muted-foreground mt-1">Add one step at a time.</p>
-      </div>
-
-      <div className="flex items-start space-x-3 rounded-lg border border-border p-3 bg-muted/30">
-        <Checkbox
-          id="is-public"
-          checked={isPublic}
-          onCheckedChange={(checked) => setIsPublic(checked === true)}
-          className="mt-0.5"
-        />
-        <div className="space-y-0.5">
-          <label htmlFor="is-public" className="text-sm font-medium text-foreground flex items-center gap-1.5 cursor-pointer">
-            <Globe className="h-3.5 w-3.5 text-muted-foreground" />
-            Make discoverable by other users
-          </label>
-          <p className="text-xs text-muted-foreground">
-            Your recipe will appear in the Browse section for everyone to find.
-          </p>
-        </div>
-      </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
 
       <div className="flex gap-2 pt-2">
         <Button onClick={handleSubmit} disabled={loading} className="flex-1">

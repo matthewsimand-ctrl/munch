@@ -65,8 +65,6 @@ function hasStructuredRecipeContent(recipe: Recipe): boolean {
 }
 
 const EMPTY_IMPORTED_PREVIEW = {
-  previewText: '',
-  structuredText: '',
   sourceUrl: '',
   rawPayloadKeys: [] as string[],
 };
@@ -79,8 +77,6 @@ function getImportedPreviewData(recipe: Recipe) {
   const payload = recipe.raw_api_payload as Record<string, unknown>;
 
   return {
-    previewText: typeof payload.preview_text === 'string' ? payload.preview_text.trim() : '',
-    structuredText: typeof payload.structured_text === 'string' ? payload.structured_text.trim() : '',
     sourceUrl: typeof payload.source_url === 'string' ? payload.source_url : '',
     rawPayloadKeys: Object.keys(payload),
   };
@@ -123,10 +119,7 @@ export default function RecipePreviewDialog({
   const importedRecipe = recipe ? isImportedRecipe(recipe) : false;
   const embedBlockReason = recipe?.source_url ? getEmbedBlockReason(recipe.source_url) : null;
   const importedPreview = useMemo(() => recipe ? getImportedPreviewData(recipe) : EMPTY_IMPORTED_PREVIEW, [recipe]);
-  const hasCleanReaderContent = Boolean(importedPreview.previewText || importedPreview.structuredText);
-  const canEmbedSource = Boolean(recipe?.source_url) && !embedBlockReason && !hasCleanReaderContent;
-  const readerPreviewText = importedPreview.previewText || importedPreview.structuredText;
-  const hasReaderPreview = readerPreviewText.length > 0;
+  const canEmbedSource = Boolean(recipe?.source_url) && !embedBlockReason;
   const showStructuredFallback = recipe ? importedRecipe && hasStructuredRecipeContent(recipe) : false;
   const sourceHostname = useMemo(() => {
     const url = recipe?.source_url || importedPreview.sourceUrl;
@@ -149,24 +142,9 @@ export default function RecipePreviewDialog({
       sourceUrl: recipe.source_url,
       reason: embedBlockReason,
       hasStructuredFallback: showStructuredFallback,
-      hasReaderPreview,
-      previewTextLength: importedPreview.previewText.length,
-      structuredTextLength: importedPreview.structuredText.length,
       rawPayloadKeys: importedPreview.rawPayloadKeys,
     });
-  }, [
-    embedBlockReason,
-    hasReaderPreview,
-    importedPreview.previewText.length,
-    importedPreview.rawPayloadKeys,
-    importedPreview.structuredText.length,
-    importedRecipe,
-    open,
-    recipe?.id,
-    recipe?.name,
-    recipe?.source_url,
-    showStructuredFallback,
-  ]);
+  }, [embedBlockReason, importedPreview.rawPayloadKeys, importedRecipe, open, recipe?.id, recipe?.name, recipe?.source_url, showStructuredFallback]);
 
   if (!recipe) return null;
 
@@ -291,6 +269,31 @@ export default function RecipePreviewDialog({
                 </div>
               )}
 
+              {recipe.source_url && importedRecipe && (
+                <a
+                  href={recipe.source_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2.5 p-3 rounded-xl border border-stone-200 bg-stone-50/70 hover:bg-stone-100 transition-colors"
+                >
+                  {sourceHostname && (
+                    <img
+                      src={`https://www.google.com/s2/favicons?domain=${sourceHostname}&sz=32`}
+                      alt=""
+                      className="h-5 w-5 shrink-0"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                    />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold uppercase tracking-wide text-stone-400">Open Source</p>
+                    <p className="text-sm font-medium text-stone-700 truncate">
+                      {sourceHostname || recipe.source_url}
+                    </p>
+                  </div>
+                  <ExternalLink size={14} className="text-stone-400 shrink-0" />
+                </a>
+              )}
+
               {/* ── Recipe Content ── */}
               {recipe.source_url && importedRecipe && canEmbedSource ? (
                 <div className="space-y-3">
@@ -310,22 +313,6 @@ export default function RecipePreviewDialog({
                       <ExternalLink size={12} /> Open in Browser
                     </a>
                   </div>
-
-                  <a
-                    href={recipe.source_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2.5 p-2.5 rounded-lg border border-stone-200 bg-stone-50/50 hover:bg-stone-100 transition-colors"
-                  >
-                    <img
-                      src={`https://www.google.com/s2/favicons?domain=${new URL(recipe.source_url).hostname}&sz=32`}
-                      alt=""
-                      className="h-5 w-5 shrink-0"
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                    />
-                    <span className="text-xs font-medium text-stone-700 truncate">{new URL(recipe.source_url).hostname}</span>
-                    <ExternalLink size={12} className="text-stone-400 shrink-0 ml-auto" />
-                  </a>
                 </div>
               ) : (
                 <div className="space-y-6">
@@ -343,17 +330,13 @@ export default function RecipePreviewDialog({
                       <div className="relative z-10 flex flex-wrap items-center gap-3 justify-between">
                         <div className="space-y-1">
                           <p className="text-sm font-medium text-stone-800">
-                            {hasReaderPreview
-                              ? 'Showing cleaned Reader View for this recipe'
-                              : canEmbedSource
-                                ? 'Viewing imported recipe details'
-                                : 'This site doesn&apos;t allow direct embedding'}
+                            {canEmbedSource
+                              ? 'Showing imported recipe details below the site preview'
+                              : 'This site doesn&apos;t allow direct embedding'}
                           </p>
                           <p className="text-xs text-stone-500">
-                            {hasReaderPreview
-                              ? 'We removed navigation and ad-heavy page content so you can read the imported recipe in-app.'
-                              : showStructuredFallback
-                                ? 'Showing the saved recipe details we imported.'
+                            {showStructuredFallback
+                              ? 'You can still use the imported ingredients and instructions for the Let Me Cook flow.'
                               : 'Open the original page in your browser to view it.'}
                           </p>
                         </div>
@@ -365,28 +348,6 @@ export default function RecipePreviewDialog({
                         >
                           <ExternalLink size={16} /> Open in Browser
                         </a>
-                      </div>
-                    </div>
-                  )}
-
-                  {hasReaderPreview && (
-                    <div>
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Reader View</p>
-                      <div className="rounded-xl border border-stone-200 bg-stone-50/70 overflow-hidden">
-                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-200 bg-white/80 px-4 py-3">
-                          <div className="inline-flex items-center gap-2 text-sm font-semibold text-stone-800">
-                            <FileText className="h-4 w-4 text-orange-500" />
-                            In-app page preview
-                          </div>
-                          {sourceHostname && (
-                            <span className="text-xs text-stone-500 truncate max-w-full">
-                              {sourceHostname}
-                            </span>
-                          )}
-                        </div>
-                        <div className="max-h-80 overflow-y-auto px-4 py-4 text-sm leading-6 text-stone-700 whitespace-pre-wrap">
-                          {readerPreviewText}
-                        </div>
                       </div>
                     </div>
                   )}

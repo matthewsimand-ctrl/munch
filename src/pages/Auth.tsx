@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Mail, Ghost } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { MunchLogo } from '@/components/MunchLogo';
+import { isNativeAppPlatform } from '@/lib/platform';
 export default function Auth() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -110,6 +111,15 @@ export default function Auth() {
   };
 
   const handleGoogle = async () => {
+    if (isNativeAppPlatform()) {
+      toast({
+        title: 'Google sign-in unavailable in mobile preview',
+        description: 'Lovable-managed Google auth only works on Lovable Cloud routes. Use email or guest mode here, or wire native auth through Supabase/your own OAuth provider.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const redirectUri = `${window.location.origin}/auth${nextPath !== '/' ? `?next=${encodeURIComponent(nextPath)}` : ''}`;
 
     const result = await lovable.auth.signInWithOAuth('google', { redirect_uri: redirectUri });
@@ -119,6 +129,15 @@ export default function Auth() {
   };
 
   const handleApple = async () => {
+    if (isNativeAppPlatform()) {
+      toast({
+        title: 'Apple sign-in unavailable in mobile preview',
+        description: 'Lovable-managed social auth does not run inside the local mobile preview. Use email or guest mode here, or add a native auth provider flow.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const redirectUri = `${window.location.origin}/auth${nextPath !== '/' ? `?next=${encodeURIComponent(nextPath)}` : ''}`;
 
     const result = await lovable.auth.signInWithOAuth('apple', { redirect_uri: redirectUri });

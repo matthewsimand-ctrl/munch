@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import {
   Search, Folder, Clock,
-  Filter, Grid3X3, List, Star, BookOpen, X, Trash2,
+  Filter, Grid3X3, List, Star, BookOpen, X, Trash2, Plus, Link2, FileUp, PenSquare,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "@/lib/store";
@@ -14,6 +14,12 @@ import MatchBadge from "@/components/MatchBadge";
 import ImportRecipeDialog from "@/components/ImportRecipeDialog";
 import CreateRecipeForm from "@/components/CreateRecipeForm";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import type { Recipe } from "@/data/recipes";
 import { ChefProfileModal } from "@/components/ChefProfileModal";
@@ -225,6 +231,8 @@ export default function MyRecipesScreen() {
   const [previewRecipe, setPreviewRecipe] = useState<Recipe | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [showManualRecipeDialog, setShowManualRecipeDialog] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importDialogTab, setImportDialogTab] = useState<"url" | "pdf" | "photo">("url");
   const [recipeToDelete, setRecipeToDelete] = useState<Recipe | null>(null);
 
   useEffect(() => {
@@ -327,23 +335,42 @@ export default function MyRecipesScreen() {
               >
                 Cookbooks
               </button>
-              <ImportRecipeDialog>
-                <button className="px-3 py-2 rounded-xl bg-white border border-stone-200 text-xs font-semibold text-stone-600 hover:border-orange-300">
-                  Import
-                </button>
-              </ImportRecipeDialog>
-              <button
-                onClick={() => setShowManualRecipeDialog(true)}
-                className="px-3 py-2 rounded-xl bg-white border border-stone-200 text-xs font-semibold text-stone-600 hover:border-orange-300"
-              >
-                Add Manual
-              </button>
-              <button
-                onClick={() => navigate("/swipe")}
-                className={`px-3 py-2 rounded-xl text-xs font-semibold ${activeTab === "explore" ? "bg-orange-500 text-white" : "bg-white border border-stone-200 text-stone-600"}`}
-              >
-                Find Recipes
-              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="px-3 py-2 rounded-xl bg-white border border-stone-200 text-xs font-semibold text-stone-600 hover:border-orange-300 inline-flex items-center gap-1.5">
+                    <Plus size={12} /> Add Recipes
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setImportDialogTab("url");
+                      setImportDialogOpen(true);
+                    }}
+                    className="gap-2"
+                  >
+                    <Link2 size={14} />
+                    URL Import
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setImportDialogTab("pdf");
+                      setImportDialogOpen(true);
+                    }}
+                    className="gap-2"
+                  >
+                    <FileUp size={14} />
+                    File Upload
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setShowManualRecipeDialog(true)}
+                    className="gap-2"
+                  >
+                    <PenSquare size={14} />
+                    Manual
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <button
                 onClick={() => setView(view === "grid" ? "list" : "grid")}
                 className="w-9 h-9 rounded-xl bg-white border border-stone-200 flex items-center justify-center text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors ml-1"
@@ -495,6 +522,12 @@ export default function MyRecipesScreen() {
           missingIngredients.forEach((ing) => addCustomGroceryItem(ing));
           toast.success(`Added ${missingIngredients.length} items from "${recipe.name}" to grocery list`);
         }}
+      />
+
+      <ImportRecipeDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        initialTab={importDialogTab}
       />
 
       <Dialog open={showManualRecipeDialog} onOpenChange={setShowManualRecipeDialog}>

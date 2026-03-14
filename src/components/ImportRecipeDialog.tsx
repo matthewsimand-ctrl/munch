@@ -22,6 +22,9 @@ import { usePremiumAccess } from '@/hooks/usePremiumAccess';
 
 interface ImportRecipeDialogProps {
   children?: React.ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  initialTab?: ImportTab;
 }
 
 type ImportTab = 'url' | 'pdf' | 'photo';
@@ -178,12 +181,17 @@ function withSharedMetadata(rawPayload: unknown, userId: string, sharedByName: s
   };
 }
 
-export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps) {
+export default function ImportRecipeDialog({
+  children,
+  open: controlledOpen,
+  onOpenChange,
+  initialTab = 'url',
+}: ImportRecipeDialogProps) {
   const navigate = useNavigate();
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<ImportTab>('url');
+  const [activeTab, setActiveTab] = useState<ImportTab>(initialTab);
   const [showManualPaste, setShowManualPaste] = useState(false);
   const [manualText, setManualText] = useState('');
   const [lastImportError, setLastImportError] = useState('');
@@ -225,6 +233,20 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
     'Decoding ingredients and steps... 🧠',
     'Plating your recipe card... 🍽️',
   ];
+
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = (nextOpen: boolean) => {
+    if (controlledOpen === undefined) {
+      setInternalOpen(nextOpen);
+    }
+    onOpenChange?.(nextOpen);
+  };
+
+  useEffect(() => {
+    if (open) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab, open]);
 
   useEffect(() => {
     if (!loading) {
@@ -449,7 +471,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
   const resetState = () => {
     setUrl('');
     setLoading(false);
-    setActiveTab('url');
+    setActiveTab(initialTab);
     setShowManualPaste(false);
     setManualText('');
     setLastImportError('');
@@ -513,11 +535,6 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
 
       if (payload.url) {
         const importedSourceUrl = normalizeSourceUrl(String(recipe.source_url || payload.url));
-        if (getEmbedBlockReason(importedSourceUrl)) {
-          setLastImportError('This recipe site cannot be displayed in-app right now, so it was not imported.');
-          toast.error('This recipe site cannot be displayed in-app right now.');
-          return;
-        }
 
         const existingRecipe = await findExistingRecipeByUrl(recipe.source_url ? String(recipe.source_url) : undefined);
 
@@ -1029,13 +1046,9 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
         if (!next) resetState();
       }}
     >
-      <DialogTrigger asChild>
-        {children || (
-          <Button size="sm" variant="outline">
-            <Import className="h-4 w-4 mr-1" /> Import
-          </Button>
-        )}
-      </DialogTrigger>
+      {children ? (
+        <DialogTrigger asChild>{children}</DialogTrigger>
+      ) : null}
       <DialogContent className="max-w-lg max-h-[85vh] overflow-hidden flex flex-col p-0">
         <DialogHeader className="px-6 pt-6 pb-2">
           <DialogTitle className="flex items-center gap-2">
