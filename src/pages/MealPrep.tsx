@@ -620,7 +620,7 @@ export default function MealPrepScreen() {
         ["Day", "Meal Type", "Recipe", "Cook Time"],
         ...orderedMeals.map((meal) => [meal.day, meal.mealType, meal.recipeName, meal.cookTime ?? ""]),
       ]
-        .map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(","))
+        .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
         .join("\n");
       const csvName = exportScope === "week" ? "meal-plan-week.csv" : `meal-plan-${exportDay.toLowerCase()}.csv`;
       downloadTextFile(csvName, csv, "text/csv;charset=utf-8;");
