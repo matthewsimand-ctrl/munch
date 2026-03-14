@@ -136,8 +136,8 @@ async function fetchCachedExternalRecipes(query?: string): Promise<NormalizedRec
     const loweredQuery = query.toLowerCase().trim();
     return normalized.filter((recipe) =>
       recipe.name.toLowerCase().includes(loweredQuery) ||
-      recipe.ingredients.some((ingredient) => ingredient.toLowerCase().includes(loweredQuery)) ||
-      recipe.tags.some((tag) => tag.toLowerCase().includes(loweredQuery)) ||
+      recipe.ingredients.some((ingredient: string) => ingredient.toLowerCase().includes(loweredQuery)) ||
+      recipe.tags.some((tag: string) => tag.toLowerCase().includes(loweredQuery)) ||
       (recipe.cuisine || '').toLowerCase().includes(loweredQuery)
     );
   } catch (error) {
