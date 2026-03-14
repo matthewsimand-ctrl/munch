@@ -157,7 +157,7 @@ export function useCookedMeals(limit = 12) {
     if (!session?.user) return;
     if (cookedMealsTableUnavailableRef.current) return;
 
-    const { data: recentMeals, error: recentMealsError } = await supabase
+    const { data: recentMeals, error: recentMealsError } = await (supabase as any)
       .from("cooked_meals")
       .select("id, recipe_id, recipe_name, cooked_at, estimated_savings, metadata")
       .eq("user_id", session.user.id)
