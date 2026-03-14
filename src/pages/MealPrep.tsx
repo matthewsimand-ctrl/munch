@@ -153,9 +153,10 @@ export default function MealPrepScreen() {
     .filter((item) => (item.weekStart ?? getWeekStartForOffset(0)) === weekStart)
     .map((item, idx) => ({
       ...item,
+      mealType: item.mealType as MealType,
       id: item.id ?? `${item.day}-${item.mealType}-${item.recipeId}-${idx}`,
     }));
-  const plannedMeals: PlannedMeal[] = isKitchenMode ? kitchenMealPlan.items : localPlannedMeals;
+  const plannedMeals: PlannedMeal[] = isKitchenMode ? (kitchenMealPlan.items as PlannedMeal[]) : localPlannedMeals;
 
   const getMeal = (day: string, mealType: MealType) =>
     plannedMeals.find((m) => m.day === day && m.mealType === mealType);
