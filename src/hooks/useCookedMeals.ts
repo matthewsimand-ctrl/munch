@@ -234,7 +234,7 @@ export function useCookedMeals(limit = 12) {
       return locallyUpdated;
     }
 
-    const { data: updated, error } = await supabase
+    const { data: updated, error } = await (supabase as any)
       .from("cooked_meals")
       .update({ estimated_savings: estimated })
       .eq("id", meal.id)

@@ -8,10 +8,10 @@ interface InvokeOptions {
   region?: string;
 }
 
-export async function invokeAppFunction<T = unknown>(functionName: string, options?: InvokeOptions) {
+export async function invokeAppFunction<T = any>(functionName: string, options?: InvokeOptions) {
   if (getAiAgentCallsDisabled() && isAiAgentFunction(functionName)) {
     throw new AiAgentCallsDisabledError(functionName);
   }
 
-  return supabase.functions.invoke<T>(functionName, options);
+  return supabase.functions.invoke<T>(functionName, options as any);
 }
