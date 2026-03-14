@@ -4,6 +4,7 @@ import { Sparkles, Loader2, Flame, Beef, Wheat, Droplets, Heart, Lock } from 'lu
 import { getAiDisabledMessage, isAiAgentCallsDisabledError } from '@/lib/ai';
 import { invokeAppFunction } from '@/lib/functionClient';
 import { useStore } from '@/lib/store';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { usePremiumAccess } from '@/hooks/usePremiumAccess';
@@ -41,6 +42,31 @@ export default function NutritionCard({ recipeId, recipeName, ingredients, servi
     setNutrition(cachedNutrition[recipeId] || null);
   }, [recipeId, cachedNutrition]);
 
+  useEffect(() => {
+    if (cachedNutrition[recipeId]) return;
+
+    let cancelled = false;
+
+    const loadSharedNutrition = async () => {
+      const { data, error } = await supabase
+        .from('recipe_nutrition_cache')
+        .select('nutrition')
+        .eq('recipe_id', recipeId)
+        .maybeSingle();
+
+      if (cancelled || error || !data?.nutrition) return;
+
+      setNutrition(data.nutrition as NutritionData);
+      cacheNutrition(recipeId, data.nutrition);
+    };
+
+    void loadSharedNutrition();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [cacheNutrition, cachedNutrition, recipeId]);
+
   const analyze = async () => {
     if (!isPremium) {
       toast.info('Nutrition analysis is a Premium feature.');
@@ -60,6 +86,10 @@ export default function NutritionCard({ recipeId, recipeName, ingredients, servi
 
       setNutrition(data.nutrition);
       cacheNutrition(recipeId, data.nutrition);
+      await supabase.from('recipe_nutrition_cache').upsert({
+        recipe_id: recipeId,
+        nutrition: data.nutrition,
+      });
     } catch (err) {
       if (isAiAgentCallsDisabledError(err)) {
         toast.info(getAiDisabledMessage('AI nutrition analysis'));

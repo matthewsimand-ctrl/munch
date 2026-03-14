@@ -122,6 +122,27 @@ function sourceUrlCandidates(url: string): string[] {
   return Array.from(variants);
 }
 
+function normalizeRecipeNameForMatch(name: string) {
+  return String(name || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function normalizeIngredientForMatch(line: string) {
+  const parsed = parseIngredientLine(String(line || ''));
+  return parsed.name.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function recipeFingerprint(name: string, ingredients: string[]) {
+  const normalizedIngredients = ingredients
+    .map(normalizeIngredientForMatch)
+    .filter(Boolean)
+    .sort();
+
+  return JSON.stringify({
+    name: normalizeRecipeNameForMatch(name),
+    ingredients: normalizedIngredients,
+  });
+}
+
 async function getCurrentSharer() {
   const {
     data: { user },
@@ -287,6 +308,35 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
     return data;
   };
 
+  const findExistingRecipeByFingerprint = async (name: string, ingredients: string[]) => {
+    const normalizedName = normalizeRecipeNameForMatch(name);
+    if (!normalizedName || ingredients.length === 0) return null;
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    let query = supabase
+      .from('recipes')
+      .select('*')
+      .ilike('name', name.trim())
+      .limit(25);
+
+    if (user) {
+      query = query.or(`is_public.eq.true,created_by.eq.${user.id}`);
+    } else {
+      query = query.eq('is_public', true);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const targetFingerprint = recipeFingerprint(name, ingredients);
+    return (data || []).find((candidate: any) =>
+      recipeFingerprint(String(candidate.name || ''), Array.isArray(candidate.ingredients) ? candidate.ingredients : []) === targetFingerprint
+    ) || null;
+  };
+
   const mapDbRecipeToImportedPayload = (recipe: Record<string, any>) => buildImportedPayload(String(recipe.id), {
     ...recipe,
     source: recipe.source || 'community',
@@ -296,6 +346,16 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
     const existingRecipe = await findExistingRecipeByUrl(payload.source_url);
     if (existingRecipe) {
       const existingPayload = mapDbRecipeToImportedPayload(existingRecipe);
+      likeRecipe(existingPayload.id, existingPayload);
+      return { reusedExisting: true, payload: existingPayload };
+    }
+
+    const existingByFingerprint = await findExistingRecipeByFingerprint(
+      String(payload.name || ''),
+      Array.isArray(payload.ingredients) ? payload.ingredients : [],
+    );
+    if (existingByFingerprint) {
+      const existingPayload = mapDbRecipeToImportedPayload(existingByFingerprint);
       likeRecipe(existingPayload.id, existingPayload);
       return { reusedExisting: true, payload: existingPayload };
     }
@@ -548,6 +608,17 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
     const id = crypto.randomUUID();
 
     try {
+      const ingredientLines = reviewData.ingredients.map(composeIngredientLine);
+      const existingRecipe = await findExistingRecipeByFingerprint(reviewData.name, ingredientLines);
+      if (existingRecipe) {
+        const existingPayload = mapDbRecipeToImportedPayload(existingRecipe);
+        likeRecipe(existingPayload.id, existingPayload);
+        toast.success(`"${existingPayload.name}" is already in Munch, so we saved the existing recipe to your library.`);
+        setOpen(false);
+        resetState();
+        return;
+      }
+
       const { user, sharedByName } = await getCurrentSharer();
       const sharedMetadata = user && isDiscoverable
         ? withSharedMetadata(null, user.id, sharedByName)
@@ -561,7 +632,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
           const coreInsertData = {
             id,
             name: reviewData.name,
-            ingredients: reviewData.ingredients.map(composeIngredientLine),
+            ingredients: ingredientLines,
             instructions: reviewData.instructions,
             cook_time: reviewData.cook_time,
             difficulty: reviewData.difficulty,
@@ -590,7 +661,7 @@ export default function ImportRecipeDialog({ children }: ImportRecipeDialogProps
       const recipeData = {
         id,
         name: reviewData.name,
-        ingredients: reviewData.ingredients.map(composeIngredientLine),
+        ingredients: ingredientLines,
         instructions: reviewData.instructions,
         cook_time: reviewData.cook_time,
         difficulty: reviewData.difficulty,
