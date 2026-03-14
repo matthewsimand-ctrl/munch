@@ -6,7 +6,7 @@ import type { MatchResult } from '@/lib/matchLogic';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Clock, BarChart3, Check, ShoppingCart, MapPin, ChefHat, Users, Heart, Play, Sparkles, ExternalLink, FileText, Share2 } from 'lucide-react';
+import { Clock, BarChart3, Check, ShoppingCart, MapPin, ChefHat, Users, Heart, Play, Sparkles, ExternalLink, FileText, Share2, Maximize2, Minimize2 } from 'lucide-react';
 import MatchBadge from '@/components/MatchBadge';
 import RecipeTweakDialog from '@/components/RecipeTweakDialog';
 import NutritionCard from '@/components/NutritionCard';
@@ -14,6 +14,7 @@ import { getRecipeSourceBadge, isImportedCommunityRecipe } from '@/lib/recipeAtt
 import { useStore } from '@/lib/store';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { composeIngredientLine, parseIngredientLine, scaleIngredientQuantity } from '@/lib/ingredientText';
 
 interface Props {
   recipe: Recipe | null;
@@ -84,10 +85,12 @@ function getImportedPreviewData(recipe: Recipe) {
 
 function scaleIngredient(ingredient: string, factor: number) {
   if (factor === 1) return ingredient;
-  const match = ingredient.match(/^(\d+(?:\.\d+)?)(.*)$/);
-  if (!match) return ingredient;
-  const scaled = (Number(match[1]) * factor).toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1');
-  return `${scaled}${match[2]}`;
+  const parts = parseIngredientLine(ingredient);
+  if (!parts.quantity) return ingredient;
+  return composeIngredientLine({
+    ...parts,
+    quantity: scaleIngredientQuantity(parts.quantity, factor),
+  });
 }
 
 export default function RecipePreviewDialog({
@@ -107,6 +110,7 @@ export default function RecipePreviewDialog({
   const [tweakOpen, setTweakOpen] = useState(false);
   const [addedToGrocery, setAddedToGrocery] = useState(false);
   const [importedView, setImportedView] = useState<'web' | 'app'>('app');
+  const [expanded, setExpanded] = useState(false);
   const { activeKitchenId, activeKitchenName } = useStore();
 
   const fallbackMatch: MatchResult = useMemo(() => ({
@@ -156,6 +160,12 @@ export default function RecipePreviewDialog({
 
     setImportedView('app');
   }, [canEmbedSource, importedRecipe, open, recipe]);
+
+  useEffect(() => {
+    if (!open) {
+      setExpanded(false);
+    }
+  }, [open]);
 
   if (!recipe) return null;
 
@@ -237,11 +247,11 @@ export default function RecipePreviewDialog({
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
-          className={`h-[92vh] p-0 overflow-hidden flex flex-col ${recipe.source_url && importedRecipe ? 'max-w-5xl' : 'max-w-md'} [&>button[data-tutorial='dialog-close']]:right-3 [&>button[data-tutorial='dialog-close']]:top-3 [&>button[data-tutorial='dialog-close']]:h-9 [&>button[data-tutorial='dialog-close']]:w-9 [&>button[data-tutorial='dialog-close']]:rounded-full [&>button[data-tutorial='dialog-close']]:bg-orange-500 [&>button[data-tutorial='dialog-close']]:text-white [&>button[data-tutorial='dialog-close']]:opacity-100 [&>button[data-tutorial='dialog-close']]:shadow-md [&>button[data-tutorial='dialog-close']]:ring-2 [&>button[data-tutorial='dialog-close']]:ring-white/70 [&>button[data-tutorial='dialog-close']]:ring-offset-0 hover:[&>button[data-tutorial='dialog-close']]:bg-orange-600 hover:[&>button[data-tutorial='dialog-close']]:text-white [&>button[data-tutorial='dialog-close']>svg]:h-4 [&>button[data-tutorial='dialog-close']>svg]:w-4`}
+          className={`${expanded ? 'h-[96vh] w-[96vw] max-w-[96vw]' : 'h-[92vh]'} p-0 overflow-hidden flex flex-col ${recipe.source_url && importedRecipe ? (expanded ? '' : 'max-w-5xl') : (expanded ? '' : 'max-w-md')} [&>button[data-tutorial='dialog-close']]:right-3 [&>button[data-tutorial='dialog-close']]:top-3 [&>button[data-tutorial='dialog-close']]:h-9 [&>button[data-tutorial='dialog-close']]:w-9 [&>button[data-tutorial='dialog-close']]:p-0 [&>button[data-tutorial='dialog-close']]:inline-flex [&>button[data-tutorial='dialog-close']]:items-center [&>button[data-tutorial='dialog-close']]:justify-center [&>button[data-tutorial='dialog-close']]:rounded-full [&>button[data-tutorial='dialog-close']]:bg-orange-500 [&>button[data-tutorial='dialog-close']]:text-white [&>button[data-tutorial='dialog-close']]:opacity-100 [&>button[data-tutorial='dialog-close']]:shadow-md [&>button[data-tutorial='dialog-close']]:ring-2 [&>button[data-tutorial='dialog-close']]:ring-white/70 [&>button[data-tutorial='dialog-close']]:ring-offset-0 hover:[&>button[data-tutorial='dialog-close']]:bg-orange-600 hover:[&>button[data-tutorial='dialog-close']]:text-white [&>button[data-tutorial='dialog-close']>svg]:h-4 [&>button[data-tutorial='dialog-close']>svg]:w-4`}
           onOpenAutoFocus={(event) => event.preventDefault()}
           data-tutorial="recipe-dialog-content"
         >
-          <div className={`relative overflow-hidden ${recipe.source_url && importedRecipe ? 'h-32 sm:h-36' : 'h-48'}`}>
+          <div className={`relative overflow-hidden ${expanded ? 'h-40 sm:h-48' : recipe.source_url && importedRecipe ? 'h-32 sm:h-36' : 'h-48'}`}>
             <img src={recipe.image} alt={recipe.name} className="w-full h-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-background/90 to-transparent" />
             <div className="absolute bottom-3 left-4 right-4">
@@ -257,8 +267,16 @@ export default function RecipePreviewDialog({
                 <ChefHat className="h-3 w-3" /> by {chefName}
               </button>
             )}
+            <button
+              type="button"
+              onClick={() => setExpanded((value) => !value)}
+              className={`absolute top-3 ${importedRecipe && recipe.source_url ? 'right-[7.25rem]' : 'right-14'} inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/30 bg-black/35 text-white shadow-sm backdrop-blur-sm transition-colors hover:bg-black/50`}
+              aria-label={expanded ? 'Collapse recipe preview' : 'Expand recipe preview'}
+            >
+              {expanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+            </button>
             {importedRecipe && recipe.source_url && (
-              <div className="absolute top-3 right-3 inline-flex items-center rounded-full border border-white/30 bg-black/35 p-1 backdrop-blur-sm">
+              <div className="absolute top-3 right-14 inline-flex items-center rounded-full border border-white/30 bg-black/35 p-1 backdrop-blur-sm">
                 <button
                   type="button"
                   onClick={() => setImportedView('web')}
@@ -310,7 +328,7 @@ export default function RecipePreviewDialog({
               {/* ── Recipe Content ── */}
               {recipe.source_url && importedRecipe && importedView === 'web' && canEmbedSource ? (
                 <div className="space-y-3">
-                  <div className="relative w-full h-[62vh] sm:h-[68vh] lg:h-[74vh] rounded-xl overflow-hidden border border-stone-200 bg-muted">
+                  <div className={`relative w-full ${expanded ? 'h-[72vh] sm:h-[76vh]' : 'h-[62vh] sm:h-[68vh] lg:h-[74vh]'} rounded-xl overflow-hidden border border-stone-200 bg-muted`}>
                     <div className="absolute inset-0 overflow-hidden rounded-xl">
                       <iframe
                         src={recipe.source_url}
@@ -482,62 +500,71 @@ export default function RecipePreviewDialog({
             </div>
           </ScrollArea>
 
-          <div className="px-4 pb-4 pt-2 border-t grid grid-cols-2 gap-2">
-            <button
-              onClick={handleShareRecipe}
-              className="col-span-2 px-3 py-2 rounded-lg border text-sm font-medium inline-flex items-center justify-center gap-1.5"
-            >
-              <Share2 className="h-4 w-4" /> Share Recipe
-            </button>
-            {activeKitchenId && (
+          <div className="px-4 pb-3 pt-2 border-t bg-background/96 backdrop-blur-sm">
+            <div className="flex items-center gap-2">
               <button
-                onClick={() => void handleShareToKitchen()}
-                className="col-span-2 px-3 py-2 rounded-lg border text-sm font-medium inline-flex items-center justify-center gap-1.5"
+                onClick={handleShareRecipe}
+                className="h-9 w-9 shrink-0 rounded-lg border text-muted-foreground inline-flex items-center justify-center hover:text-foreground transition-colors"
+                aria-label="Share recipe"
+                title="Share recipe"
               >
-                <Users className="h-4 w-4" /> Share to {activeKitchenName || 'Kitchen'}
+                <Share2 className="h-4 w-4" />
               </button>
-            )}
-            {mode === 'default' ? (
-              <button onClick={() => setTweakOpen(true)} className="col-span-2 px-3 py-2 rounded-lg border text-sm font-medium inline-flex items-center justify-center gap-1.5">
-                <Sparkles className="h-4 w-4" /> Remix Recipe
-              </button>
-            ) : (
-              <button
-                onClick={() => {
-                  onSave?.(recipe);
-                  onOpenChange(false);
-                }}
-                data-tutorial="like-button"
-                className={`${onRegenerate ? 'col-span-1' : 'col-span-2'} px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold inline-flex items-center justify-center gap-1.5`}
-              >
-                <Heart className="h-4 w-4" /> Save Recipe
-              </button>
-            )}
-            {mode === 'explore' && onRegenerate && (
-              <button
-                onClick={onRegenerate}
-                className="col-span-1 px-3 py-2 rounded-lg border text-sm font-semibold inline-flex items-center justify-center gap-1.5"
-              >
-                <Sparkles className="h-4 w-4" /> Generate Again
-              </button>
-            )}
-            {mode === 'default' && (
-              <button
-                onClick={() => navigate(`/cook/${recipe.id}`)}
-                data-tutorial="start-cooking-button"
-                className="col-span-2 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold inline-flex items-center justify-center gap-1.5"
-              >
-                <Play className="h-4 w-4" /> Start Cooking
-              </button>
-            )}
-            {mode === 'explore' && (
-              <button
-                onClick={() => onOpenChange(false)}
-                className="col-span-2 px-3 py-2 rounded-lg border text-sm font-medium inline-flex items-center justify-center gap-1.5"
-              >
-                Close
-              </button>
-            )}
+              {activeKitchenId && (
+                <button
+                  onClick={() => void handleShareToKitchen()}
+                  className="h-9 w-9 shrink-0 rounded-lg border text-muted-foreground inline-flex items-center justify-center hover:text-foreground transition-colors"
+                  aria-label={`Share to ${activeKitchenName || 'Kitchen'}`}
+                  title={`Share to ${activeKitchenName || 'Kitchen'}`}
+                >
+                  <Users className="h-4 w-4" />
+                </button>
+              )}
+              {mode === 'default' ? (
+                <>
+                  <button
+                    onClick={() => setTweakOpen(true)}
+                    className="h-9 px-3 shrink-0 rounded-lg border text-sm font-medium inline-flex items-center justify-center gap-1.5"
+                  >
+                    <Sparkles className="h-4 w-4" /> Remix
+                  </button>
+                  <button
+                    onClick={() => navigate(`/cook/${recipe.id}`)}
+                    data-tutorial="start-cooking-button"
+                    className="h-9 flex-1 min-w-0 px-3 rounded-lg bg-primary text-primary-foreground text-sm font-semibold inline-flex items-center justify-center gap-1.5"
+                  >
+                    <Play className="h-4 w-4" /> Start Cooking
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => {
+                      onSave?.(recipe);
+                      onOpenChange(false);
+                    }}
+                    data-tutorial="like-button"
+                    className="h-9 flex-1 min-w-0 px-3 rounded-lg bg-primary text-primary-foreground text-sm font-semibold inline-flex items-center justify-center gap-1.5"
+                  >
+                    <Heart className="h-4 w-4" /> Save
+                  </button>
+                  {onRegenerate && (
+                    <button
+                      onClick={onRegenerate}
+                      className="h-9 px-3 shrink-0 rounded-lg border text-sm font-semibold inline-flex items-center justify-center gap-1.5"
+                    >
+                      <Sparkles className="h-4 w-4" /> Again
+                    </button>
+                  )}
+                  <button
+                    onClick={() => onOpenChange(false)}
+                    className="h-9 px-3 shrink-0 rounded-lg border text-sm font-medium inline-flex items-center justify-center"
+                  >
+                    Close
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </DialogContent>
       </Dialog>

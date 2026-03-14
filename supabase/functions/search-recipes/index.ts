@@ -107,6 +107,16 @@ interface NormalizedRecipe {
 }
 
 const EXTERNAL_CACHE_TTL_DAYS = 14;
+const BROWSE_CACHE_WARM_THRESHOLD = 180;
+const BROWSE_RESPONSE_LIMIT = 320;
+const BROWSE_SOURCE_CAPS: Record<string, number> = {
+  Spoonacular: 90,
+  Tasty: 70,
+  TheMealDB: 120,
+  community: 120,
+  'community-seed': 120,
+  external: 120,
+};
 
 function getSupabaseClient(useServiceRole = false) {
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -232,6 +242,61 @@ function getExternalRecipeId(recipe: NormalizedRecipe): string {
   const originalId = String(recipe.id || '').trim();
   const splitId = originalId.includes('-') ? originalId.split('-').slice(1).join('-') : originalId;
   return splitId || recipe.source_url || recipe.name.toLowerCase().trim();
+}
+
+function shuffleRecipes<T>(items: T[]): T[] {
+  const copy = [...items];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+function balanceBrowseRecipes(recipes: NormalizedRecipe[], limit: number): NormalizedRecipe[] {
+  const grouped = new Map<string, NormalizedRecipe[]>();
+
+  for (const recipe of shuffleRecipes(recipes)) {
+    const source = recipe.source || 'external';
+    const list = grouped.get(source) ?? [];
+    list.push(recipe);
+    grouped.set(source, list);
+  }
+
+  for (const [source, list] of grouped.entries()) {
+    const cap = BROWSE_SOURCE_CAPS[source] ?? 80;
+    grouped.set(source, list.slice(0, cap));
+  }
+
+  const preferredOrder = ['community', 'community-seed', 'Spoonacular', 'Tasty', 'TheMealDB', 'external'];
+  const sourceOrder = [
+    ...preferredOrder.filter((source) => grouped.has(source)),
+    ...Array.from(grouped.keys()).filter((source) => !preferredOrder.includes(source)),
+  ];
+
+  const balanced: NormalizedRecipe[] = [];
+  let added = true;
+
+  while (balanced.length < limit && added) {
+    added = false;
+    for (const source of sourceOrder) {
+      const list = grouped.get(source);
+      if (!list || list.length === 0) continue;
+      balanced.push(list.shift()!);
+      added = true;
+      if (balanced.length >= limit) break;
+    }
+  }
+
+  return balanced;
+}
+
+function countBySource(recipes: NormalizedRecipe[]) {
+  return recipes.reduce<Record<string, number>>((acc, recipe) => {
+    const source = recipe.source || 'external';
+    acc[source] = (acc[source] || 0) + 1;
+    return acc;
+  }, {});
 }
 
 async function cacheExternalRecipes(recipes: NormalizedRecipe[]): Promise<void> {
@@ -599,61 +664,81 @@ serve(async (req) => {
     });
 
     if (mode === 'browse') {
-      console.log('Browse mode: fetching large catalog...');
-      const stablePromises: Promise<NormalizedRecipe[]>[] = [];
-      const externalPromises: Promise<NormalizedRecipe[]>[] = [];
-      stablePromises.push(fetchPublicRecipes());
-      stablePromises.push(fetchCachedExternalRecipes());
+      console.log('Browse mode: loading catalog...');
+      const [publicRecipes, cachedExternalRecipes] = await Promise.all([
+        fetchPublicRecipes(),
+        fetchCachedExternalRecipes(),
+      ]);
 
-      const letters = 'abcdefghijklmnopqrstuvwxyz'.split('');
-      for (const letter of letters) {
-        externalPromises.push(browseMealDBByLetter(letter));
-      }
+      let externalRecipes: NormalizedRecipe[] = [];
+      const hasWarmCache = cachedExternalRecipes.length >= BROWSE_CACHE_WARM_THRESHOLD;
 
-      const categories = ['Chicken', 'Beef', 'Seafood', 'Pasta', 'Vegetarian', 'Dessert', 'Breakfast', 'Pork', 'Lamb', 'Vegan', 'Starter', 'Side'];
-      for (const cat of categories) {
-        externalPromises.push(browseMealDBByCategory(cat));
-      }
+      if (!hasWarmCache) {
+        console.log('Browse mode: cache is thin, fetching live external recipes...');
+        const externalPromises: Promise<NormalizedRecipe[]>[] = [];
 
-      if (SPOONACULAR_API_KEY) {
-        externalPromises.push(browseSpoonacularRandom(SPOONACULAR_API_KEY, 50));
-      }
-
-      if (RAPIDAPI_KEY) {
-        const tastyQueries = ['popular', 'easy dinner', 'quick lunch', 'healthy', 'comfort food', 'dessert', 'breakfast', 'pasta', 'chicken', 'vegetarian'];
-        for (const q of tastyQueries) {
-          externalPromises.push(searchTasty(q, RAPIDAPI_KEY, 10));
+        const letters = ['a', 'b', 'c', 'm', 's', 't'];
+        for (const letter of letters) {
+          externalPromises.push(browseMealDBByLetter(letter));
         }
+
+        const categories = ['Chicken', 'Beef', 'Seafood', 'Pasta', 'Vegetarian', 'Dessert', 'Breakfast', 'Vegan'];
+        for (const cat of categories) {
+          externalPromises.push(browseMealDBByCategory(cat));
+        }
+
+        if (SPOONACULAR_API_KEY) {
+          externalPromises.push(browseSpoonacularRandom(SPOONACULAR_API_KEY, 40));
+        }
+
+        if (RAPIDAPI_KEY) {
+          const tastyQueries = ['popular', 'easy dinner', 'quick lunch', 'healthy', 'dessert', 'breakfast'];
+          for (const q of tastyQueries) {
+            externalPromises.push(searchTasty(q, RAPIDAPI_KEY, 8));
+          }
+        }
+
+        const externalResults = await Promise.allSettled(externalPromises);
+        externalRecipes = externalResults
+          .filter((r): r is PromiseFulfilledResult<NormalizedRecipe[]> => r.status === 'fulfilled')
+          .flatMap((r) => r.value);
+
+        await cacheExternalRecipes(externalRecipes);
+      } else {
+        console.log('Browse mode: using warm external cache');
       }
 
-      const stableResults = await Promise.allSettled(stablePromises);
-      const externalResults = await Promise.allSettled(externalPromises);
-
-      const stableRecipes = stableResults
-        .filter((r): r is PromiseFulfilledResult<NormalizedRecipe[]> => r.status === 'fulfilled')
-        .flatMap(r => r.value);
-
-      const externalRecipes = externalResults
-        .filter((r): r is PromiseFulfilledResult<NormalizedRecipe[]> => r.status === 'fulfilled')
-        .flatMap(r => r.value);
+      const stableRecipes = [...publicRecipes, ...cachedExternalRecipes];
 
       const spoonacularCount = externalRecipes.filter((recipe) => recipe.source === 'Spoonacular').length;
       console.log('Browse source counts', {
-        publicCount: stableRecipes.filter((recipe) => recipe.source === 'community' || recipe.source === 'community-seed').length,
-        cachedExternalCount: stableRecipes.filter((recipe) => recipe.source !== 'community' && recipe.source !== 'community-seed').length,
+        publicCount: publicRecipes.filter((recipe) => recipe.source === 'community' || recipe.source === 'community-seed').length,
+        cachedExternalCount: cachedExternalRecipes.length,
         spoonacularCount,
         mealDbCount: externalRecipes.filter((recipe) => recipe.source === 'TheMealDB').length,
         tastyCount: externalRecipes.filter((recipe) => recipe.source === 'Tasty').length,
+        usedWarmCache: hasWarmCache,
       });
 
-      await cacheExternalRecipes(externalRecipes);
+      const allRecipes = dedup([...stableRecipes, ...externalRecipes]);
+      const unique = balanceBrowseRecipes(allRecipes, BROWSE_RESPONSE_LIMIT);
+      const debug = {
+        mode: 'browse',
+        hasSpoonacularKey: Boolean(SPOONACULAR_API_KEY),
+        hasRapidApiKey: Boolean(RAPIDAPI_KEY),
+        cacheWarm: hasWarmCache,
+        fetchedCounts: {
+          public: publicRecipes.length,
+          cachedExternal: cachedExternalRecipes.length,
+          spoonacular: externalRecipes.filter((recipe) => recipe.source === 'Spoonacular').length,
+          tasty: externalRecipes.filter((recipe) => recipe.source === 'Tasty').length,
+          mealDb: externalRecipes.filter((recipe) => recipe.source === 'TheMealDB').length,
+        },
+        returnedCounts: countBySource(unique),
+      };
+      console.log(`Browse: prepared ${allRecipes.length} total unique recipes, returning ${unique.length}`);
 
-      const allRecipes = [...stableRecipes, ...externalRecipes];
-
-      const unique = dedup(allRecipes);
-      console.log(`Browse: fetched ${allRecipes.length} total, ${unique.length} unique`);
-
-      return new Response(JSON.stringify({ recipes: unique }), {
+      return new Response(JSON.stringify({ recipes: unique, debug }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -697,8 +782,22 @@ serve(async (req) => {
     const recipes = dedup(
       [...stableRecipes, ...externalRecipes]
     );
+    const debug = {
+      mode: 'search',
+      query: searchQuery,
+      hasSpoonacularKey: Boolean(SPOONACULAR_API_KEY),
+      hasRapidApiKey: Boolean(RAPIDAPI_KEY),
+      fetchedCounts: {
+        public: stableRecipes.filter((recipe) => recipe.source === 'community' || recipe.source === 'community-seed').length,
+        cachedExternal: stableRecipes.filter((recipe) => recipe.source !== 'community' && recipe.source !== 'community-seed').length,
+        spoonacular: externalRecipes.filter((recipe) => recipe.source === 'Spoonacular').length,
+        tasty: externalRecipes.filter((recipe) => recipe.source === 'Tasty').length,
+        mealDb: externalRecipes.filter((recipe) => recipe.source === 'TheMealDB').length,
+      },
+      returnedCounts: countBySource(recipes),
+    };
 
-    return new Response(JSON.stringify({ recipes }), {
+    return new Response(JSON.stringify({ recipes, debug }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {

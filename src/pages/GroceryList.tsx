@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import {
   ShoppingCart, Plus, X, Check, FileText, Trash2,
-  Search, ChevronDown, Sparkles, MapPin, Minus, Upload,
+  Search, ChevronDown, Sparkles, MapPin, Minus, Upload, Pencil,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getAiDisabledMessage, isAiAgentCallsDisabledError } from "@/lib/ai";
@@ -25,6 +25,18 @@ const STORE_SECTIONS: Record<string, string> = {
   frozen: "🧊 Frozen",
   other: "📦 Other",
 };
+
+const STORE_SECTION_ORDER = [
+  "produce",
+  "meat",
+  "dairy",
+  "bakery",
+  "dry goods",
+  "pasta / noodles",
+  "frozen",
+  "condiments",
+  "other",
+] as const;
 
 interface GroceryItem {
   id: string;
@@ -58,15 +70,20 @@ function GroceryRow({
   onRemove,
   onEditQty,
   onAdjustQty,
+  onEditItem,
 }: {
   item: GroceryItem;
   onToggle: () => void;
   onRemove: () => void;
   onEditQty: (qty: string) => void;
   onAdjustQty: (delta: number) => void;
+  onEditItem: (updates: { name: string; qty: string; section: string }) => void;
 }) {
   const [editingQty, setEditingQty] = useState(false);
+  const [editingItem, setEditingItem] = useState(false);
   const [qty, setQty] = useState(item.quantity || item.qty || "");
+  const [draftName, setDraftName] = useState(item.name);
+  const [draftSection, setDraftSection] = useState((item.section || item.category || "other").toLowerCase());
   const suggestedQty = suggestQuantityForItem(item.name);
   const normalizedCategory = item.category || item.section || "Other";
   const itemImage = getPantryImage(item.name, normalizedCategory);
@@ -75,7 +92,25 @@ function GroceryRow({
 
   useEffect(() => {
     setQty(item.quantity || item.qty || "");
-  }, [item.quantity, item.qty]);
+    setDraftName(item.name);
+    setDraftSection((item.section || item.category || "other").toLowerCase());
+  }, [item.category, item.name, item.qty, item.quantity, item.section]);
+
+  const handleSaveItem = () => {
+    const nextName = draftName.trim();
+    if (!nextName) {
+      setDraftName(item.name);
+      setEditingItem(false);
+      return;
+    }
+
+    onEditItem({
+      name: nextName,
+      qty: qty.trim(),
+      section: draftSection,
+    });
+    setEditingItem(false);
+  };
 
   return (
     <motion.div
@@ -104,13 +139,65 @@ function GroceryRow({
 
       {/* Name */}
       <div className="flex-1 min-w-0">
-        <p
-          className={`text-sm font-medium transition-all ${item.checked ? "line-through text-stone-400" : "text-stone-800"}`}
-        >
-          {item.name}
-        </p>
-        {item.recipeSource && !item.checked && (
-          <p className="text-[10px] text-stone-400 mt-0.5">for {item.recipeSource}</p>
+        {editingItem ? (
+          <div className="space-y-2">
+            <input
+              autoFocus
+              value={draftName}
+              onChange={(e) => setDraftName(e.target.value)}
+              className="w-full rounded-lg border border-orange-300 bg-white px-2.5 py-1.5 text-sm text-stone-700 outline-none"
+              placeholder="Item name"
+            />
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <select
+                  value={draftSection}
+                  onChange={(e) => setDraftSection(e.target.value)}
+                  className="appearance-none rounded-lg border border-orange-200 bg-white pl-2.5 pr-7 py-1.5 text-xs font-semibold text-stone-600 outline-none"
+                >
+                  {STORE_SECTION_ORDER.map((value) => (
+                    <option key={value} value={value}>{STORE_SECTIONS[value]}</option>
+                  ))}
+                </select>
+                <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
+              </div>
+              <button
+                onClick={handleSaveItem}
+                className="h-7 w-7 rounded-lg bg-orange-500 text-white flex items-center justify-center hover:bg-orange-600 transition-colors"
+                aria-label={`Save changes for ${item.name}`}
+              >
+                <Check size={13} />
+              </button>
+              <button
+                onClick={() => {
+                  setDraftName(item.name);
+                  setDraftSection((item.section || item.category || "other").toLowerCase());
+                  setQty(item.quantity || item.qty || "");
+                  setEditingItem(false);
+                }}
+                className="h-7 w-7 rounded-lg border border-stone-200 text-stone-400 flex items-center justify-center hover:text-stone-600 transition-colors"
+                aria-label={`Cancel editing ${item.name}`}
+              >
+                <X size={13} />
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <p
+              className={`text-sm font-medium transition-all ${item.checked ? "line-through text-stone-400" : "text-stone-800"}`}
+            >
+              {item.name}
+            </p>
+            <div className="flex items-center gap-2 mt-0.5">
+              <p className="text-[10px] text-stone-400">
+                {STORE_SECTIONS[(item.section || item.category || "other").toLowerCase()] ?? `📦 ${item.section || item.category || "Other"}`}
+              </p>
+              {item.recipeSource && !item.checked && (
+                <p className="text-[10px] text-stone-400">for {item.recipeSource}</p>
+              )}
+            </div>
+          </>
         )}
       </div>
 
@@ -155,12 +242,23 @@ function GroceryRow({
       </div>
 
       {/* Remove */}
-      <button
-        onClick={onRemove}
-        className="w-7 h-7 rounded-lg flex items-center justify-center text-stone-200 hover:text-red-400 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
-      >
-        <X size={13} />
-      </button>
+      <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+        {!item.checked && !editingItem && (
+          <button
+            onClick={() => setEditingItem(true)}
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-stone-300 hover:text-orange-500 hover:bg-orange-50 transition-colors"
+            aria-label={`Edit ${item.name}`}
+          >
+            <Pencil size={12} />
+          </button>
+        )}
+        <button
+          onClick={onRemove}
+          className="w-7 h-7 rounded-lg flex items-center justify-center text-stone-200 hover:text-red-400 hover:bg-red-50 transition-colors"
+        >
+          <X size={13} />
+        </button>
+      </div>
     </motion.div>
   );
 }
@@ -224,6 +322,17 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
     });
     return result;
   }, [filteredItems]);
+  const orderedGroups = useMemo(() => {
+    const sectionRank = new Map(STORE_SECTION_ORDER.map((section, index) => [section, index]));
+    return Object.entries(grouped).sort(([left], [right]) => {
+      const leftKey = left.toLowerCase();
+      const rightKey = right.toLowerCase();
+      const leftRank = sectionRank.get(leftKey) ?? 999;
+      const rightRank = sectionRank.get(rightKey) ?? 999;
+      if (leftRank !== rightRank) return leftRank - rightRank;
+      return left.localeCompare(right);
+    });
+  }, [grouped]);
 
   const checkedCount = items.filter((i) => i.checked).length;
   const totalCount = items.length;
@@ -312,12 +421,37 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
     }
 
     const checklist = `# Grocery List\n\n${unchecked}`;
+    const safeDate = new Date().toISOString().slice(0, 10);
+    const filename = `munch-grocery-list-${safeDate}.md`;
+    const file = new File([checklist], filename, { type: "text/markdown" });
 
     try {
-      await navigator.clipboard?.writeText(checklist);
-      toast.success("Checklist copied for Notes.");
+      if (navigator.canShare?.({ files: [file] }) && navigator.share) {
+        await navigator.share({
+          title: "Grocery List",
+          text: "Open this checklist in Notes.",
+          files: [file],
+        });
+        toast.success("Checklist file ready to send to Notes.");
+        return;
+      }
+
+      const url = URL.createObjectURL(file);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      toast.success("Checklist file downloaded for Notes.");
     } catch {
-      toast.error("Could not export the checklist.");
+      try {
+        await navigator.clipboard?.writeText(checklist);
+        toast.success("Checklist copied as a fallback.");
+      } catch {
+        toast.error("Could not export the checklist.");
+      }
     }
   };
 
@@ -567,7 +701,7 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
           </div>
         ) : (
           <div className="space-y-4" data-tutorial="grocery-list-container">
-            {Object.entries(grouped).map(([section, sectionItems]) => {
+            {orderedGroups.map(([section, sectionItems]) => {
               const unchecked = sectionItems.filter((i) => !i.checked);
               const checked = sectionItems.filter((i) => i.checked);
               const toShow = showChecked ? sectionItems : unchecked;
@@ -617,6 +751,23 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
                               void kitchenGrocery.updateItem(item.id, { quantity: qty });
                             } else {
                               updateGroceryItem?.(item.id, { qty });
+                            }
+                          }}
+                          onEditItem={({ name, qty, section }) => {
+                            if (isKitchenMode) {
+                              void kitchenGrocery.updateItem(item.id, {
+                                name,
+                                quantity: qty || suggestQuantityForItem(name),
+                                category: section,
+                                section,
+                              });
+                            } else {
+                              updateGroceryItem?.(item.id, {
+                                name,
+                                qty: qty || suggestQuantityForItem(name),
+                                section,
+                                category: section,
+                              });
                             }
                           }}
                           onAdjustQty={(delta) => {

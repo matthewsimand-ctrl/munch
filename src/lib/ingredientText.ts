@@ -165,6 +165,61 @@ function parseQuantityValue(quantity: string): number | null {
   return values.reduce((sum, v) => sum + (v || 0), 0);
 }
 
+function greatestCommonDivisor(a: number, b: number): number {
+  let x = Math.abs(a);
+  let y = Math.abs(b);
+  while (y !== 0) {
+    const temp = y;
+    y = x % y;
+    x = temp;
+  }
+  return x || 1;
+}
+
+function formatFractionalValue(value: number): string {
+  const rounded = Math.round(value * 1000) / 1000;
+  const whole = Math.floor(rounded);
+  const fraction = rounded - whole;
+
+  if (fraction < 0.01) return `${whole}`;
+
+  const denominators = [2, 3, 4, 8, 16];
+  let bestNumerator = 0;
+  let bestDenominator = 1;
+  let bestError = Number.POSITIVE_INFINITY;
+
+  for (const denominator of denominators) {
+    const numerator = Math.round(fraction * denominator);
+    if (numerator === 0) continue;
+    const approximation = numerator / denominator;
+    const error = Math.abs(fraction - approximation);
+    if (error < bestError) {
+      bestError = error;
+      bestNumerator = numerator;
+      bestDenominator = denominator;
+    }
+  }
+
+  if (!bestNumerator || bestError > 0.03) {
+    return `${Math.round(rounded * 100) / 100}`.replace(/\.00$/, '').replace(/(\.\d)0$/, '$1');
+  }
+
+  const gcd = greatestCommonDivisor(bestNumerator, bestDenominator);
+  let numerator = bestNumerator / gcd;
+  let denominator = bestDenominator / gcd;
+  let nextWhole = whole;
+
+  if (numerator === denominator) {
+    nextWhole += 1;
+    numerator = 0;
+    denominator = 1;
+  }
+
+  if (numerator === 0) return `${nextWhole}`;
+  if (nextWhole > 0) return `${nextWhole} ${numerator}/${denominator}`;
+  return `${numerator}/${denominator}`;
+}
+
 function pluralizeUnit(unit: string, amount: number): string {
   const normalized = unit.toLowerCase();
   if (amount <= 1) {
@@ -208,8 +263,12 @@ export function scaleIngredientQuantity(quantity: string, multiplier: number): s
   const numeric = parseQuantityValue(quantity);
   if (numeric === null) return quantity;
 
-  const scaled = Math.round(numeric * multiplier * 100) / 100;
-  return quantity.replace(/[\d./¼½¾⅓⅔⅛⅜⅝⅞]+(?:\s+[\d./¼½¾⅓⅔⅛⅜⅝⅞]+)?/, `${scaled}`);
+  const scaled = Math.round(numeric * multiplier * 1000) / 1000;
+  const formatted = formatFractionalValue(scaled);
+  return formatQuantityUnits(
+    quantity.replace(/[\d./¼½¾⅓⅔⅛⅜⅝⅞]+(?:\s+[\d./¼½¾⅓⅔⅛⅜⅝⅞]+)?/, formatted),
+    scaled
+  );
 }
 
 export function adjustQuantityString(quantity: string | undefined, delta: number): string {
