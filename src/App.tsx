@@ -14,6 +14,7 @@ import Cookbooks from "./pages/Cookbooks";
 import CookbookDetails from "./pages/CookbookDetails";
 import CookMode from "./pages/CookMode";
 import GroceryList from "./pages/GroceryList";
+import Groceries from "./pages/Groceries";
 import MealPrep from "./pages/MealPrep";
 import Settings from "./pages/Settings";
 import Dashboard from "./pages/Dashboard";
@@ -58,6 +59,7 @@ function AppRoutes() {
           <Route path="/let-me-cook" element={<LetMeCook />} />
           <Route path="/pantry" element={<Pantry />} />
           <Route path="/grocery" element={<GroceryList />} />
+          <Route path="/groceries" element={<Groceries />} />
           <Route path="/meal-prep" element={<MealPrep />} />
           <Route path="/kitchens" element={<Kitchens />} />
           <Route path="/notifications" element={<Notifications />} />

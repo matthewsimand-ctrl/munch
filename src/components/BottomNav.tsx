@@ -20,14 +20,14 @@ const NAV_ITEMS = [
   { path: '/dashboard', label: 'Home', icon: Home },
   { path: '/swipe', label: 'Recipes', icon: BookOpen },
   { path: '/saved', label: 'Saved', icon: Heart },
-  { path: '/pantry', label: 'Pantry', icon: UtensilsCrossed },
+  { path: '/groceries', label: 'Groceries', icon: ShoppingCart },
   { path: '__more__', label: 'More', icon: Ellipsis },
 ];
 
 const MORE_ITEMS = [
   { path: '/settings', label: 'Settings', icon: Settings },
   { path: '/let-me-cook', label: 'Cook', icon: CookingPot },
-  { path: '/grocery', label: 'Grocery List', icon: ShoppingCart },
+  { path: '/pantry', label: 'Pantry', icon: UtensilsCrossed },
   { path: '/meal-prep', label: 'Meal Prep', icon: CalendarDays },
   { path: '/kitchens', label: 'Kitchens', icon: Users },
   { path: '/cookbooks', label: 'Cookbooks', icon: BookOpenCheck },
