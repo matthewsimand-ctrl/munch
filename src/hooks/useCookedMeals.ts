@@ -181,7 +181,7 @@ export function useCookedMeals(limit = 12) {
       return;
     }
 
-    const { data: inserted, error: insertError } = await supabase.from("cooked_meals").insert({
+    const { data: inserted, error: insertError } = await (supabase as any).from("cooked_meals").insert({
       user_id: session.user.id,
       recipe_id: input.recipeId,
       recipe_name: input.recipeName,
