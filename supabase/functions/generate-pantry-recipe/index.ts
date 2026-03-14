@@ -6,6 +6,44 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const FOODISH_API = "https://foodish-api.com/api/";
+const FOODISH_CATEGORIES = ["biryani", "burger", "butter-chicken", "dessert", "dosa", "idly", "pasta", "pizza", "rice", "samosa"];
+const KEYWORD_TO_CATEGORY: Record<string, string> = {
+  pasta: "pasta", spaghetti: "pasta", penne: "pasta", noodle: "pasta",
+  pizza: "pizza", flatbread: "pizza",
+  rice: "rice", risotto: "rice", biryani: "biryani",
+  burger: "burger", sandwich: "burger",
+  dosa: "dosa", idli: "idly", idly: "idly",
+  chicken: "butter-chicken", curry: "butter-chicken",
+  cake: "dessert", cookie: "dessert", brownie: "dessert", pie: "dessert",
+  samosa: "samosa", dumpling: "samosa",
+};
+
+function getCategoryFromName(recipeName: string) {
+  const words = recipeName.toLowerCase().replace(/[^a-z\s]/g, " ").split(/\s+/).filter(Boolean);
+  for (const word of words) {
+    if (KEYWORD_TO_CATEGORY[word]) return KEYWORD_TO_CATEGORY[word];
+  }
+  return FOODISH_CATEGORIES[Math.floor(Math.random() * FOODISH_CATEGORIES.length)];
+}
+
+async function getRandomFoodishImage(recipeName = ""): Promise<string | null> {
+  try {
+    const category = getCategoryFromName(recipeName);
+    const response = await fetch(`${FOODISH_API}images/${category}`);
+    if (!response.ok) {
+      const fallback = await fetch(FOODISH_API);
+      if (!fallback.ok) return null;
+      const data = await fallback.json();
+      return typeof data?.image === "string" ? data.image : null;
+    }
+    const data = await response.json();
+    return typeof data?.image === "string" ? data.image : null;
+  } catch {
+    return null;
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -17,10 +55,13 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const { pantryItems } = await req.json();
+    const { pantryItems, mealType, cuisine, prompt } = await req.json();
     const normalizedPantryItems = Array.isArray(pantryItems)
       ? pantryItems.map((item) => String(item || "").trim().toLowerCase()).filter(Boolean)
       : [];
+    const normalizedMealType = typeof mealType === "string" ? mealType.trim().toLowerCase() : "";
+    const normalizedCuisine = typeof cuisine === "string" ? cuisine.trim() : "";
+    const normalizedPrompt = typeof prompt === "string" ? prompt.trim() : "";
 
     if (normalizedPantryItems.length < 2) {
       return new Response(
@@ -31,7 +72,13 @@ serve(async (req) => {
 
     const systemPrompt = `You are a helpful home cook assistant. Create exactly one practical recipe from pantry ingredients. Prefer using the provided pantry items as the main ingredients. You may add a small number of common staples only when necessary, such as oil, butter, salt, pepper, or water. Keep the recipe realistic, concise, and easy to cook. Return the recipe only via the generate_pantry_recipe tool.`;
 
-    const userPrompt = `Pantry ingredients:\n${normalizedPantryItems.map((item: string) => `- ${item}`).join("\n")}\n\nGenerate one recipe that uses these ingredients. Make sure the ingredients list clearly reflects the pantry items being used.`;
+    const preferenceLines = [
+      normalizedMealType ? `Meal type: ${normalizedMealType}` : "",
+      normalizedCuisine ? `Preferred cuisine: ${normalizedCuisine}` : "",
+      normalizedPrompt ? `Additional request: ${normalizedPrompt}` : "",
+    ].filter(Boolean);
+
+    const userPrompt = `Pantry ingredients:\n${normalizedPantryItems.map((item: string) => `- ${item}`).join("\n")}\n\n${preferenceLines.length ? `${preferenceLines.join("\n")}\n\n` : ""}Generate one recipe that uses these ingredients. Make sure the ingredients list clearly reflects the pantry items being used.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -139,11 +186,15 @@ serve(async (req) => {
       );
     }
 
+    const image = typeof recipe.image === "string" && recipe.image.trim()
+      ? recipe.image
+      : await getRandomFoodishImage(typeof recipe.name === "string" ? recipe.name : "");
+
     return new Response(
       JSON.stringify({
         recipe: {
           ...recipe,
-          image: typeof recipe.image === "string" && recipe.image.trim() ? recipe.image : "/placeholder.svg",
+          image: image || "/placeholder.svg",
           source: typeof recipe.source === "string" && recipe.source.trim() ? recipe.source : "Fridge Cleanup AI",
           chef: typeof recipe.chef === "string" && recipe.chef.trim() ? recipe.chef : "Munch AI",
         },

@@ -18,6 +18,7 @@ import type { Recipe } from "@/data/recipes";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getPantryImage } from "@/lib/pantryImages";
 import { useKitchenPantry } from "@/hooks/useKitchenPantry";
+import { Input } from "@/components/ui/input";
 
 const CATEGORIES = ["All", "Produce", "Dairy", "Meat & Fish", "Dry Goods", "Pasta / Noodles", "Condiments", "Bakery", "Frozen", "Other"];
 const CATEGORY_ICONS: Record<string, string> = {
@@ -132,7 +133,7 @@ function PantryItemRow({
   );
 }
 
-export default function PantryScreen() {
+export default function PantryScreen({ embedded = false }: { embedded?: boolean }) {
   const {
     pantryList,
     addPantryItem,
@@ -156,6 +157,10 @@ export default function PantryScreen() {
   const [generatingRecipe, setGeneratingRecipe] = useState(false);
   const [generatedRecipe, setGeneratedRecipe] = useState<Recipe | null>(null);
   const [generatedRecipeOpen, setGeneratedRecipeOpen] = useState(false);
+  const [cleanupPromptOpen, setCleanupPromptOpen] = useState(false);
+  const [cleanupMealType, setCleanupMealType] = useState("");
+  const [cleanupCuisine, setCleanupCuisine] = useState("");
+  const [cleanupPrompt, setCleanupPrompt] = useState("");
   const isPremium = getPremiumOverride();
   const receiptInputRef = useRef<HTMLInputElement>(null);
   const fridgeImageInputRef = useRef<HTMLInputElement>(null);
@@ -271,7 +276,12 @@ export default function PantryScreen() {
     try {
       const pantryNames = pantryItems.map((item) => item.name);
       const { data, error } = await invokeAppFunction<{ recipe?: unknown; error?: string }>("generate-pantry-recipe", {
-        body: { pantryItems: pantryNames },
+        body: {
+          pantryItems: pantryNames,
+          mealType: cleanupMealType,
+          cuisine: cleanupCuisine,
+          prompt: cleanupPrompt,
+        },
       });
 
       if (error) throw new Error(error.message || "Could not generate a recipe");
@@ -284,6 +294,7 @@ export default function PantryScreen() {
 
       setGeneratedRecipe(bestRecipe);
       setGeneratedRecipeOpen(true);
+      setCleanupPromptOpen(false);
       toast.success(`Found a recipe using your pantry: ${bestRecipe.name}`);
     } catch (error) {
       if (isAiAgentCallsDisabledError(error)) {
@@ -418,7 +429,7 @@ export default function PantryScreen() {
 
       {/* Header */}
       <div
-        className="relative border-b overflow-hidden"
+        className={`relative border-b overflow-hidden ${embedded ? "hidden sm:block" : ""}`}
         style={{ background: "linear-gradient(135deg,#FFF7ED 0%,#FFFAF5 100%)", borderColor: "rgba(249,115,22,0.12)" }}
       >
         <div
@@ -448,7 +459,7 @@ export default function PantryScreen() {
               </button>
               <button
                 title="Fridge Cleanup"
-                onClick={() => void handleGenerateRecipe()}
+                onClick={() => setCleanupPromptOpen(true)}
                 className="flex min-w-0 flex-1 items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-white border border-stone-200 text-sm font-semibold text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors sm:flex-none"
                 disabled={generatingRecipe}
               >
@@ -564,6 +575,7 @@ export default function PantryScreen() {
           toast.success(`Saved ${recipe.name}`);
         }}
         onRegenerate={() => {
+          setGeneratedRecipeOpen(false);
           void handleGenerateRecipe();
         }}
         onAddMissingToGrocery={(recipe, missingIngredients) => {
@@ -572,7 +584,50 @@ export default function PantryScreen() {
         }}
       />
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-5 space-y-5 pb-8">
+      <Dialog open={cleanupPromptOpen} onOpenChange={setCleanupPromptOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Fridge Cleanup</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-500">Meal Type</p>
+              <div className="flex flex-wrap gap-2">
+                {["Breakfast", "Lunch", "Dinner", "Snack"].map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => setCleanupMealType(cleanupMealType === option ? "" : option)}
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      cleanupMealType === option ? "bg-orange-500 text-white" : "border border-stone-200 bg-white text-stone-500"
+                    }`}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-stone-700">Cuisine</label>
+              <Input value={cleanupCuisine} onChange={(e) => setCleanupCuisine(e.target.value)} placeholder="Italian, French, Mexican..." />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-stone-700">Extra prompt</label>
+              <Input value={cleanupPrompt} onChange={(e) => setCleanupPrompt(e.target.value)} placeholder="High protein, one-pan, kid-friendly..." />
+            </div>
+            <button
+              type="button"
+              onClick={() => void handleGenerateRecipe()}
+              disabled={generatingRecipe}
+              className="w-full rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-orange-600 transition-colors"
+            >
+              {generatingRecipe ? "Generating..." : "Generate Recipe"}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <div className={`max-w-4xl mx-auto px-4 sm:px-6 ${embedded ? "pt-3" : "py-5"} space-y-5 pb-8`}>
 
         {/* Add form */}
         <motion.div

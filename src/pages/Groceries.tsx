@@ -48,7 +48,7 @@ export default function Groceries() {
         </div>
       </div>
 
-      {currentView === "grocery" ? <GroceryList /> : <Pantry />}
+      {currentView === "grocery" ? <GroceryList embedded /> : <Pantry embedded />}
     </div>
   );
 }

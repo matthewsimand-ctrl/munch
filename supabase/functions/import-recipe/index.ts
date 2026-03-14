@@ -64,6 +64,19 @@ const IMAGE_EXTRACT_PROMPT = `Read the recipe from this image and return ONLY a 
 }
 If some fields are missing in the image, infer conservatively or leave as empty string / empty array.`;
 
+const FOODISH_API = 'https://foodish-api.com/api/';
+const FOODISH_CATEGORIES = ['biryani', 'burger', 'butter-chicken', 'dessert', 'dosa', 'idly', 'pasta', 'pizza', 'rice', 'samosa'];
+const KEYWORD_TO_CATEGORY: Record<string, string> = {
+  pasta: 'pasta', spaghetti: 'pasta', penne: 'pasta', noodle: 'pasta',
+  pizza: 'pizza', flatbread: 'pizza',
+  rice: 'rice', risotto: 'rice', biryani: 'biryani',
+  burger: 'burger', sandwich: 'burger',
+  dosa: 'dosa', idli: 'idly', idly: 'idly',
+  chicken: 'butter-chicken', curry: 'butter-chicken',
+  cake: 'dessert', cookie: 'dessert', brownie: 'dessert', pie: 'dessert',
+  samosa: 'samosa', dumpling: 'samosa',
+};
+
 const durationPart = (value: number, unit: string) => `${value} ${unit}${value === 1 ? '' : 's'}`;
 
 function isoDurationToText(value?: string): string {
@@ -84,6 +97,31 @@ function isoDurationToText(value?: string): string {
   if (seconds && parts.length === 0) parts.push(durationPart(seconds, 'second'));
 
   return parts.length ? parts.join(' ') : value;
+}
+
+function getCategoryFromName(recipeName: string): string {
+  const words = recipeName.toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter(Boolean);
+  for (const word of words) {
+    if (KEYWORD_TO_CATEGORY[word]) return KEYWORD_TO_CATEGORY[word];
+  }
+  return FOODISH_CATEGORIES[Math.floor(Math.random() * FOODISH_CATEGORIES.length)];
+}
+
+async function getRandomFoodishImage(recipeName = ''): Promise<string | null> {
+  try {
+    const category = getCategoryFromName(recipeName);
+    const res = await fetch(`${FOODISH_API}images/${category}`);
+    if (!res.ok) {
+      const fallback = await fetch(FOODISH_API);
+      if (!fallback.ok) return null;
+      const data = await fallback.json();
+      return typeof data?.image === 'string' ? data.image : null;
+    }
+    const data = await res.json();
+    return typeof data?.image === 'string' ? data.image : null;
+  } catch {
+    return null;
+  }
 }
 
 function normalizeYield(recipeYield: unknown): string {
@@ -682,6 +720,12 @@ Deno.serve(async (req) => {
     }
 
     recipe = normalizeRecipePayload(recipe);
+    if (!String(recipe.image ?? '').trim()) {
+      recipe = {
+        ...recipe,
+        image: await getRandomFoodishImage(String(recipe.name ?? '')),
+      };
+    }
     recipe = upgradeIngredientLines(recipe, extractedIngredientLines);
 
     if (normalizedUrl) {

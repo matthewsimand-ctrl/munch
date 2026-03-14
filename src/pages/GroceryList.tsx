@@ -165,7 +165,7 @@ function GroceryRow({
   );
 }
 
-export default function GroceryScreen() {
+export default function GroceryScreen({ embedded = false }: { embedded?: boolean }) {
   const {
     customGroceryItems,
     addCustomGroceryItem,
@@ -375,11 +375,11 @@ export default function GroceryScreen() {
   };
 
   return (
-    <div className="min-h-full" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", background: "#FFFAF5" }}>
+    <div className="min-h-full overflow-x-hidden" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", background: "#FFFAF5" }}>
 
       {/* Header */}
       <div
-        className="border-b"
+        className={`${embedded ? "hidden sm:block" : ""} border-b`}
         style={{ background: "linear-gradient(135deg,#FFF7ED 0%,#FFFAF5 100%)", borderColor: "rgba(249,115,22,0.12)" }}
       >
         <div className="max-w-3xl mx-auto px-6 py-6">
@@ -459,7 +459,7 @@ export default function GroceryScreen() {
         </div>
       </div>
 
-      <div className="max-w-3xl mx-auto px-6 py-5 space-y-5">
+      <div className={`max-w-3xl mx-auto ${embedded ? "px-4 pt-3" : "px-6 py-5"} space-y-5 pb-8`}>
 
         {/* Add item form */}
         <div
