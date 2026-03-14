@@ -261,37 +261,6 @@ async function cacheExternalRecipes(recipes: NormalizedRecipe[]): Promise<void> 
   }
 }
 
-function normalizeInstructionLines(lines: string[]): string[] {
-  const normalized: string[] = [];
-  for (const rawLine of lines) {
-    const line = String(rawLine || '').replace(/\s+/g, ' ').trim();
-    if (!line) continue;
-
-    if (/^step\s*\d+[:.-]?$/i.test(line)) {
-      continue;
-    }
-
-    const cleaned = line
-      .replace(/^step\s*\d+\s*[:.)-]?\s*/i, '')
-      .replace(/^\d+\s*[:.)-]\s*/, '')
-      .replace(/^step\s*\d+\s*[:.)-]?\s*/i, '')
-      .trim();
-
-    if (!/^step\s*\d+$/i.test(cleaned) && cleaned.length > 3) normalized.push(cleaned);
-  }
-  return normalized;
-}
-
-function cleanIngredientPart(value: unknown): string {
-  return String(value || '').trim().replace(/\s+/g, ' ');
-}
-
-function joinIngredient(measure: unknown, ingredient: unknown): string | null {
-  const measureText = String(measure ?? '').replace(/\s+/g, ' ').trim();
-  const ingredientText = String(ingredient ?? '').trim();
-  if (!ingredientText) return null;
-  return measureText ? `${measureText} ${ingredientText}` : ingredientText;
-}
 
 // ── FIXED: direct string coercion matching import-recipe's extractRecipeFromMealDbPayload.
 // The previous implementation used joinIngredient → normalizeMeasurePart → cleanIngredientPart
