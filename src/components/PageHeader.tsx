@@ -12,7 +12,7 @@ export default function PageHeader({ title, children }: Props) {
   const navigate = useNavigate();
 
   return (
-    <div className="app-section mb-6 flex items-center gap-3 px-4 py-3">
+    <div className="app-section mb-6 flex items-center gap-3 px-4 py-3 pt-[calc(0.75rem+env(safe-area-inset-top))] md:pt-3">
       <button onClick={() => navigate('/dashboard')} className="flex items-center gap-2 shrink-0">
         <MunchLogo size={28} showWordmark={false} />
         <span className="font-display text-xl font-bold text-foreground">{title}</span>

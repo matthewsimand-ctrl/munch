@@ -97,7 +97,7 @@ function PantryItemRow({
               onChange={(e) => setQty(e.target.value)}
               onBlur={() => { setEditing(false); onEdit("quantity", qty); }}
               onKeyDown={(e) => { if (e.key === "Enter") { setEditing(false); onEdit("quantity", qty); } }}
-              className="text-xs text-stone-500 outline-none border-b border-orange-300 bg-transparent w-24 mt-0.5"
+              className="text-base text-stone-500 outline-none border-b border-orange-300 bg-transparent w-24 mt-0.5"
               placeholder={suggestedQty}
             />
           ) : (
@@ -598,9 +598,8 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
                     key={option}
                     type="button"
                     onClick={() => setCleanupMealType(cleanupMealType === option ? "" : option)}
-                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
-                      cleanupMealType === option ? "bg-orange-500 text-white" : "border border-stone-200 bg-white text-stone-500"
-                    }`}
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${cleanupMealType === option ? "bg-orange-500 text-white" : "border border-stone-200 bg-white text-stone-500"
+                      }`}
                   >
                     {option}
                   </button>
@@ -647,7 +646,7 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
               }}
               onKeyDown={(e) => e.key === "Enter" && handleAdd()}
               placeholder="e.g. Olive oil, Garlic, Pasta…"
-              className="flex-1 px-4 py-2.5 rounded-xl border text-sm text-stone-700 placeholder:text-stone-300 outline-none focus:border-orange-300 transition-colors"
+              className="flex-1 px-4 py-2.5 rounded-xl border text-base text-stone-700 placeholder:text-stone-300 outline-none focus:border-orange-300 transition-colors"
               style={{ borderColor: "rgba(0,0,0,0.09)" }}
             />
             <input
@@ -655,14 +654,14 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
               onChange={(e) => setNewQty(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleAdd()}
               placeholder="Quantity (optional)"
-              className="w-40 px-4 py-2.5 rounded-xl border text-sm text-stone-700 placeholder:text-stone-300 outline-none focus:border-orange-300 transition-colors"
+              className="w-40 px-4 py-2.5 rounded-xl border text-base text-stone-700 placeholder:text-stone-300 outline-none focus:border-orange-300 transition-colors"
               style={{ borderColor: "rgba(0,0,0,0.09)" }}
             />
             <div className="relative">
               <select
                 value={newCategory}
                 onChange={(e) => setNewCategory(e.target.value)}
-                className="appearance-none pl-3 pr-8 py-2.5 rounded-xl border text-sm font-medium text-stone-600 outline-none cursor-pointer"
+                className="appearance-none pl-3 pr-8 py-2.5 rounded-xl border text-base font-medium text-stone-600 outline-none cursor-pointer"
                 style={{ background: "#fff", borderColor: "rgba(0,0,0,0.09)" }}
               >
                 {CATEGORIES.filter((c) => c !== "All").map((c) => <option key={c}>{c}</option>)}
@@ -689,7 +688,7 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search your pantry…"
-              className="w-full pl-10 pr-4 py-3 rounded-xl border text-sm text-stone-700 placeholder:text-stone-300 outline-none focus:border-orange-300 transition-colors"
+              className="w-full pl-10 pr-4 py-3 rounded-xl border text-base text-stone-700 placeholder:text-stone-300 outline-none focus:border-orange-300 transition-colors"
               style={{ background: "#fff", borderColor: "rgba(0,0,0,0.09)" }}
             />
             {search && (
@@ -702,7 +701,7 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
             <select
               value={sortMode}
               onChange={(e) => setSortMode(e.target.value as "recent" | "category")}
-              className="appearance-none w-full pl-3 pr-8 py-3 rounded-xl border text-sm font-medium text-stone-600 outline-none cursor-pointer"
+              className="appearance-none w-full pl-3 pr-8 py-3 rounded-xl border text-base font-medium text-stone-600 outline-none cursor-pointer"
               style={{ background: "#fff", borderColor: "rgba(0,0,0,0.09)" }}
             >
               <option value="recent">Sort: Recent</option>
