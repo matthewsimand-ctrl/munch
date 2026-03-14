@@ -286,15 +286,20 @@ export default function SwipeScreen() {
   const pantryNames = useMemo(() => pantryList.map((p) => p.name), [pantryList]);
   const likedSet = useMemo(() => new Set(likedRecipes), [likedRecipes]);
   const sourceRecipes = activeSearchQuery ? searchResults : recipes;
+  const searchFeedRef = useRef(searchFeed);
+
+  useEffect(() => {
+    searchFeedRef.current = searchFeed;
+  }, [searchFeed]);
 
   useEffect(() => {
     const trimmedQuery = searchQuery.trim();
     const timeout = window.setTimeout(() => {
-      void searchFeed(trimmedQuery);
+      void searchFeedRef.current(trimmedQuery);
     }, trimmedQuery ? 250 : 0);
 
     return () => window.clearTimeout(timeout);
-  }, [searchFeed, searchQuery]);
+  }, [searchQuery]);
 
   const filtered = useMemo(() => {
     let byFilter = sourceRecipes;
