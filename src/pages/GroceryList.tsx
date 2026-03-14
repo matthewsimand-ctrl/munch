@@ -285,6 +285,7 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
   const [showChecked, setShowChecked] = useState(true);
   const [estimating, setEstimating] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [importText, setImportText] = useState("");
   const [priceEstimate, setPriceEstimate] = useState<{ total: number; low: number; high: number; nearbyStores: string[]; currency: string; location: string; notes?: string } | null>(null);
 
@@ -596,58 +597,60 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
       <div className={`max-w-3xl mx-auto ${embedded ? "px-4 pt-3" : "px-6 py-5"} space-y-5 pb-8`}>
 
         {/* Add item form */}
-        <div
-          className="rounded-2xl border p-4"
-          style={{ background: "#fff", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.04)" }}
-        >
-          <p className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-3">Add item</p>
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <ShoppingCart size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-300" />
+        {!embedded && (
+          <div
+            className="rounded-2xl border p-4"
+            style={{ background: "#fff", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.04)" }}
+          >
+            <p className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-3">Add item</p>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <ShoppingCart size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-300" />
+                <input
+                  value={newItem}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setNewItem(value);
+                    if (value.trim()) setNewSection(detectCategories(value).grocerySection);
+                  }}
+                  onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+                  placeholder="e.g. Chicken breast, Lemons…"
+                  className="w-full pl-9 pr-4 py-2.5 rounded-xl border text-base sm:text-sm text-stone-700 placeholder:text-stone-300 outline-none focus:border-orange-300 transition-colors"
+                  style={{ borderColor: "rgba(0,0,0,0.09)" }}
+                />
+              </div>
               <input
-                value={newItem}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setNewItem(value);
-                  if (value.trim()) setNewSection(detectCategories(value).grocerySection);
-                }}
+                value={newQty}
+                onChange={(e) => setNewQty(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-                placeholder="e.g. Chicken breast, Lemons…"
-                className="w-full pl-9 pr-4 py-2.5 rounded-xl border text-sm text-stone-700 placeholder:text-stone-300 outline-none focus:border-orange-300 transition-colors"
+                placeholder="Qty"
+                className="w-20 px-3 py-2.5 rounded-xl border text-base sm:text-sm text-stone-700 placeholder:text-stone-300 outline-none focus:border-orange-300 transition-colors"
                 style={{ borderColor: "rgba(0,0,0,0.09)" }}
               />
-            </div>
-            <input
-              value={newQty}
-              onChange={(e) => setNewQty(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-              placeholder="Qty"
-              className="w-20 px-3 py-2.5 rounded-xl border text-sm text-stone-700 placeholder:text-stone-300 outline-none focus:border-orange-300 transition-colors"
-              style={{ borderColor: "rgba(0,0,0,0.09)" }}
-            />
-            <div className="relative">
-              <select
-                value={newSection}
-                onChange={(e) => setNewSection(e.target.value)}
-                className="appearance-none pl-3 pr-8 py-2.5 rounded-xl border text-xs font-medium text-stone-600 outline-none cursor-pointer h-full"
-                style={{ background: "#fff", borderColor: "rgba(0,0,0,0.09)" }}
+              <div className="relative">
+                <select
+                  value={newSection}
+                  onChange={(e) => setNewSection(e.target.value)}
+                  className="appearance-none pl-3 pr-8 py-2.5 rounded-xl border text-xs font-medium text-stone-600 outline-none cursor-pointer h-full"
+                  style={{ background: "#fff", borderColor: "rgba(0,0,0,0.09)" }}
+                >
+                  {Object.entries(STORE_SECTIONS).map(([val, label]) => (
+                    <option key={val} value={val}>{label}</option>
+                  ))}
+                </select>
+                <ChevronDown size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
+              </div>
+              <button
+                onClick={handleAdd}
+                disabled={!newItem.trim()}
+                className="px-4 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-40 transition-all hover:opacity-90 active:scale-95"
+                style={{ background: "linear-gradient(135deg,#FB923C,#F97316)", boxShadow: "0 2px 8px rgba(249,115,22,0.25)" }}
               >
-                {Object.entries(STORE_SECTIONS).map(([val, label]) => (
-                  <option key={val} value={val}>{label}</option>
-                ))}
-              </select>
-              <ChevronDown size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
+                <Plus size={16} />
+              </button>
             </div>
-            <button
-              onClick={handleAdd}
-              disabled={!newItem.trim()}
-              className="px-4 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-40 transition-all hover:opacity-90 active:scale-95"
-              style={{ background: "linear-gradient(135deg,#FB923C,#F97316)", boxShadow: "0 2px 8px rgba(249,115,22,0.25)" }}
-            >
-              <Plus size={16} />
-            </button>
           </div>
-        </div>
+        )}
 
         {priceEstimate && (
           <div
@@ -674,7 +677,7 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Filter list…"
-              className="w-full pl-10 pr-4 py-3 rounded-xl border text-sm text-stone-700 placeholder:text-stone-300 outline-none focus:border-orange-300 transition-colors"
+              className="w-full pl-10 pr-4 py-3 rounded-xl border text-base sm:text-sm text-stone-700 placeholder:text-stone-300 outline-none focus:border-orange-300 transition-colors"
               style={{ background: "#fff", borderColor: "rgba(0,0,0,0.09)" }}
             />
             {search && (
@@ -834,6 +837,81 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
           </div>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Add grocery item</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="relative">
+              <ShoppingCart size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-300" />
+              <input
+                value={newItem}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setNewItem(value);
+                  if (value.trim()) setNewSection(detectCategories(value).grocerySection);
+                }}
+                onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+                placeholder="e.g. Chicken breast, Lemons..."
+                className="w-full pl-10 pr-4 py-3 rounded-xl border text-base text-stone-700 placeholder:text-stone-300 outline-none focus:border-orange-300 transition-colors"
+                style={{ borderColor: "rgba(0,0,0,0.09)" }}
+              />
+            </div>
+            <input
+              value={newQty}
+              onChange={(e) => setNewQty(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+              placeholder="Quantity"
+              className="w-full px-4 py-3 rounded-xl border text-base text-stone-700 placeholder:text-stone-300 outline-none focus:border-orange-300 transition-colors"
+              style={{ borderColor: "rgba(0,0,0,0.09)" }}
+            />
+            <div className="relative">
+              <select
+                value={newSection}
+                onChange={(e) => setNewSection(e.target.value)}
+                className="appearance-none w-full pl-3 pr-8 py-3 rounded-xl border text-base font-medium text-stone-600 outline-none cursor-pointer"
+                style={{ background: "#fff", borderColor: "rgba(0,0,0,0.09)" }}
+              >
+                {Object.entries(STORE_SECTIONS).map(([val, label]) => (
+                  <option key={val} value={val}>{label}</option>
+                ))}
+              </select>
+              <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setImportDialogOpen(true)}
+                className="flex items-center justify-center gap-2 rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm font-semibold text-stone-600"
+              >
+                <Upload size={14} /> Import note
+              </button>
+              <button
+                onClick={() => {
+                  const hasItem = newItem.trim().length > 0;
+                  handleAdd();
+                  if (hasItem) setAddDialogOpen(false);
+                }}
+                disabled={!newItem.trim()}
+                className="rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40"
+              >
+                Add Item
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {embedded && (
+        <button
+          type="button"
+          onClick={() => setAddDialogOpen(true)}
+          className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] right-4 z-40 inline-flex h-14 items-center gap-2 rounded-full bg-orange-500 px-4 text-sm font-semibold text-white shadow-lg shadow-orange-500/30"
+        >
+          <Plus size={18} /> Add Item
+        </button>
+      )}
     </div>
   );
 }

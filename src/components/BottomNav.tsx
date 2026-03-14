@@ -21,8 +21,11 @@ export default function BottomNav() {
   const navigate = useNavigate();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-md border-t border-border safe-area-bottom safe-area-x">
-      <div className="max-w-md mx-auto flex items-center justify-around h-16 md:h-20 px-2">
+    <nav
+      className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/95 backdrop-blur-md safe-area-x"
+      style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 0.35rem)' }}
+    >
+      <div className="max-w-md mx-auto flex items-center justify-around h-14 px-2">
         {NAV_ITEMS.map(({ path, label, icon: Icon }) => {
           const active = location.pathname === path;
           return (

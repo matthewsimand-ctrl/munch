@@ -152,6 +152,7 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
   const [newItem, setNewItem] = useState("");
   const [newCategory, setNewCategory] = useState("Other");
   const [newQty, setNewQty] = useState("");
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [scanDialogOpen, setScanDialogOpen] = useState(false);
   const [importingReceipt, setImportingReceipt] = useState(false);
   const [generatingRecipe, setGeneratingRecipe] = useState(false);
@@ -629,56 +630,58 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
       <div className={`max-w-4xl mx-auto px-4 sm:px-6 ${embedded ? "pt-3" : "py-5"} space-y-5 pb-8`}>
 
         {/* Add form */}
-        <motion.div
-          className="rounded-2xl border p-5"
-          data-tutorial="pantry-add-form"
-          style={{ background: "#fff", borderColor: "rgba(249,115,22,0.20)", boxShadow: "0 4px 20px rgba(249,115,22,0.08)" }}
-        >
-          <p className="text-sm font-bold text-stone-800 mb-3">Add pantry item</p>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <input
-              data-tutorial="pantry-input"
-              value={newItem}
-              onChange={(e) => {
-                const value = e.target.value;
-                setNewItem(value);
-                if (value.trim()) setNewCategory(detectCategories(value).pantryCategory);
-              }}
-              onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-              placeholder="e.g. Olive oil, Garlic, Pasta…"
-              className="flex-1 px-4 py-2.5 rounded-xl border text-base text-stone-700 placeholder:text-stone-300 outline-none focus:border-orange-300 transition-colors"
-              style={{ borderColor: "rgba(0,0,0,0.09)" }}
-            />
-            <input
-              value={newQty}
-              onChange={(e) => setNewQty(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-              placeholder="Quantity (optional)"
-              className="w-40 px-4 py-2.5 rounded-xl border text-base text-stone-700 placeholder:text-stone-300 outline-none focus:border-orange-300 transition-colors"
-              style={{ borderColor: "rgba(0,0,0,0.09)" }}
-            />
-            <div className="relative">
-              <select
-                value={newCategory}
-                onChange={(e) => setNewCategory(e.target.value)}
-                className="appearance-none pl-3 pr-8 py-2.5 rounded-xl border text-base font-medium text-stone-600 outline-none cursor-pointer"
-                style={{ background: "#fff", borderColor: "rgba(0,0,0,0.09)" }}
+        {!embedded && (
+          <motion.div
+            className="rounded-2xl border p-5"
+            data-tutorial="pantry-add-form"
+            style={{ background: "#fff", borderColor: "rgba(249,115,22,0.20)", boxShadow: "0 4px 20px rgba(249,115,22,0.08)" }}
+          >
+            <p className="text-sm font-bold text-stone-800 mb-3">Add pantry item</p>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <input
+                data-tutorial="pantry-input"
+                value={newItem}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setNewItem(value);
+                  if (value.trim()) setNewCategory(detectCategories(value).pantryCategory);
+                }}
+                onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+                placeholder="e.g. Olive oil, Garlic, Pasta…"
+                className="flex-1 px-4 py-2.5 rounded-xl border text-base text-stone-700 placeholder:text-stone-300 outline-none focus:border-orange-300 transition-colors"
+                style={{ borderColor: "rgba(0,0,0,0.09)" }}
+              />
+              <input
+                value={newQty}
+                onChange={(e) => setNewQty(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+                placeholder="Quantity (optional)"
+                className="w-40 px-4 py-2.5 rounded-xl border text-base text-stone-700 placeholder:text-stone-300 outline-none focus:border-orange-300 transition-colors"
+                style={{ borderColor: "rgba(0,0,0,0.09)" }}
+              />
+              <div className="relative">
+                <select
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value)}
+                  className="appearance-none pl-3 pr-8 py-2.5 rounded-xl border text-base font-medium text-stone-600 outline-none cursor-pointer"
+                  style={{ background: "#fff", borderColor: "rgba(0,0,0,0.09)" }}
+                >
+                  {CATEGORIES.filter((c) => c !== "All").map((c) => <option key={c}>{c}</option>)}
+                </select>
+                <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
+              </div>
+              <button
+                onClick={handleAdd}
+                data-tutorial="pantry-add-btn"
+                disabled={!newItem.trim()}
+                className="w-10 h-10 rounded-xl text-lg font-bold text-white disabled:opacity-40 transition-all hover:opacity-90 active:scale-95"
+                style={{ background: "linear-gradient(135deg,#FB923C,#F97316)", boxShadow: "0 2px 8px rgba(249,115,22,0.25)" }}
               >
-                {CATEGORIES.filter((c) => c !== "All").map((c) => <option key={c}>{c}</option>)}
-              </select>
-              <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
+                +
+              </button>
             </div>
-            <button
-              onClick={handleAdd}
-              data-tutorial="pantry-add-btn"
-              disabled={!newItem.trim()}
-              className="w-10 h-10 rounded-xl text-lg font-bold text-white disabled:opacity-40 transition-all hover:opacity-90 active:scale-95"
-              style={{ background: "linear-gradient(135deg,#FB923C,#F97316)", boxShadow: "0 2px 8px rgba(249,115,22,0.25)" }}
-            >
-              +
-            </button>
-          </div>
-        </motion.div>
+          </motion.div>
+        )}
 
         {/* Search */}
         <div className="flex flex-col sm:flex-row gap-3">
@@ -808,6 +811,73 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
           </div>
         )}
       </div>
+
+      <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Add pantry item</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input
+              value={newItem}
+              onChange={(e) => {
+                const value = e.target.value;
+                setNewItem(value);
+                if (value.trim()) setNewCategory(detectCategories(value).pantryCategory);
+              }}
+              onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+              placeholder="Olive oil, Garlic, Pasta..."
+              className="text-base"
+            />
+            <Input
+              value={newQty}
+              onChange={(e) => setNewQty(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+              placeholder="Quantity"
+              className="text-base"
+            />
+            <div className="relative">
+              <select
+                value={newCategory}
+                onChange={(e) => setNewCategory(e.target.value)}
+                className="appearance-none w-full rounded-xl border border-stone-200 bg-white pl-3 pr-8 py-3 text-base font-medium text-stone-600 outline-none"
+              >
+                {CATEGORIES.filter((c) => c !== "All").map((c) => <option key={c}>{c}</option>)}
+              </select>
+              <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => receiptInputRef.current?.click()}
+                className="flex items-center justify-center gap-2 rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm font-semibold text-stone-600"
+              >
+                <Upload size={14} /> Import
+              </button>
+              <button
+                onClick={() => {
+                  const hasItem = newItem.trim().length > 0;
+                  handleAdd();
+                  if (hasItem) setAddDialogOpen(false);
+                }}
+                disabled={!newItem.trim()}
+                className="rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40"
+              >
+                Add Item
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {embedded && (
+        <button
+          type="button"
+          onClick={() => setAddDialogOpen(true)}
+          className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] right-4 z-40 inline-flex h-14 items-center gap-2 rounded-full bg-orange-500 px-4 text-sm font-semibold text-white shadow-lg shadow-orange-500/30"
+        >
+          <Plus size={18} /> Add Item
+        </button>
+      )}
     </div>
   );
 }
