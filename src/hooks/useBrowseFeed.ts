@@ -83,11 +83,39 @@ function curateBrowseCatalog(recipes: BrowseRecipe[]) {
   });
 
   const importedLimit = Math.max(8, Math.floor(recipes.length * 0.18));
-  return [
-    ...external,
-    ...community,
-    ...imported.slice(0, importedLimit),
-  ];
+  const importedPool = imported.slice(0, importedLimit);
+  const curated: BrowseRecipe[] = [];
+  let communityIndex = 0;
+  let externalIndex = 0;
+  let importedIndex = 0;
+
+  while (
+    communityIndex < community.length ||
+    externalIndex < external.length ||
+    importedIndex < importedPool.length
+  ) {
+    if (communityIndex < community.length) {
+      curated.push(community[communityIndex]);
+      communityIndex += 1;
+    }
+
+    for (let count = 0; count < 2 && externalIndex < external.length; count += 1) {
+      curated.push(external[externalIndex]);
+      externalIndex += 1;
+    }
+
+    if (importedIndex < importedPool.length && curated.length % 9 === 0) {
+      curated.push(importedPool[importedIndex]);
+      importedIndex += 1;
+    }
+
+    if (communityIndex >= community.length && externalIndex < external.length && importedIndex >= importedPool.length) {
+      curated.push(...external.slice(externalIndex));
+      break;
+    }
+  }
+
+  return curated;
 }
 
 async function fetchPublicRecipesFallback(): Promise<BrowseRecipe[]> {
@@ -96,7 +124,7 @@ async function fetchPublicRecipesFallback(): Promise<BrowseRecipe[]> {
     .select('*')
     .eq('is_public', true)
     .order('created_at', { ascending: false })
-    .limit(200);
+    .limit(450);
 
   if (error) throw error;
 
@@ -181,6 +209,9 @@ export function useBrowseFeed() {
   const [recipes, setRecipes] = useState<BrowseRecipe[]>([]);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [searchResults, setSearchResults] = useState<BrowseRecipe[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [activeSearchQuery, setActiveSearchQuery] = useState('');
   const [kitchenPantryNames, setKitchenPantryNames] = useState<string[]>([]);
   const {
     likedRecipes,
@@ -294,7 +325,7 @@ export function useBrowseFeed() {
         return source !== 'imported' && source !== 'community' && source !== 'community-seed';
       }).length;
 
-      if (fetched.length < 80 || externalCount < 30) {
+      if (fetched.length < 220 || externalCount < 120) {
         const mealDbFallback = await fetchMealDbBrowseFallback();
         fetched = dedupeRecipes([
           ...fetched,
@@ -326,5 +357,58 @@ export function useBrowseFeed() {
     }
   }, [loaded, loading, likedRecipes, savedApiRecipes, userProfile, effectivePantryNames, diversifyBrowseOrder]);
 
-  return { recipes, loading, loaded, loadFeed };
+  const searchFeed = useCallback(async (query: string) => {
+    const trimmedQuery = query.trim();
+    if (!trimmedQuery) {
+      setActiveSearchQuery('');
+      setSearchResults([]);
+      setSearchLoading(false);
+      return;
+    }
+
+    setSearchLoading(true);
+    setActiveSearchQuery(trimmedQuery);
+
+    try {
+      const likedIds = new Set(likedRecipes);
+      const { data, error } = await invokeAppFunction('search-recipes', {
+        body: { mode: 'search', query: trimmedQuery },
+      });
+
+      if (error) throw error;
+
+      const fetched = (data?.recipes || [])
+        .map(normalizeRecipe)
+        .filter((recipe): recipe is BrowseRecipe => Boolean(recipe) && !likedIds.has(String(recipe.id)));
+
+      const deduped = dedupeRecipes(fetched);
+      const curated = curateBrowseCatalog(deduped);
+
+      if (likedRecipes.length > 0 || userProfile.cuisinePreferences.length > 0 || userProfile.skillLevel || effectivePantryNames.length > 0) {
+        const likedRecipesList: Recipe[] = likedRecipes
+          .map((id) => savedApiRecipes[id])
+          .filter(Boolean);
+        const ranked = rankByRecommendation(curated, likedRecipesList, likedIds, userProfile, effectivePantryNames);
+        setSearchResults(ranked.map((item) => item.recipe as BrowseRecipe));
+      } else {
+        setSearchResults(curated);
+      }
+    } catch (error) {
+      console.error('Search feed error:', error);
+      setSearchResults([]);
+    } finally {
+      setSearchLoading(false);
+    }
+  }, [effectivePantryNames, likedRecipes, savedApiRecipes, userProfile]);
+
+  return {
+    recipes,
+    loading,
+    loaded,
+    loadFeed,
+    searchFeed,
+    searchResults,
+    searchLoading,
+    activeSearchQuery,
+  };
 }

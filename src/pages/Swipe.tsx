@@ -259,7 +259,16 @@ const TUTORIAL_RECIPE = {
 const FILTERS = ["All", "Quick (<30 min)", "Vegetarian", "High Protein", "Easy", "Asian", "Italian", "Mexican"];
 
 export default function SwipeScreen() {
-  const { recipes, loading, loaded, loadFeed } = useBrowseFeed();
+  const {
+    recipes,
+    loading,
+    loaded,
+    loadFeed,
+    searchFeed,
+    searchResults,
+    searchLoading,
+    activeSearchQuery,
+  } = useBrowseFeed();
   const { likedRecipes, likeRecipe, pantryList, addCustomGroceryItem, addToGrocery } = useStore();
 
   const [cardIndex, setCardIndex] = useState(0);
@@ -276,18 +285,28 @@ export default function SwipeScreen() {
 
   const pantryNames = useMemo(() => pantryList.map((p) => p.name), [pantryList]);
   const likedSet = useMemo(() => new Set(likedRecipes), [likedRecipes]);
+  const sourceRecipes = activeSearchQuery ? searchResults : recipes;
+
+  useEffect(() => {
+    const trimmedQuery = searchQuery.trim();
+    const timeout = window.setTimeout(() => {
+      void searchFeed(trimmedQuery);
+    }, trimmedQuery ? 250 : 0);
+
+    return () => window.clearTimeout(timeout);
+  }, [searchFeed, searchQuery]);
 
   const filtered = useMemo(() => {
-    let byFilter = recipes;
+    let byFilter = sourceRecipes;
     if (activeFilter === "Quick (<30 min)") {
-      byFilter = recipes.filter((r) => {
+      byFilter = sourceRecipes.filter((r) => {
         const m = parseInt(r.cook_time || "99");
         return m <= 30;
       });
     } else if (activeFilter === "Easy") {
-      byFilter = recipes.filter((r) => r.difficulty === "easy");
+      byFilter = sourceRecipes.filter((r) => r.difficulty === "easy");
     } else if (activeFilter !== "All") {
-      byFilter = recipes.filter(
+      byFilter = sourceRecipes.filter(
         (r) =>
           r.tags?.some((t: string) => t.toLowerCase().includes(activeFilter.toLowerCase())) ||
           r.cuisine?.toLowerCase().includes(activeFilter.toLowerCase()),
@@ -336,7 +355,7 @@ export default function SwipeScreen() {
     }
 
     return final;
-  }, [recipes, activeFilter, searchQuery, selectedChefId]); // Added selectedChefId to dependencies
+  }, [sourceRecipes, activeFilter, searchQuery, selectedChefId]);
 
   useEffect(() => {
     setCardIndex(0);
@@ -518,7 +537,7 @@ export default function SwipeScreen() {
       <div className="flex-1 flex flex-col items-center justify-start p-4 sm:p-6 pt-5 sm:pt-8 md:pt-6 overflow-hidden">
         <div className="w-full max-w-5xl flex flex-col items-center">
           <div className="relative flex items-center justify-center h-[400px] sm:h-[520px] w-full">
-          {loading ? (
+          {loading || searchLoading ? (
             <div className="aspect-[3/4] rounded-3xl bg-stone-100 animate-pulse" />
           ) : filtered.length === cardIndex ? (
             <div className="w-[300px] sm:w-[340px] aspect-[3/4] rounded-3xl flex flex-col items-center justify-center gap-4 border-2 border-dashed border-stone-200 bg-white shadow-sm">

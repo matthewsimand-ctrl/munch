@@ -107,15 +107,15 @@ interface NormalizedRecipe {
 }
 
 const EXTERNAL_CACHE_TTL_DAYS = 14;
-const BROWSE_CACHE_WARM_THRESHOLD = 180;
-const BROWSE_RESPONSE_LIMIT = 320;
+const BROWSE_CACHE_WARM_THRESHOLD = 520;
+const BROWSE_RESPONSE_LIMIT = 760;
 const BROWSE_SOURCE_CAPS: Record<string, number> = {
-  Spoonacular: 90,
-  Tasty: 70,
-  TheMealDB: 120,
-  community: 120,
-  'community-seed': 120,
-  external: 120,
+  Spoonacular: 140,
+  Tasty: 110,
+  TheMealDB: 620,
+  community: 220,
+  'community-seed': 220,
+  external: 220,
 };
 
 function getSupabaseClient(useServiceRole = false) {
@@ -138,7 +138,7 @@ async function fetchPublicRecipes(query?: string): Promise<NormalizedRecipe[]> {
       .select('id, name, image, cook_time, difficulty, ingredients, tags, instructions, source, source_url, raw_api_payload, cuisine, chef, created_by')
       .eq('is_public', true)
       .order('created_at', { ascending: false })
-      .limit(query ? 200 : 100);
+      .limit(query ? 250 : 450);
 
     const { data, error } = await request;
     if (error) {
@@ -194,7 +194,7 @@ async function fetchCachedExternalRecipes(query?: string): Promise<NormalizedRec
       .select('name, image, cook_time, difficulty, ingredients, tags, instructions, source, source_url, raw_api_payload, cuisine, external_id')
       .gt('expires_at', new Date().toISOString())
       .order('updated_at', { ascending: false })
-      .limit(query ? 400 : 250);
+      .limit(query ? 500 : 800);
 
     if (error) {
       console.error('External cache read error:', error);
@@ -677,24 +677,24 @@ serve(async (req) => {
         console.log('Browse mode: cache is thin, fetching live external recipes...');
         const externalPromises: Promise<NormalizedRecipe[]>[] = [];
 
-        const letters = ['a', 'b', 'c', 'm', 's', 't'];
+        const letters = 'abcdefghijklmnopqrstuvwxyz'.split('');
         for (const letter of letters) {
           externalPromises.push(browseMealDBByLetter(letter));
         }
 
-        const categories = ['Chicken', 'Beef', 'Seafood', 'Pasta', 'Vegetarian', 'Dessert', 'Breakfast', 'Vegan'];
+        const categories = ['Chicken', 'Beef', 'Seafood', 'Pasta', 'Vegetarian', 'Dessert', 'Breakfast', 'Pork', 'Lamb', 'Vegan', 'Starter', 'Side'];
         for (const cat of categories) {
           externalPromises.push(browseMealDBByCategory(cat));
         }
 
         if (SPOONACULAR_API_KEY) {
-          externalPromises.push(browseSpoonacularRandom(SPOONACULAR_API_KEY, 40));
+          externalPromises.push(browseSpoonacularRandom(SPOONACULAR_API_KEY, 50));
         }
 
         if (RAPIDAPI_KEY) {
-          const tastyQueries = ['popular', 'easy dinner', 'quick lunch', 'healthy', 'dessert', 'breakfast'];
+          const tastyQueries = ['popular', 'easy dinner', 'quick lunch', 'healthy', 'comfort food', 'dessert', 'breakfast', 'pasta', 'chicken', 'vegetarian'];
           for (const q of tastyQueries) {
-            externalPromises.push(searchTasty(q, RAPIDAPI_KEY, 8));
+            externalPromises.push(searchTasty(q, RAPIDAPI_KEY, 10));
           }
         }
 
