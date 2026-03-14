@@ -68,6 +68,19 @@ function extractSpoonacularInstructions(recipe: Record<string, unknown>): string
   if (!htmlInstructions) return [];
   return splitInstructionText(htmlToText(htmlInstructions));
 }
+
+function cleanIngredientPart(value: unknown): string {
+  return String(value ?? '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function joinIngredient(prefix: string, ingredient: unknown): string {
+  const cleanPrefix = cleanIngredientPart(prefix);
+  const cleanIngredient = cleanIngredientPart(ingredient);
+  if (!cleanIngredient) return '';
+  return cleanPrefix ? `${cleanPrefix} ${cleanIngredient}`.trim() : cleanIngredient;
+}
 // --- End inlined code ---
 
 const corsHeaders = {

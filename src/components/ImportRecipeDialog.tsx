@@ -364,7 +364,7 @@ export default function ImportRecipeDialog({
     source: recipe.source || 'community',
   });
 
-  const persistRecipe = async (payload: Record<string, any>) => {
+  const persistRecipe = async (payload: Record<string, any>, options?: { forceDiscoverable?: boolean }) => {
     const existingRecipe = await findExistingRecipeByUrl(payload.source_url);
     if (existingRecipe) {
       const existingPayload = mapDbRecipeToImportedPayload(existingRecipe);
@@ -382,15 +382,16 @@ export default function ImportRecipeDialog({
       return { reusedExisting: true, payload: existingPayload };
     }
 
+    const shouldDiscover = options?.forceDiscoverable ?? isDiscoverable;
     const { user, sharedByName } = await getCurrentSharer();
-    const payloadWithShareMetadata = user && isDiscoverable
+    const payloadWithShareMetadata = user && shouldDiscover
       ? {
         ...payload,
         raw_api_payload: withSharedMetadata(payload.raw_api_payload, user.id, sharedByName),
       }
       : payload;
 
-    if (user && isDiscoverable) {
+    if (user && shouldDiscover) {
       // Safely serialize raw_api_payload — some AI responses contain non-serializable objects
       let safeRawPayload: any = null;
       if (payloadWithShareMetadata.raw_api_payload && typeof payloadWithShareMetadata.raw_api_payload === 'object') {
@@ -551,13 +552,13 @@ export default function ImportRecipeDialog({
 
         // Auto-save immediately — no editable preview
         const id = crypto.randomUUID();
-        const autoPayload = buildImportedPayload(id, {
+      const autoPayload = buildImportedPayload(id, {
           ...recipe,
           source_url: importedSourceUrl,
         });
 
         try {
-          await persistRecipe(autoPayload);
+          await persistRecipe(autoPayload, { forceDiscoverable: true });
           toast.success(`Imported "${autoPayload.name}".`);
           setOpen(false);
           resetState();
