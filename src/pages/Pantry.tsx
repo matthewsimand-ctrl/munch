@@ -12,6 +12,7 @@ import { getPremiumOverride } from "@/lib/premium";
 import { adjustQuantityString, canDecreaseQuantity, parseIngredientLine, suggestQuantityForItem } from "@/lib/ingredientText";
 import { invokeAppFunction } from "@/lib/functionClient";
 import { getAiDisabledMessage, isAiAgentCallsDisabledError } from "@/lib/ai";
+import { calculateMatch } from "@/lib/matchLogic";
 import RecipePreviewDialog from "@/components/RecipePreviewDialog";
 import type { Recipe } from "@/data/recipes";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
