@@ -47,68 +47,85 @@ export type Database = {
         }
         Relationships: []
       }
-      kitchen_invites: {
+      kitchen_cookbook_recipes: {
         Row: {
+          added_by: string
+          cookbook_id: string
           created_at: string
-          email: string | null
-          expires_at: string | null
           id: string
-          invite_token: string
-          invited_by: string
-          kitchen_id: string
-          role: Database["public"]["Enums"]["kitchen_member_role"]
-          status: Database["public"]["Enums"]["kitchen_invite_status"]
+          recipe_id: string
+          sort_order: number
         }
         Insert: {
+          added_by: string
+          cookbook_id: string
           created_at?: string
-          email?: string | null
-          expires_at?: string | null
           id?: string
-          invite_token?: string
-          invited_by: string
-          kitchen_id: string
-          role?: Database["public"]["Enums"]["kitchen_member_role"]
-          status?: Database["public"]["Enums"]["kitchen_invite_status"]
+          recipe_id: string
+          sort_order?: number
         }
         Update: {
+          added_by?: string
+          cookbook_id?: string
           created_at?: string
-          email?: string | null
-          expires_at?: string | null
           id?: string
-          invite_token?: string
-          invited_by?: string
-          kitchen_id?: string
-          role?: Database["public"]["Enums"]["kitchen_member_role"]
-          status?: Database["public"]["Enums"]["kitchen_invite_status"]
+          recipe_id?: string
+          sort_order?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "kitchen_cookbook_recipes_cookbook_id_fkey"
+            columns: ["cookbook_id"]
+            isOneToOne: false
+            referencedRelation: "kitchen_cookbooks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kitchen_cookbook_recipes_recipe_id_fkey"
+            columns: ["recipe_id"]
+            isOneToOne: false
+            referencedRelation: "recipes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
-      kitchen_memberships: {
+      kitchen_cookbooks: {
         Row: {
+          cover_image: string | null
           created_at: string
+          created_by: string
           id: string
-          invited_by: string | null
           kitchen_id: string
-          role: Database["public"]["Enums"]["kitchen_member_role"]
-          user_id: string
+          name: string
+          updated_at: string
         }
         Insert: {
+          cover_image?: string | null
           created_at?: string
+          created_by: string
           id?: string
-          invited_by?: string | null
           kitchen_id: string
-          role?: Database["public"]["Enums"]["kitchen_member_role"]
-          user_id: string
+          name: string
+          updated_at?: string
         }
         Update: {
+          cover_image?: string | null
           created_at?: string
+          created_by?: string
           id?: string
-          invited_by?: string | null
           kitchen_id?: string
-          role?: Database["public"]["Enums"]["kitchen_member_role"]
-          user_id?: string
+          name?: string
+          updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "kitchen_cookbooks_kitchen_id_fkey"
+            columns: ["kitchen_id"]
+            isOneToOne: false
+            referencedRelation: "kitchens"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       kitchen_grocery_items: {
         Row: {
@@ -150,7 +167,15 @@ export type Database = {
           sort_order?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "kitchen_grocery_items_grocery_list_id_fkey"
+            columns: ["grocery_list_id"]
+            isOneToOne: false
+            referencedRelation: "kitchen_grocery_lists"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       kitchen_grocery_lists: {
         Row: {
@@ -180,7 +205,59 @@ export type Database = {
           name?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "kitchen_grocery_lists_kitchen_id_fkey"
+            columns: ["kitchen_id"]
+            isOneToOne: false
+            referencedRelation: "kitchens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kitchen_invites: {
+        Row: {
+          created_at: string
+          email: string | null
+          expires_at: string | null
+          id: string
+          invite_token: string
+          invited_by: string
+          kitchen_id: string
+          role: Database["public"]["Enums"]["kitchen_member_role"]
+          status: Database["public"]["Enums"]["kitchen_invite_status"]
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          expires_at?: string | null
+          id?: string
+          invite_token?: string
+          invited_by: string
+          kitchen_id: string
+          role?: Database["public"]["Enums"]["kitchen_member_role"]
+          status?: Database["public"]["Enums"]["kitchen_invite_status"]
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          expires_at?: string | null
+          id?: string
+          invite_token?: string
+          invited_by?: string
+          kitchen_id?: string
+          role?: Database["public"]["Enums"]["kitchen_member_role"]
+          status?: Database["public"]["Enums"]["kitchen_invite_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kitchen_invites_kitchen_id_fkey"
+            columns: ["kitchen_id"]
+            isOneToOne: false
+            referencedRelation: "kitchens"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       kitchen_meal_plan_items: {
         Row: {
@@ -219,7 +296,22 @@ export type Database = {
           servings?: number
           sort_order?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "kitchen_meal_plan_items_meal_plan_id_fkey"
+            columns: ["meal_plan_id"]
+            isOneToOne: false
+            referencedRelation: "kitchen_meal_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kitchen_meal_plan_items_recipe_id_fkey"
+            columns: ["recipe_id"]
+            isOneToOne: false
+            referencedRelation: "recipes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       kitchen_meal_plans: {
         Row: {
@@ -246,7 +338,50 @@ export type Database = {
           updated_at?: string
           week_start?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "kitchen_meal_plans_kitchen_id_fkey"
+            columns: ["kitchen_id"]
+            isOneToOne: false
+            referencedRelation: "kitchens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kitchen_memberships: {
+        Row: {
+          created_at: string
+          id: string
+          invited_by: string | null
+          kitchen_id: string
+          role: Database["public"]["Enums"]["kitchen_member_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invited_by?: string | null
+          kitchen_id: string
+          role?: Database["public"]["Enums"]["kitchen_member_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invited_by?: string | null
+          kitchen_id?: string
+          role?: Database["public"]["Enums"]["kitchen_member_role"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kitchen_memberships_kitchen_id_fkey"
+            columns: ["kitchen_id"]
+            isOneToOne: false
+            referencedRelation: "kitchens"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       kitchen_pantry_items: {
         Row: {
@@ -279,7 +414,15 @@ export type Database = {
           quantity?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "kitchen_pantry_items_kitchen_id_fkey"
+            columns: ["kitchen_id"]
+            isOneToOne: false
+            referencedRelation: "kitchens"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       kitchen_recipe_shares: {
         Row: {
@@ -303,7 +446,22 @@ export type Database = {
           recipe_id?: string
           shared_by_user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "kitchen_recipe_shares_kitchen_id_fkey"
+            columns: ["kitchen_id"]
+            isOneToOne: false
+            referencedRelation: "kitchens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kitchen_recipe_shares_recipe_id_fkey"
+            columns: ["recipe_id"]
+            isOneToOne: false
+            referencedRelation: "recipes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       kitchens: {
         Row: {
@@ -326,39 +484,6 @@ export type Database = {
           name?: string
           owner_user_id?: string
           updated_at?: string
-        }
-        Relationships: []
-      }
-      cooked_meals: {
-        Row: {
-          cooked_at: string
-          estimated_savings: number | null
-          id: string
-          metadata: Json | null
-          recipe_id: string
-          recipe_name: string
-          savings_source: string
-          user_id: string
-        }
-        Insert: {
-          cooked_at?: string
-          estimated_savings?: number | null
-          id?: string
-          metadata?: Json | null
-          recipe_id: string
-          recipe_name: string
-          savings_source?: string
-          user_id: string
-        }
-        Update: {
-          cooked_at?: string
-          estimated_savings?: number | null
-          id?: string
-          metadata?: Json | null
-          recipe_id?: string
-          recipe_name?: string
-          savings_source?: string
-          user_id?: string
         }
         Relationships: []
       }
@@ -449,7 +574,7 @@ export type Database = {
           id?: string
           updated_at?: string
           user_id: string
-          username?: string
+          username: string
         }
         Update: {
           avatar_url?: string | null
@@ -468,7 +593,6 @@ export type Database = {
           cook_time: string
           created_at: string
           created_by: string | null
-          chef: string | null
           cuisine: string | null
           difficulty: string
           id: string
@@ -488,7 +612,6 @@ export type Database = {
           cook_time?: string
           created_at?: string
           created_by?: string | null
-          chef?: string | null
           cuisine?: string | null
           difficulty?: string
           id?: string
@@ -508,7 +631,6 @@ export type Database = {
           cook_time?: string
           created_at?: string
           created_by?: string | null
-          chef?: string | null
           cuisine?: string | null
           difficulty?: string
           id?: string
@@ -532,21 +654,21 @@ export type Database = {
     }
     Functions: {
       accept_kitchen_invite: {
-        Args: {
-          invite_uuid: string
-        }
+        Args: { invite_uuid: string }
         Returns: {
           kitchen_id: string
           kitchen_name: string
         }[]
       }
+      can_edit_kitchen: {
+        Args: { target_kitchen_id: string }
+        Returns: boolean
+      }
       get_kitchen_invite_preview: {
-        Args: {
-          invite_uuid: string
-        }
+        Args: { invite_uuid: string }
         Returns: {
-          email: string | null
-          expires_at: string | null
+          email: string
+          expires_at: string
           invite_id: string
           kitchen_id: string
           kitchen_name: string
@@ -554,16 +676,15 @@ export type Database = {
           status: Database["public"]["Enums"]["kitchen_invite_status"]
         }[]
       }
-      is_username_available: {
-        Args: {
-          candidate: string
-        }
+      is_kitchen_member: {
+        Args: { target_kitchen_id: string }
         Returns: boolean
       }
+      is_username_available: { Args: { candidate: string }; Returns: boolean }
     }
     Enums: {
-      kitchen_invite_status: "accepted" | "expired" | "pending" | "revoked"
-      kitchen_member_role: "editor" | "owner" | "viewer"
+      kitchen_invite_status: "pending" | "accepted" | "revoked" | "expired"
+      kitchen_member_role: "owner" | "editor" | "viewer"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -690,6 +811,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      kitchen_invite_status: ["pending", "accepted", "revoked", "expired"],
+      kitchen_member_role: ["owner", "editor", "viewer"],
+    },
   },
 } as const
