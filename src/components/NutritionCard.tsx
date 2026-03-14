@@ -48,7 +48,7 @@ export default function NutritionCard({ recipeId, recipeName, ingredients, servi
     let cancelled = false;
 
     const loadSharedNutrition = async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('recipe_nutrition_cache')
         .select('nutrition')
         .eq('recipe_id', recipeId)
