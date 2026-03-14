@@ -81,7 +81,7 @@ export function useCookedMeals(limit = 12) {
       return;
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from("cooked_meals")
       .select("id, recipe_id, recipe_name, cooked_at, estimated_savings, metadata")
       .eq("user_id", session.user.id)
@@ -157,7 +157,7 @@ export function useCookedMeals(limit = 12) {
     if (!session?.user) return;
     if (cookedMealsTableUnavailableRef.current) return;
 
-    const { data: recentMeals, error: recentMealsError } = await supabase
+    const { data: recentMeals, error: recentMealsError } = await (supabase as any)
       .from("cooked_meals")
       .select("id, recipe_id, recipe_name, cooked_at, estimated_savings, metadata")
       .eq("user_id", session.user.id)
@@ -181,7 +181,7 @@ export function useCookedMeals(limit = 12) {
       return;
     }
 
-    const { data: inserted, error: insertError } = await supabase.from("cooked_meals").insert({
+    const { data: inserted, error: insertError } = await (supabase as any).from("cooked_meals").insert({
       user_id: session.user.id,
       recipe_id: input.recipeId,
       recipe_name: input.recipeName,
@@ -234,7 +234,7 @@ export function useCookedMeals(limit = 12) {
       return locallyUpdated;
     }
 
-    const { data: updated, error } = await supabase
+    const { data: updated, error } = await (supabase as any)
       .from("cooked_meals")
       .update({ estimated_savings: estimated })
       .eq("id", meal.id)

@@ -266,7 +266,7 @@ export default function GroceryScreen() {
           section: detected.grocerySection,
         };
       })
-      .filter((item): item is { name: string; qty?: string; section: string } => Boolean(item));
+      .filter((item): item is { name: string; qty: string; section: string } => Boolean(item) && typeof item.name === 'string');
 
     parsedItems.forEach((item) => {
       if (isKitchenMode) {

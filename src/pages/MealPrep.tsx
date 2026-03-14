@@ -153,9 +153,10 @@ export default function MealPrepScreen() {
     .filter((item) => (item.weekStart ?? getWeekStartForOffset(0)) === weekStart)
     .map((item, idx) => ({
       ...item,
+      mealType: item.mealType as MealType,
       id: item.id ?? `${item.day}-${item.mealType}-${item.recipeId}-${idx}`,
     }));
-  const plannedMeals: PlannedMeal[] = isKitchenMode ? kitchenMealPlan.items : localPlannedMeals;
+  const plannedMeals: PlannedMeal[] = isKitchenMode ? (kitchenMealPlan.items as PlannedMeal[]) : localPlannedMeals;
 
   const getMeal = (day: string, mealType: MealType) =>
     plannedMeals.find((m) => m.day === day && m.mealType === mealType);
@@ -619,7 +620,7 @@ export default function MealPrepScreen() {
         ["Day", "Meal Type", "Recipe", "Cook Time"],
         ...orderedMeals.map((meal) => [meal.day, meal.mealType, meal.recipeName, meal.cookTime ?? ""]),
       ]
-        .map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(","))
+        .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
         .join("\n");
       const csvName = exportScope === "week" ? "meal-plan-week.csv" : `meal-plan-${exportDay.toLowerCase()}.csv`;
       downloadTextFile(csvName, csv, "text/csv;charset=utf-8;");

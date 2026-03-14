@@ -8,10 +8,11 @@ interface InvokeOptions {
   region?: string;
 }
 
-export async function invokeAppFunction<T = unknown>(functionName: string, options?: InvokeOptions) {
+export async function invokeAppFunction<T = any>(functionName: string, options?: InvokeOptions): Promise<{ data: T | null; error: any }> {
   if (getAiAgentCallsDisabled() && isAiAgentFunction(functionName)) {
     throw new AiAgentCallsDisabledError(functionName);
   }
 
-  return supabase.functions.invoke<T>(functionName, options);
+  const result = await supabase.functions.invoke(functionName, options as any);
+  return result as { data: T | null; error: any };
 }
