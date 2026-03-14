@@ -72,6 +72,7 @@ function extractSpoonacularInstructions(recipe: Record<string, unknown>): string
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
@@ -596,13 +597,24 @@ function dedup(recipes: NormalizedRecipe[]): NormalizedRecipe[] {
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response('ok', {
+      status: 200,
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'text/plain',
+      },
+    });
   }
 
   try {
     const { query, mode } = await req.json();
     const RAPIDAPI_KEY = Deno.env.get('RAPIDAPI_KEY') || '';
     const SPOONACULAR_API_KEY = Deno.env.get('SPOONACULAR_API_KEY') || '';
+    console.log('Search recipes env status', {
+      mode: mode || 'search',
+      hasRapidApiKey: Boolean(RAPIDAPI_KEY),
+      hasSpoonacularKey: Boolean(SPOONACULAR_API_KEY),
+    });
 
     if (mode === 'browse') {
       console.log('Browse mode: fetching large catalog...');
@@ -643,6 +655,15 @@ serve(async (req) => {
         .filter((r): r is PromiseFulfilledResult<NormalizedRecipe[]> => r.status === 'fulfilled')
         .flatMap(r => r.value);
 
+      const spoonacularCount = externalRecipes.filter((recipe) => recipe.source === 'Spoonacular').length;
+      console.log('Browse source counts', {
+        publicCount: stableRecipes.filter((recipe) => recipe.source === 'community' || recipe.source === 'community-seed').length,
+        cachedExternalCount: stableRecipes.filter((recipe) => recipe.source !== 'community' && recipe.source !== 'community-seed').length,
+        spoonacularCount,
+        mealDbCount: externalRecipes.filter((recipe) => recipe.source === 'TheMealDB').length,
+        tastyCount: externalRecipes.filter((recipe) => recipe.source === 'Tasty').length,
+      });
+
       await cacheExternalRecipes(externalRecipes);
 
       const allRecipes = [...stableRecipes, ...externalRecipes];
@@ -679,6 +700,15 @@ serve(async (req) => {
     const externalRecipes = externalResults
       .filter((r): r is PromiseFulfilledResult<NormalizedRecipe[]> => r.status === 'fulfilled')
       .flatMap(r => r.value);
+
+    console.log('Search source counts', {
+      query: searchQuery,
+      publicCount: stableRecipes.filter((recipe) => recipe.source === 'community' || recipe.source === 'community-seed').length,
+      cachedExternalCount: stableRecipes.filter((recipe) => recipe.source !== 'community' && recipe.source !== 'community-seed').length,
+      spoonacularCount: externalRecipes.filter((recipe) => recipe.source === 'Spoonacular').length,
+      mealDbCount: externalRecipes.filter((recipe) => recipe.source === 'TheMealDB').length,
+      tastyCount: externalRecipes.filter((recipe) => recipe.source === 'Tasty').length,
+    });
 
     await cacheExternalRecipes(externalRecipes);
 

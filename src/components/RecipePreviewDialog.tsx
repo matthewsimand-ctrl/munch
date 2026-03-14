@@ -226,11 +226,11 @@ export default function RecipePreviewDialog({
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
-          className={`h-[90vh] p-0 overflow-hidden flex flex-col ${recipe.source_url && importedRecipe ? 'max-w-2xl' : 'max-w-md'}`}
+          className={`h-[92vh] p-0 overflow-hidden flex flex-col ${recipe.source_url && importedRecipe ? 'max-w-5xl' : 'max-w-md'}`}
           onOpenAutoFocus={(event) => event.preventDefault()}
           data-tutorial="recipe-dialog-content"
         >
-          <div className="relative h-48 overflow-hidden">
+          <div className={`relative overflow-hidden ${recipe.source_url && importedRecipe ? 'h-32 sm:h-36' : 'h-48'}`}>
             <img src={recipe.image} alt={recipe.name} className="w-full h-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-background/90 to-transparent" />
             <div className="absolute bottom-3 left-4 right-4">
@@ -269,38 +269,13 @@ export default function RecipePreviewDialog({
                 </div>
               )}
 
-              {recipe.source_url && importedRecipe && (
-                <a
-                  href={recipe.source_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2.5 p-3 rounded-xl border border-stone-200 bg-stone-50/70 hover:bg-stone-100 transition-colors"
-                >
-                  {sourceHostname && (
-                    <img
-                      src={`https://www.google.com/s2/favicons?domain=${sourceHostname}&sz=32`}
-                      alt=""
-                      className="h-5 w-5 shrink-0"
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                    />
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold uppercase tracking-wide text-stone-400">Open Source</p>
-                    <p className="text-sm font-medium text-stone-700 truncate">
-                      {sourceHostname || recipe.source_url}
-                    </p>
-                  </div>
-                  <ExternalLink size={14} className="text-stone-400 shrink-0" />
-                </a>
-              )}
-
               {/* ── Recipe Content ── */}
               {recipe.source_url && importedRecipe && canEmbedSource ? (
                 <div className="space-y-3">
-                  <div className="relative w-full aspect-[4/5] rounded-xl overflow-auto border border-stone-200 bg-muted">
+                  <div className="relative w-full h-[54vh] rounded-xl overflow-hidden border border-stone-200 bg-muted">
                     <iframe
                       src={recipe.source_url}
-                      className="w-full min-w-full h-full min-h-full border-0 rounded-xl"
+                      className="w-full h-full border-0 rounded-xl"
                       title={recipe.name}
                       sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
                     />
