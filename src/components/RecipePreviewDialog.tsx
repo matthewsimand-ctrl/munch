@@ -106,6 +106,7 @@ export default function RecipePreviewDialog({
   const [portionFactor, setPortionFactor] = useState(1);
   const [tweakOpen, setTweakOpen] = useState(false);
   const [addedToGrocery, setAddedToGrocery] = useState(false);
+  const [importedView, setImportedView] = useState<'web' | 'app'>('app');
   const { activeKitchenId, activeKitchenName } = useStore();
 
   const fallbackMatch: MatchResult = useMemo(() => ({
@@ -145,6 +146,16 @@ export default function RecipePreviewDialog({
       rawPayloadKeys: importedPreview.rawPayloadKeys,
     });
   }, [embedBlockReason, importedPreview.rawPayloadKeys, importedRecipe, open, recipe?.id, recipe?.name, recipe?.source_url, showStructuredFallback]);
+
+  useEffect(() => {
+    if (!recipe || !open) return;
+    if (importedRecipe && canEmbedSource) {
+      setImportedView('web');
+      return;
+    }
+
+    setImportedView('app');
+  }, [canEmbedSource, importedRecipe, open, recipe]);
 
   if (!recipe) return null;
 
@@ -226,7 +237,7 @@ export default function RecipePreviewDialog({
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
-          className={`h-[92vh] p-0 overflow-hidden flex flex-col ${recipe.source_url && importedRecipe ? 'max-w-5xl' : 'max-w-md'}`}
+          className={`h-[92vh] p-0 overflow-hidden flex flex-col ${recipe.source_url && importedRecipe ? 'max-w-5xl' : 'max-w-md'} [&>button[data-tutorial='dialog-close']]:right-3 [&>button[data-tutorial='dialog-close']]:top-3 [&>button[data-tutorial='dialog-close']]:h-9 [&>button[data-tutorial='dialog-close']]:w-9 [&>button[data-tutorial='dialog-close']]:rounded-full [&>button[data-tutorial='dialog-close']]:bg-orange-500 [&>button[data-tutorial='dialog-close']]:text-white [&>button[data-tutorial='dialog-close']]:opacity-100 [&>button[data-tutorial='dialog-close']]:shadow-md [&>button[data-tutorial='dialog-close']]:ring-2 [&>button[data-tutorial='dialog-close']]:ring-white/70 [&>button[data-tutorial='dialog-close']]:ring-offset-0 hover:[&>button[data-tutorial='dialog-close']]:bg-orange-600 hover:[&>button[data-tutorial='dialog-close']]:text-white [&>button[data-tutorial='dialog-close']>svg]:h-4 [&>button[data-tutorial='dialog-close']>svg]:w-4`}
           onOpenAutoFocus={(event) => event.preventDefault()}
           data-tutorial="recipe-dialog-content"
         >
@@ -245,6 +256,33 @@ export default function RecipePreviewDialog({
               >
                 <ChefHat className="h-3 w-3" /> by {chefName}
               </button>
+            )}
+            {importedRecipe && recipe.source_url && (
+              <div className="absolute top-3 right-3 inline-flex items-center rounded-full border border-white/30 bg-black/35 p-1 backdrop-blur-sm">
+                <button
+                  type="button"
+                  onClick={() => setImportedView('web')}
+                  disabled={!canEmbedSource}
+                  className={`px-3 py-1 text-[11px] font-semibold rounded-full transition-colors ${
+                    importedView === 'web'
+                      ? 'bg-white text-stone-900 shadow-sm'
+                      : 'text-white/85'
+                  } ${!canEmbedSource ? 'cursor-not-allowed opacity-50' : ''}`}
+                >
+                  Web
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setImportedView('app')}
+                  className={`px-3 py-1 text-[11px] font-semibold rounded-full transition-colors ${
+                    importedView === 'app'
+                      ? 'bg-white text-stone-900 shadow-sm'
+                      : 'text-white/85'
+                  }`}
+                >
+                  App
+                </button>
+              </div>
             )}
           </div>
 
@@ -270,15 +308,23 @@ export default function RecipePreviewDialog({
               )}
 
               {/* ── Recipe Content ── */}
-              {recipe.source_url && importedRecipe && canEmbedSource ? (
+              {recipe.source_url && importedRecipe && importedView === 'web' && canEmbedSource ? (
                 <div className="space-y-3">
-                  <div className="relative w-full h-[54vh] rounded-xl overflow-hidden border border-stone-200 bg-muted">
-                    <iframe
-                      src={recipe.source_url}
-                      className="w-full h-full border-0 rounded-xl"
-                      title={recipe.name}
-                      sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
-                    />
+                  <div className="relative w-full h-[62vh] sm:h-[68vh] lg:h-[74vh] rounded-xl overflow-hidden border border-stone-200 bg-muted">
+                    <div className="absolute inset-0 overflow-hidden rounded-xl">
+                      <iframe
+                        src={recipe.source_url}
+                        className="border-0 rounded-xl"
+                        title={recipe.name}
+                        sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+                        style={{
+                          width: '128%',
+                          height: '128%',
+                          transform: 'scale(0.78)',
+                          transformOrigin: 'top left',
+                        }}
+                      />
+                    </div>
                     <a
                       href={recipe.source_url}
                       target="_blank"
@@ -288,6 +334,28 @@ export default function RecipePreviewDialog({
                       <ExternalLink size={12} /> Open in Browser
                     </a>
                   </div>
+                  {displayMatch.missing.length > 0 && onAddMissingToGrocery && (
+                    <motion.button
+                      onClick={handleAddMissingToGrocery}
+                      data-tutorial="add-missing-button"
+                      whileTap={{ scale: 0.98 }}
+                      animate={addedToGrocery ? { scale: [1, 1.02, 1] } : { scale: 1 }}
+                      transition={{ duration: 0.3 }}
+                      className={`w-full px-3 py-2 rounded-lg border text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-colors ${
+                        addedToGrocery
+                          ? 'border-emerald-500/60 bg-emerald-500/10 text-emerald-700'
+                          : 'border-border'
+                      }`}
+                    >
+                      <motion.span
+                        animate={addedToGrocery ? { rotate: [0, -12, 12, 0] } : { rotate: 0 }}
+                        transition={{ duration: 0.35 }}
+                      >
+                        {addedToGrocery ? <Check className="h-4 w-4" /> : <ShoppingCart className="h-4 w-4" />}
+                      </motion.span>
+                      {addedToGrocery ? 'Added to grocery list' : `Add ${displayMatch.missing.length} missing ingredients to Grocery List`}
+                    </motion.button>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-6">
