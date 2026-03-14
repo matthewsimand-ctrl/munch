@@ -228,6 +228,16 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
     toast.success(`Removed ${name}`);
   };
 
+  const handleClearAll = () => {
+    if ((pantryItems?.length ?? 0) === 0) return;
+    if (isKitchenMode) {
+      void kitchenPantry.clearAll();
+    } else {
+      (pantryItems ?? []).forEach((item) => removePantryItem(item.id));
+    }
+    toast.success("Cleared pantry");
+  };
+
   const normalizeGeneratedRecipe = (raw: any): Recipe | null => {
     const name = String(raw?.name || "").trim();
     const ingredients = Array.isArray(raw?.ingredients)
@@ -713,6 +723,17 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
             <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
           </div>
         </div>
+
+        {(pantryItems?.length ?? 0) > 0 && (
+          <div className="flex justify-end">
+            <button
+              onClick={handleClearAll}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3.5 py-2 text-xs font-semibold text-stone-500 transition-colors hover:border-red-300 hover:text-red-500"
+            >
+              <Trash2 size={13} /> Clear all
+            </button>
+          </div>
+        )}
 
         {/* Category tabs */}
         <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">

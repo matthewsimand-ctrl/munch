@@ -89,6 +89,13 @@ export function useKitchenPantry(activeKitchenId: string | null) {
     await load();
   }, [load]);
 
+  const clearAll = useCallback(async () => {
+    if (!activeKitchenId) return;
+    const { error } = await supabase.from('kitchen_pantry_items').delete().eq('kitchen_id', activeKitchenId);
+    if (error) throw error;
+    await load();
+  }, [activeKitchenId, load]);
+
   return useMemo(() => ({
     items,
     loading,
@@ -96,5 +103,6 @@ export function useKitchenPantry(activeKitchenId: string | null) {
     addItem,
     updateItem,
     removeItem,
-  }), [items, loading, load, addItem, updateItem, removeItem]);
+    clearAll,
+  }), [items, loading, load, addItem, updateItem, removeItem, clearAll]);
 }

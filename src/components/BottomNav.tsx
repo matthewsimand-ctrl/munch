@@ -23,7 +23,7 @@ export default function BottomNav() {
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/95 backdrop-blur-md safe-area-x"
-      style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 0.35rem)' }}
+      style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 0.1rem)' }}
     >
       <div className="max-w-md mx-auto flex items-center justify-around h-14 px-2">
         {NAV_ITEMS.map(({ path, label, icon: Icon }) => {
