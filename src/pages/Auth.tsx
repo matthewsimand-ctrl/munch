@@ -117,13 +117,23 @@ export default function Auth() {
     const result = isNativeAppPlatform()
       ? await supabase.auth.signInWithOAuth({
           provider: 'google',
-          options: {
-            redirectTo: redirectUri,
-          },
+          options: { redirectTo: redirectUri },
         })
-      : await lovable.auth.signInWithOAuth('google', {
-          redirect_uri: redirectUri,
-        });
+      : await lovable.auth.signInWithOAuth('google', { redirect_uri: redirectUri });
+
+    const error = 'error' in result ? result.error : null;
+    if (error) toast({ title: 'Error', description: String(error), variant: 'destructive' });
+  };
+
+  const handleApple = async () => {
+    const redirectUri = `${window.location.origin}/auth${nextPath !== '/' ? `?next=${encodeURIComponent(nextPath)}` : ''}`;
+
+    const result = isNativeAppPlatform()
+      ? await supabase.auth.signInWithOAuth({
+          provider: 'apple',
+          options: { redirectTo: redirectUri },
+        })
+      : await lovable.auth.signInWithOAuth('apple', { redirect_uri: redirectUri });
 
     const error = 'error' in result ? result.error : null;
     if (error) toast({ title: 'Error', description: String(error), variant: 'destructive' });
