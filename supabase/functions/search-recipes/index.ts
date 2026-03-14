@@ -133,12 +133,21 @@ async function fetchPublicRecipes(query?: string): Promise<NormalizedRecipe[]> {
   if (!supabase) return [];
 
   try {
-    const request = supabase
+    let request = supabase
       .from('recipes')
       .select('id, name, image, cook_time, difficulty, ingredients, tags, instructions, source, source_url, raw_api_payload, cuisine, chef, created_by')
       .eq('is_public', true)
-      .order('created_at', { ascending: false })
-      .limit(query ? 250 : 450);
+      .order('created_at', { ascending: false });
+
+    if (query) {
+      const escapedQuery = query.replace(/[%_,()]/g, ' ').trim();
+      const ilikeQuery = `%${escapedQuery}%`;
+      request = request
+        .or(`name.ilike.${ilikeQuery},cuisine.ilike.${ilikeQuery},chef.ilike.${ilikeQuery},source.ilike.${ilikeQuery}`)
+        .limit(1000);
+    } else {
+      request = request.limit(450);
+    }
 
     const { data, error } = await request;
     if (error) {
@@ -189,12 +198,23 @@ async function fetchCachedExternalRecipes(query?: string): Promise<NormalizedRec
   if (!supabase) return [];
 
   try {
-    const { data, error } = await supabase
+    let request = supabase
       .from('recipe_api_cache')
       .select('name, image, cook_time, difficulty, ingredients, tags, instructions, source, source_url, raw_api_payload, cuisine, external_id')
       .gt('expires_at', new Date().toISOString())
-      .order('updated_at', { ascending: false })
-      .limit(query ? 500 : 800);
+      .order('updated_at', { ascending: false });
+
+    if (query) {
+      const escapedQuery = query.replace(/[%_,()]/g, ' ').trim();
+      const ilikeQuery = `%${escapedQuery}%`;
+      request = request
+        .or(`name.ilike.${ilikeQuery},cuisine.ilike.${ilikeQuery},source.ilike.${ilikeQuery}`)
+        .limit(1000);
+    } else {
+      request = request.limit(800);
+    }
+
+    const { data, error } = await request;
 
     if (error) {
       console.error('External cache read error:', error);
