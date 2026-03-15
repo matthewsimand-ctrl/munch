@@ -222,12 +222,12 @@ export default function KitchensPage() {
   };
 
   return (
-    <div className="min-h-full px-6 py-6" style={{ background: '#FFFAF5' }}>
+    <div className="min-h-full px-4 py-4 sm:px-6 sm:py-6" style={{ background: '#FFFAF5' }}>
       <div className="max-w-5xl mx-auto space-y-6">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1">Collaboration</p>
-            <h1 className="text-2xl font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+            <h1 className="text-xl font-bold text-stone-900 sm:text-2xl" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
               Kitchens
             </h1>
             <p className="text-sm text-stone-500 mt-1">
@@ -235,7 +235,7 @@ export default function KitchensPage() {
             </p>
           </div>
           {activeKitchen && (
-            <div className="rounded-2xl border border-orange-200 bg-white px-4 py-3 text-right">
+            <div className="rounded-2xl border border-orange-200 bg-white px-4 py-3 text-left lg:text-right">
               <p className="text-[10px] font-bold uppercase tracking-widest text-orange-500">Active kitchen</p>
               <p className="text-sm font-semibold text-stone-800 mt-1">{activeKitchen.name}</p>
             </div>

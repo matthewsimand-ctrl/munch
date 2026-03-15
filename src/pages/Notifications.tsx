@@ -45,19 +45,19 @@ export default function NotificationsPage() {
   };
 
   return (
-    <div className="min-h-full px-6 py-6" style={{ background: '#FFFAF5' }}>
+    <div className="min-h-full px-4 py-4 sm:px-6 sm:py-6" style={{ background: '#FFFAF5' }}>
       <div className="max-w-4xl mx-auto space-y-6">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1">Inbox</p>
-            <h1 className="text-2xl font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+            <h1 className="text-xl font-bold text-stone-900 sm:text-2xl" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
               Notifications
             </h1>
             <p className="text-sm text-stone-500 mt-1">
               Kitchen invites and shared activity show up here.
             </p>
           </div>
-          <Button variant="outline" onClick={() => void handleMarkAll()} disabled={unreadCount === 0}>
+          <Button variant="outline" onClick={() => void handleMarkAll()} disabled={unreadCount === 0} className="w-full sm:w-auto">
             <CheckCheck className="h-4 w-4 mr-2" />
             Mark all read
           </Button>

@@ -183,7 +183,7 @@ export default function AppLayout() {
 
       {/* ── Main content ── */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pt-[max(0.35rem,calc(env(safe-area-inset-top)-0.65rem))] pb-[calc(4rem+env(safe-area-inset-bottom))] md:pt-0 md:pb-0">
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pt-[max(0.25rem,calc(env(safe-area-inset-top)-1rem))] pb-[calc(var(--mobile-nav-offset)+0.35rem)] md:pt-0 md:pb-0">
           <div className="app-page">
             <Outlet />
           </div>

@@ -125,7 +125,7 @@ function PantryItemRow({
       </span>
       <button
         onClick={onRemove}
-        className="w-7 h-7 rounded-lg flex items-center justify-center text-stone-200 hover:text-red-400 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+        className="w-7 h-7 rounded-lg flex items-center justify-center text-stone-200 hover:text-red-400 hover:bg-red-50 transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
       >
         <Trash2 size={13} />
       </button>
@@ -436,7 +436,7 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
   };
 
   return (
-    <div className="min-h-full overflow-x-hidden pb-4 md:pb-0" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", background: "#FFFAF5" }}>
+    <div className="min-h-full overflow-x-hidden md:pb-0" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", background: "#FFFAF5" }}>
 
       {/* Header */}
       <div
@@ -548,7 +548,7 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
       />
 
       <Dialog open={scanDialogOpen} onOpenChange={setScanDialogOpen}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="w-[calc(100vw-1rem)] max-w-sm max-h-[calc(100dvh-1rem)] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Scan your fridge</DialogTitle>
           </DialogHeader>
@@ -596,7 +596,7 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
       />
 
       <Dialog open={cleanupPromptOpen} onOpenChange={setCleanupPromptOpen}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="w-[calc(100vw-1rem)] max-w-sm max-h-[calc(100dvh-1rem)] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Fridge Cleanup</DialogTitle>
           </DialogHeader>
@@ -637,7 +637,7 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
         </DialogContent>
       </Dialog>
 
-      <div className={`max-w-4xl mx-auto px-4 sm:px-6 ${embedded ? "pt-3" : "py-5"} space-y-5 pb-8`}>
+      <div className={`max-w-4xl mx-auto px-4 sm:px-6 ${embedded ? "pt-3" : "py-4 sm:py-5"} space-y-5 pb-6 sm:pb-8`}>
 
         {/* Add form */}
         {!embedded && (
@@ -666,14 +666,14 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
                 onChange={(e) => setNewQty(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleAdd()}
                 placeholder="Quantity (optional)"
-                className="w-40 px-4 py-2.5 rounded-xl border text-base text-stone-700 placeholder:text-stone-300 outline-none focus:border-orange-300 transition-colors"
+                className="w-full px-4 py-2.5 rounded-xl border text-base text-stone-700 placeholder:text-stone-300 outline-none focus:border-orange-300 transition-colors sm:w-40"
                 style={{ borderColor: "rgba(0,0,0,0.09)" }}
               />
-              <div className="relative">
+              <div className="relative w-full sm:w-auto">
                 <select
                   value={newCategory}
                   onChange={(e) => setNewCategory(e.target.value)}
-                  className="appearance-none pl-3 pr-8 py-2.5 rounded-xl border text-base font-medium text-stone-600 outline-none cursor-pointer"
+                  className="w-full appearance-none pl-3 pr-8 py-2.5 rounded-xl border text-base font-medium text-stone-600 outline-none cursor-pointer"
                   style={{ background: "#fff", borderColor: "rgba(0,0,0,0.09)" }}
                 >
                   {CATEGORIES.filter((c) => c !== "All").map((c) => <option key={c}>{c}</option>)}
@@ -684,7 +684,7 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
                 onClick={handleAdd}
                 data-tutorial="pantry-add-btn"
                 disabled={!newItem.trim()}
-                className="w-10 h-10 rounded-xl text-lg font-bold text-white disabled:opacity-40 transition-all hover:opacity-90 active:scale-95"
+                className="h-11 w-full rounded-xl text-lg font-bold text-white disabled:opacity-40 transition-all hover:opacity-90 active:scale-95 sm:h-10 sm:w-10"
                 style={{ background: "linear-gradient(135deg,#FB923C,#F97316)", boxShadow: "0 2px 8px rgba(249,115,22,0.25)" }}
               >
                 +
@@ -834,7 +834,7 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
       </div>
 
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="w-[calc(100vw-1rem)] max-w-sm max-h-[calc(100dvh-1rem)] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add pantry item</DialogTitle>
           </DialogHeader>
@@ -894,7 +894,7 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
         <button
           type="button"
           onClick={() => setAddDialogOpen(true)}
-          className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] right-4 z-40 inline-flex h-14 items-center gap-2 rounded-full bg-orange-500 px-4 text-sm font-semibold text-white shadow-lg shadow-orange-500/30"
+          className="fixed bottom-[calc(var(--mobile-nav-offset)+0.75rem)] right-4 z-40 inline-flex h-14 items-center gap-2 rounded-full bg-orange-500 px-4 text-sm font-semibold text-white shadow-lg shadow-orange-500/30"
         >
           <Plus size={18} /> Add Item
         </button>

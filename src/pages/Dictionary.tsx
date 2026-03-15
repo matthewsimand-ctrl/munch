@@ -455,9 +455,9 @@ export default function DictionaryScreen() {
           className="absolute inset-0 opacity-20"
           style={{ backgroundImage: "radial-gradient(circle, #FDA97440 1px, transparent 1px)", backgroundSize: "20px 20px" }}
         />
-        <div className="relative max-w-4xl mx-auto px-6 py-6">
+        <div className="relative max-w-4xl mx-auto px-4 py-4 sm:px-6 sm:py-6">
           <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1">Reference</p>
-          <h1 className="text-2xl font-bold text-stone-900 mb-1" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+          <h1 className="mb-1 text-xl font-bold text-stone-900 sm:text-2xl" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
             Cooking Dictionary
           </h1>
           <p className="text-xs text-stone-400">{TERMS.length} terms across {CATEGORIES.length - 1} categories</p>
@@ -481,7 +481,7 @@ export default function DictionaryScreen() {
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-6 py-5 space-y-5">
+      <div className="max-w-4xl mx-auto space-y-5 px-4 py-4 sm:px-6 sm:py-5">
 
         {/* Filters */}
         <div className="space-y-3">

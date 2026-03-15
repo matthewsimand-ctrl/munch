@@ -87,7 +87,7 @@ export default function CookbookDetails() {
 
   if (!cookbook) {
     return (
-      <div className="min-h-full px-6 py-6" style={{ background: "#FFFAF5" }}>
+      <div className="min-h-full px-4 py-4 sm:px-6 sm:py-6" style={{ background: "#FFFAF5" }}>
         <div className="max-w-4xl mx-auto rounded-2xl border border-stone-200 bg-white p-6">
           <p className="text-sm text-stone-500 mb-3">Cookbook not found.</p>
           <button
@@ -102,19 +102,19 @@ export default function CookbookDetails() {
   }
 
   return (
-    <div className="min-h-full px-6 py-6" style={{ background: "#FFFAF5" }}>
+    <div className="min-h-full px-4 py-4 sm:px-6 sm:py-6" style={{ background: "#FFFAF5" }}>
       <div className="max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
+        <div className="mb-5 flex flex-col gap-3 sm:mb-6 lg:flex-row lg:items-center lg:justify-between">
           <button
             onClick={() => navigate("/cookbooks")}
-            className="px-3 py-2 rounded-xl text-xs font-semibold bg-white border border-stone-200 text-stone-600 inline-flex items-center gap-1"
+            className="inline-flex items-center gap-1 rounded-xl border border-stone-200 bg-white px-3 py-2 text-[11px] font-semibold text-stone-600 sm:w-fit sm:text-xs"
           >
             <ArrowLeft size={12} /> Back to Cookbooks
           </button>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setShowAddRecipes((prev) => !prev)}
-              className="px-3 py-2 rounded-xl text-xs font-semibold bg-orange-500 text-white inline-flex items-center gap-1"
+              className="inline-flex min-w-0 flex-1 items-center justify-center gap-1 rounded-xl bg-orange-500 px-3 py-2 text-[11px] font-semibold text-white sm:flex-none sm:text-xs"
             >
               <Plus size={12} /> {showAddRecipes ? "Done" : "Add Recipes"}
             </button>
@@ -130,7 +130,7 @@ export default function CookbookDetails() {
 
         <div className="rounded-2xl bg-white border border-stone-200 overflow-hidden">
           <div className="p-4 border-b border-stone-100">
-            <h1 className="text-2xl font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+            <h1 className="text-xl font-bold text-stone-900 sm:text-2xl" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
               {cookbook.name}
             </h1>
             <p className="text-xs text-stone-400 mt-1">{recipes.length} recipe{recipes.length !== 1 ? "s" : ""}</p>
@@ -177,7 +177,7 @@ export default function CookbookDetails() {
           {recipes.length === 0 ? (
             <div className="p-6 text-sm text-stone-500">No recipes in this cookbook yet.</div>
           ) : view === "grid" ? (
-            <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 p-4 min-[420px]:grid-cols-2 lg:grid-cols-3">
               {recipes.map((recipe) => {
                 const rating = recipeRatings?.[recipe.id];
                 const nutrition = cachedNutrition?.[recipe.id];

@@ -48,19 +48,19 @@ export default function Cookbooks() {
   };
 
   return (
-    <div className="min-h-full px-6 py-6" style={{ background: "#FFFAF5" }}>
+    <div className="min-h-full px-4 py-4 sm:px-6 sm:py-6" style={{ background: "#FFFAF5" }}>
       <div className="max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
+        <div className="mb-5 flex flex-col gap-4 sm:mb-6 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1">Your collection</p>
-            <h1 className="text-2xl font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>Cookbooks</h1>
+            <h1 className="text-xl font-bold text-stone-900 sm:text-2xl" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>Cookbooks</h1>
           </div>
-          <div className="flex items-center gap-2 w-full justify-end">
-            <button onClick={() => navigate('/saved')} className="px-3 py-2 rounded-xl text-xs font-semibold bg-white border border-stone-200 text-stone-600">My Recipes</button>
-            <button className="px-3 py-2 rounded-xl text-xs font-semibold bg-orange-500 text-white">Cookbooks</button>
+          <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:justify-end">
+            <button onClick={() => navigate('/saved')} className="min-w-0 flex-1 rounded-xl border border-stone-200 bg-white px-3 py-2 text-[11px] font-semibold text-stone-600 sm:flex-none sm:text-xs">Recipes</button>
+            <button className="min-w-0 flex-1 rounded-xl bg-orange-500 px-3 py-2 text-[11px] font-semibold text-white sm:flex-none sm:text-xs">Cookbooks</button>
             <button
               onClick={() => setShowNewCookbook((prev) => !prev)}
-              className="px-3 py-2 rounded-xl text-xs font-semibold bg-white border border-stone-200 text-stone-600 inline-flex items-center gap-1"
+              className="min-w-0 flex-1 rounded-xl border border-stone-200 bg-white px-3 py-2 text-[11px] font-semibold text-stone-600 inline-flex items-center justify-center gap-1 sm:flex-none sm:justify-start sm:text-xs"
             >
               <FolderPlus size={12} /> Add Cookbook
             </button>
@@ -75,7 +75,7 @@ export default function Cookbooks() {
         </div>
 
         {recipeFolders.length === 0 ? (
-          <div className="rounded-2xl bg-white border border-dashed border-orange-200 p-8 text-center">
+          <div className="rounded-2xl bg-white border border-dashed border-orange-200 p-6 text-center sm:p-8">
             <div className="w-14 h-14 mx-auto rounded-2xl bg-orange-50 flex items-center justify-center text-orange-400 mb-3">
               <BookOpen />
             </div>
@@ -148,12 +148,12 @@ export default function Cookbooks() {
       </div>
 
       <Dialog open={showNewCookbook} onOpenChange={setShowNewCookbook}>
-        <DialogContent className="max-w-2xl p-0 overflow-hidden">
-          <DialogHeader className="px-6 pt-6">
+        <DialogContent className="w-[calc(100vw-1rem)] max-w-2xl max-h-[calc(100dvh-1rem)] p-0 overflow-hidden">
+          <DialogHeader className="px-4 pt-4 sm:px-6 sm:pt-6">
             <DialogTitle>Create a Cookbook</DialogTitle>
           </DialogHeader>
 
-          <div className="px-6 pb-6 space-y-5">
+          <div className="px-4 pb-4 space-y-5 sm:px-6 sm:pb-6">
             <div className="rounded-3xl border border-orange-100 bg-gradient-to-br from-orange-50 via-white to-amber-50 p-5">
               <div className="flex flex-col gap-4 md:flex-row md:items-start">
                 <div className="flex-1 space-y-3">

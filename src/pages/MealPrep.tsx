@@ -667,11 +667,11 @@ export default function MealPrepScreen() {
         className="border-b"
         style={{ background: "linear-gradient(135deg,#FFF7ED 0%,#FFFAF5 100%)", borderColor: "rgba(249,115,22,0.12)" }}
       >
-        <div className="max-w-6xl mx-auto px-6 py-6">
-          <div className="flex items-start justify-between mb-4">
+        <div className="max-w-6xl mx-auto px-4 py-4 sm:px-6 sm:py-6">
+          <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1">Planning</p>
-              <h1 className="text-2xl font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+              <h1 className="text-xl font-bold text-stone-900 sm:text-2xl" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
                 Meal Planner
               </h1>
               {isKitchenMode && (
@@ -679,7 +679,7 @@ export default function MealPrepScreen() {
               )}
               <p className="text-xs text-stone-400 mt-1">{plannedCount} of {totalSlots} slots filled</p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={() => setShowExportModal(true)}
                 className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-stone-200 text-sm font-semibold text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
@@ -736,7 +736,7 @@ export default function MealPrepScreen() {
       </div>
 
       {/* Planner grid */}
-      <div className="max-w-6xl mx-auto px-6 py-6">
+      <div className="max-w-6xl mx-auto px-4 py-4 sm:px-6 sm:py-6">
         <div className="grid grid-cols-7 gap-3">
           {/* Day headers */}
           {DAYS.map((day) => {

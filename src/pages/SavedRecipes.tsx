@@ -308,36 +308,36 @@ export default function MyRecipesScreen() {
 
       {/* Header */}
       <div
-        className="border-b px-6 pt-6 pb-0"
+        className="border-b px-4 pt-4 pb-0 sm:px-6 sm:pt-6"
         style={{ background: "linear-gradient(135deg,#FFF7ED 0%,#FFFAF5 100%)", borderColor: "rgba(249,115,22,0.12)" }}
       >
         <div className="max-w-6xl mx-auto">
-          <div className="flex items-start justify-between mb-5">
+          <div className="mb-4 flex flex-col gap-4 sm:mb-5 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1">Your collection</p>
-              <h1 className="text-2xl font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+              <h1 className="text-xl font-bold text-stone-900 sm:text-2xl" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
                 {displayName ? `${displayName}'s Recipes` : "My Recipes"}
               </h1>
               <p className="text-xs text-stone-400 mt-1">{savedRecipes.length} saved recipe{savedRecipes.length !== 1 ? "s" : ""}</p>
             </div>
-            <div className="flex items-center gap-2" data-tutorial="recipes-nav">
+            <div className="flex flex-wrap items-center gap-2" data-tutorial="recipes-nav">
               <button
                 onClick={() => navigate("/saved")}
                 data-tutorial="my-recipes-page-tab"
-                className={`px-3 py-2 rounded-xl text-xs font-semibold ${activeTab === "mine" ? "bg-orange-500 text-white" : "bg-white border border-stone-200 text-stone-600"}`}
+                className={`min-w-0 flex-1 px-3 py-2 rounded-xl text-[11px] font-semibold sm:flex-none sm:text-xs ${activeTab === "mine" ? "bg-orange-500 text-white" : "bg-white border border-stone-200 text-stone-600"}`}
               >
-                My Recipes
+                Recipes
               </button>
               <button
                 onClick={() => navigate("/cookbooks")}
                 data-tutorial="cookbooks-tab"
-                className={`px-3 py-2 rounded-xl text-xs font-semibold ${activeTab === "cookbooks" ? "bg-orange-500 text-white" : "bg-white border border-stone-200 text-stone-600"}`}
+                className={`min-w-0 flex-1 px-3 py-2 rounded-xl text-[11px] font-semibold sm:flex-none sm:text-xs ${activeTab === "cookbooks" ? "bg-orange-500 text-white" : "bg-white border border-stone-200 text-stone-600"}`}
               >
                 Cookbooks
               </button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="px-3 py-2 rounded-xl bg-white border border-stone-200 text-xs font-semibold text-stone-600 hover:border-orange-300 inline-flex items-center gap-1.5">
+                  <button className="min-w-0 flex-1 px-3 py-2 rounded-xl bg-white border border-stone-200 text-[11px] font-semibold text-stone-600 hover:border-orange-300 inline-flex items-center justify-center gap-1.5 sm:flex-none sm:justify-start sm:text-xs">
                     <Plus size={12} /> Add Recipes
                   </button>
                 </DropdownMenuTrigger>
@@ -373,7 +373,7 @@ export default function MyRecipesScreen() {
               </DropdownMenu>
               <button
                 onClick={() => setView(view === "grid" ? "list" : "grid")}
-                className="w-9 h-9 rounded-xl bg-white border border-stone-200 flex items-center justify-center text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors ml-1"
+                className="h-9 w-9 rounded-xl bg-white border border-stone-200 flex items-center justify-center text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
                 aria-label="Toggle saved recipe layout"
               >
                 {view === "grid" ? <List size={16} /> : <Grid3X3 size={16} />}
@@ -412,8 +412,8 @@ export default function MyRecipesScreen() {
       </div>
 
       {/* Controls */}
-      <div className="max-w-6xl mx-auto px-6 py-4">
-        <div className="flex items-center gap-3 mb-4">
+      <div className="max-w-6xl mx-auto px-4 py-4 sm:px-6">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
           {/* Search */}
           <div className="flex-1 relative">
             <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-300" />
@@ -432,11 +432,11 @@ export default function MyRecipesScreen() {
           </div>
 
           {/* Sort */}
-          <div className="relative">
+          <div className="relative sm:w-auto">
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="appearance-none pl-3 pr-8 py-2.5 rounded-xl border text-xs font-semibold text-stone-600 outline-none cursor-pointer"
+              className="w-full appearance-none pl-3 pr-8 py-2.5 rounded-xl border text-xs font-semibold text-stone-600 outline-none cursor-pointer sm:w-auto"
               style={{ background: "#fff", borderColor: "rgba(0,0,0,0.09)" }}
             >
               {SORT_OPTIONS.map((o) => <option key={o}>{o}</option>)}
@@ -465,7 +465,7 @@ export default function MyRecipesScreen() {
       </div>
 
       {/* Content */}
-      <div className="max-w-6xl mx-auto px-6 pb-10">
+      <div className="max-w-6xl mx-auto px-4 pb-6 sm:px-6 sm:pb-10">
         {savedRecipes.length === 0 ? (
           <div className="py-20 flex flex-col items-center gap-4 text-center">
             <div className="w-20 h-20 rounded-2xl bg-orange-50 flex items-center justify-center text-4xl">📖</div>
@@ -489,7 +489,7 @@ export default function MyRecipesScreen() {
           </div>
         ) : (
           <AnimatePresence>
-            <div className={view === "grid" ? "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5" : "space-y-1"}>
+            <div className={view === "grid" ? "grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 sm:gap-5" : "space-y-1"}>
               {filtered.map((recipe, index) => (
                 <RecipeCard
                   key={recipe.id}
@@ -531,7 +531,7 @@ export default function MyRecipesScreen() {
       />
 
       <Dialog open={showManualRecipeDialog} onOpenChange={setShowManualRecipeDialog}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[calc(100vw-1rem)] max-w-2xl max-h-[calc(100dvh-1rem)] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add Manual Recipe</DialogTitle>
           </DialogHeader>
@@ -540,7 +540,7 @@ export default function MyRecipesScreen() {
       </Dialog>
 
       <Dialog open={!!recipeToDelete} onOpenChange={(open) => !open && setRecipeToDelete(null)}>
-        <DialogContent className="max-w-xs p-6 rounded-2xl">
+        <DialogContent className="w-[calc(100vw-1.5rem)] max-w-xs p-6 rounded-2xl">
           <div className="flex flex-col items-center text-center gap-4">
             <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center text-red-500 mb-2">
               <Trash2 size={24} />

@@ -137,6 +137,11 @@ export default function RecipePreviewDialog({
       return '';
     }
   }, [importedPreview.sourceUrl, recipe?.source_url]);
+  const dialogSizeClass = expanded
+    ? 'h-[calc(100dvh-0.75rem)] w-[calc(100vw-0.75rem)] max-w-[calc(100vw-0.75rem)] sm:h-[96vh] sm:w-[96vw] sm:max-w-[96vw]'
+    : `h-[calc(100dvh-0.75rem)] max-h-[calc(100dvh-0.75rem)] w-[calc(100vw-0.75rem)] max-w-[calc(100vw-0.75rem)] sm:h-[92vh] ${
+        recipe.source_url && importedRecipe ? 'sm:max-w-5xl' : 'sm:max-w-md'
+      }`;
 
   useEffect(() => {
     if (!open || !recipe || !importedRecipe || !recipe.source_url || !embedBlockReason) return;
@@ -247,14 +252,14 @@ export default function RecipePreviewDialog({
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
-          className={`${expanded ? 'h-[96vh] w-[96vw] max-w-[96vw]' : 'h-[92vh]'} p-0 overflow-hidden flex flex-col ${recipe.source_url && importedRecipe ? (expanded ? '' : 'max-w-5xl') : (expanded ? '' : 'max-w-md')} [&>button[data-tutorial='dialog-close']]:right-3 [&>button[data-tutorial='dialog-close']]:top-3 [&>button[data-tutorial='dialog-close']]:h-9 [&>button[data-tutorial='dialog-close']]:w-9 [&>button[data-tutorial='dialog-close']]:p-0 [&>button[data-tutorial='dialog-close']]:inline-flex [&>button[data-tutorial='dialog-close']]:items-center [&>button[data-tutorial='dialog-close']]:justify-center [&>button[data-tutorial='dialog-close']]:rounded-full [&>button[data-tutorial='dialog-close']]:bg-orange-500 [&>button[data-tutorial='dialog-close']]:text-white [&>button[data-tutorial='dialog-close']]:opacity-100 [&>button[data-tutorial='dialog-close']]:shadow-md [&>button[data-tutorial='dialog-close']]:ring-2 [&>button[data-tutorial='dialog-close']]:ring-white/70 [&>button[data-tutorial='dialog-close']]:ring-offset-0 hover:[&>button[data-tutorial='dialog-close']]:bg-orange-600 hover:[&>button[data-tutorial='dialog-close']]:text-white [&>button[data-tutorial='dialog-close']>svg]:h-4 [&>button[data-tutorial='dialog-close']>svg]:w-4`}
+          className={`${dialogSizeClass} rounded-[1.5rem] p-0 overflow-hidden flex flex-col sm:rounded-2xl [&>button[data-tutorial='dialog-close']]:right-2.5 [&>button[data-tutorial='dialog-close']]:top-2.5 sm:[&>button[data-tutorial='dialog-close']]:right-3 sm:[&>button[data-tutorial='dialog-close']]:top-3 [&>button[data-tutorial='dialog-close']]:h-8 [&>button[data-tutorial='dialog-close']]:w-8 sm:[&>button[data-tutorial='dialog-close']]:h-9 sm:[&>button[data-tutorial='dialog-close']]:w-9 [&>button[data-tutorial='dialog-close']]:p-0 [&>button[data-tutorial='dialog-close']]:inline-flex [&>button[data-tutorial='dialog-close']]:items-center [&>button[data-tutorial='dialog-close']]:justify-center [&>button[data-tutorial='dialog-close']]:rounded-full [&>button[data-tutorial='dialog-close']]:bg-orange-500 [&>button[data-tutorial='dialog-close']]:text-white [&>button[data-tutorial='dialog-close']]:opacity-100 [&>button[data-tutorial='dialog-close']]:shadow-md [&>button[data-tutorial='dialog-close']]:ring-2 [&>button[data-tutorial='dialog-close']]:ring-white/70 [&>button[data-tutorial='dialog-close']]:ring-offset-0 hover:[&>button[data-tutorial='dialog-close']]:bg-orange-600 hover:[&>button[data-tutorial='dialog-close']]:text-white [&>button[data-tutorial='dialog-close']>svg]:h-4 [&>button[data-tutorial='dialog-close']>svg]:w-4`}
           onOpenAutoFocus={(event) => event.preventDefault()}
           data-tutorial="recipe-dialog-content"
         >
-          <div className={`relative overflow-hidden ${expanded ? 'h-40 sm:h-48' : recipe.source_url && importedRecipe ? 'h-32 sm:h-36' : 'h-48'}`}>
+          <div className={`relative overflow-hidden ${expanded ? 'h-32 sm:h-40 md:h-48' : recipe.source_url && importedRecipe ? 'h-28 sm:h-32 md:h-36' : 'h-36 sm:h-40 md:h-48'}`}>
             <img src={recipe.image} alt={recipe.name} className="w-full h-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-background/90 to-transparent" />
-            <div className="absolute bottom-3 left-4 right-4">
+            <div className="absolute bottom-3 left-4 right-16 sm:right-4">
               <DialogHeader data-tutorial="recipe-dialog-header">
                 <DialogTitle className="text-xl text-foreground">{recipe.name}</DialogTitle>
               </DialogHeader>
@@ -270,18 +275,18 @@ export default function RecipePreviewDialog({
             <button
               type="button"
               onClick={() => setExpanded((value) => !value)}
-              className={`absolute top-3 ${importedRecipe && recipe.source_url ? 'right-[7.25rem]' : 'right-14'} inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/30 bg-black/35 text-white shadow-sm backdrop-blur-sm transition-colors hover:bg-black/50`}
+              className={`absolute top-2.5 ${importedRecipe && recipe.source_url ? 'right-[6.25rem] sm:right-[7.25rem]' : 'right-12 sm:right-14'} inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/30 bg-black/35 text-white shadow-sm backdrop-blur-sm transition-colors hover:bg-black/50 sm:h-9 sm:w-9`}
               aria-label={expanded ? 'Collapse recipe preview' : 'Expand recipe preview'}
             >
               {expanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
             </button>
             {importedRecipe && recipe.source_url && (
-              <div className="absolute top-3 right-14 inline-flex items-center rounded-full border border-white/30 bg-black/35 p-1 backdrop-blur-sm">
+              <div className="absolute top-2.5 right-11 inline-flex items-center rounded-full border border-white/30 bg-black/35 p-1 backdrop-blur-sm sm:top-3 sm:right-14">
                 <button
                   type="button"
                   onClick={() => setImportedView('web')}
                   disabled={!canEmbedSource}
-                  className={`px-3 py-1 text-[11px] font-semibold rounded-full transition-colors ${
+                  className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors sm:px-3 sm:text-[11px] ${
                     importedView === 'web'
                       ? 'bg-white text-stone-900 shadow-sm'
                       : 'text-white/85'
@@ -292,7 +297,7 @@ export default function RecipePreviewDialog({
                 <button
                   type="button"
                   onClick={() => setImportedView('app')}
-                  className={`px-3 py-1 text-[11px] font-semibold rounded-full transition-colors ${
+                  className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors sm:px-3 sm:text-[11px] ${
                     importedView === 'app'
                       ? 'bg-white text-stone-900 shadow-sm'
                       : 'text-white/85'
@@ -304,7 +309,7 @@ export default function RecipePreviewDialog({
             )}
           </div>
 
-          <ScrollArea className="flex-1 min-h-0 px-4 pb-4">
+          <ScrollArea className="flex-1 min-h-0 px-4 pb-3 sm:px-5 sm:pb-4">
             <div className="space-y-4">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="secondary" className="gap-1"><Clock className="h-3 w-3" /> {recipe.cook_time}</Badge>
@@ -328,7 +333,7 @@ export default function RecipePreviewDialog({
               {/* ── Recipe Content ── */}
               {recipe.source_url && importedRecipe && importedView === 'web' && canEmbedSource ? (
                 <div className="space-y-3">
-                  <div className={`relative w-full ${expanded ? 'h-[72vh] sm:h-[76vh]' : 'h-[62vh] sm:h-[68vh] lg:h-[74vh]'} rounded-xl overflow-hidden border border-stone-200 bg-muted`}>
+                  <div className={`relative w-full ${expanded ? 'h-[60dvh] sm:h-[72vh] lg:h-[76vh]' : 'h-[52dvh] sm:h-[62vh] lg:h-[74vh]'} rounded-xl overflow-hidden border border-stone-200 bg-muted`}>
                     <div className="absolute inset-0 overflow-hidden rounded-xl">
                       <iframe
                         src={recipe.source_url}
@@ -511,8 +516,8 @@ export default function RecipePreviewDialog({
             </div>
           </ScrollArea>
 
-          <div className="px-4 pb-3 pt-2 border-t bg-background/96 backdrop-blur-sm">
-            <div className="flex items-center gap-2">
+          <div className="border-t bg-background/96 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-sm sm:px-4 sm:pb-3">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={handleShareRecipe}
                 className="h-9 w-9 shrink-0 rounded-lg border text-muted-foreground inline-flex items-center justify-center hover:text-foreground transition-colors"
@@ -542,7 +547,7 @@ export default function RecipePreviewDialog({
                   <button
                     onClick={() => navigate(`/cook/${recipe.id}`, { state: { portionFactor } })}
                     data-tutorial="start-cooking-button"
-                    className="h-9 flex-1 min-w-0 px-3 rounded-lg bg-primary text-primary-foreground text-sm font-semibold inline-flex items-center justify-center gap-1.5"
+                    className="h-9 min-w-0 flex-1 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground inline-flex items-center justify-center gap-1.5 basis-[12rem]"
                   >
                     <Play className="h-4 w-4" /> Start Cooking
                   </button>
@@ -555,7 +560,7 @@ export default function RecipePreviewDialog({
                       onOpenChange(false);
                     }}
                     data-tutorial="like-button"
-                    className="h-9 flex-1 min-w-0 px-3 rounded-lg bg-primary text-primary-foreground text-sm font-semibold inline-flex items-center justify-center gap-1.5"
+                    className="h-9 min-w-0 flex-1 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground inline-flex items-center justify-center gap-1.5 basis-[10rem]"
                   >
                     <Heart className="h-4 w-4" /> Save
                   </button>

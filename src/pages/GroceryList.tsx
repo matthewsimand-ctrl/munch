@@ -517,11 +517,11 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
         className={`${embedded ? "hidden sm:block" : ""} border-b`}
         style={{ background: "linear-gradient(135deg,#FFF7ED 0%,#FFFAF5 100%)", borderColor: "rgba(249,115,22,0.12)" }}
       >
-        <div className="max-w-3xl mx-auto px-6 py-6">
-          <div className="flex items-start justify-between mb-4">
+        <div className="max-w-3xl mx-auto px-4 py-4 sm:px-6 sm:py-6">
+          <div className="mb-4 flex flex-col gap-4">
             <div>
               <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1">Shopping</p>
-              <h1 className="text-2xl font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+              <h1 className="text-xl font-bold text-stone-900 sm:text-2xl" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
                 Grocery List
               </h1>
               {isKitchenMode && (
@@ -533,11 +533,11 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
                 </p>
               )}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {checkedCount > 0 && (
                 <button
                   onClick={handleClearChecked}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-stone-200 text-xs font-semibold text-stone-500 hover:border-red-300 hover:text-red-500 transition-colors"
+                  className="flex items-center gap-1.5 rounded-xl bg-white border border-stone-200 px-3.5 py-2 text-[11px] font-semibold text-stone-500 hover:border-red-300 hover:text-red-500 transition-colors sm:text-xs"
                 >
                   <Trash2 size={13} /> Clear done
                 </button>
@@ -545,7 +545,7 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
               {totalCount > 0 && (
                 <button
                   onClick={handleEstimatePrice}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-stone-200 text-xs font-semibold text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
+                  className="flex items-center gap-1.5 rounded-xl bg-white border border-stone-200 px-3.5 py-2 text-[11px] font-semibold text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors sm:text-xs"
                   disabled={estimating}
                 >
                   <Sparkles size={13} /> {estimating ? "Estimating..." : "AI estimate"}
@@ -553,14 +553,14 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
               )}
               <button
                 onClick={() => setImportDialogOpen(true)}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-stone-200 text-xs font-semibold text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
+                className="flex items-center gap-1.5 rounded-xl bg-white border border-stone-200 px-3.5 py-2 text-[11px] font-semibold text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors sm:text-xs"
               >
                 <Upload size={13} /> Import note
               </button>
               {totalCount > 0 && (
                 <button
                   onClick={handleClearAll}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-stone-200 text-xs font-semibold text-stone-500 hover:border-red-300 hover:text-red-500 transition-colors"
+                  className="flex items-center gap-1.5 rounded-xl bg-white border border-stone-200 px-3.5 py-2 text-[11px] font-semibold text-stone-500 hover:border-red-300 hover:text-red-500 transition-colors sm:text-xs"
                 >
                   <Trash2 size={13} /> Clear all
                 </button>
@@ -594,7 +594,7 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
         </div>
       </div>
 
-      <div className={`max-w-3xl mx-auto ${embedded ? "px-4 pt-3" : "px-6 py-5"} space-y-5 pb-8`}>
+      <div className={`max-w-3xl mx-auto ${embedded ? "px-4 pt-3" : "px-4 py-4 sm:px-6 sm:py-5"} space-y-5 pb-6 sm:pb-8`}>
 
         {/* Add item form */}
         {!embedded && (
@@ -603,7 +603,7 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
             style={{ background: "#fff", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.04)" }}
           >
             <p className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-3">Add item</p>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <div className="relative flex-1">
                 <ShoppingCart size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-300" />
                 <input
@@ -624,14 +624,14 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
                 onChange={(e) => setNewQty(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleAdd()}
                 placeholder="Qty"
-                className="w-20 px-3 py-2.5 rounded-xl border text-base sm:text-sm text-stone-700 placeholder:text-stone-300 outline-none focus:border-orange-300 transition-colors"
+                className="w-full px-3 py-2.5 rounded-xl border text-base sm:w-24 sm:text-sm text-stone-700 placeholder:text-stone-300 outline-none focus:border-orange-300 transition-colors"
                 style={{ borderColor: "rgba(0,0,0,0.09)" }}
               />
-              <div className="relative">
+              <div className="relative sm:w-[12rem]">
                 <select
                   value={newSection}
                   onChange={(e) => setNewSection(e.target.value)}
-                  className="appearance-none pl-3 pr-8 py-2.5 rounded-xl border text-xs font-medium text-stone-600 outline-none cursor-pointer h-full"
+                  className="h-full w-full appearance-none pl-3 pr-8 py-2.5 rounded-xl border text-sm font-medium text-stone-600 outline-none cursor-pointer sm:text-xs"
                   style={{ background: "#fff", borderColor: "rgba(0,0,0,0.09)" }}
                 >
                   {Object.entries(STORE_SECTIONS).map(([val, label]) => (
@@ -643,7 +643,7 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
               <button
                 onClick={handleAdd}
                 disabled={!newItem.trim()}
-                className="px-4 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-40 transition-all hover:opacity-90 active:scale-95"
+                className="flex h-11 w-full items-center justify-center rounded-xl px-4 py-2.5 text-sm font-bold text-white disabled:opacity-40 transition-all hover:opacity-90 active:scale-95 sm:h-auto sm:w-auto"
                 style={{ background: "linear-gradient(135deg,#FB923C,#F97316)", boxShadow: "0 2px 8px rgba(249,115,22,0.25)" }}
               >
                 <Plus size={16} />
@@ -803,7 +803,7 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
       </div>
 
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="w-[calc(100vw-1rem)] max-w-lg max-h-[calc(100dvh-1rem)] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Import grocery note</DialogTitle>
           </DialogHeader>
@@ -839,7 +839,7 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
       </Dialog>
 
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="w-[calc(100vw-1rem)] max-w-sm max-h-[calc(100dvh-1rem)] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add grocery item</DialogTitle>
           </DialogHeader>
@@ -907,7 +907,7 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
         <button
           type="button"
           onClick={() => setAddDialogOpen(true)}
-          className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] right-4 z-40 inline-flex h-14 items-center gap-2 rounded-full bg-orange-500 px-4 text-sm font-semibold text-white shadow-lg shadow-orange-500/30"
+          className="fixed bottom-[calc(var(--mobile-nav-offset)+0.75rem)] right-4 z-40 inline-flex h-14 items-center gap-2 rounded-full bg-orange-500 px-4 text-sm font-semibold text-white shadow-lg shadow-orange-500/30"
         >
           <Plus size={18} /> Add Item
         </button>

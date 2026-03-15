@@ -850,11 +850,11 @@ export default function SwipeScreen() {
       />
 
       <Dialog open={filtersOpen} onOpenChange={setFiltersOpen}>
-        <DialogContent className="max-w-lg overflow-hidden p-0">
+        <DialogContent className="w-[calc(100vw-1rem)] max-w-lg max-h-[calc(100dvh-1rem)] overflow-hidden p-0">
           <DialogHeader>
-            <DialogTitle className="px-6 pt-6">Discover Filters</DialogTitle>
+            <DialogTitle className="px-4 pt-4 sm:px-6 sm:pt-6">Discover Filters</DialogTitle>
           </DialogHeader>
-          <div className="max-h-[65vh] space-y-5 overflow-y-auto px-6 pb-6 pr-4">
+          <div className="max-h-[65vh] space-y-5 overflow-y-auto px-4 pb-4 pr-2 sm:px-6 sm:pb-6 sm:pr-4">
             <section className="space-y-3 rounded-2xl border border-stone-200 bg-white p-4">
               <div>
                 <p className="text-sm font-semibold text-stone-800">Meal type</p>

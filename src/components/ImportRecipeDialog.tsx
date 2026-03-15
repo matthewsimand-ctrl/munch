@@ -1050,8 +1050,8 @@ export default function ImportRecipeDialog({
       {children ? (
         <DialogTrigger asChild>{children}</DialogTrigger>
       ) : null}
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-hidden flex flex-col p-0">
-        <DialogHeader className="px-6 pt-6 pb-2">
+      <DialogContent className="flex max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-lg flex-col overflow-hidden p-0">
+        <DialogHeader className="px-4 pt-4 pb-2 sm:px-6 sm:pt-6">
           <DialogTitle className="flex items-center gap-2">
             {websitePreview
               ? 'Website Recipe Preview'
@@ -1062,7 +1062,7 @@ export default function ImportRecipeDialog({
         </DialogHeader>
 
         {websitePreview ? (
-          <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-6">
+          <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6">
             <div className="space-y-5">
               {websitePreview.image && websitePreview.image !== '/placeholder.svg' && (
                 <img src={websitePreview.image} alt={websitePreview.name} className="h-44 w-full rounded-xl object-cover" />
