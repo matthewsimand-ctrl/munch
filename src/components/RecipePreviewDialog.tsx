@@ -140,7 +140,7 @@ export default function RecipePreviewDialog({
   const dialogSizeClass = expanded
     ? 'h-[calc(100dvh-0.75rem)] w-[calc(100vw-0.75rem)] max-w-[calc(100vw-0.75rem)] sm:h-[96vh] sm:w-[96vw] sm:max-w-[96vw]'
     : `h-[calc(100dvh-0.75rem)] max-h-[calc(100dvh-0.75rem)] w-[calc(100vw-0.75rem)] max-w-[calc(100vw-0.75rem)] sm:h-[92vh] ${
-        recipe.source_url && importedRecipe ? 'sm:max-w-5xl' : 'sm:max-w-md'
+        recipe?.source_url && importedRecipe ? 'sm:max-w-5xl' : 'sm:max-w-md'
       }`;
 
   useEffect(() => {
