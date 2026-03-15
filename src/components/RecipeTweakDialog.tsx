@@ -33,7 +33,7 @@ export default function RecipeTweakDialog({ recipe, open, onOpenChange }: Props)
   const [tweakType, setTweakType] = useState<TweakType | null>(null);
   const [customPrompt, setCustomPrompt] = useState('');
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<{ name: string; ingredients: string[]; instructions: string[]; changes_summary: string } | null>(null);
+  const [result, setResult] = useState<{ name: string; ingredients: string[]; instructions: string[]; changes_summary: string; image: string } | null>(null);
 
   const handleTweak = async () => {
     if (!tweakType) return;
@@ -60,7 +60,10 @@ export default function RecipeTweakDialog({ recipe, open, onOpenChange }: Props)
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || 'Failed');
 
-      setResult(data.tweaked);
+      setResult({
+        ...data.tweaked,
+        image: recipe.image || '/placeholder.svg',
+      });
     } catch (e: any) {
       if (isAiAgentCallsDisabledError(e)) {
         toast.info(getAiDisabledMessage('AI recipe tweaks'));
@@ -86,6 +89,7 @@ export default function RecipeTweakDialog({ recipe, open, onOpenChange }: Props)
       ...recipe,
       id: recipeId,
       name: result.name,
+      image: result.image || recipe.image || '/placeholder.svg',
       ingredients: result.ingredients,
       instructions: result.instructions,
       source: 'tweaked',
