@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { BookOpen, FolderPlus, Grid3X3, ImagePlus, List, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "@/lib/store";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 export default function Cookbooks() {
@@ -57,7 +58,6 @@ export default function Cookbooks() {
           <div className="flex items-center gap-2 w-full justify-end">
             <button onClick={() => navigate('/saved')} className="px-3 py-2 rounded-xl text-xs font-semibold bg-white border border-stone-200 text-stone-600">My Recipes</button>
             <button className="px-3 py-2 rounded-xl text-xs font-semibold bg-orange-500 text-white">Cookbooks</button>
-            <button onClick={() => navigate('/swipe')} className="px-3 py-2 rounded-xl text-xs font-semibold bg-white border border-stone-200 text-stone-600">Find Recipes</button>
             <button
               onClick={() => setShowNewCookbook((prev) => !prev)}
               className="px-3 py-2 rounded-xl text-xs font-semibold bg-white border border-stone-200 text-stone-600 inline-flex items-center gap-1"
@@ -74,48 +74,19 @@ export default function Cookbooks() {
           </div>
         </div>
 
-        {(showNewCookbook || recipeFolders.length === 0) && (
-          <div className="rounded-2xl bg-white border border-orange-200 p-4 mb-6">
-            <p className="text-sm font-semibold text-stone-700 mb-1">Create a cookbook</p>
-            <p className="text-xs text-stone-500 mb-3">Pick recipes from your saved list using the checkboxes below to build this cookbook.</p>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-3">
-              <input
-                value={newFolderName}
-                onChange={(e) => setNewFolderName(e.target.value)}
-                placeholder="Cookbook name"
-                className="px-3 py-2 rounded-xl border border-stone-200 text-sm text-stone-700 flex-1"
-              />
-              <label className="text-xs px-3 py-2 rounded-xl border border-stone-200 text-stone-600 cursor-pointer inline-flex items-center gap-1">
-                <ImagePlus size={12} /> Cover
-                <input type="file" accept="image/*" className="hidden" onChange={(e) => onNewCoverUpload(e.target.files?.[0] ?? null)} />
-              </label>
-              <button onClick={onCreateCookbook} className="px-3 py-2 rounded-xl text-xs font-semibold bg-orange-500 text-white">Create</button>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-36 overflow-y-auto">
-              {savedRecipes.map((recipe) => {
-                const checked = newCookbookRecipeIds.includes(recipe.id);
-                return (
-                  <label key={recipe.id} className="text-xs text-stone-600 flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => setNewCookbookRecipeIds((prev) => checked ? prev.filter((id) => id !== recipe.id) : [...prev, recipe.id])}
-                    />
-                    <span className="truncate">{recipe.name}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
         {recipeFolders.length === 0 ? (
           <div className="rounded-2xl bg-white border border-dashed border-orange-200 p-8 text-center">
             <div className="w-14 h-14 mx-auto rounded-2xl bg-orange-50 flex items-center justify-center text-orange-400 mb-3">
               <BookOpen />
             </div>
-            <p className="text-lg font-semibold text-stone-800">No cookbooks yet</p>
-            <p className="text-sm text-stone-500 mt-1">Use the cookbook form above to create your first collection.</p>
+            <p className="text-lg font-semibold text-stone-800">Add your first cookbook</p>
+            <p className="text-sm text-stone-500 mt-1">Create a collection for favorite meals, weekly staples, or anything you want to keep together.</p>
+            <button
+              onClick={() => setShowNewCookbook(true)}
+              className="mt-4 inline-flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white"
+            >
+              <FolderPlus size={14} /> Add Cookbook
+            </button>
           </div>
         ) : view === "grid" ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -175,6 +146,122 @@ export default function Cookbooks() {
           </div>
         )}
       </div>
+
+      <Dialog open={showNewCookbook} onOpenChange={setShowNewCookbook}>
+        <DialogContent className="max-w-2xl p-0 overflow-hidden">
+          <DialogHeader className="px-6 pt-6">
+            <DialogTitle>Create a Cookbook</DialogTitle>
+          </DialogHeader>
+
+          <div className="px-6 pb-6 space-y-5">
+            <div className="rounded-3xl border border-orange-100 bg-gradient-to-br from-orange-50 via-white to-amber-50 p-5">
+              <div className="flex flex-col gap-4 md:flex-row md:items-start">
+                <div className="flex-1 space-y-3">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.2em] text-orange-500">Cookbook details</p>
+                    <p className="mt-1 text-sm text-stone-500">Group favorite meals, weekly staples, or themed recipes into one collection.</p>
+                  </div>
+                  <input
+                    value={newFolderName}
+                    onChange={(e) => setNewFolderName(e.target.value)}
+                    placeholder="Weeknight dinners"
+                    className="w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-700"
+                  />
+                  <label className="inline-flex w-fit items-center gap-2 rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm font-semibold text-stone-600 cursor-pointer hover:border-orange-300 hover:text-orange-600 transition-colors">
+                    <ImagePlus size={14} /> {newCookbookCover ? "Replace cover" : "Upload cover"}
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => onNewCoverUpload(e.target.files?.[0] ?? null)} />
+                  </label>
+                </div>
+
+                <div className="w-full md:w-40 shrink-0">
+                  <div className="aspect-[4/5] overflow-hidden rounded-[1.75rem] border border-white/70 bg-white shadow-sm">
+                    {newCookbookCover ? (
+                      <img src={newCookbookCover} alt="New cookbook cover preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-stone-400 bg-gradient-to-br from-orange-50 to-stone-50">
+                        <BookOpen size={28} />
+                        <span className="text-xs font-semibold uppercase tracking-wide">Cover preview</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-stone-200 bg-white p-4">
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <div>
+                  <p className="text-sm font-semibold text-stone-800">Choose recipes</p>
+                  <p className="mt-1 text-xs text-stone-500">Select any saved recipes you want to include from the start.</p>
+                </div>
+                <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-600">
+                  {newCookbookRecipeIds.length} selected
+                </span>
+              </div>
+
+              {savedRecipes.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-stone-200 bg-stone-50 px-4 py-8 text-center">
+                  <p className="text-sm font-semibold text-stone-700">No saved recipes yet</p>
+                  <p className="mt-1 text-xs text-stone-500">Save recipes first, then come back to build a cookbook around them.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-72 overflow-y-auto pr-1">
+                  {savedRecipes.map((recipe) => {
+                    const checked = newCookbookRecipeIds.includes(recipe.id);
+                    return (
+                      <button
+                        key={recipe.id}
+                        type="button"
+                        onClick={() =>
+                          setNewCookbookRecipeIds((prev) =>
+                            checked ? prev.filter((id) => id !== recipe.id) : [...prev, recipe.id],
+                          )
+                        }
+                        className={`flex items-center gap-3 rounded-2xl border px-3 py-3 text-left transition-colors ${
+                          checked
+                            ? "border-orange-300 bg-orange-50"
+                            : "border-stone-200 bg-white hover:border-orange-200 hover:bg-orange-50/50"
+                        }`}
+                      >
+                        <div className={`h-4 w-4 rounded border flex items-center justify-center shrink-0 ${checked ? "border-orange-500 bg-orange-500 text-white" : "border-stone-300 bg-white"}`}>
+                          {checked ? "✓" : ""}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-stone-800">{recipe.name}</p>
+                          <p className="mt-0.5 text-xs text-stone-500">{recipe.cook_time || "30 min"}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-between">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowNewCookbook(false);
+                  setNewFolderName("");
+                  setNewCookbookRecipeIds([]);
+                  setNewCookbookCover(undefined);
+                }}
+                className="rounded-2xl border border-stone-200 px-4 py-3 text-sm font-semibold text-stone-600 transition-colors hover:border-orange-300 hover:text-orange-600"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={onCreateCookbook}
+                className="rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:opacity-50"
+                disabled={!newFolderName.trim()}
+              >
+                Create Cookbook
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

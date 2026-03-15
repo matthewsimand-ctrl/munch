@@ -12,6 +12,20 @@ export function isImportedCommunityRecipe(recipe: Recipe) {
   return String(recipe.source || '').toLowerCase() === 'imported';
 }
 
+export function isImportedUrlRecipe(recipe: Recipe) {
+  return isImportedCommunityRecipe(recipe) && Boolean(String(recipe.source_url || '').trim());
+}
+
+export function getRecipeSourceHostname(url: string | undefined): string | null {
+  if (!url) return null;
+
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return null;
+  }
+}
+
 export function getRecipeSharedByName(recipe: Recipe): string | null {
   const payload = getRawPayload(recipe);
   const sharedBy = payload?.shared_by_name;
@@ -21,16 +35,11 @@ export function getRecipeSharedByName(recipe: Recipe): string | null {
 export function getRecipeSourceBadge(recipe: Recipe): string | null {
   if (!isImportedCommunityRecipe(recipe)) return null;
 
-  const sharedBy = getRecipeSharedByName(recipe);
-  if (sharedBy) return `Shared by ${sharedBy}`;
-
-  if (recipe.source_url) {
-    try {
-      return new URL(recipe.source_url).hostname.replace(/^www\./, '');
-    } catch {
-      return 'Community import';
-    }
+  if (isImportedUrlRecipe(recipe)) {
+    return getRecipeSourceHostname(recipe.source_url) || 'Imported recipe';
   }
 
-  return 'Community import';
+  if (recipe.chef?.trim()) return recipe.chef.trim();
+
+  return 'Community recipe';
 }

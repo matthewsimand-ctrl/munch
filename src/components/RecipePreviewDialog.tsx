@@ -374,6 +374,17 @@ export default function RecipePreviewDialog({
                       {addedToGrocery ? 'Added to grocery list' : `Add ${displayMatch.missing.length} missing ingredients to Grocery List`}
                     </motion.button>
                   )}
+                  {recipe.ingredients.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Nutritional Facts</p>
+                      <NutritionCard
+                        recipeId={recipe.id}
+                        recipeName={recipe.name}
+                        ingredients={recipe.ingredients}
+                        servings={recipe.servings ?? 1}
+                      />
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-6">
@@ -486,7 +497,7 @@ export default function RecipePreviewDialog({
 
                   {recipe.ingredients.length > 0 && (
                     <div>
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Nutrition Dashboard</p>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Nutritional Facts</p>
                       <NutritionCard
                         recipeId={recipe.id}
                         recipeName={recipe.name}
@@ -529,7 +540,7 @@ export default function RecipePreviewDialog({
                     <Sparkles className="h-4 w-4" /> Remix
                   </button>
                   <button
-                    onClick={() => navigate(`/cook/${recipe.id}`)}
+                    onClick={() => navigate(`/cook/${recipe.id}`, { state: { portionFactor } })}
                     data-tutorial="start-cooking-button"
                     className="h-9 flex-1 min-w-0 px-3 rounded-lg bg-primary text-primary-foreground text-sm font-semibold inline-flex items-center justify-center gap-1.5"
                   >

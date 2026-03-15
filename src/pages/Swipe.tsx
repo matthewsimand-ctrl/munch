@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import {
   Heart, X, Clock, ChefHat, Flame, Filter,
-  ChevronDown, Sparkles, Search,
+  Sparkles, Search,
 } from "lucide-react";
 import { motion, AnimatePresence, useMotionValue, useTransform, animate } from "framer-motion";
 import { useStore } from "@/lib/store";
@@ -15,39 +15,9 @@ import { ChefProfileModal } from "@/components/ChefProfileModal";
 import { Input } from "@/components/ui/input";
 import { classifyMealType } from "@/lib/mealTimeUtils";
 import { getRecipeSourceBadge, isImportedCommunityRecipe } from "@/lib/recipeAttribution";
-
-/* ── Filter pill ───────────────────────────────────────────── */
-function FilterPill({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap"
-      style={
-        active
-          ? {
-            background: "linear-gradient(135deg,#FB923C,#F97316)",
-            color: "#fff",
-            boxShadow: "0 2px 8px rgba(249,115,22,0.30)",
-          }
-          : {
-            background: "#fff",
-            color: "#57534E",
-            border: "1px solid rgba(0,0,0,0.08)",
-          }
-      }
-    >
-      {label}
-    </button>
-  );
-}
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Slider } from "@/components/ui/slider";
 
 /* ── Swipe card ────────────────────────────────────────────── */
 function SwipeCard({
@@ -77,8 +47,8 @@ function SwipeCard({
   const handleDragEnd = (_: unknown, info: { offset: { x: number; y: number } }) => {
     if (info.offset.x > 100) { onSwipeRight(); return; }
     if (info.offset.x < -100) { onSwipeLeft(); return; }
-    animate(x, 0, { type: "spring", stiffness: 260, damping: 24 });
-    animate(y, 0, { type: "spring", stiffness: 260, damping: 24 });
+    animate(x, 0, { type: "spring", stiffness: 180, damping: 18, mass: 0.7 });
+    animate(y, 0, { type: "spring", stiffness: 180, damping: 18, mass: 0.7 });
   };
 
   const diffBadge =
@@ -92,7 +62,7 @@ function SwipeCard({
     <motion.div
       drag={isTop}
       dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
-      dragElastic={0.2}
+      dragElastic={0.32}
       dragMomentum={false}
       onDragEnd={handleDragEnd}
       onPanStart={() => {
@@ -105,7 +75,7 @@ function SwipeCard({
       }}
       style={{ x, y, rotate, touchAction: "none" }}
       className="absolute inset-0 cursor-grab active:cursor-grabbing select-none"
-      whileDrag={{ scale: 1.02 }}
+      whileDrag={{ scale: 1.03 }}
       onTap={() => {
         if (isTop && !didMoveRef.current) onOpenDetails();
       }}
@@ -256,7 +226,32 @@ const TUTORIAL_RECIPE = {
 };
 
 /* ── Main ──────────────────────────────────────────────────── */
-const FILTERS = ["All", "Quick (<30 min)", "Vegetarian", "High Protein", "Easy", "Asian", "Italian", "Mexican"];
+const MEAL_TYPE_FILTERS = ["breakfast", "lunch", "dinner", "dessert", "snack"] as const;
+
+function recipeIsVegetarian(recipe: Recipe) {
+  const tags = (recipe.tags || []).map((tag) => tag.toLowerCase());
+  if (tags.some((tag) => tag.includes("vegetarian") || tag.includes("vegan"))) return true;
+
+  const nonVegetarianTerms = [
+    "chicken", "beef", "pork", "lamb", "fish", "salmon", "tuna", "shrimp",
+    "bacon", "sausage", "turkey", "duck", "anchovy", "prawn",
+  ];
+
+  return !(recipe.ingredients || []).some((ingredient) => {
+    const normalized = ingredient.toLowerCase();
+    return nonVegetarianTerms.some((term) => normalized.includes(term));
+  });
+}
+
+function recipeIsHighProtein(recipe: Recipe) {
+  if (typeof recipe.protein === "number") return recipe.protein >= 20;
+  return (recipe.tags || []).some((tag) => tag.toLowerCase().includes("high-protein") || tag.toLowerCase().includes("high protein"));
+}
+
+function recipeIsEasy(recipe: Recipe) {
+  const difficulty = String(recipe.difficulty || "").toLowerCase().trim();
+  return difficulty === "easy" || difficulty === "beginner";
+}
 
 export default function SwipeScreen() {
   const {
@@ -272,11 +267,17 @@ export default function SwipeScreen() {
   const { likedRecipes, likeRecipe, pantryList, addCustomGroceryItem, addToGrocery } = useStore();
 
   const [cardIndex, setCardIndex] = useState(0);
-  const [activeFilter, setActiveFilter] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedChefId, setSelectedChefId] = useState<string | null>(null);
   const [selectedChefName, setSelectedChefName] = useState<string | null>(null);
-  const [showFilters, setShowFilters] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [selectedMealTypes, setSelectedMealTypes] = useState<string[]>([]);
+  const [selectedCuisine, setSelectedCuisine] = useState("");
+  const [minimumMatch, setMinimumMatch] = useState(0);
+  const [onlyHighProtein, setOnlyHighProtein] = useState(false);
+  const [onlyVegetarian, setOnlyVegetarian] = useState(false);
+  const [onlyQuick, setOnlyQuick] = useState(false);
+  const [onlyEasy, setOnlyEasy] = useState(false);
   const [previewRecipe, setPreviewRecipe] = useState<Recipe | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [saveButtonPulse, setSaveButtonPulse] = useState(false);
@@ -287,6 +288,19 @@ export default function SwipeScreen() {
   const likedSet = useMemo(() => new Set(likedRecipes), [likedRecipes]);
   const sourceRecipes = activeSearchQuery ? searchResults : recipes;
   const searchFeedRef = useRef(searchFeed);
+  const availableCuisines = useMemo(
+    () => Array.from(new Set(sourceRecipes.map((recipe) => recipe.cuisine?.trim()).filter(Boolean) as string[])).sort(),
+    [sourceRecipes],
+  );
+  const activeFilterCount = [
+    selectedMealTypes.length > 0,
+    selectedCuisine.length > 0,
+    minimumMatch > 0,
+    onlyHighProtein,
+    onlyVegetarian,
+    onlyQuick,
+    onlyEasy,
+  ].filter(Boolean).length;
 
   useEffect(() => {
     searchFeedRef.current = searchFeed;
@@ -303,19 +317,36 @@ export default function SwipeScreen() {
 
   const filtered = useMemo(() => {
     let byFilter = sourceRecipes;
-    if (activeFilter === "Quick (<30 min)") {
-      byFilter = sourceRecipes.filter((r) => {
-        const m = parseInt(r.cook_time || "99");
-        return m <= 30;
+
+    if (selectedMealTypes.length > 0) {
+      byFilter = byFilter.filter((recipe) => {
+        const mealTypes = classifyMealType(recipe);
+        return selectedMealTypes.some((mealType) => mealTypes.includes(mealType as any));
       });
-    } else if (activeFilter === "Easy") {
-      byFilter = sourceRecipes.filter((r) => r.difficulty === "easy");
-    } else if (activeFilter !== "All") {
-      byFilter = sourceRecipes.filter(
-        (r) =>
-          r.tags?.some((t: string) => t.toLowerCase().includes(activeFilter.toLowerCase())) ||
-          r.cuisine?.toLowerCase().includes(activeFilter.toLowerCase()),
-      );
+    }
+
+    if (selectedCuisine) {
+      byFilter = byFilter.filter((recipe) => (recipe.cuisine || "").toLowerCase() === selectedCuisine.toLowerCase());
+    }
+
+    if (onlyHighProtein) {
+      byFilter = byFilter.filter((recipe) => recipeIsHighProtein(recipe));
+    }
+
+    if (onlyVegetarian) {
+      byFilter = byFilter.filter((recipe) => recipeIsVegetarian(recipe));
+    }
+
+    if (onlyQuick) {
+      byFilter = byFilter.filter((recipe) => parseInt(recipe.cook_time || "999", 10) <= 30);
+    }
+
+    if (onlyEasy) {
+      byFilter = byFilter.filter((recipe) => recipeIsEasy(recipe));
+    }
+
+    if (minimumMatch > 0) {
+      byFilter = byFilter.filter((recipe) => calculateMatch(pantryNames, recipe.ingredients || []).percentage >= minimumMatch);
     }
 
     if (selectedChefId) { // Changed from selectedChef to selectedChefId
@@ -360,11 +391,33 @@ export default function SwipeScreen() {
     }
 
     return final;
-  }, [sourceRecipes, activeFilter, searchQuery, selectedChefId]);
+  }, [
+    sourceRecipes,
+    selectedMealTypes,
+    selectedCuisine,
+    minimumMatch,
+    onlyHighProtein,
+    onlyVegetarian,
+    onlyQuick,
+    onlyEasy,
+    selectedChefId,
+    searchQuery,
+    pantryNames,
+  ]);
 
   useEffect(() => {
     setCardIndex(0);
-  }, [activeFilter, searchQuery, selectedChefId]);
+  }, [
+    searchQuery,
+    selectedChefId,
+    selectedMealTypes,
+    selectedCuisine,
+    minimumMatch,
+    onlyHighProtein,
+    onlyVegetarian,
+    onlyQuick,
+    onlyEasy,
+  ]);
 
   const current = filtered[cardIndex] || null;
   const prev = cardIndex > 0 ? filtered[cardIndex - 1] : null;
@@ -461,27 +514,31 @@ export default function SwipeScreen() {
 
       {/* Header */}
       <div
-        className="border-b px-6 py-4"
+        className="border-b px-4 sm:px-6 py-3 sm:py-4"
         style={{ background: "linear-gradient(135deg,#FFF7ED 0%,#FFFAF5 100%)", borderColor: "rgba(249,115,22,0.12)" }}
       >
         <div className="max-w-2xl mx-auto">
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2 sm:gap-3">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1">Discover</p>
                 <h1
-                  className="text-2xl font-bold text-stone-900"
+                  className="text-xl sm:text-2xl font-bold text-stone-900"
                   style={{ fontFamily: "'Fraunces', Georgia, serif" }}
                 >
                   Find Recipes
                 </h1>
               </div>
               <button
-                onClick={() => setShowFilters((v) => !v)}
+                onClick={() => setFiltersOpen(true)}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-orange-600 bg-white border border-orange-100 hover:bg-orange-50 transition-colors shrink-0"
               >
-                <Filter size={12} /> {showFilters ? "Hide Filters" : "Filters"}
-                <ChevronDown size={11} className={`transition-transform ${showFilters ? "rotate-180" : ""}`} />
+                <Filter size={12} /> Filters
+                {activeFilterCount > 0 && (
+                  <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-orange-500 px-1.5 text-[10px] font-bold text-white">
+                    {activeFilterCount}
+                  </span>
+                )}
               </button>
             </div>
 
@@ -493,7 +550,7 @@ export default function SwipeScreen() {
                   setCardIndex(0);
                 }}
                 placeholder="Search recipes, ingredients..."
-                className="bg-white h-11 pl-10 rounded-xl border-stone-200"
+                className="bg-white h-10 sm:h-11 pl-10 rounded-xl border-stone-200"
               />
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" size={16} />
             </div>
@@ -501,29 +558,82 @@ export default function SwipeScreen() {
             <p className="text-xs text-stone-400 font-medium">
               {filtered.length - cardIndex} recipes matching your taste
             </p>
-          </div>
-
-          <AnimatePresence>
-            {showFilters && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="overflow-hidden"
-              >
-                <div className="flex gap-2 overflow-x-auto scrollbar-hide py-2">
-                  {FILTERS.map((f) => (
-                    <FilterPill
-                      key={f}
-                      label={f}
-                      active={activeFilter === f}
-                      onClick={() => { setActiveFilter(f); setCardIndex(0); }}
-                    />
-                  ))}
-                </div>
-              </motion.div>
+            {activeFilterCount > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {selectedMealTypes.map((mealType) => (
+                  <button
+                    key={mealType}
+                    type="button"
+                    onClick={() => setSelectedMealTypes((prev) => prev.filter((value) => value !== mealType))}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-orange-200 bg-white px-3 py-1 text-[11px] font-semibold text-orange-600 transition-colors hover:border-orange-300 hover:bg-orange-50"
+                  >
+                    {mealType[0].toUpperCase() + mealType.slice(1)}
+                    <X size={11} />
+                  </button>
+                ))}
+                {selectedCuisine && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCuisine("")}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-orange-200 bg-white px-3 py-1 text-[11px] font-semibold text-orange-600 transition-colors hover:border-orange-300 hover:bg-orange-50"
+                  >
+                    {selectedCuisine}
+                    <X size={11} />
+                  </button>
+                )}
+                {minimumMatch > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setMinimumMatch(0)}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-orange-200 bg-white px-3 py-1 text-[11px] font-semibold text-orange-600 transition-colors hover:border-orange-300 hover:bg-orange-50"
+                  >
+                    {minimumMatch}%+ match
+                    <X size={11} />
+                  </button>
+                )}
+                {onlyHighProtein && (
+                  <button
+                    type="button"
+                    onClick={() => setOnlyHighProtein(false)}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-orange-200 bg-white px-3 py-1 text-[11px] font-semibold text-orange-600 transition-colors hover:border-orange-300 hover:bg-orange-50"
+                  >
+                    High protein
+                    <X size={11} />
+                  </button>
+                )}
+                {onlyVegetarian && (
+                  <button
+                    type="button"
+                    onClick={() => setOnlyVegetarian(false)}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-orange-200 bg-white px-3 py-1 text-[11px] font-semibold text-orange-600 transition-colors hover:border-orange-300 hover:bg-orange-50"
+                  >
+                    Vegetarian
+                    <X size={11} />
+                  </button>
+                )}
+                {onlyQuick && (
+                  <button
+                    type="button"
+                    onClick={() => setOnlyQuick(false)}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-orange-200 bg-white px-3 py-1 text-[11px] font-semibold text-orange-600 transition-colors hover:border-orange-300 hover:bg-orange-50"
+                  >
+                    Quick
+                    <X size={11} />
+                  </button>
+                )}
+                {onlyEasy && (
+                  <button
+                    type="button"
+                    onClick={() => setOnlyEasy(false)}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-orange-200 bg-white px-3 py-1 text-[11px] font-semibold text-orange-600 transition-colors hover:border-orange-300 hover:bg-orange-50"
+                  >
+                    Easy
+                    <X size={11} />
+                  </button>
+                )}
+              </div>
             )}
-          </AnimatePresence>
+          </div>
         </div>
       </div>
 
@@ -539,9 +649,9 @@ export default function SwipeScreen() {
       )}
 
       {/* Carousel area */}
-      <div className="flex-1 flex flex-col items-center justify-start p-4 sm:p-6 pt-5 sm:pt-8 md:pt-6 overflow-hidden">
+      <div className="flex-1 flex flex-col items-center justify-start px-4 sm:px-6 pt-3 sm:pt-6 pb-4 overflow-hidden">
         <div className="w-full max-w-5xl flex flex-col items-center">
-          <div className="relative flex items-center justify-center h-[400px] sm:h-[520px] w-full">
+          <div className="relative flex items-center justify-center h-[360px] sm:h-[520px] w-full">
           {loading || searchLoading ? (
             <div className="aspect-[3/4] rounded-3xl bg-stone-100 animate-pulse" />
           ) : filtered.length === cardIndex ? (
@@ -641,7 +751,7 @@ export default function SwipeScreen() {
                       transition: { duration: 0.2 }
                     }}
                     transition={{ type: 'spring', damping: 20, stiffness: 100 }}
-                    className="z-10 w-[300px] sm:w-[340px] h-[380px] sm:h-[460px]"
+                    className="z-10 w-[290px] sm:w-[340px] h-[350px] sm:h-[460px]"
                     style={{ perspective: 1000 }}
                   >
                     <AnimatePresence>
@@ -687,7 +797,7 @@ export default function SwipeScreen() {
 
           {/* Action buttons - below carousel */}
           {(current || loading) && !loading && (
-            <div className="flex items-center justify-center gap-4 mt-4 sm:mt-6">
+            <div className="flex items-center justify-center gap-4 mt-3 sm:mt-6">
               {/* Skip */}
               <button
                 onClick={handleSkipButton}
@@ -714,7 +824,7 @@ export default function SwipeScreen() {
 
           {/* Keyboard hint */}
           {current && !loading && (
-            <div className="mt-4 text-center">
+            <div className="mt-3 text-center">
               <div className="text-xs text-stone-400 font-medium">
                 Use keyboard arrows to swipe
               </div>
@@ -738,6 +848,154 @@ export default function SwipeScreen() {
           saveAndAdvance(recipe, { closePreview: true, advanceCard: true });
         }}
       />
+
+      <Dialog open={filtersOpen} onOpenChange={setFiltersOpen}>
+        <DialogContent className="max-w-lg overflow-hidden p-0">
+          <DialogHeader>
+            <DialogTitle className="px-6 pt-6">Discover Filters</DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[65vh] space-y-5 overflow-y-auto px-6 pb-6 pr-4">
+            <section className="space-y-3 rounded-2xl border border-stone-200 bg-white p-4">
+              <div>
+                <p className="text-sm font-semibold text-stone-800">Meal type</p>
+                <p className="mt-1 text-xs text-stone-500">Pick one or more kinds of recipes you want to see.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {MEAL_TYPE_FILTERS.map((mealType) => {
+                  const active = selectedMealTypes.includes(mealType);
+                  return (
+                    <button
+                      key={mealType}
+                      type="button"
+                      onClick={() => {
+                        setSelectedMealTypes((prev) =>
+                          prev.includes(mealType)
+                            ? prev.filter((value) => value !== mealType)
+                            : [...prev, mealType],
+                        );
+                      }}
+                      className={`rounded-2xl border px-3 py-2 text-sm font-semibold transition-colors ${
+                        active
+                          ? "border-orange-500 bg-orange-50 text-orange-600"
+                          : "border-stone-200 bg-white text-stone-600 hover:border-orange-300"
+                      }`}
+                    >
+                      {mealType[0].toUpperCase() + mealType.slice(1)}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+
+            <section className="space-y-3 rounded-2xl border border-stone-200 bg-white p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-stone-800">Pantry match</p>
+                  <p className="mt-1 text-xs text-stone-500">Only show recipes that meet your minimum ingredient match.</p>
+                </div>
+                <span className="rounded-full bg-orange-50 px-3 py-1 text-sm font-semibold text-orange-600">
+                  {minimumMatch}%
+                </span>
+              </div>
+              <Slider
+                value={[minimumMatch]}
+                onValueChange={(value) => setMinimumMatch(value[0] ?? 0)}
+                min={0}
+                max={100}
+                step={5}
+              />
+            </section>
+
+            <section className="space-y-3 rounded-2xl border border-stone-200 bg-white p-4">
+              <div>
+                <p className="text-sm font-semibold text-stone-800">Cuisine</p>
+                <p className="mt-1 text-xs text-stone-500">Focus on a specific cuisine, or leave it open.</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedCuisine("")}
+                  className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    !selectedCuisine
+                      ? "border-orange-500 bg-orange-50 text-orange-600"
+                      : "border-stone-200 bg-white text-stone-600 hover:border-orange-300"
+                  }`}
+                >
+                  All cuisines
+                </button>
+                {availableCuisines.map((cuisine) => (
+                  <button
+                    key={cuisine}
+                    type="button"
+                    onClick={() => setSelectedCuisine(cuisine)}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      selectedCuisine === cuisine
+                        ? "border-orange-500 bg-orange-50 text-orange-600"
+                        : "border-stone-200 bg-white text-stone-600 hover:border-orange-300"
+                    }`}
+                  >
+                    {cuisine}
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            <section className="space-y-3 rounded-2xl border border-stone-200 bg-white p-4">
+              <div>
+                <p className="text-sm font-semibold text-stone-800">Recipe traits</p>
+                <p className="mt-1 text-xs text-stone-500">Tighten the feed around the styles you want today.</p>
+              </div>
+              <div className="space-y-3">
+                {[
+                  { checked: onlyHighProtein, onChange: setOnlyHighProtein, label: "High protein", description: "Prioritize protein-forward recipes." },
+                  { checked: onlyVegetarian, onChange: setOnlyVegetarian, label: "Vegetarian", description: "Hide meat and seafood recipes." },
+                  { checked: onlyQuick, onChange: setOnlyQuick, label: "Quick meals", description: "30 minutes or less." },
+                  { checked: onlyEasy, onChange: setOnlyEasy, label: "Easy", description: "Beginner-friendly recipes." },
+                ].map((item) => (
+                  <label key={item.label} className="flex items-start gap-3 rounded-2xl border border-stone-100 bg-stone-50/70 px-3 py-3">
+                    <Checkbox
+                      checked={item.checked}
+                      onCheckedChange={(checked) => item.onChange(Boolean(checked))}
+                      className="mt-0.5"
+                    />
+                    <span>
+                      <span className="block text-sm font-semibold text-stone-800">{item.label}</span>
+                      <span className="block text-xs text-stone-500">{item.description}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </section>
+
+          </div>
+          <div className="border-t border-stone-200 bg-background px-6 py-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-between">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedMealTypes([]);
+                  setSelectedCuisine("");
+                  setMinimumMatch(0);
+                  setOnlyHighProtein(false);
+                  setOnlyVegetarian(false);
+                  setOnlyQuick(false);
+                  setOnlyEasy(false);
+                }}
+                className="rounded-2xl border border-stone-200 px-4 py-3 text-sm font-semibold text-stone-600 transition-colors hover:border-orange-300 hover:text-orange-600"
+              >
+                Clear filters
+              </button>
+              <button
+                type="button"
+                onClick={() => setFiltersOpen(false)}
+                className="rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600"
+              >
+                Show recipes
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <ChefProfileModal
         chefId={selectedChefId}

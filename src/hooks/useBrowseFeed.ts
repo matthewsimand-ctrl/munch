@@ -7,6 +7,8 @@ import { normalizeIngredients } from '@/lib/normalizeIngredients';
 import { classifyMealType } from '@/lib/mealTimeUtils';
 import { supabase } from '@/integrations/supabase/client';
 
+const BROWSE_FEED_CACHE_KEY = 'munch:browse-feed-cache:v1';
+
 interface BrowseRecipe extends Recipe {
   source: string;
   cuisine?: string;
@@ -206,9 +208,28 @@ function normalizeRecipe(raw: any): BrowseRecipe | null {
 }
 
 export function useBrowseFeed() {
-  const [recipes, setRecipes] = useState<BrowseRecipe[]>([]);
+  const [recipes, setRecipes] = useState<BrowseRecipe[]>(() => {
+    if (typeof window === 'undefined') return [];
+
+    try {
+      const cached = window.sessionStorage.getItem(BROWSE_FEED_CACHE_KEY);
+      if (!cached) return [];
+
+      const parsed = JSON.parse(cached);
+      if (!Array.isArray(parsed)) return [];
+
+      return parsed
+        .map(normalizeRecipe)
+        .filter((recipe): recipe is BrowseRecipe => Boolean(recipe));
+    } catch {
+      return [];
+    }
+  });
   const [loading, setLoading] = useState(false);
-  const [loaded, setLoaded] = useState(false);
+  const [loaded, setLoaded] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return Boolean(window.sessionStorage.getItem(BROWSE_FEED_CACHE_KEY));
+  });
   const [searchResults, setSearchResults] = useState<BrowseRecipe[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [activeSearchQuery, setActiveSearchQuery] = useState('');
@@ -343,10 +364,18 @@ export function useBrowseFeed() {
 
       if (likedRecipesList.length > 0 || userProfile.cuisinePreferences.length > 0 || userProfile.skillLevel || effectivePantryNames.length > 0) {
         const ranked = rankByRecommendation(fetched, likedRecipesList, likedIds, userProfile, effectivePantryNames);
-        setRecipes(diversifyBrowseOrder(ranked.map((item) => item.recipe as BrowseRecipe)));
+        const nextRecipes = diversifyBrowseOrder(ranked.map((item) => item.recipe as BrowseRecipe));
+        setRecipes(nextRecipes);
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.setItem(BROWSE_FEED_CACHE_KEY, JSON.stringify(nextRecipes));
+        }
       } else {
         const shuffled = [...fetched].sort(() => Math.random() - 0.5);
-        setRecipes(diversifyBrowseOrder(shuffled));
+        const nextRecipes = diversifyBrowseOrder(shuffled);
+        setRecipes(nextRecipes);
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.setItem(BROWSE_FEED_CACHE_KEY, JSON.stringify(nextRecipes));
+        }
       }
 
       setLoaded(true);

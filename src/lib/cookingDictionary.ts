@@ -31,6 +31,7 @@ export const cookingDictionary: DictionaryEntry[] = [
   { term: "roast", definition: "Cook food uncovered in an oven using dry heat, typically at 300–450°F. Produces browning and caramelization on the outside.", category: "Heat" },
   { term: "bake", definition: "Cook food in an oven using dry, indirect heat. Baking usually refers to breads, pastries, and casseroles rather than meats.", category: "Heat" },
   { term: "grill", definition: "Cook food on a grate over direct heat (charcoal, gas, or electric). High heat creates char marks and smoky flavor.", category: "Heat" },
+  { term: "fry", definition: "Cook food in hot fat or oil so the exterior browns and develops texture. Depending on the method, frying can range from shallow and gentle to fully submerged.", category: "Heat" },
 
   // Cutting Techniques
   { term: "fillet", definition: "Remove bones from meat or fish using a thin, flexible knife. Follow the bone structure closely to minimize waste. Also spelled 'filet'.", category: "Cutting" },
@@ -42,6 +43,9 @@ export const cookingDictionary: DictionaryEntry[] = [
   { term: "brunoise", definition: "Cut food into very small (⅛ inch) uniform cubes. Start with a julienne cut, then cut crosswise. Used for garnishes and fine sauces.", category: "Cutting" },
   { term: "batonnet", definition: "Cut food into uniform sticks about ¼ inch × ¼ inch × 2–3 inches. Thicker than julienne. Think French fries or crudité sticks.", category: "Cutting" },
   { term: "chop", definition: "Cut food into irregular pieces. Less precise than dicing—the size depends on the recipe. A 'rough chop' means even less uniformity.", category: "Cutting" },
+  { term: "slice", definition: "Cut food into flat, even pieces. Thickness affects cooking speed, texture, and presentation.", category: "Cutting" },
+  { term: "shred", definition: "Cut or tear food into thin strips, often for slaws, cheeses, and cooked meats.", category: "Cutting" },
+  { term: "grate", definition: "Rub food against a grater to create fine or coarse pieces. Common for cheese, garlic, ginger, and citrus zest.", category: "Cutting" },
   { term: "score", definition: "Make shallow cuts in the surface of food (like bread dough, meat, or fish) to help it cook evenly, absorb marinades, or create decorative patterns.", category: "Cutting" },
   { term: "supreme", definition: "Cut citrus segments free of membrane and pith. Cut along each membrane to release clean, jewel-like segments. Also called 'segmenting'.", category: "Cutting" },
   { term: "butterfly", definition: "Cut meat or seafood nearly in half horizontally, then open it like a book. Creates a thinner, more uniform piece that cooks faster and more evenly.", category: "Cutting" },
@@ -63,11 +67,15 @@ export const cookingDictionary: DictionaryEntry[] = [
   // Preparation
   { term: "mise en place", definition: "French for 'everything in its place.' Measure, wash, cut, and organize all ingredients before you start cooking. The single most important kitchen habit.", category: "Preparation" },
   { term: "zest", definition: "Remove the thin, colored outer layer of citrus peel using a zester or microplane. Contains aromatic oils. Avoid the bitter white pith underneath.", category: "Preparation" },
+  { term: "skim", definition: "Lift foam, fat, or impurities from the surface of a liquid as it cooks for a cleaner final texture and flavor.", category: "Preparation" },
+  { term: "infuse", definition: "Steep aromatics like herbs, spices, tea, or citrus in a liquid or fat so their flavor transfers into it.", category: "Preparation" },
+  { term: "toast", definition: "Cook an ingredient until lightly browned and more aromatic. Often used with nuts, spices, seeds, and bread.", category: "Preparation" },
   { term: "dredge", definition: "Lightly coat food in a dry ingredient (usually flour, breadcrumbs, or cornmeal) before cooking. Shake off excess for an even coating.", category: "Preparation" },
   { term: "bread", definition: "Coat food in a three-step process: flour, then egg wash, then breadcrumbs. Creates a crispy crust when fried or baked.", category: "Preparation" },
   { term: "truss", definition: "Tie poultry with kitchen twine to hold its shape during roasting. Keeps legs and wings close to the body for even cooking.", category: "Preparation" },
   { term: "dock", definition: "Poke holes in pastry dough with a fork before baking to prevent it from puffing up. Essential for pie crusts baked without filling.", category: "Preparation" },
   { term: "bloom", definition: "Activate an ingredient by adding liquid or heat. Bloom gelatin in cold water before using; bloom spices in hot oil to release their essential oils.", category: "Preparation" },
+  { term: "clarify", definition: "Remove solids or impurities from a liquid or fat so it becomes cleaner and more transparent, as with clarified butter or stock.", category: "Preparation" },
   { term: "debone", definition: "Remove bones from meat, poultry, or fish. Use a sharp boning knife and follow the bone structure closely.", category: "Preparation" },
   { term: "devein", definition: "Remove the dark digestive tract from shrimp. Make a shallow cut along the back and pull or rinse out the vein.", category: "Preparation" },
 

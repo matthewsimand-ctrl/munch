@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft, ArrowRight, ChefHat, CheckCircle2, Circle, X,
   Volume2, VolumeX, RotateCcw, Check, Star, CircleHelp,
@@ -17,7 +17,7 @@ import { getLevel } from "@/components/ChefCompanion";
 import { buildDictionaryRegex, lookupTerm } from "@/lib/cookingDictionary";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCookedMeals } from "@/hooks/useCookedMeals";
-import { parseIngredientLine } from "@/lib/ingredientText";
+import { composeIngredientLine, parseIngredientLine, scaleIngredientQuantity } from "@/lib/ingredientText";
 import { useKitchenPantry } from "@/hooks/useKitchenPantry";
 
 interface ActiveTimer {
@@ -317,6 +317,7 @@ function StepProgressHeader({
 /* ─── Main ─────────────────────────────────────────────────── */
 export default function CookMode() {
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
   const navigate = useNavigate();
   const {
     savedApiRecipes,
@@ -348,6 +349,10 @@ export default function CookMode() {
   const [xpPopup, setXpPopup] = useState<{ id: number; amount: number; label: string } | null>(null);
   const [pantryDecisionMade, setPantryDecisionMade] = useState(false);
   const [showAllStepsView, setShowAllStepsView] = useState(false);
+  const [portionFactor, setPortionFactor] = useState<number>(() => {
+    const candidate = (location.state as { portionFactor?: number } | null)?.portionFactor;
+    return candidate === 0.5 || candidate === 1 || candidate === 2 ? candidate : 1;
+  });
   const hasTrackedCookRef = useRef(false);
   const awardedStepsRef = useRef<Set<number>>(new Set());
   const awardedCompletionRef = useRef(false);
@@ -367,6 +372,18 @@ export default function CookMode() {
     [recipe],
   );
   const ingredients = recipe?.ingredients ?? [];
+  const scaledIngredients = useMemo(
+    () => ingredients.map((ingredient) => {
+      if (portionFactor === 1) return ingredient;
+      const parts = parseIngredientLine(ingredient);
+      if (!parts.quantity) return ingredient;
+      return composeIngredientLine({
+        ...parts,
+        quantity: scaleIngredientQuantity(parts.quantity, portionFactor),
+      });
+    }),
+    [ingredients, portionFactor],
+  );
   const isLastStep = stepIndex === steps.length - 1;
   const sessionXp = Math.max(0, (steps.length - 1) * 15) + 50;
   const currentRating = recipe && id ? recipeRatings[id] ?? 0 : 0;
@@ -783,6 +800,20 @@ export default function CookMode() {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>Ingredients Needed</h2>
               <div className="flex items-center gap-3">
+                <div className="inline-flex rounded-xl border border-stone-200 bg-white p-1 gap-1">
+                  {[0.5, 1, 2].map((factor) => (
+                    <button
+                      key={factor}
+                      type="button"
+                      onClick={() => setPortionFactor(factor)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                        portionFactor === factor ? "bg-orange-500 text-white" : "text-stone-500 hover:bg-orange-50"
+                      }`}
+                    >
+                      {factor === 0.5 ? "1/2x" : `${factor}x`}
+                    </button>
+                  ))}
+                </div>
                 <button
                   onClick={() => {
                     if (allChecked) {
@@ -802,7 +833,7 @@ export default function CookMode() {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              {ingredients.map((ing, i) => {
+              {scaledIngredients.map((ing, i) => {
                 const checked = checkedIngredients.has(i);
                 return (
                   <button
@@ -846,7 +877,7 @@ export default function CookMode() {
 
           {!allChecked && (
             <p className="text-center text-stone-400 text-xs mt-4 font-semibold italic">
-              {ingredients.length - checkedIngredients.size} items remaining
+              {scaledIngredients.length - checkedIngredients.size} items remaining
             </p>
           )}
         </div>
@@ -1077,6 +1108,20 @@ export default function CookMode() {
               >
                 Ingredients
               </button>
+              <div className="inline-flex rounded-xl border border-stone-200 bg-white p-1 gap-1">
+                {[0.5, 1, 2].map((factor) => (
+                  <button
+                    key={factor}
+                    type="button"
+                    onClick={() => setPortionFactor(factor)}
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                      portionFactor === factor ? "bg-orange-500 text-white" : "text-stone-500 hover:bg-orange-50"
+                    }`}
+                  >
+                    {factor === 0.5 ? "1/2x" : `${factor}x`}
+                  </button>
+                ))}
+              </div>
               <button
                 onClick={toggleListening}
                 className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${isListening
@@ -1134,7 +1179,7 @@ export default function CookMode() {
             <div className="px-6 py-4 max-w-2xl mx-auto">
               <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-3">Ingredients</p>
               <div className="grid grid-cols-2 gap-1.5">
-                {ingredients.map((ing, i) => {
+                {scaledIngredients.map((ing, i) => {
                   const checked = checkedIngredients.has(i);
                   return (
                     <button

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sparkles, Loader2, Flame, Beef, Wheat, Droplets, Heart, Lock } from 'lucide-react';
 import { getAiDisabledMessage, isAiAgentCallsDisabledError } from '@/lib/ai';
@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { usePremiumAccess } from '@/hooks/usePremiumAccess';
+import { useNavigate } from 'react-router-dom';
 
 export interface NutritionData {
   calories: number;
@@ -33,10 +34,12 @@ interface NutritionCardProps {
 }
 
 export default function NutritionCard({ recipeId, recipeName, ingredients, servings = 1 }: NutritionCardProps) {
+  const navigate = useNavigate();
   const { cachedNutrition, cacheNutrition } = useStore();
   const { isPremium } = usePremiumAccess();
   const [nutrition, setNutrition] = useState<NutritionData | null>(cachedNutrition[recipeId] || null);
   const [loading, setLoading] = useState(false);
+  const autoRequestedRef = useRef(false);
 
   useEffect(() => {
     setNutrition(cachedNutrition[recipeId] || null);
@@ -67,12 +70,8 @@ export default function NutritionCard({ recipeId, recipeName, ingredients, servi
     };
   }, [cacheNutrition, cachedNutrition, recipeId]);
 
-  const analyze = async () => {
-    if (!isPremium) {
-      toast.info('Nutrition analysis is a Premium feature.');
-      return;
-    }
-
+  const analyze = async (options?: { silent?: boolean }) => {
+    const silent = options?.silent ?? false;
     setLoading(true);
     try {
       const { data, error } = await invokeAppFunction('analyze-nutrition', {
@@ -80,7 +79,9 @@ export default function NutritionCard({ recipeId, recipeName, ingredients, servi
       });
 
       if (error || !data?.success) {
-        toast.error(data?.error || error?.message || 'Failed to analyze nutrition');
+        if (!silent) {
+          toast.error(data?.error || error?.message || 'Failed to analyze nutritional facts');
+        }
         return;
       }
 
@@ -92,36 +93,54 @@ export default function NutritionCard({ recipeId, recipeName, ingredients, servi
       });
     } catch (err) {
       if (isAiAgentCallsDisabledError(err)) {
-        toast.info(getAiDisabledMessage('AI nutrition analysis'));
+        if (!silent) {
+          toast.info(getAiDisabledMessage('AI nutritional facts'));
+        }
         return;
       }
 
       console.error('Nutrition error:', err);
-      toast.error('Something went wrong');
+      if (!silent) {
+        toast.error('Something went wrong');
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    if (nutrition || loading || autoRequestedRef.current || !recipeId || ingredients.length === 0) return;
+    autoRequestedRef.current = true;
+    void analyze({ silent: true });
+  }, [ingredients.length, loading, nutrition, recipeId, recipeName, servings]);
+
   if (!nutrition) {
     return (
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={analyze}
-        disabled={loading}
-        className="gap-1.5"
-      >
-        {loading ? (
-          <>
-            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Analyzing...
-          </>
-        ) : (
-          <>
-            {isPremium ? <Sparkles className="h-3.5 w-3.5 text-amber-500" /> : <Lock className="h-3.5 w-3.5" />} {isPremium ? 'Nutrition Facts' : 'Nutrition Facts (Premium)'}
-          </>
-        )}
-      </Button>
+      <div className="rounded-xl border border-border bg-gradient-to-br from-card to-muted/30 p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {isPremium ? <Sparkles className="h-4 w-4 text-amber-500" /> : <Lock className="h-4 w-4 text-muted-foreground" />}
+            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Nutritional Facts</span>
+          </div>
+        </div>
+        <div className="rounded-xl border border-dashed border-stone-200 bg-stone-50 px-4 py-6 text-center">
+          {loading ? (
+            <p className="inline-flex items-center gap-2 text-sm font-medium text-stone-500">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading nutritional facts...
+            </p>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void analyze()}
+              className="gap-1.5"
+            >
+              {isPremium ? <Sparkles className="h-3.5 w-3.5 text-amber-500" /> : <Lock className="h-3.5 w-3.5" />}
+              Refresh Nutritional Facts
+            </Button>
+          )}
+        </div>
+      </div>
     );
   }
 
@@ -141,13 +160,13 @@ export default function NutritionCard({ recipeId, recipeName, ingredients, servi
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-xl border border-border bg-gradient-to-br from-card to-muted/30 p-4 space-y-3"
+      className="relative rounded-xl border border-border bg-gradient-to-br from-card to-muted/30 p-4 space-y-3 overflow-hidden"
     >
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-amber-500" />
-          <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Nutrition Facts</span>
+          <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Nutritional Facts</span>
         </div>
         <div className={`flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${healthBg} ${healthColor}`}>
           <Heart className="h-3 w-3" />
@@ -207,6 +226,27 @@ export default function NutritionCard({ recipeId, recipeName, ingredients, servi
         <p className="text-[10px] text-muted-foreground italic">
           💡 {nutrition.notes}
         </p>
+      )}
+
+      {!isPremium && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-stone-950/12 backdrop-blur-[6px]">
+          <div className="mx-4 max-w-[280px] rounded-2xl border border-orange-300 bg-white px-4 py-4 text-center shadow-lg">
+            <p className="inline-flex items-center gap-2 text-sm font-bold text-stone-900">
+              <Lock className="h-4 w-4 text-orange-500" />
+              Premium unlock
+            </p>
+            <p className="mt-1 text-xs leading-5 text-stone-700">
+              Become a member to view nutritional information about your recipe.
+            </p>
+            <Button
+              size="sm"
+              className="mt-3"
+              onClick={() => navigate('/#pricing')}
+            >
+              See Member Benefits
+            </Button>
+          </div>
+        </div>
       )}
     </motion.div>
   );
