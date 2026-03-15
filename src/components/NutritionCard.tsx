@@ -8,7 +8,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { usePremiumAccess } from '@/hooks/usePremiumAccess';
-import { useNavigate } from 'react-router-dom';
+import { usePremiumGate } from '@/hooks/usePremiumGate';
+import PremiumFeatureButton from '@/components/PremiumFeatureButton';
 
 export interface NutritionData {
   calories: number;
@@ -34,9 +35,9 @@ interface NutritionCardProps {
 }
 
 export default function NutritionCard({ recipeId, recipeName, ingredients, servings = 1 }: NutritionCardProps) {
-  const navigate = useNavigate();
   const { cachedNutrition, cacheNutrition } = useStore();
   const { isPremium } = usePremiumAccess();
+  const { openPremiumPage } = usePremiumGate();
   const [nutrition, setNutrition] = useState<NutritionData | null>(cachedNutrition[recipeId] || null);
   const [loading, setLoading] = useState(false);
   const autoRequestedRef = useRef(false);
@@ -238,13 +239,11 @@ export default function NutritionCard({ recipeId, recipeName, ingredients, servi
             <p className="mt-1 text-xs leading-5 text-stone-700">
               Become a member to view nutritional information about your recipe.
             </p>
-            <Button
-              size="sm"
-              className="mt-3"
-              onClick={() => navigate('/#pricing')}
-            >
-              See Member Benefits
-            </Button>
+            <PremiumFeatureButton
+              label="See Member Benefits"
+              onClick={() => openPremiumPage("Nutritional Facts")}
+              className="mt-3 h-10 rounded-xl px-3 text-sm"
+            />
           </div>
         </div>
       )}

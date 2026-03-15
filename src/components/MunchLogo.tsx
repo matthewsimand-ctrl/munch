@@ -5,6 +5,7 @@ interface MunchLogoProps {
   className?: string;
   size?: number;
   showWordmark?: boolean;
+  wordmark?: string;
   wordmarkClassName?: string;
   subtitle?: string;
   subtitleClassName?: string;
@@ -108,6 +109,7 @@ export function MunchLogo({
   className,
   size = 44,
   showWordmark = true,
+  wordmark = "Munch",
   wordmarkClassName,
   subtitle,
   subtitleClassName,
@@ -118,7 +120,7 @@ export function MunchLogo({
       <LogoArt size={size} interactiveEyes={interactiveEyes} />
       {showWordmark && (
         <div>
-          <p className={wordmarkClassName || "text-lg font-bold tracking-tight text-stone-900"}>Munch</p>
+          <p className={wordmarkClassName || "text-lg font-bold tracking-tight text-stone-900"}>{wordmark}</p>
           {subtitle ? (
             <p className={subtitleClassName || "text-xs text-stone-500"}>{subtitle}</p>
           ) : null}

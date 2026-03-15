@@ -10,6 +10,8 @@ import { invokeAppFunction } from '@/lib/functionClient';
 import { toast } from 'sonner';
 import type { Recipe } from '@/data/recipes';
 import { usePremiumAccess } from '@/hooks/usePremiumAccess';
+import { usePremiumGate } from '@/hooks/usePremiumGate';
+import PremiumFeatureButton from '@/components/PremiumFeatureButton';
 
 interface Props {
   recipe: Recipe;
@@ -30,6 +32,7 @@ const TWEAK_OPTIONS: { type: TweakType; label: string; description: string; icon
 export default function RecipeTweakDialog({ recipe, open, onOpenChange }: Props) {
   const { userProfile, pantryList, likeRecipe } = useStore();
   const { isPremium } = usePremiumAccess();
+  const { openPremiumPage } = usePremiumGate();
   const [tweakType, setTweakType] = useState<TweakType | null>(null);
   const [customPrompt, setCustomPrompt] = useState('');
   const [loading, setLoading] = useState(false);
@@ -38,7 +41,7 @@ export default function RecipeTweakDialog({ recipe, open, onOpenChange }: Props)
   const handleTweak = async () => {
     if (!tweakType) return;
     if (!isPremium) {
-      toast.info('AI Recipe Tweaker is a Premium feature.');
+      openPremiumPage('AI Recipe Tweaker');
       return;
     }
     setLoading(true);
@@ -165,17 +168,25 @@ export default function RecipeTweakDialog({ recipe, open, onOpenChange }: Props)
                   />
                 )}
 
-                <Button
-                  onClick={handleTweak}
-                  disabled={!isPremium || !tweakType || loading || (tweakType === 'custom' && !customPrompt.trim())}
-                  className="w-full"
-                >
-                  {loading ? (
-                    <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Tweaking...</>
-                  ) : (
-                    <>{isPremium ? <Wand2 className="h-4 w-4 mr-2" /> : <Lock className="h-4 w-4 mr-2" />}{isPremium ? 'Tweak Recipe' : 'Premium Required'}</>
-                  )}
-                </Button>
+                {isPremium ? (
+                  <Button
+                    onClick={handleTweak}
+                    disabled={!tweakType || loading || (tweakType === 'custom' && !customPrompt.trim())}
+                    className="w-full"
+                  >
+                    {loading ? (
+                      <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Tweaking...</>
+                    ) : (
+                      <><Wand2 className="h-4 w-4 mr-2" />Tweak Recipe</>
+                    )}
+                  </Button>
+                ) : (
+                  <PremiumFeatureButton
+                    label="Unlock Recipe Tweaker"
+                    onClick={() => openPremiumPage('AI Recipe Tweaker')}
+                    className="mt-1"
+                  />
+                )}
               </>
             ) : (
               <>

@@ -396,7 +396,7 @@ export default function RecipePreviewDialog({
                   {recipe.source_url && importedRecipe && (
                     <div
                       className="relative rounded-xl overflow-hidden border border-stone-200 bg-stone-100 p-4"
-                      style={{ minHeight: 120 }}
+                      style={{ minHeight: 88 }}
                     >
                       <div className="absolute inset-0">
                         {recipe.image && recipe.image !== '/placeholder.svg' ? (
@@ -404,19 +404,7 @@ export default function RecipePreviewDialog({
                         ) : null}
                         <div className="absolute inset-0 bg-gradient-to-t from-stone-900/10 to-white/80" />
                       </div>
-                      <div className="relative z-10 flex flex-wrap items-center gap-3 justify-between">
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium text-stone-800">
-                            {canEmbedSource
-                              ? 'Showing imported recipe details below the site preview'
-                              : 'This site doesn&apos;t allow direct embedding'}
-                          </p>
-                          <p className="text-xs text-stone-500">
-                            {showStructuredFallback
-                              ? 'You can still use the imported ingredients and instructions for the Let Me Cook flow.'
-                              : 'Open the original page in your browser to view it.'}
-                          </p>
-                        </div>
+                      <div className="relative z-10 flex items-center justify-end">
                         <a
                           href={recipe.source_url}
                           target="_blank"

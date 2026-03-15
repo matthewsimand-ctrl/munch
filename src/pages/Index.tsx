@@ -62,7 +62,7 @@ const PRICING = [
   },
   {
     name: "Premium",
-    price: "Upgrade in app",
+    price: "$7.99 / month",
     subtitle: "For cooks who want smarter insights",
     points: [
       "Nutrition facts across recipes and meals",

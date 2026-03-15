@@ -26,6 +26,7 @@ import CookedHistory from "./pages/CookedHistory";
 import Kitchens from "./pages/Kitchens";
 import Notifications from "./pages/Notifications";
 import KitchenInviteAccept from "./pages/KitchenInviteAccept";
+import PremiumBenefits from "./pages/PremiumBenefits";
 import NotFound from "./pages/NotFound";
 import SpotlightTutorial from "./components/SpotlightTutorial";
 
@@ -65,6 +66,7 @@ function AppRoutes() {
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/cooked-history" element={<CookedHistory />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/premium" element={<PremiumBenefits />} />
           <Route path="/dictionary" element={<Dictionary />} />
           <Route path="/chef/:userId" element={<ChefProfile />} />
         </Route>

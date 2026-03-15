@@ -19,6 +19,8 @@ import { composeIngredientLine, parseIngredientLine } from '@/lib/ingredientText
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { usePremiumAccess } from '@/hooks/usePremiumAccess';
+import { usePremiumGate } from '@/hooks/usePremiumGate';
+import PremiumFeatureButton from '@/components/PremiumFeatureButton';
 
 interface ImportRecipeDialogProps {
   children?: React.ReactNode;
@@ -200,14 +202,10 @@ export default function ImportRecipeDialog({
   const photoInputRef = useRef<HTMLInputElement>(null);
   const { likeRecipe } = useStore();
   const { isPremium } = usePremiumAccess();
+  const { openPremiumPage } = usePremiumGate();
 
   const promptPremiumUpgrade = () => {
-    toast.info('This is a Premium feature. Upgrade to unlock AI imports.', {
-      action: {
-        label: 'Open Settings',
-        onClick: () => navigate('/settings'),
-      },
-    });
+    openPremiumPage('AI recipe imports');
   };
 
   // Review mode state
@@ -755,7 +753,12 @@ export default function ImportRecipeDialog({
       return;
     }
 
-    if (aiAgentCallsDisabled || !isPremium) {
+    if (!isPremium) {
+      promptPremiumUpgrade();
+      return;
+    }
+
+    if (aiAgentCallsDisabled) {
       void handleNonPremiumUrlImport(normalizedUrl);
       return;
     }
@@ -1050,9 +1053,15 @@ export default function ImportRecipeDialog({
       {children ? (
         <DialogTrigger asChild>{children}</DialogTrigger>
       ) : null}
-      <DialogContent className="flex max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-lg flex-col overflow-hidden p-0">
+      <DialogContent
+        className="flex max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-lg flex-col overflow-hidden p-0"
+        style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}
+      >
         <DialogHeader className="px-4 pt-4 pb-2 sm:px-6 sm:pt-6">
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle
+            className="flex items-center gap-2 text-stone-900"
+            style={{ fontFamily: "'Fraunces', Georgia, serif" }}
+          >
             {websitePreview
               ? 'Website Recipe Preview'
               : reviewMode
@@ -1456,15 +1465,23 @@ export default function ImportRecipeDialog({
                     onChange={(e) => setUrl(e.target.value)}
                     disabled={loading}
                   />
-                  <Button type="submit" className="w-full" disabled={loading || !url.trim()}>
-                    {loading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Extracting...
-                      </>
-                    ) : (
-                      isPremium ? 'Import Recipe' : 'Check Existing Import'
-                    )}
-                  </Button>
+                  {isPremium ? (
+                    <Button type="submit" className="w-full" disabled={loading || !url.trim()}>
+                      {loading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Extracting...
+                        </>
+                      ) : (
+                        'Import Recipe'
+                      )}
+                    </Button>
+                  ) : (
+                    <PremiumFeatureButton
+                      label="Unlock URL Imports"
+                      onClick={() => promptPremiumUpgrade()}
+                      disabled={loading}
+                    />
+                  )}
                 </form>
 
                 {loading && (
@@ -1516,20 +1533,28 @@ export default function ImportRecipeDialog({
                           placeholder="Copy and paste the recipe title, ingredients, and instructions here..."
                           disabled={loading}
                         />
-                        <Button
-                          type="button"
-                          onClick={handleManualImport}
-                          className="w-full"
-                          disabled={loading || !manualText.trim()}
-                        >
-                          {loading ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Importing...
-                            </>
-                          ) : (
-                            isPremium ? '🧠 Import Pasted Text' : 'Upgrade for AI Import'
-                          )}
-                        </Button>
+                        {isPremium ? (
+                          <Button
+                            type="button"
+                            onClick={handleManualImport}
+                            className="w-full"
+                            disabled={loading || !manualText.trim()}
+                          >
+                            {loading ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Importing...
+                              </>
+                            ) : (
+                              '🧠 Import Pasted Text'
+                            )}
+                          </Button>
+                        ) : (
+                          <PremiumFeatureButton
+                            label="Unlock AI Text Import"
+                            onClick={() => promptPremiumUpgrade()}
+                            disabled={loading || !manualText.trim()}
+                          />
+                        )}
                       </div>
                     )}
                   </div>
@@ -1547,30 +1572,33 @@ export default function ImportRecipeDialog({
                   onChange={handleFileUpload}
                   className="hidden"
                 />
-                <Button
-                  variant="outline"
-                  className="w-full h-24 border-dashed border-2 flex flex-col gap-2"
-                  onClick={() => {
-                    if (!isPremium) {
-                      promptPremiumUpgrade();
-                      return;
-                    }
-                    fileInputRef.current?.click();
-                  }}
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="h-6 w-6 animate-spin" />
-                      <span className="text-sm">Extracting recipe...</span>
-                    </>
-                  ) : (
-                    <>
-                      <FileText className="h-6 w-6 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">{isPremium ? 'Click to upload PDF (max 20MB)' : 'Upgrade for AI PDF import'}</span>
-                    </>
-                  )}
-                </Button>
+                {isPremium ? (
+                  <Button
+                    variant="outline"
+                    className="w-full h-24 border-dashed border-2 flex flex-col gap-2"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-6 w-6 animate-spin" />
+                        <span className="text-sm">Extracting recipe...</span>
+                      </>
+                    ) : (
+                      <>
+                        <FileText className="h-6 w-6 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">Click to upload PDF (max 20MB)</span>
+                      </>
+                    )}
+                  </Button>
+                ) : (
+                  <PremiumFeatureButton
+                    label="Unlock PDF Imports"
+                    onClick={() => promptPremiumUpgrade()}
+                    className="h-14"
+                    disabled={loading}
+                  />
+                )}
               </TabsContent>
 
               <TabsContent value="photo" className="space-y-4 pt-4">
@@ -1584,30 +1612,33 @@ export default function ImportRecipeDialog({
                   onChange={handleRecipePhotoImport}
                   className="hidden"
                 />
-                <Button
-                  variant="outline"
-                  className="w-full h-24 border-dashed border-2 flex flex-col gap-2"
-                  onClick={() => {
-                    if (!isPremium) {
-                      promptPremiumUpgrade();
-                      return;
-                    }
-                    recipePhotoInputRef.current?.click();
-                  }}
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="h-6 w-6 animate-spin" />
-                      <span className="text-sm">Reading photo...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Camera className="h-6 w-6 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">{isPremium ? 'Click to upload recipe photo (max 10MB)' : 'Upgrade for AI photo import'}</span>
-                    </>
-                  )}
-                </Button>
+                {isPremium ? (
+                  <Button
+                    variant="outline"
+                    className="w-full h-24 border-dashed border-2 flex flex-col gap-2"
+                    onClick={() => recipePhotoInputRef.current?.click()}
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-6 w-6 animate-spin" />
+                        <span className="text-sm">Reading photo...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Camera className="h-6 w-6 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">Click to upload recipe photo (max 10MB)</span>
+                      </>
+                    )}
+                  </Button>
+                ) : (
+                  <PremiumFeatureButton
+                    label="Unlock Photo Imports"
+                    onClick={() => promptPremiumUpgrade()}
+                    className="h-14"
+                    disabled={loading}
+                  />
+                )}
               </TabsContent>
             </Tabs>
           </div>

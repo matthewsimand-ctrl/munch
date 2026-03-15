@@ -13,6 +13,10 @@ import { adjustQuantityString, canDecreaseQuantity, parseIngredientLine, suggest
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { getPantryImage } from "@/lib/pantryImages";
 import { useKitchenGroceryList } from "@/hooks/useKitchenGroceryList";
+import MobileActionButton from "@/components/MobileActionButton";
+import { usePremiumAccess } from "@/hooks/usePremiumAccess";
+import { usePremiumGate } from "@/hooks/usePremiumGate";
+import PremiumFeatureButton from "@/components/PremiumFeatureButton";
 
 const STORE_SECTIONS: Record<string, string> = {
   produce: "🥦 Produce",
@@ -277,6 +281,8 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
   } = useStore();
   const kitchenGrocery = useKitchenGroceryList(activeKitchenId);
   const isKitchenMode = Boolean(activeKitchenId);
+  const { isPremium } = usePremiumAccess();
+  const { openPremiumPage } = usePremiumGate();
 
   const [newItem, setNewItem] = useState("");
   const [newQty, setNewQty] = useState("");
@@ -286,6 +292,7 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
   const [estimating, setEstimating] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [clearAllConfirmOpen, setClearAllConfirmOpen] = useState(false);
   const [importText, setImportText] = useState("");
   const [priceEstimate, setPriceEstimate] = useState<{ total: number; low: number; high: number; nearbyStores: string[]; currency: string; location: string; notes?: string } | null>(null);
 
@@ -413,7 +420,7 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
   const handleExport = async () => {
     const unchecked = items
       .filter((i) => !i.checked)
-      .map((i) => `- [ ] ${i.name}${i.qty ? ` (${i.qty})` : ""}`)
+      .map((i) => `☐ ${i.name}${i.qty ? ` (${i.qty})` : ""}`)
       .join("\n");
 
     if (!unchecked) {
@@ -421,10 +428,10 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
       return;
     }
 
-    const checklist = `# Grocery List\n\n${unchecked}`;
+    const checklist = `Grocery List\n\n${unchecked}`;
     const safeDate = new Date().toISOString().slice(0, 10);
-    const filename = `munch-grocery-list-${safeDate}.md`;
-    const file = new File([checklist], filename, { type: "text/markdown" });
+    const filename = `munch-grocery-list-${safeDate}.txt`;
+    const file = new File([checklist], filename, { type: "text/plain" });
 
     try {
       if (navigator.canShare?.({ files: [file] }) && navigator.share) {
@@ -433,7 +440,7 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
           text: "Open this checklist in Notes.",
           files: [file],
         });
-        toast.success("Checklist file ready to send to Notes.");
+        toast.success("Notes-friendly checklist ready to share.");
         return;
       }
 
@@ -445,7 +452,7 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
       anchor.click();
       anchor.remove();
       URL.revokeObjectURL(url);
-      toast.success("Checklist file downloaded for Notes.");
+      toast.success("Notes-friendly checklist downloaded.");
     } catch {
       try {
         await navigator.clipboard?.writeText(checklist);
@@ -475,6 +482,11 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
   };
 
   const handleEstimatePrice = async () => {
+    if (!isPremium) {
+      openPremiumPage("AI grocery price estimates");
+      return;
+    }
+
     const activeItems = items.filter((item) => !item.checked);
     if (!activeItems.length) {
       toast.info("Add a few grocery items first.");
@@ -518,8 +530,8 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
         style={{ background: "linear-gradient(135deg,#FFF7ED 0%,#FFFAF5 100%)", borderColor: "rgba(249,115,22,0.12)" }}
       >
         <div className="max-w-3xl mx-auto px-4 py-4 sm:px-6 sm:py-6">
-          <div className="mb-4 flex flex-col gap-4">
-            <div>
+          <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
               <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1">Shopping</p>
               <h1 className="text-xl font-bold text-stone-900 sm:text-2xl" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
                 Grocery List
@@ -533,41 +545,49 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
                 </p>
               )}
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+              {totalCount > 0 && (
+                isPremium ? (
+                  <button
+                    onClick={handleEstimatePrice}
+                    className="flex items-center gap-1.5 rounded-xl bg-white border border-stone-200 px-3 py-1.5 text-[10px] font-semibold text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors sm:text-[11px]"
+                    disabled={estimating}
+                  >
+                    <Sparkles size={13} /> {estimating ? "Estimating..." : "AI estimate"}
+                  </button>
+                ) : (
+                  <PremiumFeatureButton
+                    label="Unlock AI Estimate"
+                    onClick={() => openPremiumPage("AI grocery price estimates")}
+                    className="h-8 w-auto px-3 text-[10px] sm:h-9 sm:text-[11px]"
+                  />
+                )
+              )}
               {checkedCount > 0 && (
                 <button
                   onClick={handleClearChecked}
-                  className="flex items-center gap-1.5 rounded-xl bg-white border border-stone-200 px-3.5 py-2 text-[11px] font-semibold text-stone-500 hover:border-red-300 hover:text-red-500 transition-colors sm:text-xs"
+                  className="flex items-center gap-1.5 rounded-xl bg-white border border-stone-200 px-3 py-1.5 text-[10px] font-semibold text-stone-500 hover:border-red-300 hover:text-red-500 transition-colors sm:text-[11px]"
                 >
                   <Trash2 size={13} /> Clear done
                 </button>
               )}
-              {totalCount > 0 && (
-                <button
-                  onClick={handleEstimatePrice}
-                  className="flex items-center gap-1.5 rounded-xl bg-white border border-stone-200 px-3.5 py-2 text-[11px] font-semibold text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors sm:text-xs"
-                  disabled={estimating}
-                >
-                  <Sparkles size={13} /> {estimating ? "Estimating..." : "AI estimate"}
-                </button>
-              )}
               <button
                 onClick={() => setImportDialogOpen(true)}
-                className="flex items-center gap-1.5 rounded-xl bg-white border border-stone-200 px-3.5 py-2 text-[11px] font-semibold text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors sm:text-xs"
+                className="flex items-center gap-1.5 rounded-xl bg-white border border-stone-200 px-3 py-1.5 text-[10px] font-semibold text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors sm:text-[11px]"
               >
                 <Upload size={13} /> Import note
               </button>
               {totalCount > 0 && (
                 <button
-                  onClick={handleClearAll}
-                  className="flex items-center gap-1.5 rounded-xl bg-white border border-stone-200 px-3.5 py-2 text-[11px] font-semibold text-stone-500 hover:border-red-300 hover:text-red-500 transition-colors sm:text-xs"
+                  onClick={() => setClearAllConfirmOpen(true)}
+                  className="flex items-center gap-1.5 rounded-xl bg-white border border-stone-200 px-3 py-1.5 text-[10px] font-semibold text-stone-500 hover:border-red-300 hover:text-red-500 transition-colors sm:text-[11px]"
                 >
                   <Trash2 size={13} /> Clear all
                 </button>
               )}
               <button
                 onClick={handleExport}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90 active:scale-95"
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-[11px] font-bold text-white transition-all hover:opacity-90 active:scale-95"
                 style={{ background: "linear-gradient(135deg,#FB923C,#F97316,#EA580C)", boxShadow: "0 4px 16px rgba(249,115,22,0.30)" }}
               >
                 <FileText size={14} /> Export
@@ -903,15 +923,39 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
         </DialogContent>
       </Dialog>
 
-      {embedded && (
-        <button
-          type="button"
-          onClick={() => setAddDialogOpen(true)}
-          className="fixed bottom-[calc(var(--mobile-nav-offset)+0.75rem)] right-4 z-40 inline-flex h-14 items-center gap-2 rounded-full bg-orange-500 px-4 text-sm font-semibold text-white shadow-lg shadow-orange-500/30"
-        >
-          <Plus size={18} /> Add Item
-        </button>
-      )}
+      <Dialog open={clearAllConfirmOpen} onOpenChange={setClearAllConfirmOpen}>
+        <DialogContent className="w-[calc(100vw-1rem)] max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Clear grocery list?</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-stone-500">
+              This will remove every item from your grocery list. This action cannot be undone.
+            </p>
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setClearAllConfirmOpen(false)}
+                className="rounded-xl border border-stone-200 px-4 py-2.5 text-sm font-semibold text-stone-600 transition-colors hover:border-orange-300 hover:text-orange-600"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  handleClearAll();
+                  setClearAllConfirmOpen(false);
+                }}
+                className="rounded-xl bg-red-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-600"
+              >
+                Clear all
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {embedded && <MobileActionButton label="Add Item" onClick={() => setAddDialogOpen(true)} />}
     </div>
   );
 }

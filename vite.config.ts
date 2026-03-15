@@ -18,4 +18,15 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  optimizeDeps: {
+    include: [
+      "@dicebear/core",
+      "@dicebear/adventurer",
+      "@dicebear/adventurer-neutral",
+      "@dicebear/big-ears-neutral",
+      "@dicebear/big-smile",
+      "@dicebear/personas",
+      "@dicebear/thumbs",
+    ],
+  },
 }));

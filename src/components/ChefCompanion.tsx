@@ -37,12 +37,14 @@ export function getLevel(xp: number): { level: number; current: number; needed: 
 
 /** Chef path only — shown at top of CookMode */
 export function ChefPath({ currentStep, totalSteps, timerRunning, isDone }: Props) {
+  const { chefAvatarUrl } = useStore();
   const state = useMemo(() => {
     if (isDone) return CHEF_STATES[CHEF_STATES.length - 1];
-    if (timerRunning) return { emoji: '⏳', label: 'Timer running...', mood: 'wait' };
+    if (timerRunning) return { emoji: '⏳', label: 'Cooking...', mood: 'wait' };
     const idx = Math.floor((currentStep / Math.max(totalSteps - 1, 1)) * (CHEF_STATES.length - 2));
     return CHEF_STATES[Math.min(idx, CHEF_STATES.length - 2)];
   }, [currentStep, totalSteps, timerRunning, isDone]);
+
 
   const progress = totalSteps > 1 ? currentStep / (totalSteps - 1) : 0;
 
@@ -76,9 +78,8 @@ export function ChefPath({ currentStep, totalSteps, timerRunning, isDone }: Prop
             animate={{ scale: m.reached ? [1, 1.4, 1] : 1 }}
             transition={{ duration: 0.4 }}
           >
-            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors duration-300 ${
-              m.reached ? 'bg-primary border-primary' : 'bg-background border-muted-foreground/30'
-            }`}>
+            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors duration-300 ${m.reached ? 'bg-primary border-primary' : 'bg-background border-muted-foreground/30'
+              }`}>
               {m.reached && (
                 <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="text-[8px]">⭐</motion.div>
               )}
@@ -91,27 +92,48 @@ export function ChefPath({ currentStep, totalSteps, timerRunning, isDone }: Prop
 
         <motion.div
           className="absolute bottom-4"
-          animate={{ left: `calc(1rem + ${Math.min(progress, 1)} * (100% - 3.5rem))` }}
+          animate={{ left: `calc(1rem + ${Math.min(progress, 1)} * (100% - 4.5rem))` }}
           transition={{ type: 'spring', stiffness: 100, damping: 18 }}
         >
           <AnimatePresence mode="wait">
             <motion.div
               key={state.emoji + state.mood}
-              initial={{ scale: 0.3, y: 10, rotate: -10 }}
-              animate={{ scale: 1, y: timerRunning ? [0, -8, 0] : [0, -4, 0], rotate: 0 }}
-              exit={{ scale: 0.3, opacity: 0, rotate: 10 }}
-              transition={{
-                scale: { duration: 0.25 },
-                y: { duration: timerRunning ? 0.5 : 0.8, repeat: Infinity, repeatType: 'loop', ease: 'easeInOut' },
-                rotate: { duration: 0.2 },
+              initial={{ scale: 0.8, opacity: 0, y: 10 }}
+              animate={{
+                scale: 1,
+                opacity: 1,
+                y: [0, -6, 0],
+                rotate: timerRunning ? [0, 2, -2, 0] : 0
               }}
-              className="text-3xl select-none drop-shadow-md cursor-default"
-              title={state.label}
+              exit={{ scale: 0.5, opacity: 0 }}
+              transition={{
+                y: { duration: 3, repeat: Infinity, ease: "easeInOut" },
+                rotate: { duration: 0.5, repeat: Infinity, ease: "easeInOut" },
+                default: { duration: 0.3 }
+              }}
+              className="relative group cursor-default"
             >
-              {state.emoji}
+              {chefAvatarUrl ? (
+                <div className="relative">
+                  <div className="absolute inset-0 bg-primary/20 rounded-full blur-lg scale-110 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <img
+                    src={chefAvatarUrl}
+                    alt="Chef"
+                    className="w-14 h-14 rounded-2xl border-2 border-white shadow-lg bg-orange-50 object-cover relative z-10"
+                  />
+                  {!isDone && (
+                    <div className="absolute -top-1 -right-1 bg-white rounded-full p-1 shadow-sm border border-stone-100 z-20">
+                      <span className="text-xs">{state.emoji}</span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-4xl drop-shadow-md">{state.emoji}</div>
+              )}
             </motion.div>
           </AnimatePresence>
         </motion.div>
+
       </div>
 
       <div className="flex items-center justify-center">

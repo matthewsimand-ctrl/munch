@@ -19,6 +19,9 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { getPantryImage } from "@/lib/pantryImages";
 import { useKitchenPantry } from "@/hooks/useKitchenPantry";
 import { Input } from "@/components/ui/input";
+import MobileActionButton from "@/components/MobileActionButton";
+import PremiumFeatureButton from "@/components/PremiumFeatureButton";
+import { usePremiumGate } from "@/hooks/usePremiumGate";
 
 const CATEGORIES = ["All", "Produce", "Dairy", "Meat & Fish", "Dry Goods", "Pasta / Noodles", "Condiments", "Bakery", "Frozen", "Other"];
 const CATEGORY_ICONS: Record<string, string> = {
@@ -153,7 +156,7 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
   const [newCategory, setNewCategory] = useState("Other");
   const [newQty, setNewQty] = useState("");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [scanDialogOpen, setScanDialogOpen] = useState(false);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [importingReceipt, setImportingReceipt] = useState(false);
   const [generatingRecipe, setGeneratingRecipe] = useState(false);
   const [generatedRecipe, setGeneratedRecipe] = useState<Recipe | null>(null);
@@ -163,6 +166,7 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
   const [cleanupCuisine, setCleanupCuisine] = useState("");
   const [cleanupPrompt, setCleanupPrompt] = useState("");
   const isPremium = getPremiumOverride();
+  const { openPremiumPage } = usePremiumGate();
   const receiptInputRef = useRef<HTMLInputElement>(null);
   const fridgeImageInputRef = useRef<HTMLInputElement>(null);
   const pantryItems = isKitchenMode
@@ -227,6 +231,31 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
     }
     toast.success(`Removed ${name}`);
   };
+
+  const renderActionHelp = (
+    copy: string,
+    {
+      align = "center",
+    }: {
+      align?: "start" | "center" | "end";
+    } = {},
+  ) => (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span
+            className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-orange-200 bg-orange-50/95 text-orange-500"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <CircleHelp size={10} />
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" sideOffset={8} align={align} className="z-[80] max-w-[220px]">
+          <p className="text-xs">{copy}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
 
   const handleClearAll = () => {
     if ((pantryItems?.length ?? 0) === 0) return;
@@ -419,7 +448,7 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
       }
 
       toast.success(`Added ${importedCount} pantry item${importedCount === 1 ? "" : "s"}.`);
-      setScanDialogOpen(false);
+      setUploadDialogOpen(false);
     } catch (error) {
       if (isAiAgentCallsDisabledError(error)) {
         toast.info(getAiDisabledMessage("receipt and pantry scanning"));
@@ -448,8 +477,8 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
           style={{ backgroundImage: "radial-gradient(circle, #FDA97440 1px, transparent 1px)", backgroundSize: "20px 20px" }}
         />
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 py-5 sm:py-6">
-          <div className="flex flex-col gap-4 mb-4">
-            <div>
+          <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
               <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1">Your kitchen</p>
               <h1 className="text-2xl font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
                 Pantry
@@ -459,53 +488,48 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
                 {isKitchenMode && <span className="ml-2 font-semibold text-orange-500">Shared with {activeKitchenName || "Kitchen"}</span>}
               </p>
             </div>
-            <div className="flex flex-wrap items-stretch gap-2">
-              <button
-                title="Import Receipts"
-                onClick={() => receiptInputRef.current?.click()}
-                className="flex min-w-0 flex-1 items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-white border border-stone-200 text-sm font-semibold text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors sm:flex-none"
-                disabled={importingReceipt}
-              >
-                <Upload size={14} /> {importingReceipt ? "Importing..." : "Import Receipts"}
-              </button>
-              <button
-                title="Fridge Cleanup"
-                onClick={() => setCleanupPromptOpen(true)}
-                className="flex min-w-0 flex-1 items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-white border border-stone-200 text-sm font-semibold text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors sm:flex-none"
-                disabled={generatingRecipe}
-              >
-                {!isPremium && <Lock size={12} className="text-stone-400" />}
-                <Sparkles size={14} /> {generatingRecipe ? "Generating..." : "Fridge Cleanup"}
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span
-                        className="inline-flex items-center text-stone-400 hover:text-orange-500"
-                        onClick={(event) => event.stopPropagation()}
-                      >
-                        <CircleHelp size={13} />
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="text-xs">Generates a recipe for you based on the ingredients currently in your pantry.</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </button>
-              <button
-                title="Scan fridge"
-                onClick={() => {
-                  if (!isPremium) {
-                    toast.info("Scan Fridge is a Premium feature. Coming soon!");
-                    return;
-                  }
-                  setScanDialogOpen(true);
-                }}
-                className="flex min-w-0 w-full items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-white border border-stone-200 text-sm font-semibold text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors sm:w-auto"
-              >
-                {!isPremium && <Lock size={12} className="text-stone-400" />}
-                <Camera size={14} /> Scan Fridge
-              </button>
+            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+              <div className="min-w-0">
+                {isPremium ? (
+                  <button
+                    title="Upload"
+                    onClick={() => setUploadDialogOpen(true)}
+                    className="flex min-w-0 items-center justify-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-500 transition-colors hover:border-orange-300 hover:text-orange-500"
+                    disabled={importingReceipt}
+                  >
+                    <Upload size={13} /> {importingReceipt ? "Importing..." : "Upload"}
+                    {renderActionHelp("Upload lets you take a picture of a receipt or fridge, or upload a saved file.", { align: "start" })}
+                  </button>
+                ) : (
+                  <PremiumFeatureButton
+                    label="Upload"
+                    onClick={() => openPremiumPage("Pantry Upload")}
+                    disabled={importingReceipt}
+                    className="h-8 w-auto rounded-xl px-2.5 text-[11px] shadow-[0_10px_22px_rgba(91,33,182,0.22)]"
+                    trailing={renderActionHelp("Upload lets you take a picture of a receipt or fridge, or upload a saved file.", { align: "start" })}
+                  />
+                )}
+              </div>
+
+              {isPremium ? (
+                <button
+                  title="Fridge Cleanup"
+                  onClick={() => setCleanupPromptOpen(true)}
+                  className="flex min-w-0 items-center justify-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-500 transition-colors hover:border-orange-300 hover:text-orange-500"
+                  disabled={generatingRecipe}
+                >
+                  <Sparkles size={13} /> {generatingRecipe ? "Generating..." : "Fridge Cleanup"}
+                  {renderActionHelp("Fridge Cleanup uses AI to suggest a recipe based on what is already in your pantry.", { align: "end" })}
+                </button>
+              ) : (
+                <PremiumFeatureButton
+                  label="Fridge Cleanup"
+                  onClick={() => openPremiumPage("Fridge Cleanup")}
+                  className="h-8 w-auto rounded-xl px-2.5 text-[11px] shadow-[0_10px_22px_rgba(91,33,182,0.22)]"
+                  disabled={generatingRecipe}
+                  trailing={renderActionHelp("Fridge Cleanup uses AI to suggest a recipe based on what is already in your pantry.", { align: "end" })}
+                />
+              )}
             </div>
           </div>
 
@@ -547,12 +571,15 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
         }}
       />
 
-      <Dialog open={scanDialogOpen} onOpenChange={setScanDialogOpen}>
+      <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
         <DialogContent className="w-[calc(100vw-1rem)] max-w-sm max-h-[calc(100dvh-1rem)] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Scan your fridge</DialogTitle>
+            <DialogTitle>Upload to Pantry</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
+            <p className="text-sm text-stone-500">
+              Choose whether you want to take a live photo or upload a file from your device.
+            </p>
             <button
               onClick={() => {
                 fridgeImageInputRef.current?.click();
@@ -560,7 +587,7 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
               disabled={importingReceipt}
               className="w-full flex items-center justify-center gap-2 text-sm font-semibold border border-orange-200 bg-orange-50 text-orange-600 rounded-xl py-2.5 hover:bg-orange-100 disabled:opacity-60"
             >
-              <Camera size={14} /> {importingReceipt ? "Scanning..." : "Take live photo"}
+              <Camera size={14} /> {importingReceipt ? "Scanning..." : "Take live picture"}
             </button>
             <button
               onClick={() => {
@@ -569,7 +596,7 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
               disabled={importingReceipt}
               className="w-full flex items-center justify-center gap-2 text-sm font-semibold border border-stone-200 bg-white text-stone-700 rounded-xl py-2.5 hover:border-orange-300 hover:text-orange-600 disabled:opacity-60"
             >
-              <Upload size={14} /> Upload receipt or list
+              <Upload size={14} /> Upload a file
             </button>
           </div>
         </DialogContent>
@@ -622,8 +649,15 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
               <Input value={cleanupCuisine} onChange={(e) => setCleanupCuisine(e.target.value)} placeholder="Italian, French, Mexican..." />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-stone-700">Extra prompt</label>
-              <Input value={cleanupPrompt} onChange={(e) => setCleanupPrompt(e.target.value)} placeholder="High protein, one-pan, kid-friendly..." />
+              <label className="text-sm font-medium text-stone-700">Recipe filter</label>
+              <Input
+                value={cleanupPrompt}
+                onChange={(e) => setCleanupPrompt(e.target.value)}
+                placeholder="Search across title, ingredients, instructions, tags... e.g. high protein, one-pan, kid-friendly"
+              />
+              <p className="text-xs text-stone-400">
+                We&apos;ll use this like a recipe search query across the recipe title, ingredients, instructions, tags, and style.
+              </p>
             </div>
             <button
               type="button"
@@ -890,15 +924,7 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
         </DialogContent>
       </Dialog>
 
-      {embedded && (
-        <button
-          type="button"
-          onClick={() => setAddDialogOpen(true)}
-          className="fixed bottom-[calc(var(--mobile-nav-offset)+0.75rem)] right-4 z-40 inline-flex h-14 items-center gap-2 rounded-full bg-orange-500 px-4 text-sm font-semibold text-white shadow-lg shadow-orange-500/30"
-        >
-          <Plus size={18} /> Add Item
-        </button>
-      )}
+      {embedded && <MobileActionButton label="Add Item" onClick={() => setAddDialogOpen(true)} />}
     </div>
   );
 }

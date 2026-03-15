@@ -24,6 +24,8 @@ import { toast } from "sonner";
 import type { Recipe } from "@/data/recipes";
 import { ChefProfileModal } from "@/components/ChefProfileModal";
 import { normalizeRecipe } from "@/lib/normalizeRecipe";
+import MobileActionButton from "@/components/MobileActionButton";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const SORT_OPTIONS = ["Recently Saved", "Cook Time", "Rating", "Name A–Z"];
 const CUISINE_TAGS = ["All", "Italian", "Asian", "Mexican", "Mediterranean", "American", "Indian"];
@@ -212,12 +214,13 @@ function RecipeCard({
 }
 
 export default function MyRecipesScreen() {
+  const isMobile = useIsMobile();
   const navigate = useNavigate();
   const location = useLocation();
   const {
     likedRecipes, savedApiRecipes, unlikeRecipe,
     recipeFolders, removeFolder,
-    recipeRatings, recipeCookCounts, pantryList, addCustomGroceryItem, cachedNutrition,
+    recipeRatings, recipeCookCounts, pantryList, addCustomGroceryItem, cachedNutrition, displayName: storeDisplayName,
   } = useStore();
   const { loaded: exploreLoaded, loadFeed } = useBrowseFeed();
   const [search, setSearch] = useState("");
@@ -227,7 +230,7 @@ export default function MyRecipesScreen() {
   const [activeFolder, setActiveFolder] = useState<string | null>(null);
   const [selectedChefId, setSelectedChefId] = useState<string | null>(null);
   const [selectedChefName, setSelectedChefName] = useState<string | null>(null);
-  const [displayName, setDisplayName] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState<string | null>(storeDisplayName || null);
   const [previewRecipe, setPreviewRecipe] = useState<Recipe | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [showManualRecipeDialog, setShowManualRecipeDialog] = useState(false);
@@ -271,7 +274,12 @@ export default function MyRecipesScreen() {
     }
     if (search) {
       const term = search.toLowerCase();
-      list = list.filter((r) => r.name.toLowerCase().includes(term) || (r.chef || "").toLowerCase().includes(term));
+      list = list.filter((r) =>
+        r.name.toLowerCase().includes(term)
+        || (r.chef || "").toLowerCase().includes(term)
+        || (r.cuisine || "").toLowerCase().includes(term)
+        || (r.tags || []).some((tag) => String(tag).toLowerCase().includes(term))
+      );
     }
     if (activeCuisine !== "All") list = list.filter((r) => r.cuisine?.toLowerCase() === activeCuisine.toLowerCase());
     if (sortBy === "Recently Saved") {
@@ -316,7 +324,7 @@ export default function MyRecipesScreen() {
             <div>
               <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1">Your collection</p>
               <h1 className="text-xl font-bold text-stone-900 sm:text-2xl" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
-                {displayName ? `${displayName}'s Recipes` : "My Recipes"}
+                {displayName ? `${displayName}'s Recipes` : "Recipes"}
               </h1>
               <p className="text-xs text-stone-400 mt-1">{savedRecipes.length} saved recipe{savedRecipes.length !== 1 ? "s" : ""}</p>
             </div>
@@ -337,7 +345,7 @@ export default function MyRecipesScreen() {
               </button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="min-w-0 flex-1 px-3 py-2 rounded-xl bg-white border border-stone-200 text-[11px] font-semibold text-stone-600 hover:border-orange-300 inline-flex items-center justify-center gap-1.5 sm:flex-none sm:justify-start sm:text-xs">
+                  <button className={`min-w-0 flex-1 px-3 py-2 rounded-xl bg-white border border-stone-200 text-[11px] font-semibold text-stone-600 hover:border-orange-300 inline-flex items-center justify-center gap-1.5 sm:flex-none sm:justify-start sm:text-xs ${isMobile ? "hidden" : ""}`}>
                     <Plus size={12} /> Add Recipes
                   </button>
                 </DropdownMenuTrigger>
@@ -379,33 +387,6 @@ export default function MyRecipesScreen() {
                 {view === "grid" ? <List size={16} /> : <Grid3X3 size={16} />}
               </button>
             </div>
-          </div>
-
-          {/* Folders */}
-          <div className="flex items-center gap-2 pb-4 overflow-x-auto scrollbar-hide">
-            <button
-              onClick={() => setActiveFolder(null)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${!activeFolder ? "bg-stone-900 text-white" : "bg-white border border-stone-200 text-stone-600 hover:border-stone-300"
-                }`}
-            >
-              <BookOpen size={11} /> All Recipes
-            </button>
-            {(recipeFolders ?? []).map((folder) => (
-              <button
-                key={folder.id}
-                onClick={() => setActiveFolder(folder.id === activeFolder ? null : folder.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all group ${activeFolder === folder.id ? "bg-stone-900 text-white" : "bg-white border border-stone-200 text-stone-600 hover:border-stone-300"
-                  }`}
-              >
-                <Folder size={11} /> {folder.name}
-                <span
-                  onClick={(e) => { e.stopPropagation(); removeFolder(folder.id); }}
-                  className={`ml-0.5 opacity-0 group-hover:opacity-100 hover:text-red-400 transition-opacity ${activeFolder === folder.id ? "text-white/60" : ""}`}
-                >
-                  <X size={9} />
-                </span>
-              </button>
-            ))}
           </div>
 
         </div>
@@ -578,6 +559,8 @@ export default function MyRecipesScreen() {
           }
         }}
       />
+
+      <MobileActionButton label="Add Recipe" onClick={() => setImportDialogOpen(true)} />
     </div>
   );
 }

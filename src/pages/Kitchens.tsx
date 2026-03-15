@@ -5,8 +5,13 @@ import { useKitchens } from '@/hooks/useKitchens';
 import { useStore } from '@/lib/store';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { isValidUsername, normalizeUsername } from '@/lib/username';
+import { usePremiumAccess } from '@/hooks/usePremiumAccess';
+import { usePremiumGate } from '@/hooks/usePremiumGate';
+import PremiumFeatureButton from '@/components/PremiumFeatureButton';
 
 export default function KitchensPage() {
+  const { isPremium } = usePremiumAccess();
+  const { openPremiumPage } = usePremiumGate();
   const {
     kitchens,
     invites,
@@ -220,6 +225,79 @@ export default function KitchensPage() {
       setSubmitting(false);
     }
   };
+
+  if (!isPremium) {
+    return (
+      <div className="min-h-full px-4 py-4 sm:px-6 sm:py-6" style={{ background: '#FFFAF5' }}>
+        <div className="max-w-5xl mx-auto space-y-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1">Collaboration</p>
+              <h1 className="text-xl font-bold text-stone-900 sm:text-2xl" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+                Kitchens
+              </h1>
+              <p className="text-sm text-stone-500 mt-1">
+                Share recipes, cookbooks, grocery lists, and meal plans with the people you cook with.
+              </p>
+            </div>
+          </div>
+
+          <div
+            className="rounded-[28px] border p-5 sm:p-8"
+            style={{
+              background: "linear-gradient(145deg, rgba(255,255,255,0.96), rgba(255,247,237,0.96))",
+              borderColor: "rgba(249,115,22,0.16)",
+              boxShadow: "0 24px 60px rgba(120, 53, 15, 0.08)",
+            }}
+          >
+            <div className="flex flex-wrap items-center gap-3 mb-5">
+              <div
+                className="inline-flex h-12 w-12 items-center justify-center rounded-2xl"
+                style={{ background: "linear-gradient(135deg,#7C3AED,#9333EA)", boxShadow: "0 10px 24px rgba(124,58,237,0.28)" }}
+              >
+                <Users size={22} className="text-white" />
+              </div>
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-orange-500">Members Only</p>
+                <h2 className="text-2xl font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+                  Unlock Kitchens collaboration
+                </h2>
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+              {[
+                { title: "Create kitchens", copy: "Set up shared spaces for family, roommates, or your cooking crew." },
+                { title: "Invite members", copy: "Bring people in by username, invite link, or email invite flow." },
+                { title: "Share everything", copy: "Collaborate on pantry items, grocery lists, recipes, and cookbooks." },
+                { title: "Plan together", copy: "Keep meal prep and kitchen activity coordinated in one shared place." },
+              ].map((item) => (
+                <div
+                  key={item.title}
+                  className="rounded-2xl border p-4"
+                  style={{ background: "rgba(255,255,255,0.82)", borderColor: "rgba(216,180,254,0.4)" }}
+                >
+                  <p className="text-sm font-semibold text-stone-800">{item.title}</p>
+                  <p className="text-xs leading-5 text-stone-500 mt-1">{item.copy}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-stone-500 max-w-xl">
+                Become a member to create Kitchens and collaborate on shared meal planning, grocery lists, pantry tracking, and recipes.
+              </p>
+              <PremiumFeatureButton
+                label="Unlock Kitchens"
+                onClick={() => openPremiumPage("Kitchens")}
+                className="w-full justify-center sm:w-auto"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-full px-4 py-4 sm:px-6 sm:py-6" style={{ background: '#FFFAF5' }}>

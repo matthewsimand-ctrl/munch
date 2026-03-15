@@ -12,6 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { useAiAgentCallsDisabled } from '@/hooks/useAiAgentCallsDisabled';
 import { setAiAgentCallsDisabled } from '@/lib/ai';
 import { getPremiumOverride, setPremiumOverride } from '@/lib/premium';
+import { usePremiumGate } from '@/hooks/usePremiumGate';
 import RecipeScraperTester from '@/components/RecipeScraperTester';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { isValidUsername, normalizeUsername } from '@/lib/username';
@@ -51,6 +52,7 @@ const Chip = ({ label, selected, onClick }: { label: string; selected: boolean; 
 export default function Settings() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { openPremiumPage } = usePremiumGate();
   const {
     userProfile, setUserProfile, resetStore, resetTutorial,
     chefAvatarUrl, setChefAvatarUrl, shareCustomRecipesByDefault, setShareCustomRecipesByDefault
@@ -68,6 +70,28 @@ export default function Settings() {
   const [showClearDataConfirm, setShowClearDataConfirm] = useState(false);
   const [showResetTutorialConfirm, setShowResetTutorialConfirm] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
+  const membershipMetadata = user ? {
+    ...(user.user_metadata || {}),
+    ...(user.app_metadata || {}),
+  } as Record<string, unknown> : {};
+  const isPremiumPlan = Boolean(
+    premiumOverrideEnabled
+    || membershipMetadata.is_premium === true
+    || membershipMetadata.premium === true
+    || membershipMetadata.subscription_tier === 'premium'
+    || membershipMetadata.plan === 'premium'
+    || membershipMetadata.role === 'premium'
+  );
+  const premiumDateValue = [
+    membershipMetadata.renewal_date,
+    membershipMetadata.renews_at,
+    membershipMetadata.current_period_end,
+    membershipMetadata.subscription_end,
+    membershipMetadata.plan_end_date,
+  ].find((value) => typeof value === 'string' && value.trim()) as string | undefined;
+  const formattedPremiumDate = premiumDateValue
+    ? new Date(premiumDateValue).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+    : null;
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -187,6 +211,7 @@ export default function Settings() {
         display_name: displayName.trim() || null,
         username: normalizeUsername(username),
         default_servings: parseInt(defaultServings) || 2,
+        avatar_url: chefAvatarUrl,
       } as any, { onConflict: 'user_id' });
 
     setLoading(false);
@@ -205,23 +230,73 @@ export default function Settings() {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-20">
-      <div className="px-6 pt-8 pb-4 max-w-md mx-auto w-full">
-        <div className="flex items-center gap-3 mb-8">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <h1 className="font-display text-2xl font-bold text-foreground">Settings</h1>
+    <div className="min-h-screen pb-20" style={{ background: "#FFFAF5" }}>
+      <div className="mx-auto w-full max-w-3xl px-4 pb-6 pt-4 sm:px-6 sm:pt-6">
+        <div
+          className="mb-6 rounded-[1.75rem] border px-4 py-4 sm:px-5"
+          style={{ background: "linear-gradient(135deg,#FFF7ED 0%,#FFFFFF 58%,#FFFAF5 100%)", borderColor: "rgba(249,115,22,0.12)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}
+        >
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-orange-400">Your account</p>
+              <h1 className="text-2xl font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>Settings</h1>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-8">
+          <section className="space-y-4">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Crown className="h-4 w-4" />
+              <span className="text-sm font-semibold uppercase tracking-wide">Current Plan</span>
+            </div>
+            <div
+              className="rounded-2xl border p-4 sm:p-5"
+              style={{ background: "linear-gradient(135deg,#FFF7ED 0%,#FFFFFF 55%,#F5F3FF 100%)", borderColor: "rgba(249,115,22,0.12)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}
+            >
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-orange-500">
+                    {isPremiumPlan ? 'Premium active' : 'Free plan'}
+                  </p>
+                  <p className="mt-1 text-lg font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+                    {isPremiumPlan ? 'Munch Member' : 'Munch Free'}
+                  </p>
+                  <p className="mt-1 text-sm text-stone-500">
+                    {isPremiumPlan
+                      ? 'You have access to premium AI tools, imports, Kitchens, and meal planning.'
+                      : 'Upgrade to unlock meal planning, Kitchens, AI imports, nutritional facts, and premium cooking tools.'}
+                  </p>
+                  {isPremiumPlan && (
+                    <p className="mt-1 text-xs text-stone-400">
+                      {formattedPremiumDate ? `Renews or ends on ${formattedPremiumDate}` : 'Premium membership is active on this account.'}
+                    </p>
+                  )}
+                </div>
+                {!isPremiumPlan && (
+                  <Button
+                    type="button"
+                    onClick={() => openPremiumPage('Munch Membership')}
+                    className="inline-flex items-center gap-2 rounded-xl bg-violet-600 text-white hover:bg-violet-700"
+                  >
+                    <Crown className="h-4 w-4" />
+                    Upgrade
+                  </Button>
+                )}
+              </div>
+            </div>
+          </section>
+
           {/* Profile */}
           <section className="space-y-4">
             <div className="flex items-center gap-2 text-muted-foreground">
               <User className="h-4 w-4" />
               <span className="text-sm font-semibold uppercase tracking-wide">Profile</span>
             </div>
-            <div className="space-y-3 bg-card rounded-xl p-4 border border-border">
+            <div className="space-y-3 rounded-2xl border p-4" style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}>
               <div>
                 <Label>Email</Label>
                 <p className="text-sm text-muted-foreground">{user?.email || '—'}</p>
@@ -264,7 +339,7 @@ export default function Settings() {
               <Utensils className="h-4 w-4" />
               <span className="text-sm font-semibold uppercase tracking-wide">Cooking Preferences</span>
             </div>
-            <div className="space-y-4 bg-card rounded-xl p-4 border border-border">
+            <div className="space-y-4 rounded-2xl border p-4" style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}>
               <div>
                 <Label>Default Servings</Label>
                 <p className="text-xs text-muted-foreground mb-2">How many people are you usually cooking for?</p>
@@ -367,26 +442,40 @@ export default function Settings() {
               <ChefHat className="h-4 w-4" />
               <span className="text-sm font-semibold uppercase tracking-wide">Cook Mode Avatar</span>
             </div>
-            <div className="space-y-3 bg-card rounded-xl p-4 border border-border">
-              <div className="flex items-center gap-3">
-                <img src={chefAvatarUrl || '/placeholder.svg'} alt="Chef avatar" className="h-14 w-14 rounded-full object-cover border border-border" />
-                <div className="space-y-1">
-                  <p className="text-sm text-foreground">Customize your in-game cook companion.</p>
-                  <Button type="button" variant="outline" size="sm" onClick={() => avatarInputRef.current?.click()} disabled={uploadingAvatar}>
-                    <Camera className="h-4 w-4 mr-1.5" /> {uploadingAvatar ? 'Uploading...' : 'Upload Avatar'}
-                  </Button>
-                  <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
+            <div className="space-y-6 rounded-2xl border p-5" style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}>
+              <div className="flex items-center gap-6">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-primary/10 rounded-full blur-xl" />
+                  <img src={chefAvatarUrl || '/placeholder.svg'} alt="Chef avatar" className="h-20 w-20 rounded-2xl object-cover border-2 border-white shadow-lg relative z-10 bg-orange-50" />
+                </div>
+                <div className="flex-1 space-y-2">
+                  <p className="text-sm font-medium text-foreground">Your Chef Identity</p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" variant="outline" size="sm" onClick={() => avatarInputRef.current?.click()} disabled={uploadingAvatar} className="h-8 text-xs">
+                      <Camera className="h-3 w-3 mr-1.5" /> {uploadingAvatar ? 'Uploading...' : 'Custom Photo'}
+                    </Button>
+                    <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => navigate('/onboarding')}
+                      className="h-8 text-xs bg-orange-50 text-orange-600 hover:bg-orange-100 border-orange-100"
+                    >
+                      <ChefHat className="h-3 w-3 mr-1.5" /> Redesign Avatar
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
           </section>
+
 
           <section className="space-y-4">
             <div className="flex items-center gap-2 text-muted-foreground">
               <Crown className="h-4 w-4" />
               <span className="text-sm font-semibold uppercase tracking-wide">Testing</span>
             </div>
-            <div className="bg-card rounded-xl p-4 border border-border space-y-4">
+            <div className="space-y-4 rounded-2xl border p-4" style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}>
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <p className="text-sm font-medium text-foreground">Enable premium features on this device</p>
@@ -423,7 +512,7 @@ export default function Settings() {
               <User className="h-4 w-4" />
               <span className="text-sm font-semibold uppercase tracking-wide">Recipe Sharing</span>
             </div>
-            <div className="bg-card rounded-xl p-4 border border-border flex items-center justify-between gap-4">
+            <div className="flex items-center justify-between gap-4 rounded-2xl border p-4" style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}>
               <div>
                 <p className="text-sm font-medium text-foreground">Share custom recipes by default</p>
                 <p className="text-xs text-muted-foreground">New manual recipes will start as discoverable to others.</p>
@@ -432,7 +521,7 @@ export default function Settings() {
             </div>
           </section>
 
-          <Button onClick={handleSave} disabled={loading} className="w-full">
+          <Button onClick={handleSave} disabled={loading} className="w-full rounded-2xl bg-orange-500 text-white hover:bg-orange-600">
             {loading ? 'Saving...' : 'Save Settings'}
           </Button>
 

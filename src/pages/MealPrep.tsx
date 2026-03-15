@@ -9,10 +9,12 @@ import { useNavigate } from "react-router-dom";
 import type { Recipe } from "@/data/recipes";
 import { useBrowseFeed } from "@/hooks/useBrowseFeed";
 import RecipePreviewDialog from "@/components/RecipePreviewDialog";
+import PremiumFeatureButton from "@/components/PremiumFeatureButton";
 import { toast } from "sonner";
 import { jsPDF } from "jspdf";
 import { format, startOfWeek } from "date-fns";
 import { usePremiumAccess } from "@/hooks/usePremiumAccess";
+import { usePremiumGate } from "@/hooks/usePremiumGate";
 import { calculateMatch } from "@/lib/matchLogic";
 import { useKitchenMealPlan } from "@/hooks/useKitchenMealPlan";
 import { useKitchenGroceryList } from "@/hooks/useKitchenGroceryList";
@@ -114,6 +116,7 @@ export default function MealPrepScreen() {
   const navigate = useNavigate();
   const { mealPlan, addMealPlanItem, removeMealPlanItem, clearMealPlanWeek, savedApiRecipes, likedRecipes, likeRecipe, addCustomGroceryItem, pantryList, activeKitchenId, activeKitchenName } = useStore();
   const { isPremium } = usePremiumAccess();
+  const { openPremiumPage } = usePremiumGate();
 
   const [weekOffset, setWeekOffset] = useState(0);
   const [showAddModal, setShowAddModal] = useState<{ day: string; mealType: MealType } | null>(null);
@@ -313,12 +316,7 @@ export default function MealPrepScreen() {
   const handleSurpriseAi = async () => {
     setShowSurpriseSourceModal(false);
     if (!isPremium) {
-      toast.info("AI meal autofill is a Premium feature.", {
-        action: {
-          label: "Open Settings",
-          onClick: () => navigate("/settings"),
-        },
-      });
+      openPremiumPage("AI meal autofill");
       return;
     }
 
@@ -659,6 +657,85 @@ export default function MealPrepScreen() {
     setShowExportModal(false);
   };
 
+  if (!isPremium) {
+    return (
+      <div
+        className="min-h-full"
+        style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", background: "#FFFAF5" }}
+      >
+        <div
+          className="border-b"
+          style={{ background: "linear-gradient(135deg,#FFF7ED 0%,#FFFAF5 100%)", borderColor: "rgba(249,115,22,0.12)" }}
+        >
+          <div className="max-w-4xl mx-auto px-4 py-5 sm:px-6 sm:py-8">
+            <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1">Planning</p>
+            <h1 className="text-xl font-bold text-stone-900 sm:text-3xl" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+              Meal Planner
+            </h1>
+            <p className="text-sm text-stone-500 mt-2 max-w-2xl">
+              Build your week, auto-fill meals with Surprise Me, and turn your plan into a grocery list with one tap.
+            </p>
+          </div>
+        </div>
+
+        <div className="max-w-4xl mx-auto px-4 py-6 sm:px-6 sm:py-10">
+          <div
+            className="rounded-[28px] border p-5 sm:p-8"
+            style={{
+              background: "linear-gradient(145deg, rgba(255,255,255,0.96), rgba(255,247,237,0.96))",
+              borderColor: "rgba(249,115,22,0.16)",
+              boxShadow: "0 24px 60px rgba(120, 53, 15, 0.08)",
+            }}
+          >
+            <div className="flex flex-wrap items-center gap-3 mb-5">
+              <div
+                className="inline-flex h-12 w-12 items-center justify-center rounded-2xl"
+                style={{ background: "linear-gradient(135deg,#7C3AED,#9333EA)", boxShadow: "0 10px 24px rgba(124,58,237,0.28)" }}
+              >
+                <Calendar size={22} className="text-white" />
+              </div>
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-orange-500">Members Only</p>
+                <h2 className="text-2xl font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+                  Unlock meal prep and Surprise Me
+                </h2>
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+              {[
+                { title: "Plan the week", copy: "Map breakfast, lunch, and dinner across the whole week." },
+                { title: "Surprise Me", copy: "Let AI or your saved recipes fill empty slots in seconds." },
+                { title: "Shop faster", copy: "Turn your meal plan into a grocery list when you're ready." },
+                { title: "Export anywhere", copy: "Download your plan as a PDF, CSV spreadsheet, or calendar file for the week or a single day." },
+              ].map((item) => (
+                <div
+                  key={item.title}
+                  className="rounded-2xl border p-4"
+                  style={{ background: "rgba(255,255,255,0.82)", borderColor: "rgba(216,180,254,0.4)" }}
+                >
+                  <p className="text-sm font-semibold text-stone-800">{item.title}</p>
+                  <p className="text-xs leading-5 text-stone-500 mt-1">{item.copy}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-stone-500 max-w-xl">
+                Become a member to use Meal Prep, including AI-powered Surprise Me suggestions and exports for PDF, CSV, and calendar formats.
+              </p>
+              <PremiumFeatureButton
+                label="Unlock Meal Prep"
+                onClick={() => openPremiumPage("Meal Prep")}
+                className="w-full justify-center sm:w-auto"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-full" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", background: "#FFFAF5" }}>
 
@@ -974,7 +1051,7 @@ export default function MealPrepScreen() {
               initial={{ opacity: 0, y: 20, scale: 0.97 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.97 }}
-              className="fixed bottom-0 left-0 right-0 sm:bottom-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:max-w-md z-50 rounded-t-3xl sm:rounded-3xl overflow-hidden"
+              className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-1.5rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-3xl overflow-hidden"
               style={{ background: "#fff", boxShadow: "0 -8px 40px rgba(0,0,0,0.15)" }}
             >
               <div className="p-6">

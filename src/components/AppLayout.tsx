@@ -14,6 +14,7 @@ import {
   CookingPot,
   History,
   Users,
+  Crown,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useStore } from "@/lib/store";
@@ -28,8 +29,8 @@ const NAV_ITEMS = [
   { to: "/let-me-cook", icon: CookingPot, label: "Let me Cook" },
   { to: "/pantry", icon: Package, label: "Pantry" },
   { to: "/grocery", icon: ShoppingCart, label: "Grocery List" },
-  { to: "/meal-prep", icon: CalendarDays, label: "Meal Prep" },
-  { to: "/kitchens", icon: Users, label: "Kitchens" },
+  { to: "/meal-prep", icon: CalendarDays, label: "Meal Prep", premium: true },
+  { to: "/kitchens", icon: Users, label: "Kitchens", premium: true },
   { to: "/cooked-history", icon: History, label: "Cooked" },
   { to: "/dictionary", icon: BookMarked, label: "Dictionary" },
 ];
@@ -104,6 +105,7 @@ export default function AppLayout() {
             <MunchLogo
               size={collapsed ? 32 : 36}
               showWordmark={!collapsed}
+              wordmark="munch"
               wordmarkClassName="text-lg font-bold text-gray-900 tracking-tight"
             />
           </div>
@@ -121,7 +123,7 @@ export default function AppLayout() {
 
         {/* Nav links */}
         <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-          {NAV_ITEMS.map(({ to, icon: Icon, label }) => (
+          {NAV_ITEMS.map(({ to, icon: Icon, label, premium }) => (
             <NavLink
               key={to}
               to={to}
@@ -146,7 +148,10 @@ export default function AppLayout() {
                   />
                   {!collapsed && (
                     <>
-                      <span>{label}</span>
+                      <span className="flex items-center gap-1.5">
+                        <span>{label}</span>
+                        {premium ? <Crown size={12} className="text-orange-500" /> : null}
+                      </span>
                       {isActive && (
                         <div className="ml-auto w-1.5 h-1.5 rounded-full bg-orange-400" />
                       )}

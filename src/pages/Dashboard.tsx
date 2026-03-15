@@ -24,217 +24,20 @@ import { useCurrentMealPlan } from "@/hooks/useCurrentMealPlan";
 import { getMealPlanWeekStart } from "@/lib/mealPlanUtils";
 import { useCookedMeals } from "@/hooks/useCookedMeals";
 import { usePremiumAccess } from "@/hooks/usePremiumAccess";
+import { usePremiumGate } from "@/hooks/usePremiumGate";
 import { getConsumedNutritionSummary } from "@/lib/consumedNutrition";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { AvatarStudio } from "@/components/AvatarStudio";
+import PremiumFeatureButton from "@/components/PremiumFeatureButton";
+import {
+  buildMunchAvatarUrl,
+  createMunchAvatarConfig,
+  type MunchAvatarConfig,
+} from "@/lib/munchAvatar";
 
 const WEEK_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MEAL_PREP_TYPES = new Set(["Breakfast", "Lunch", "Dinner"]);
-const AVATAR_SKIN_TONES = ["#F9D7C0", "#F2C3A2", "#D9A07B", "#A86D49", "#6D4431"];
-const AVATAR_HAIR_COLORS = ["#2B1D16", "#5B3B2A", "#8A5A3C", "#C47D3D", "#D9DDE6"];
-const AVATAR_OUTFIT_COLORS = ["#EA580C", "#2563EB", "#0F766E", "#7C3AED", "#BE123C"];
-const AVATAR_BACKGROUND_COLORS = ["#FFF3E4", "#FDE68A", "#DBEAFE", "#DCFCE7", "#F5D0FE"];
-const AVATAR_APPEARANCE_OPTIONS = [
-  { value: "androgynous", label: "Balanced" },
-  { value: "feminine", label: "Soft" },
-  { value: "masculine", label: "Bold" },
-] as const;
-const AVATAR_HAIR_OPTIONS = [
-  { value: "crop", label: "Crop" },
-  { value: "waves", label: "Waves" },
-  { value: "taper", label: "Taper" },
-  { value: "long", label: "Long" },
-] as const;
-const AVATAR_ACCESSORY_OPTIONS = [
-  { value: "none", label: "Clean" },
-  { value: "glasses", label: "Glasses" },
-  { value: "chef-hat", label: "Chef Hat" },
-] as const;
-const AVATAR_STARTERS = [
-  {
-    label: "Classic",
-    appearance: "androgynous",
-    skinTone: "#F2C3A2",
-    hair: "crop",
-    hairColor: "#3F2A1D",
-    shirtColor: "#EA580C",
-    backgroundColor: "#FFF3E4",
-    accessory: "none",
-  },
-  {
-    label: "Weekend",
-    appearance: "feminine",
-    skinTone: "#D9A07B",
-    hair: "waves",
-    hairColor: "#2B1D16",
-    shirtColor: "#0F766E",
-    backgroundColor: "#DCFCE7",
-    accessory: "glasses",
-  },
-  {
-    label: "Studio",
-    appearance: "masculine",
-    skinTone: "#F9D7C0",
-    hair: "taper",
-    hairColor: "#5B3B2A",
-    shirtColor: "#2563EB",
-    backgroundColor: "#DBEAFE",
-    accessory: "none",
-  },
-  {
-    label: "Chef",
-    appearance: "feminine",
-    skinTone: "#A86D49",
-    hair: "long",
-    hairColor: "#2B1D16",
-    shirtColor: "#BE123C",
-    backgroundColor: "#FDE68A",
-    accessory: "chef-hat",
-  },
-] as const;
-
-type AvatarAppearance = typeof AVATAR_APPEARANCE_OPTIONS[number]["value"];
-type AvatarHairStyle = typeof AVATAR_HAIR_OPTIONS[number]["value"];
-type AvatarAccessory = typeof AVATAR_ACCESSORY_OPTIONS[number]["value"];
-
-function buildAvatarSvg({
-  appearance,
-  skinTone,
-  hair,
-  hairColor,
-  shirtColor,
-  backgroundColor,
-  accessory,
-}: {
-  appearance: AvatarAppearance;
-  skinTone: string;
-  hair: AvatarHairStyle;
-  hairColor: string;
-  shirtColor: string;
-  backgroundColor: string;
-  accessory: AvatarAccessory;
-}) {
-  const faceRx = appearance === "feminine" ? 27 : appearance === "masculine" ? 29 : 28;
-  const faceRy = appearance === "feminine" ? 31 : appearance === "masculine" ? 32.5 : 31.5;
-  const chinPath = appearance === "feminine"
-    ? "M52 46c-13 0-23 12-23 28 0 18 11 31 23 31s23-13 23-31c0-16-10-28-23-28Z"
-    : appearance === "masculine"
-      ? "M52 45c-14 0-25 12-25 29 0 19 11 33 25 33s25-14 25-33c0-17-11-29-25-29Z"
-      : "M52 45.5c-13.5 0-24 12-24 28.5 0 18.5 11 32 24 32s24-13.5 24-32c0-16.5-10.5-28.5-24-28.5Z";
-  const neckWidth = appearance === "masculine" ? 18 : appearance === "feminine" ? 14 : 16;
-  const mouthPath = appearance === "feminine"
-    ? "M44 87c4 3 12 3 16 0"
-    : appearance === "masculine"
-      ? "M45 87c3.5 2 10.5 2 14 0"
-      : "M44.5 87c3.8 2.5 11.2 2.5 15 0";
-  const browStroke = appearance === "feminine" ? 2.4 : appearance === "masculine" ? 3.1 : 2.7;
-  const lipColor = appearance === "feminine" ? "#A94E67" : appearance === "masculine" ? "#704031" : "#8C4B3E";
-  const jawShadow = appearance === "masculine" ? 0.18 : 0.12;
-  const shoulderTop = appearance === "feminine" ? 114 : appearance === "masculine" ? 110 : 112;
-  const jacketPath = appearance === "feminine"
-    ? "M12 156c3-27 20-44 40-44 20 0 37 17 40 44H12Z"
-    : appearance === "masculine"
-      ? "M6 156c4-30 21-48 46-48s42 18 46 48H6Z"
-      : "M10 156c4-28 21-46 42-46s38 18 42 46H10Z";
-  const apronPath = appearance === "masculine"
-    ? "M33 114h38l10 42H23l10-42Z"
-    : "M35 116h34l9 40H26l9-40Z";
-  const backgroundAccent = appearance === "feminine" ? "#FFFFFF" : appearance === "masculine" ? "#F8FAFC" : "#FFF7ED";
-
-  const hairBack = hair === "crop"
-    ? `<path d="M21 58c2-18 16-31 31-31s30 11 32 31v10H21Z" fill="url(#hairBase)" />`
-    : hair === "waves"
-      ? `<path d="M16 58c2-24 17-37 36-37s34 13 36 37v26H16Z" fill="url(#hairBase)" />`
-      : hair === "taper"
-        ? `<path d="M22 58c3-16 16-28 30-28 14 0 27 11 30 28v8H22Z" fill="url(#hairBase)" />`
-        : `<path d="M15 58c2-24 17-38 37-38 20 0 35 14 37 38v40H15Z" fill="url(#hairBase)" />`;
-
-  const hairFront = hair === "crop"
-    ? `<path d="M24 56c5-14 16-22 28-22 12 0 23 8 28 22-4-3-8-4-13-4-4 0-8 1-12 4-3-3-7-4-12-4-6 0-11 2-19 4Z" fill="url(#hairDepth)" />`
-    : hair === "waves"
-      ? `<path d="M19 56c5-20 17-29 33-29 18 0 31 11 34 30-5-4-9-6-15-6-5 0-10 2-14 5-4-3-8-5-13-5-7 0-12 2-25 5Z" fill="url(#hairDepth)" /><path d="M21 62c3 9 9 16 16 18 5 1 9 0 15-4 5 4 10 5 15 4 7-2 13-9 16-18" fill="none" stroke="url(#hairShine)" stroke-width="5" stroke-linecap="round" opacity="0.75" />`
-      : hair === "taper"
-        ? `<path d="M25 54c6-12 16-18 27-18 11 0 21 6 27 18-5-2-9-3-13-3-5 0-9 1-14 4-4-3-8-4-13-4-4 0-8 1-14 3Z" fill="url(#hairDepth)" /><path d="M31 44c6-6 13-9 21-9 8 0 16 3 21 9" fill="none" stroke="url(#hairShine)" stroke-width="4" stroke-linecap="round" opacity="0.6" />`
-        : `<path d="M18 56c6-20 18-30 34-30 18 0 32 11 35 31-4-4-9-6-15-6-6 0-10 2-14 6-4-4-8-6-14-6-6 0-11 2-26 5Z" fill="url(#hairDepth)" /><path d="M19 67c2 13 7 24 16 31" fill="none" stroke="url(#hairDepth)" stroke-width="7" stroke-linecap="round" opacity="0.92" /><path d="M85 67c-2 13-7 24-16 31" fill="none" stroke="url(#hairDepth)" stroke-width="7" stroke-linecap="round" opacity="0.92" />`;
-
-  const accessoryMarkup = accessory === "glasses"
-    ? `
-      <rect x="31" y="67" width="16" height="12" rx="5" fill="rgba(255,255,255,0.14)" stroke="#2B211D" stroke-width="2.3" />
-      <rect x="57" y="67" width="16" height="12" rx="5" fill="rgba(255,255,255,0.14)" stroke="#2B211D" stroke-width="2.3" />
-      <path d="M47 73h10" stroke="#2B211D" stroke-width="2.3" stroke-linecap="round" />
-      <path d="M31 72h-4M77 72h4" stroke="#2B211D" stroke-width="2" stroke-linecap="round" opacity="0.55" />
-    `
-    : accessory === "chef-hat"
-      ? `
-        <g transform="translate(0 -2)">
-          <rect x="28" y="28" width="48" height="13" rx="5" fill="#FFFFFF" />
-          <path d="M34 29c0-8 5-13 11-13 4 0 7 1 10 5 3-4 6-5 10-5 7 0 11 5 11 13" fill="#FFFFFF" />
-          <path d="M30 36h44" stroke="#E7E5E4" stroke-width="2" />
-        </g>
-      `
-      : "";
-
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 104 160">
-    <defs>
-      <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stop-color="${backgroundColor}" />
-        <stop offset="100%" stop-color="#FFFDF8" />
-      </linearGradient>
-      <linearGradient id="hairBase" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stop-color="${hairColor}" />
-        <stop offset="100%" stop-color="#1C1917" />
-      </linearGradient>
-      <linearGradient id="hairDepth" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stop-color="${hairColor}" />
-        <stop offset="100%" stop-color="#24140E" />
-      </linearGradient>
-      <linearGradient id="hairShine" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.35" />
-        <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0" />
-      </linearGradient>
-      <linearGradient id="shirtGrad" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stop-color="${shirtColor}" />
-        <stop offset="100%" stop-color="#1C1917" stop-opacity="0.34" />
-      </linearGradient>
-      <linearGradient id="apronGrad" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stop-color="#FFFDF9" />
-        <stop offset="100%" stop-color="#F5EFE7" />
-      </linearGradient>
-      <radialGradient id="faceGrad" cx="40%" cy="28%" r="74%">
-        <stop offset="0%" stop-color="${skinTone}" />
-        <stop offset="100%" stop-color="#000000" stop-opacity="0.12" />
-      </radialGradient>
-      <radialGradient id="skinWarmth" cx="50%" cy="70%" r="70%">
-        <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.04" />
-        <stop offset="100%" stop-color="#A05538" stop-opacity="0.12" />
-      </radialGradient>
-    </defs>
-    <rect width="104" height="160" rx="30" fill="url(#bgGrad)" />
-    <rect x="10" y="10" width="84" height="140" rx="24" fill="${backgroundAccent}" opacity="0.24" />
-    <path d="M0 126c18-10 35-15 52-15 19 0 36 5 52 15v34H0Z" fill="#FFFFFF" opacity="0.18" />
-    <ellipse cx="52" cy="146" rx="28" ry="5" fill="#000000" opacity="0.045" />
-    <path d="${jacketPath}" fill="url(#shirtGrad)" />
-    <path d="${apronPath}" fill="url(#apronGrad)" opacity="0.94" />
-    <path d="M${52 - neckWidth / 2} ${shoulderTop}h${neckWidth}v16h-${neckWidth}z" fill="url(#faceGrad)" opacity="0.96" />
-    ${hairBack}
-    <path d="${chinPath}" fill="url(#faceGrad)" />
-    <ellipse cx="52" cy="76" rx="${faceRx}" ry="${faceRy}" fill="url(#skinWarmth)" />
-    ${hairFront}
-    <path d="M37 67c3-1.5 7-1.5 11 0" stroke="#3B2A20" stroke-width="${browStroke}" stroke-linecap="round" fill="none" opacity="0.8" />
-    <path d="M56 67c3-1.5 7-1.5 11 0" stroke="#3B2A20" stroke-width="${browStroke}" stroke-linecap="round" fill="none" opacity="0.8" />
-    <ellipse cx="42.5" cy="74" rx="2.6" ry="3.1" fill="#1C1917" />
-    <ellipse cx="61.5" cy="74" rx="2.6" ry="3.1" fill="#1C1917" />
-    <circle cx="41.8" cy="73.1" r="0.8" fill="#FFFFFF" opacity="0.92" />
-    <circle cx="60.8" cy="73.1" r="0.8" fill="#FFFFFF" opacity="0.92" />
-    <path d="M52 78v7" stroke="#A96547" stroke-width="1.4" stroke-linecap="round" opacity="0.5" />
-    <path d="${mouthPath}" stroke="${lipColor}" stroke-width="2.2" stroke-linecap="round" fill="none" />
-    <path d="M28 113c7 6 15 9 24 9s17-3 24-9" fill="none" stroke="#FFFFFF" stroke-width="1.4" opacity="0.18" />
-    <path d="M28 116c7 5 15 8 24 8s17-3 24-8" fill="none" stroke="#000000" stroke-width="1.4" opacity="${jawShadow}" />
-    ${accessoryMarkup}
-  </svg>`;
-
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-}
 
 function formatRelative(timestamp: string) {
   const diffMs = Date.now() - new Date(timestamp).getTime();
@@ -391,14 +194,9 @@ export default function Dashboard() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [avatarAppearance, setAvatarAppearance] = useState<AvatarAppearance>("androgynous");
-  const [avatarSkinTone, setAvatarSkinTone] = useState("#F5C9A9");
-  const [avatarHair, setAvatarHair] = useState<AvatarHairStyle>("crop");
-  const [avatarHairColor, setAvatarHairColor] = useState("#3F2A1D");
-  const [avatarShirtColor, setAvatarShirtColor] = useState("#EA580C");
-  const [avatarBackgroundColor, setAvatarBackgroundColor] = useState("#FFF3E4");
-  const [avatarAccessory, setAvatarAccessory] = useState<AvatarAccessory>("none");
+  const [avatarConfig, setAvatarConfig] = useState<MunchAvatarConfig>(() => createMunchAvatarConfig());
   const [avatarPhotoPreview, setAvatarPhotoPreview] = useState<string | null>(null);
+  const [pendingUploadedAvatarUrl, setPendingUploadedAvatarUrl] = useState<string | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const { meal: currentPlannedMeal, loading: currentMealLoading } = useCurrentMealPlan();
   const { meals: cookedMeals, loading: cookedMealsLoading, estimateMealSavings } = useCookedMeals();
@@ -428,31 +226,28 @@ export default function Dashboard() {
     navigate(`/cook/${recipeId}`);
   };
 
-  const buildCustomAvatar = () =>
-    buildAvatarSvg({
-      appearance: avatarAppearance,
-      skinTone: avatarSkinTone,
-      hair: avatarHair,
-      hairColor: avatarHairColor,
-      shirtColor: avatarShirtColor,
-      backgroundColor: avatarBackgroundColor,
-      accessory: avatarAccessory,
-    });
+  const avatarBuilderPreview = useMemo(() => buildMunchAvatarUrl(avatarConfig), [avatarConfig]);
 
-  const applyAvatarStarter = (starter: typeof AVATAR_STARTERS[number]) => {
-    setAvatarAppearance(starter.appearance);
-    setAvatarSkinTone(starter.skinTone);
-    setAvatarHair(starter.hair);
-    setAvatarHairColor(starter.hairColor);
-    setAvatarShirtColor(starter.shirtColor);
-    setAvatarBackgroundColor(starter.backgroundColor);
-    setAvatarAccessory(starter.accessory);
+  const clearPendingAvatarPhoto = () => {
+    if (avatarPhotoPreview?.startsWith("blob:")) {
+      URL.revokeObjectURL(avatarPhotoPreview);
+    }
     setAvatarPhotoPreview(null);
+    setPendingUploadedAvatarUrl(null);
+  };
+
+  const updateAvatarConfig = (updates: Partial<MunchAvatarConfig>) => {
+    clearPendingAvatarPhoto();
+    setAvatarConfig((current) => createMunchAvatarConfig({ ...current, ...updates }));
   };
 
   const applyCustomAvatar = () => {
-    setChefAvatarUrl(buildCustomAvatar());
+    setChefAvatarUrl(pendingUploadedAvatarUrl || avatarBuilderPreview);
+    if (avatarPhotoPreview?.startsWith("blob:")) {
+      URL.revokeObjectURL(avatarPhotoPreview);
+    }
     setAvatarPhotoPreview(null);
+    setPendingUploadedAvatarUrl(null);
     setAvatarDialogOpen(false);
     toast.success("Custom avatar updated!");
   };
@@ -469,11 +264,12 @@ export default function Dashboard() {
       const { error } = await supabase.storage.from("recipe-photos").upload(fileName, file, { upsert: true });
       if (error) throw error;
       const { data: { publicUrl } } = supabase.storage.from("recipe-photos").getPublicUrl(fileName);
-      setChefAvatarUrl(publicUrl);
-      toast.success("Avatar updated!");
+      setPendingUploadedAvatarUrl(publicUrl);
+      toast.success("Photo ready to save");
     } catch {
       URL.revokeObjectURL(localPreviewUrl);
       setAvatarPhotoPreview(null);
+      setPendingUploadedAvatarUrl(null);
       toast.error("Failed to upload avatar");
     } finally {
       setUploadingAvatar(false);
@@ -618,15 +414,11 @@ export default function Dashboard() {
     new Date(dateString).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
   const { isPremium } = usePremiumAccess();
+  const { openPremiumPage } = usePremiumGate();
 
   const handleEstimateSavings = async (mealId: string) => {
     if (!isPremium) {
-      toast.info("AI savings estimates are a Premium feature.", {
-        action: {
-          label: "Open Settings",
-          onClick: () => navigate("/settings"),
-        },
-      });
+      openPremiumPage("AI savings estimates");
       return;
     }
 
@@ -749,13 +541,21 @@ export default function Dashboard() {
               </div>
             </button>
             <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
-            <Link
-              to="/swipe"
-              className="hidden sm:flex items-center gap-2 text-white text-sm font-bold px-5 py-2.5 rounded-full transition-all hover:opacity-90 active:scale-95"
-              style={{ background: "linear-gradient(135deg,#FB923C,#F97316,#EA580C)", boxShadow: "0 4px 16px rgba(249,115,22,0.30)" }}
-            >
-              <span>🍳</span> Get Cooking
-            </Link>
+            {isPremium ? (
+              <Link
+                to="/swipe"
+                className="hidden sm:flex items-center gap-2 text-white text-sm font-bold px-5 py-2.5 rounded-full transition-all hover:opacity-90 active:scale-95"
+                style={{ background: "linear-gradient(135deg,#FB923C,#F97316,#EA580C)", boxShadow: "0 4px 16px rgba(249,115,22,0.30)" }}
+              >
+                <span>🍳</span> Get Cooking
+              </Link>
+            ) : (
+              <PremiumFeatureButton
+                label="Get Premium"
+                onClick={() => openPremiumPage("Munch Membership")}
+                className="hidden sm:flex h-11 w-auto shrink-0 px-5"
+              />
+            )}
           </div>
         </div>
       </div>
@@ -1022,7 +822,9 @@ export default function Dashboard() {
               <div className="w-7 h-7 rounded-lg bg-violet-50 flex items-center justify-center">
                 <Award size={14} className="text-violet-500" />
               </div>
-              <h2 className="text-[15px] font-bold text-stone-800">Badges</h2>
+              <h2 className="text-[15px] font-bold text-stone-800" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
+                Badges
+              </h2>
             </div>
             <span className="text-[11px] text-stone-400 font-bold bg-stone-100 px-2.5 py-1 rounded-full">
               {BADGES.filter((b) => b.unlocked).length} / {BADGES.length}
@@ -1040,11 +842,14 @@ export default function Dashboard() {
                         }`}
                     >
                       <span className="text-xl leading-none">{b.emoji}</span>
-                      <span className="text-[9px] font-semibold text-stone-600 text-center leading-tight">{b.label}</span>
+                      <span className="text-[10px] font-semibold text-stone-600 text-center leading-tight" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
+                        {b.label}
+                      </span>
                     </button>
                   </TooltipTrigger>
                   <TooltipContent className="max-w-[220px] bg-stone-900 text-stone-100 border-stone-800">
-                    <p className="text-xs font-semibold">{b.label}</p>
+                    <p className="text-xs font-semibold" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>{b.label}</p>
+                    <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-orange-300">How to earn</p>
                     <p className="text-[11px] text-stone-300 mt-1">{b.desc}</p>
                     <p className="text-[11px] text-orange-300 mt-1.5">
                       {b.unlocked ? "Unlocked" : `Progress: ${Math.min(b.current, b.target)} / ${b.target}`}
@@ -1058,176 +863,27 @@ export default function Dashboard() {
       </div>
 
       <Dialog open={avatarDialogOpen} onOpenChange={setAvatarDialogOpen}>
-        <DialogContent className="max-h-[88vh] max-w-2xl overflow-hidden p-5">
+        <DialogContent className="max-h-[94vh] max-w-6xl overflow-hidden p-0">
           <DialogHeader>
-            <DialogTitle>Customize your avatar</DialogTitle>
+            <DialogTitle className="px-4 pt-4 sm:px-6 sm:pt-6">Customize your avatar</DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4 md:grid-cols-[0.9fr_1.1fr]">
-            <div className="rounded-3xl border border-orange-100 bg-gradient-to-b from-orange-50/70 to-white p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.22em] text-orange-500">Live preview</p>
-              <div className="mt-3 flex flex-col items-center rounded-[2rem] border border-white/80 bg-white/80 p-4 shadow-sm">
-                <img
-                  src={avatarPhotoPreview || buildCustomAvatar()}
-                  alt="Custom avatar preview"
-                  className="h-32 w-32 rounded-[1.75rem] border border-orange-100 bg-white object-cover shadow-sm"
-                />
-                <p className="mt-3 text-sm font-semibold text-stone-800">Chef profile avatar</p>
-                <p className="mt-1 text-center text-xs leading-5 text-stone-500">
-                  Pick a starter, fine-tune the details, or upload your own photo.
-                </p>
-              </div>
-
-              <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                {AVATAR_STARTERS.map((starter) => (
-                  <button
-                    key={starter.label}
-                    type="button"
-                    onClick={() => applyAvatarStarter(starter)}
-                    className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-white px-3 py-2.5 text-left transition-colors hover:border-orange-300 hover:bg-orange-50"
-                  >
-                    <img
-                      src={buildAvatarSvg(starter)}
-                      alt={`${starter.label} avatar starter`}
-                      className="h-10 w-10 rounded-2xl border border-stone-100 bg-white"
-                    />
-                    <div>
-                      <p className="text-sm font-semibold text-stone-800">{starter.label}</p>
-                      <p className="text-[11px] text-stone-500">Load this look</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-
-              <button
-                onClick={() => avatarInputRef.current?.click()}
-                className="mt-3 w-full rounded-2xl border border-orange-200 bg-white px-4 py-2.5 text-sm font-semibold text-orange-600 transition-colors hover:bg-orange-100"
-                disabled={uploadingAvatar}
-              >
-                {uploadingAvatar ? "Uploading..." : avatarPhotoPreview ? "Replace photo" : "Upload your own photo"}
-              </button>
-
-              {avatarPhotoPreview && (
+          <div className="max-h-[calc(94vh-64px)] overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6">
+            <AvatarStudio
+              config={avatarConfig}
+              onChange={updateAvatarConfig}
+              previewOverrideUrl={avatarPhotoPreview}
+              onUploadClick={() => avatarInputRef.current?.click()}
+              uploading={uploadingAvatar}
+              onClearUpload={clearPendingAvatarPhoto}
+              action={
                 <button
-                  type="button"
-                  onClick={() => setAvatarPhotoPreview(null)}
-                  className="mt-2 w-full rounded-2xl border border-stone-200 bg-white px-4 py-2.5 text-sm font-semibold text-stone-600 transition-colors hover:border-orange-300 hover:text-orange-600"
+                  onClick={applyCustomAvatar}
+                  className="w-full rounded-2xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:opacity-60"
                 >
-                  Return to avatar builder
+                  {avatarPhotoPreview ? "Save uploaded photo" : "Save this avatar"}
                 </button>
-              )}
-
-              <button
-                onClick={applyCustomAvatar}
-                className="mt-3 w-full rounded-2xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:opacity-60"
-                disabled={Boolean(avatarPhotoPreview)}
-              >
-                Save this avatar
-              </button>
-            </div>
-
-            <div className="max-h-[72vh] space-y-3 overflow-y-auto pr-1">
-              <div className="rounded-3xl border border-stone-200 bg-white p-4">
-                <p className="text-sm font-semibold text-stone-800">Appearance</p>
-                <div className="mt-3 grid grid-cols-3 gap-2">
-                  {AVATAR_APPEARANCE_OPTIONS.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => {
-                        setAvatarAppearance(option.value);
-                        setAvatarPhotoPreview(null);
-                      }}
-                      className={`rounded-2xl border px-3 py-2 text-xs font-semibold transition-colors ${
-                        avatarAppearance === option.value
-                          ? "border-orange-500 bg-orange-50 text-orange-600"
-                          : "border-stone-200 bg-white text-stone-600 hover:border-orange-300"
-                      }`}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-3xl border border-stone-200 bg-white p-4">
-                <p className="text-sm font-semibold text-stone-800">Style</p>
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  {AVATAR_HAIR_OPTIONS.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => {
-                        setAvatarHair(option.value);
-                        setAvatarPhotoPreview(null);
-                      }}
-                      className={`rounded-2xl border px-3 py-2 text-sm font-semibold transition-colors ${
-                        avatarHair === option.value
-                          ? "border-orange-500 bg-orange-50 text-orange-600"
-                          : "border-stone-200 bg-white text-stone-600 hover:border-orange-300"
-                      }`}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-3xl border border-stone-200 bg-white p-4">
-                <p className="text-sm font-semibold text-stone-800">Accessory</p>
-                <div className="mt-3 grid grid-cols-3 gap-2">
-                  {AVATAR_ACCESSORY_OPTIONS.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => {
-                        setAvatarAccessory(option.value);
-                        setAvatarPhotoPreview(null);
-                      }}
-                      className={`rounded-2xl border px-3 py-2 text-xs font-semibold transition-colors ${
-                        avatarAccessory === option.value
-                          ? "border-orange-500 bg-orange-50 text-orange-600"
-                          : "border-stone-200 bg-white text-stone-600 hover:border-orange-300"
-                      }`}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-3xl border border-stone-200 bg-white p-4">
-                <p className="text-sm font-semibold text-stone-800">Colors</p>
-                <div className="mt-4 space-y-4">
-                  {[
-                    { label: "Skin tone", value: avatarSkinTone, options: AVATAR_SKIN_TONES, onSelect: setAvatarSkinTone },
-                    { label: "Hair color", value: avatarHairColor, options: AVATAR_HAIR_COLORS, onSelect: setAvatarHairColor },
-                    { label: "Outfit", value: avatarShirtColor, options: AVATAR_OUTFIT_COLORS, onSelect: setAvatarShirtColor },
-                    { label: "Background", value: avatarBackgroundColor, options: AVATAR_BACKGROUND_COLORS, onSelect: setAvatarBackgroundColor },
-                  ].map((group) => (
-                    <div key={group.label}>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">{group.label}</p>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {group.options.map((option) => (
-                          <button
-                            key={option}
-                            type="button"
-                            onClick={() => {
-                              group.onSelect(option);
-                              setAvatarPhotoPreview(null);
-                            }}
-                            className={`h-9 w-9 rounded-full border-2 transition-transform hover:scale-105 ${
-                              group.value === option ? "border-stone-900" : "border-white"
-                            }`}
-                            style={{ background: option, boxShadow: "0 1px 4px rgba(28,25,23,0.14)" }}
-                            aria-label={`${group.label} ${option}`}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+              }
+            />
           </div>
         </DialogContent>
       </Dialog>

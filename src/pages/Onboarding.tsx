@@ -8,12 +8,29 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ArrowRight, ArrowLeft, Loader2 } from 'lucide-react';
 import { MunchLogo } from '@/components/MunchLogo';
+import { AvatarStudio } from '@/components/AvatarStudio';
 import { isValidUsername, normalizeUsername, suggestUsername } from '@/lib/username';
-import defaultChefAvatar from '@/assets/chef-avatar.png';
+import {
+  buildMunchAvatarUrl,
+  createMunchAvatarConfig,
+  type MunchAvatarConfig,
+} from '@/lib/munchAvatar';
 
 const DIETARY_OPTIONS = ['Vegetarian', 'Vegan', 'Gluten-Free', 'Dairy-Free', 'Nut-Free', 'None'];
 const SKILL_OPTIONS = ['Beginner', 'Intermediate', 'Advanced'];
 const NO_PREFERENCE_OPTION = 'No preference';
+const DISCOVERY_OPTIONS = [
+  'Instagram',
+  'TikTok',
+  'YouTube',
+  'X / Twitter',
+  'Facebook',
+  'Word of mouth',
+  'App Store search',
+  'Google search',
+  'Blog / article',
+  'Other',
+];
 const FLAVOR_OPTIONS = ['Spicy', 'Sweet', 'Savory', 'Umami', 'Fresh/Citrusy', NO_PREFERENCE_OPTION];
 const CUISINE_OPTIONS = [
   'Italian', 'Mexican', 'Chinese', 'Japanese', 'Indian',
@@ -65,7 +82,6 @@ export default function Onboarding() {
     setUserProfile,
     completeOnboarding,
     setDisplayName: setStoreDisplayName,
-    chefAvatarUrl,
     setChefAvatarUrl,
   } = useStore();
   const [step, setStep] = useState(0);
@@ -76,56 +92,27 @@ export default function Onboarding() {
   const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>('idle');
   const [hasAccount, setHasAccount] = useState(false);
   const [defaultServings, setDefaultServings] = useState('2');
-  const [avatarSkinTone, setAvatarSkinTone] = useState('#F5C9A9');
-  const [avatarHair, setAvatarHair] = useState('short');
-  const [avatarHairColor, setAvatarHairColor] = useState('#3F2A1D');
-  const [avatarShirtColor, setAvatarShirtColor] = useState('#EA580C');
-  const [avatarAccessory, setAvatarAccessory] = useState('none');
-
+  const [discoverySource, setDiscoverySource] = useState('');
+  const [discoverySourceDetail, setDiscoverySourceDetail] = useState('');
+  const [avatarConfig, setAvatarConfig] = useState<MunchAvatarConfig>(() =>
+    createMunchAvatarConfig({ seed: 'MunchOnboarding' }),
+  );
   const stepIndex = useMemo(() => ({
     name: 0,
-    username: hasAccount ? 1 : -1,
-    avatar: hasAccount ? 2 : 1,
-    servings: hasAccount ? 3 : 2,
-    dietary: hasAccount ? 4 : 3,
-    skill: hasAccount ? 5 : 4,
-    flavor: hasAccount ? 6 : 5,
-    cuisine: hasAccount ? 7 : 6,
-  }), [hasAccount]);
+    username: 1,
+    discovery: 2,
+    avatar: 3,
+    servings: 4,
+    dietary: 5,
+    skill: 6,
+    flavor: 7,
+    cuisine: 8,
+  }), []);
 
-  const totalSteps = hasAccount ? 8 : 7;
+  const totalSteps = 9;
 
-  const AVATAR_PRESETS = [
-    defaultChefAvatar,
-    'https://api.dicebear.com/9.x/adventurer/svg?seed=ChefMunch',
-    'https://api.dicebear.com/9.x/notionists/svg?seed=KitchenHero',
-    'https://api.dicebear.com/9.x/fun-emoji/svg?seed=Foodie',
-  ];
+  const onboardingAvatarPreview = useMemo(() => buildMunchAvatarUrl(avatarConfig), [avatarConfig]);
 
-  const buildCustomAvatar = () => {
-    const hairStyle = avatarHair === 'short'
-      ? `<path d='M34 36c6-10 26-10 32 0v6H34z' fill='${avatarHairColor}' />`
-      : avatarHair === 'curly'
-        ? `<path d='M33 40c1-12 33-14 35 0l-1 5H34z' fill='${avatarHairColor}' /><circle cx='38' cy='38' r='4' fill='${avatarHairColor}' /><circle cx='62' cy='38' r='4' fill='${avatarHairColor}' />`
-        : `<path d='M30 42c3-13 37-13 40 0v7H30z' fill='${avatarHairColor}' />`;
-    const accessory = avatarAccessory === 'glasses'
-      ? "<circle cx='43' cy='58' r='5' fill='none' stroke='#3A3A3A' stroke-width='1.5'/><circle cx='57' cy='58' r='5' fill='none' stroke='#3A3A3A' stroke-width='1.5'/><path d='M48 58h4' stroke='#3A3A3A' stroke-width='1.5'/>"
-      : avatarAccessory === 'hat'
-        ? "<rect x='32' y='30' width='36' height='8' rx='3' fill='#FFFFFF'/><rect x='39' y='24' width='22' height='8' rx='3' fill='#FFFFFF'/>"
-        : '';
-
-    const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>
-      <rect width='100' height='100' rx='20' fill='#FFF7ED' />
-      <circle cx='50' cy='57' r='18' fill='${avatarSkinTone}' />
-      ${hairStyle}
-      <circle cx='44' cy='58' r='1.7' fill='#1C1917' />
-      <circle cx='56' cy='58' r='1.7' fill='#1C1917' />
-      <path d='M45 66c3 2 7 2 10 0' stroke='#1C1917' stroke-width='1.8' stroke-linecap='round' fill='none'/>
-      ${accessory}
-      <path d='M26 100c2-17 13-24 24-24s22 7 24 24' fill='${avatarShirtColor}' />
-    </svg>`;
-    return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-  };
 
   useEffect(() => {
     let active = true;
@@ -138,7 +125,7 @@ export default function Onboarding() {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('display_name, username, default_servings')
+        .select('display_name, username, default_servings, discovery_source, discovery_source_detail')
         .eq('user_id', session.user.id)
         .maybeSingle();
 
@@ -157,6 +144,14 @@ export default function Onboarding() {
       if ((profile as any).default_servings) {
         setDefaultServings(String((profile as any).default_servings));
       }
+
+      if ((profile as any).discovery_source) {
+        setDiscoverySource(String((profile as any).discovery_source));
+      }
+
+      if ((profile as any).discovery_source_detail) {
+        setDiscoverySourceDetail(String((profile as any).discovery_source_detail));
+      }
     });
 
     return () => {
@@ -165,11 +160,14 @@ export default function Onboarding() {
   }, [setStoreDisplayName]);
 
   useEffect(() => {
-    if (!hasAccount) return;
-
     const normalized = normalizeUsername(username);
     if (!normalized || !isValidUsername(normalized)) {
       setUsernameStatus(username.trim().length === 0 ? 'idle' : 'invalid');
+      return;
+    }
+
+    if (!hasAccount) {
+      setUsernameStatus('available');
       return;
     }
 
@@ -229,7 +227,8 @@ export default function Onboarding() {
 
   const canProceed =
     (step === stepIndex.name && displayName.trim().length > 0) ||
-    (hasAccount && step === stepIndex.username && usernameStatus === 'available') ||
+    (step === stepIndex.username && usernameStatus === 'available') ||
+    (step === stepIndex.discovery && discoverySource !== '' && (discoverySource !== 'Other' || discoverySourceDetail.trim().length > 0)) ||
     (step === stepIndex.avatar) ||
     (step === stepIndex.servings && defaultServings !== '') ||
     (step === stepIndex.dietary && (userProfile.dietaryRestrictions ?? []).length > 0) ||
@@ -252,10 +251,14 @@ export default function Onboarding() {
           display_name: displayName.trim(),
           username: normalizeUsername(username),
           default_servings: parseInt(defaultServings) || 2,
+          discovery_source: discoverySource || null,
+          discovery_source_detail: discoverySource === 'Other' ? discoverySourceDetail.trim() || null : null,
+          avatar_url: onboardingAvatarPreview,
         } as any)
         .eq('user_id', session.user.id);
     }
 
+    setChefAvatarUrl(onboardingAvatarPreview);
     setStoreDisplayName(displayName.trim());
     completeOnboarding();
     useStore.setState({ showTutorial: true });
@@ -350,76 +353,87 @@ export default function Onboarding() {
                 </div>
               )}
 
-              {step === stepIndex.avatar && (
+              {!hasAccount && step === stepIndex.username && (
                 <div>
                   <h1 className="font-display text-3xl font-bold text-foreground mb-2">
-                    Customize your avatar
+                    Pick your username
                   </h1>
-                  <p className="text-muted-foreground mb-6">
-                    Optional for now. Pick one you like or skip and come back later.
+                  <p className="text-muted-foreground mb-8">
+                    This becomes your Munch handle once you create an account.
                   </p>
-
-                  <div className="space-y-5">
-                    <div>
-                      <p className="text-sm font-semibold text-foreground mb-3">Choose a ready-made avatar</p>
-                      <div className="grid grid-cols-4 gap-2">
-                        {AVATAR_PRESETS.map((preset) => {
-                          const selected = chefAvatarUrl === preset;
-                          return (
-                            <button
-                              key={preset}
-                              type="button"
-                              onClick={() => setChefAvatarUrl(preset)}
-                              className={`rounded-2xl overflow-hidden border-2 transition-colors ${selected ? 'border-orange-400' : 'border-stone-200 hover:border-orange-200'}`}
-                            >
-                              <img src={preset} alt="Avatar preset" className="w-full h-16 object-cover bg-orange-50" />
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    <div>
-                      <p className="text-sm font-semibold text-foreground mb-3">Or build your own</p>
-                      <div className="grid grid-cols-2 gap-3 text-xs">
-                        <label className="space-y-1">
-                          <span className="font-semibold text-stone-600">Skin tone</span>
-                          <input type="color" value={avatarSkinTone} onChange={(e) => setAvatarSkinTone(e.target.value)} className="w-full h-10 rounded" />
-                        </label>
-                        <label className="space-y-1">
-                          <span className="font-semibold text-stone-600">Hair color</span>
-                          <input type="color" value={avatarHairColor} onChange={(e) => setAvatarHairColor(e.target.value)} className="w-full h-10 rounded" />
-                        </label>
-                        <label className="space-y-1">
-                          <span className="font-semibold text-stone-600">Shirt color</span>
-                          <input type="color" value={avatarShirtColor} onChange={(e) => setAvatarShirtColor(e.target.value)} className="w-full h-10 rounded" />
-                        </label>
-                        <label className="space-y-1">
-                          <span className="font-semibold text-stone-600">Hair style</span>
-                          <select value={avatarHair} onChange={(e) => setAvatarHair(e.target.value)} className="w-full h-10 rounded border border-stone-200 px-2 bg-white">
-                            <option value="short">Short</option>
-                            <option value="curly">Curly</option>
-                            <option value="long">Long</option>
-                          </select>
-                        </label>
-                        <label className="space-y-1 col-span-2">
-                          <span className="font-semibold text-stone-600">Accessory</span>
-                          <select value={avatarAccessory} onChange={(e) => setAvatarAccessory(e.target.value)} className="w-full h-10 rounded border border-stone-200 px-2 bg-white">
-                            <option value="none">None</option>
-                            <option value="glasses">Glasses</option>
-                            <option value="hat">Chef hat</option>
-                          </select>
-                        </label>
-                      </div>
-                      <div className="mt-4 flex items-center gap-3 rounded-2xl border border-stone-200 bg-stone-50/60 p-3">
-                        <img src={buildCustomAvatar()} alt="Custom avatar preview" className="w-16 h-16 rounded-full border border-stone-200" />
-                        <Button type="button" variant="outline" onClick={() => setChefAvatarUrl(buildCustomAvatar())}>
-                          Use this avatar
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
+                  <Input
+                    value={username}
+                    onChange={(e) => {
+                      setUsernameTouched(true);
+                      setUsername(normalizeUsername(e.target.value));
+                    }}
+                    placeholder="chefname"
+                    className="text-lg h-14"
+                    maxLength={24}
+                    autoFocus
+                  />
+                  <p className={`mt-3 text-sm flex items-center gap-2 ${usernameStatus === 'taken' || usernameStatus === 'invalid' ? 'text-red-500' : 'text-muted-foreground'}`}>
+                    {usernameStatus === 'checking' && <Loader2 className="h-4 w-4 animate-spin" />}
+                    {usernameHelperText}
+                  </p>
                 </div>
+              )}
+
+              {step === stepIndex.discovery && (
+                <div>
+                  <h1 className="font-display text-3xl font-bold text-foreground mb-2">
+                    How did you hear about Munch?
+                  </h1>
+                  <p className="text-muted-foreground mb-8">
+                    This helps us understand which channels are working.
+                  </p>
+                  <div className="flex flex-wrap gap-3">
+                    {DISCOVERY_OPTIONS.map((option) => (
+                      <Chip
+                        key={option}
+                        label={option}
+                        selected={discoverySource === option}
+                        onClick={() => setDiscoverySource(option)}
+                      />
+                    ))}
+                  </div>
+                  {discoverySource === 'Other' && (
+                    <Input
+                      value={discoverySourceDetail}
+                      onChange={(e) => setDiscoverySourceDetail(e.target.value)}
+                      placeholder="Tell us where you found us"
+                      className="mt-5 h-12"
+                      autoFocus
+                    />
+                  )}
+                </div>
+              )}
+
+              {step === stepIndex.avatar && (
+                <div className="space-y-6">
+                  <div>
+                    <h1 className="font-display text-3xl font-bold text-foreground mb-2">
+                      Pick your chef look
+                    </h1>
+                    <p className="text-muted-foreground mb-6">
+                      Build a warmer, sharper Munch avatar with DiceBear styles that you can actually customize.
+                    </p>
+                  </div>
+
+                  <AvatarStudio
+                    config={avatarConfig}
+                    onChange={(updates) =>
+                      setAvatarConfig((current) =>
+                        createMunchAvatarConfig({
+                          ...current,
+                          ...updates,
+                          seed: updates.seed ?? current.seed ?? 'MunchOnboarding',
+                        }),
+                      )
+                    }
+                  />
+                </div>
+
               )}
 
               {step === stepIndex.servings && (
