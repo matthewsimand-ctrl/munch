@@ -45,6 +45,7 @@ export default function AppLayout() {
   const location = useLocation();
   const { displayName: storeDisplayName, activeKitchenName, chefAvatarUrl, kitchenViewMode } = useStore();
   const { kitchens } = useKitchens();
+  const isChefProfileRoute = location.pathname.startsWith("/chef/");
   const showGlobalAvatar = location.pathname !== "/dashboard";
   const mobileSwipeLayout = location.pathname === "/swipe";
 
@@ -231,7 +232,7 @@ export default function AppLayout() {
 
         {/* ── Mobile Bottom Nav ── */}
         <div className="md:hidden">
-          <BottomNav />
+          {!isChefProfileRoute ? <BottomNav /> : null}
         </div>
       </main>
     </div>

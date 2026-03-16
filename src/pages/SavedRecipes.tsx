@@ -26,6 +26,10 @@ import { ChefProfileModal } from "@/components/ChefProfileModal";
 import { normalizeRecipe } from "@/lib/normalizeRecipe";
 import MobileActionButton from "@/components/MobileActionButton";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { getRecipeSourceBadge, getResolvedRecipeSourceUrl, isMunchAuthoredRecipe } from "@/lib/recipeAttribution";
+import RecipeAttributionIcon from "@/components/RecipeAttributionIcon";
+import { MUNCH_CHEF_NAME, MUNCH_OFFICIAL_USER_ID } from "@/lib/munchIdentity";
+import { applyRecipeImageFallback } from "@/lib/recipeImage";
 
 const SORT_OPTIONS = ["Recently Saved", "Cook Time", "Rating", "Name A–Z"];
 const CUISINE_TAGS = ["All", "Italian", "Asian", "Mexican", "Mediterranean", "American", "Indian"];
@@ -68,7 +72,11 @@ function RecipeCard({
       diff === "medium" ? "text-amber-600 bg-amber-50" :
         "text-red-600 bg-red-50";
   const isImported = recipe.source?.toLowerCase() === 'imported';
-  const sourceHostname = isImported ? getSourceHostname(recipe.source_url) : null;
+  const sourceHostname = isImported ? getSourceHostname(getResolvedRecipeSourceUrl(recipe) || undefined) : null;
+  const isMunchRecipe = isMunchAuthoredRecipe(recipe);
+  const resolvedChefName = recipe.chef || (isMunchRecipe ? MUNCH_CHEF_NAME : null);
+  const resolvedChefId = recipe.created_by || (isMunchRecipe ? MUNCH_OFFICIAL_USER_ID : null);
+  const sourceBadge = getRecipeSourceBadge(recipe);
 
   if (view === "list") {
     return (
@@ -81,8 +89,13 @@ function RecipeCard({
         onClick={onCook}
       >
         <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 bg-stone-100">
-          {recipe.image && recipe.image !== "/placeholder.svg" ? (
-            <img src={recipe.image} alt={recipe.name} className="w-full h-full object-cover" />
+        {recipe.image && recipe.image !== "/placeholder.svg" ? (
+            <img
+              src={recipe.image}
+              alt={recipe.name}
+              className="w-full h-full object-cover"
+              onError={applyRecipeImageFallback}
+            />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-2xl bg-gradient-to-br from-orange-50 to-amber-50">🍽️</div>
           )}
@@ -108,13 +121,20 @@ function RecipeCard({
               </span>
             )}
             {typeof cookCount === "number" && cookCount > 0 && <span>{cookCount}x cooked</span>}
-            {recipe.chef && (
+            {resolvedChefName && resolvedChefId && (
               <button
-                onClick={(e) => { e.stopPropagation(); onChefClick(recipe.created_by ?? null, recipe.chef!); }}
-                className="text-orange-600 hover:text-orange-700 underline underline-offset-2"
+                onClick={(e) => { e.stopPropagation(); onChefClick(resolvedChefId, resolvedChefName); }}
+                className="inline-flex items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 text-orange-700 hover:bg-orange-100"
               >
-                {recipe.chef}
+                <RecipeAttributionIcon recipe={{ ...recipe, chef: resolvedChefName, created_by: resolvedChefId }} sizeClassName="h-3.5 w-3.5" className={isMunchRecipe ? "rounded-full bg-white p-0.5" : ""} />
+                {resolvedChefName}
               </button>
+            )}
+            {!resolvedChefName && sourceBadge && (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 text-orange-700">
+                <RecipeAttributionIcon recipe={recipe} sizeClassName="h-3.5 w-3.5" className={isMunchRecipe ? "rounded-full bg-white p-0.5" : ""} />
+                {sourceBadge}
+              </span>
             )}
           </div>
           {(nutrition?.calories || nutrition?.protein || nutrition?.carbs || nutrition?.fat) && (
@@ -151,7 +171,12 @@ function RecipeCard({
     >
       <div className="relative rounded-2xl overflow-hidden aspect-[4/3] mb-3 bg-stone-100">
         {recipe.image && recipe.image !== "/placeholder.svg" ? (
-          <img src={recipe.image} alt={recipe.name} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+          <img
+            src={recipe.image}
+            alt={recipe.name}
+            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+            onError={applyRecipeImageFallback}
+          />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-4xl bg-gradient-to-br from-orange-50 to-amber-50">🍽️</div>
         )}
@@ -188,14 +213,15 @@ function RecipeCard({
         <Clock size={11} /> {recipe.cook_time}
         {typeof cookCount === "number" && cookCount > 0 && <><span className="w-1 h-1 rounded-full bg-stone-300" /><span>{cookCount}x cooked</span></>}
         {recipe.cuisine && <><span className="w-1 h-1 rounded-full bg-stone-300" /><span>{recipe.cuisine}</span></>}
-        {recipe.chef && (
+        {resolvedChefName && resolvedChefId && (
           <>
             <span className="w-1 h-1 rounded-full bg-stone-300" />
             <button
-              onClick={(e) => { e.stopPropagation(); onChefClick(recipe.created_by ?? null, recipe.chef!); }}
-              className="text-orange-600 hover:text-orange-700 underline underline-offset-2"
+              onClick={(e) => { e.stopPropagation(); onChefClick(resolvedChefId, resolvedChefName); }}
+              className="inline-flex items-center gap-1 text-orange-600 hover:text-orange-700 underline underline-offset-2"
             >
-              {recipe.chef}
+              <RecipeAttributionIcon recipe={{ ...recipe, chef: resolvedChefName, created_by: resolvedChefId }} sizeClassName="h-3.5 w-3.5" className={isMunchRecipe ? "rounded-full bg-white p-0.5" : ""} />
+              {resolvedChefName}
             </button>
           </>
         )}

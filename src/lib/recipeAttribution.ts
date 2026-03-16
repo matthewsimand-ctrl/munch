@@ -26,7 +26,23 @@ export function isMunchAuthoredRecipe(recipe: Recipe | null | undefined) {
 
 export function isImportedUrlRecipe(recipe: Recipe | null | undefined) {
   if (!recipe) return false;
-  return isImportedCommunityRecipe(recipe) && Boolean(String(recipe.source_url || '').trim());
+  return isImportedCommunityRecipe(recipe) && Boolean(getResolvedRecipeSourceUrl(recipe));
+}
+
+export function getResolvedRecipeSourceUrl(recipe: Recipe | null | undefined): string | null {
+  if (!recipe) return null;
+
+  const directSourceUrl = String(recipe.source_url || '').trim();
+  if (directSourceUrl) return directSourceUrl;
+
+  const payload = getRawPayload(recipe);
+  const payloadSourceUrl = payload?.source_url;
+  if (typeof payloadSourceUrl === 'string' && payloadSourceUrl.trim()) return payloadSourceUrl.trim();
+
+  const originalSourceUrl = payload?.original_source_url;
+  if (typeof originalSourceUrl === 'string' && originalSourceUrl.trim()) return originalSourceUrl.trim();
+
+  return null;
 }
 
 export function getRecipeSourceHostname(url: string | undefined): string | null {
@@ -52,7 +68,7 @@ export function getRecipeSourceBadge(recipe: Recipe | null | undefined): string 
   if (!isImportedCommunityRecipe(recipe)) return null;
 
   if (isImportedUrlRecipe(recipe)) {
-    return getRecipeSourceHostname(recipe.source_url) || 'Imported recipe';
+    return getRecipeSourceHostname(getResolvedRecipeSourceUrl(recipe) || undefined) || 'Imported recipe';
   }
 
   if (recipe.chef?.trim()) return recipe.chef.trim();

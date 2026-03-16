@@ -10,12 +10,14 @@ import { Clock, BarChart3, Check, ShoppingCart, MapPin, ChefHat, Users, Heart, P
 import MatchBadge from '@/components/MatchBadge';
 import RecipeTweakDialog from '@/components/RecipeTweakDialog';
 import NutritionCard from '@/components/NutritionCard';
-import { getRecipeSourceBadge, isImportedCommunityRecipe } from '@/lib/recipeAttribution';
+import { getRecipeSourceBadge, getResolvedRecipeSourceUrl, isImportedCommunityRecipe, isMunchAuthoredRecipe } from '@/lib/recipeAttribution';
 import RecipeAttributionIcon from '@/components/RecipeAttributionIcon';
 import { useStore } from '@/lib/store';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { composeIngredientLine, parseIngredientLine, scaleIngredientQuantity } from '@/lib/ingredientText';
+import { applyRecipeImageFallback } from '@/lib/recipeImage';
+import { MUNCH_CHEF_NAME, MUNCH_OFFICIAL_USER_ID } from '@/lib/munchIdentity';
 
 interface Props {
   recipe: Recipe | null;
@@ -127,7 +129,7 @@ export default function RecipePreviewDialog({
   const displayMatch = match ?? fallbackMatch;
   const importedRecipe = recipe ? isImportedRecipe(recipe) : false;
   const importedPreview = useMemo(() => recipe ? getImportedPreviewData(recipe) : EMPTY_IMPORTED_PREVIEW, [recipe]);
-  const resolvedSourceUrl = recipe?.source_url || importedPreview.sourceUrl;
+  const resolvedSourceUrl = getResolvedRecipeSourceUrl(recipe) || importedPreview.sourceUrl;
   const embedBlockReason = resolvedSourceUrl ? getEmbedBlockReason(resolvedSourceUrl) : null;
   const canEmbedSource = Boolean(resolvedSourceUrl) && !embedBlockReason;
   const showStructuredFallback = recipe ? importedRecipe && hasStructuredRecipeContent(recipe) : false;
@@ -142,8 +144,9 @@ export default function RecipePreviewDialog({
       return '';
     }
   }, [resolvedSourceUrl]);
-  const displayChefName = chefName || recipe?.chef || null;
-  const displayChefId = chefId || recipe?.created_by || null;
+  const isMunchRecipe = isMunchAuthoredRecipe(recipe);
+  const displayChefName = chefName || recipe?.chef || (isMunchRecipe ? MUNCH_CHEF_NAME : null);
+  const displayChefId = chefId || recipe?.created_by || (isMunchRecipe ? MUNCH_OFFICIAL_USER_ID : null);
   const sourceBadge = getRecipeSourceBadge(recipe);
   const dialogSizeClass = expanded
     ? 'h-[calc(100dvh-0.75rem)] w-[calc(100vw-0.75rem)] max-w-[calc(100vw-0.75rem)] sm:h-[96vh] sm:w-[96vw] sm:max-w-[96vw]'
@@ -265,22 +268,40 @@ export default function RecipePreviewDialog({
           data-tutorial="recipe-dialog-content"
         >
           <div className={`relative overflow-hidden ${expanded ? 'h-32 sm:h-40 md:h-48' : resolvedSourceUrl && importedRecipe ? 'h-28 sm:h-32 md:h-36' : 'h-36 sm:h-40 md:h-48'}`}>
-            <img src={recipe.image} alt={recipe.name} className="w-full h-full object-cover" />
+            <img src={recipe.image} alt={recipe.name} className="w-full h-full object-cover" onError={applyRecipeImageFallback} />
             <div className="absolute inset-0 bg-gradient-to-t from-background/90 to-transparent" />
             <div className="absolute bottom-3 left-4 right-16 sm:right-4">
               <DialogHeader data-tutorial="recipe-dialog-header">
                 <DialogTitle className="text-xl text-foreground">{recipe.name}</DialogTitle>
               </DialogHeader>
             </div>
-            {displayChefName && displayChefId && (
+            {resolvedSourceUrl && sourceHostname ? (
+              <a
+                href={resolvedSourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="absolute top-3 left-3 inline-flex items-center gap-1.5 text-[11px] text-white/90 hover:text-white font-medium bg-black/30 backdrop-blur-sm px-2.5 py-1 rounded-full transition-colors"
+              >
+                <img
+                  src={`https://www.google.com/s2/favicons?domain=${sourceHostname}&sz=32`}
+                  alt=""
+                  className="h-4 w-4 shrink-0 rounded-sm bg-white/90 p-0.5"
+                  onError={(event) => {
+                    (event.currentTarget as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+                <span>{sourceHostname.replace(/^www\./, '')}</span>
+              </a>
+            ) : null}
+            {displayChefName && displayChefId ? (
               <button
                 onClick={() => { onOpenChange(false); navigate(`/chef/${displayChefId}`); }}
-                className="absolute top-3 left-3 inline-flex items-center gap-1.5 text-[11px] text-white/90 hover:text-white font-medium bg-black/30 backdrop-blur-sm px-2.5 py-1 rounded-full transition-colors"
+                className={`absolute inline-flex items-center gap-1.5 text-[11px] text-white/90 hover:text-white font-medium bg-black/30 backdrop-blur-sm px-2.5 py-1 rounded-full transition-colors ${resolvedSourceUrl && sourceHostname ? 'top-14 left-3' : 'top-3 left-3'}`}
               >
                 <RecipeAttributionIcon recipe={recipe} sizeClassName="h-4 w-4" className="rounded-full bg-white/90 p-0.5" />
                 <span>{displayChefName}</span>
               </button>
-            )}
+            ) : null}
             <button
               type="button"
               onClick={() => setExpanded((value) => !value)}

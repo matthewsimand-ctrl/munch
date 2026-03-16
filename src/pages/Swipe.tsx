@@ -14,10 +14,13 @@ import RecipePreviewDialog from "@/components/RecipePreviewDialog";
 import { ChefProfileModal } from "@/components/ChefProfileModal";
 import { Input } from "@/components/ui/input";
 import { classifyMealType } from "@/lib/mealTimeUtils";
-import { getRecipeSourceBadge, isImportedCommunityRecipe } from "@/lib/recipeAttribution";
+import { getRecipeSourceBadge, getResolvedRecipeSourceUrl, isImportedCommunityRecipe, isMunchAuthoredRecipe } from "@/lib/recipeAttribution";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
+import RecipeAttributionIcon from "@/components/RecipeAttributionIcon";
+import { MUNCH_CHEF_NAME, MUNCH_OFFICIAL_USER_ID } from "@/lib/munchIdentity";
+import { applyRecipeImageFallback } from "@/lib/recipeImage";
 
 /* ── Swipe card ────────────────────────────────────────────── */
 function SwipeCard({
@@ -58,6 +61,12 @@ function SwipeCard({
         ? { label: "Med", color: "#D97706", bg: "#FFF3C4" }
         : { label: "Hard", color: "#DC2626", bg: "#FEF2F2" };
 
+  const sourceBadge = getRecipeSourceBadge(recipe);
+  const resolvedSourceUrl = getResolvedRecipeSourceUrl(recipe);
+  const isMunchRecipe = isMunchAuthoredRecipe(recipe);
+  const resolvedChefName = recipe.chef || (isMunchRecipe ? MUNCH_CHEF_NAME : null);
+  const resolvedChefId = recipe.created_by || (isMunchRecipe ? MUNCH_OFFICIAL_USER_ID : null);
+
   return (
     <motion.div
       drag={isTop}
@@ -88,7 +97,12 @@ function SwipeCard({
       >
         {/* Hero image */}
         {recipe.image && recipe.image !== "/placeholder.svg" ? (
-          <img src={recipe.image} alt={recipe.name} className="w-full h-full object-cover" />
+          <img
+            src={recipe.image}
+            alt={recipe.name}
+            className="w-full h-full object-cover"
+            onError={applyRecipeImageFallback}
+          />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-8xl bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50">
             🍽️
@@ -101,13 +115,28 @@ function SwipeCard({
         {/* Top badges */}
         <div className="absolute top-4 left-4 right-4 flex items-start justify-between">
           <div className="flex flex-col gap-2">
-            {isImportedCommunityRecipe(recipe) && (
-              <span
-                className="px-2.5 py-1 rounded-full text-xs font-bold"
-                style={{ background: "rgba(255,255,255,0.92)", color: "#9A3412", backdropFilter: "blur(8px)" }}
-              >
-                {getRecipeSourceBadge(recipe)}
-              </span>
+            {sourceBadge && (
+              resolvedSourceUrl ? (
+                <a
+                  href={resolvedSourceUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={(event) => event.stopPropagation()}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold"
+                  style={{ background: "rgba(255,255,255,0.92)", color: "#9A3412", backdropFilter: "blur(8px)" }}
+                >
+                  <RecipeAttributionIcon recipe={recipe} sizeClassName="h-3.5 w-3.5" />
+                  <span>{sourceBadge}</span>
+                </a>
+              ) : (
+                <span
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold"
+                  style={{ background: "rgba(255,255,255,0.92)", color: "#9A3412", backdropFilter: "blur(8px)" }}
+                >
+                  <RecipeAttributionIcon recipe={recipe} sizeClassName="h-3.5 w-3.5" />
+                  <span>{sourceBadge}</span>
+                </span>
+              )
             )}
             {matchPercent >= 80 && (
               <span
@@ -170,12 +199,13 @@ function SwipeCard({
               <Clock size={13} />
               {recipe.cook_time}
             </span>
-            {recipe.chef && (
+            {resolvedChefName && resolvedChefId && (
               <button
-                onClick={(e) => { e.stopPropagation(); onChefClick(recipe.created_by ?? null, recipe.chef!); }}
-                className="underline underline-offset-2 text-orange-200 hover:text-orange-100"
+                onClick={(e) => { e.stopPropagation(); onChefClick(resolvedChefId, resolvedChefName); }}
+                className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-2 py-1 text-orange-100 hover:text-white hover:bg-white/15"
               >
-                {recipe.chef}
+                <RecipeAttributionIcon recipe={{ ...recipe, chef: resolvedChefName, created_by: resolvedChefId }} sizeClassName="h-3.5 w-3.5" className={isMunchRecipe ? "rounded-full bg-white/95 p-0.5" : ""} />
+                {resolvedChefName}
               </button>
             )}
             {recipe.servings && (

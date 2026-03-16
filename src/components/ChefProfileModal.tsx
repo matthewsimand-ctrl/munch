@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { Recipe } from '@/data/recipes';
@@ -6,6 +7,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { ChefHat, Loader2, Link as LinkIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import RecipePreviewDialog from '@/components/RecipePreviewDialog';
+import { applyRecipeImageFallback } from '@/lib/recipeImage';
+import { useStore } from '@/lib/store';
+import { toast } from 'sonner';
+import munchLogo from '@/assets/munch-logo.png';
+import { MUNCH_CHEF_NAME, MUNCH_OFFICIAL_USER_ID } from '@/lib/munchIdentity';
 
 interface ChefProfileModalProps {
     chefId: string | null;
@@ -16,6 +23,8 @@ interface ChefProfileModalProps {
 
 export function ChefProfileModal({ chefId, chefName, open, onOpenChange }: ChefProfileModalProps) {
     const navigate = useNavigate();
+    const { likeRecipe, likedRecipes } = useStore();
+    const [previewRecipe, setPreviewRecipe] = useState<Recipe | null>(null);
 
     const { data: profile, isLoading: loadingProfile } = useQuery({
         queryKey: ['chef-profile', chefId],
@@ -49,17 +58,23 @@ export function ChefProfileModal({ chefId, chefName, open, onOpenChange }: ChefP
         enabled: !!chefId && open,
     });
 
-    const displayName = profile?.display_name || chefName || 'Chef';
-    const firstName = displayName.split(' ')[0];
+    const isMunchChef = (profile?.display_name || chefName || '').trim().toLowerCase() === MUNCH_CHEF_NAME || chefId === MUNCH_OFFICIAL_USER_ID;
+    const displayName = profile?.display_name || chefName || (isMunchChef ? MUNCH_CHEF_NAME : 'Chef');
     const isLoading = loadingProfile || loadingRecipes;
+    const likedSet = useMemo(() => new Set(likedRecipes), [likedRecipes]);
 
     return (
+        <>
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-md p-0 overflow-hidden bg-background rounded-2xl border-border">
+            <DialogContent className="w-[calc(100vw-1rem)] max-w-4xl p-0 overflow-hidden bg-background rounded-[1.75rem] border-border">
                 <div className="p-6">
                     {/* Profile Header */}
                     <div className="flex items-center gap-4 mb-6">
-                        {profile?.avatar_url ? (
+                        {isMunchChef ? (
+                            <div className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-orange-200 bg-white p-2">
+                                <img src={munchLogo} alt="munch" className="h-full w-full object-contain" />
+                            </div>
+                        ) : profile?.avatar_url ? (
                             <img
                                 src={profile.avatar_url}
                                 alt={displayName}
@@ -104,9 +119,29 @@ export function ChefProfileModal({ chefId, chefName, open, onOpenChange }: ChefP
 
                     {/* Recipes Grid */}
                     <div className="mt-2">
-                        <h3 className="text-[11px] font-bold text-stone-400 uppercase tracking-widest mb-3">
-                            {firstName}'s Cookbook
-                        </h3>
+                        <div className="mb-4 flex items-center gap-3">
+                            {isMunchChef ? (
+                                <div className="flex h-10 w-10 items-center justify-center rounded-full border border-orange-200 bg-white p-1.5">
+                                    <img src={munchLogo} alt="munch" className="h-full w-full object-contain" />
+                                </div>
+                            ) : profile?.avatar_url ? (
+                                <img
+                                    src={profile.avatar_url}
+                                    alt={displayName}
+                                    className="h-10 w-10 rounded-full object-cover border border-orange-200"
+                                />
+                            ) : (
+                                <div className="flex h-10 w-10 items-center justify-center rounded-full border border-orange-200 bg-orange-50">
+                                    <ChefHat className="h-5 w-5 text-orange-500" />
+                                </div>
+                            )}
+                            <div>
+                                <h3 className="text-[11px] font-bold text-stone-400 uppercase tracking-widest">
+                                    {displayName}'s Recipes
+                                </h3>
+                                <p className="text-xs text-stone-500">{displayName}</p>
+                            </div>
+                        </div>
 
                         <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-stone-200 scrollbar-track-transparent">
                             {isLoading ? (
@@ -119,17 +154,14 @@ export function ChefProfileModal({ chefId, chefName, open, onOpenChange }: ChefP
                                     <p className="text-xs text-stone-400">This chef hasn't shared any recipes yet.</p>
                                 </div>
                             ) : (
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
                                     {recipes.map((recipe, i) => (
                                         <motion.button
                                             key={recipe.id}
                                             initial={{ opacity: 0, y: 10 }}
                                             animate={{ opacity: 1, y: 0 }}
                                             transition={{ delay: i * 0.05 }}
-                                            onClick={() => {
-                                                onOpenChange(false);
-                                                navigate(`/explore?chef=${chefId}`);
-                                            }}
+                                            onClick={() => setPreviewRecipe(recipe)}
                                             className="rounded-xl overflow-hidden bg-white border border-stone-100 text-left hover:border-orange-300 hover:shadow-sm transition-all group"
                                         >
                                             <div className="aspect-square overflow-hidden relative">
@@ -137,6 +169,7 @@ export function ChefProfileModal({ chefId, chefName, open, onOpenChange }: ChefP
                                                     src={recipe.image || '/placeholder.svg'}
                                                     alt={recipe.name}
                                                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                                    onError={applyRecipeImageFallback}
                                                 />
                                                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-2.5 pt-8">
                                                     <h4 className="font-display font-bold text-xs text-white leading-tight line-clamp-2" style={{ textShadow: "0 1px 4px rgba(0,0,0,0.5)" }}>
@@ -157,5 +190,21 @@ export function ChefProfileModal({ chefId, chefName, open, onOpenChange }: ChefP
                 </div>
             </DialogContent>
         </Dialog>
+        <RecipePreviewDialog
+            recipe={previewRecipe}
+            match={null}
+            open={!!previewRecipe}
+            onOpenChange={(nextOpen) => {
+                if (!nextOpen) setPreviewRecipe(null);
+            }}
+            chefName={displayName}
+            chefId={chefId}
+            onSave={(recipe) => {
+                likeRecipe(recipe.id, recipe);
+                toast.success(likedSet.has(recipe.id) ? `${recipe.name} is already in your recipes` : `Saved ${recipe.name}`);
+                setPreviewRecipe(null);
+            }}
+        />
+        </>
     );
 }

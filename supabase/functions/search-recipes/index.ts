@@ -146,14 +146,14 @@ async function fetchPublicRecipes(query?: string): Promise<NormalizedRecipe[]> {
   try {
     let request = supabase
       .from('recipes')
-      .select('id, name, image, cook_time, difficulty, ingredients, tags, instructions, source, source_url, raw_api_payload, cuisine, created_by')
+      .select('id, name, image, cook_time, difficulty, ingredients, tags, instructions, source, source_url, raw_api_payload, cuisine, chef, created_by')
       .eq('is_public', true)
       .order('created_at', { ascending: false });
 
     if (query) {
       const ilikeQuery = buildSearchPattern(query);
       request = request
-        .or(`name.ilike.${ilikeQuery},cuisine.ilike.${ilikeQuery},source.ilike.${ilikeQuery},source_url.ilike.${ilikeQuery}`)
+        .or(`name.ilike.${ilikeQuery},cuisine.ilike.${ilikeQuery},chef.ilike.${ilikeQuery},source.ilike.${ilikeQuery},source_url.ilike.${ilikeQuery}`)
         .limit(1500);
     } else {
       request = request.limit(450);
