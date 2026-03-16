@@ -335,8 +335,8 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
     return Object.entries(grouped).sort(([left], [right]) => {
       const leftKey = left.toLowerCase();
       const rightKey = right.toLowerCase();
-      const leftRank = sectionRank.get(leftKey) ?? 999;
-      const rightRank = sectionRank.get(rightKey) ?? 999;
+      const leftRank = sectionRank.get(leftKey as any) ?? 999;
+      const rightRank = sectionRank.get(rightKey as any) ?? 999;
       if (leftRank !== rightRank) return leftRank - rightRank;
       return left.localeCompare(right);
     });
