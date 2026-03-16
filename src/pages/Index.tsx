@@ -140,6 +140,7 @@ const Index = () => {
   );
   const [loading, setLoading] = useState(false);
   const [hasSession, setHasSession] = useState(false);
+  const [sessionResolved, setSessionResolved] = useState(false);
 
   useEffect(() => {
     const onResize = () => {
@@ -153,18 +154,36 @@ const Index = () => {
     const syncSession = async () => {
       const { data } = await supabase.auth.getSession();
       setHasSession(Boolean(data.session));
+      setSessionResolved(true);
     };
 
     void syncSession();
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       setHasSession(Boolean(session));
+      setSessionResolved(true);
     });
 
     return () => {
       authListener.subscription.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    if (!isDesktopBrowser || !sessionResolved || !hasSession) return;
+
+    const redirectToApp = async () => {
+      const target = await resolveAppStartRoute({
+        onboardingComplete,
+        isGuest,
+        completeOnboarding,
+        setDisplayName,
+      });
+      navigate(target, { replace: true });
+    };
+
+    void redirectToApp();
+  }, [completeOnboarding, hasSession, isDesktopBrowser, isGuest, navigate, onboardingComplete, sessionResolved, setDisplayName]);
 
   useEffect(() => {
     if (isDesktopBrowser) return;
