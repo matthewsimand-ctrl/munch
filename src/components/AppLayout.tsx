@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Outlet } from "react-router-dom";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   BookOpen,
@@ -21,6 +21,7 @@ import { useStore } from "@/lib/store";
 import { MunchLogo } from "@/components/MunchLogo";
 import { useKitchens } from "@/hooks/useKitchens";
 import BottomNav from "@/components/BottomNav";
+import defaultChefAvatar from "@/assets/chef-avatar.png";
 
 const NAV_ITEMS = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -39,8 +40,12 @@ export default function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [planType, setPlanType] = useState("Free Plan");
-  const { displayName: storeDisplayName, activeKitchenName } = useStore();
+  const [headerAvatarUrl, setHeaderAvatarUrl] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { displayName: storeDisplayName, activeKitchenName, chefAvatarUrl } = useStore();
   const { kitchens } = useKitchens();
+  const showGlobalAvatar = location.pathname !== "/dashboard";
 
   useEffect(() => {
     const hydrateFooterProfile = async () => {
@@ -50,23 +55,30 @@ export default function AppLayout() {
       if (user) {
         const { data: profile } = await supabase
           .from("profiles")
-          .select("display_name")
+          .select("display_name, avatar_url")
           .eq("user_id", user.id)
           .maybeSingle();
 
         const persistedName = profile?.display_name?.trim();
         const fallbackName = user.user_metadata?.display_name?.trim();
+        const persistedAvatar = typeof profile?.avatar_url === "string" ? profile.avatar_url : null;
+        const fallbackAvatar = typeof user.user_metadata?.avatar_url === "string" ? user.user_metadata.avatar_url : null;
+        setHeaderAvatarUrl(persistedAvatar || fallbackAvatar || null);
         if (persistedName || fallbackName) {
           setDisplayName((persistedName || fallbackName) as string);
-          return;
+        } else if (storeDisplayName) {
+          setDisplayName(storeDisplayName);
+        } else {
+          setDisplayName("");
         }
-      }
-
-      // Fallback to store name for Guests or users without a profile record
-      if (storeDisplayName) {
-        setDisplayName(storeDisplayName);
       } else {
-        setDisplayName("");
+        // Fallback to store name for Guests or users without a profile record
+        if (storeDisplayName) {
+          setDisplayName(storeDisplayName);
+        } else {
+          setDisplayName("");
+        }
+        setHeaderAvatarUrl(null);
       }
 
       if (user) {
@@ -79,6 +91,12 @@ export default function AppLayout() {
 
     hydrateFooterProfile();
   }, [storeDisplayName]);
+
+  useEffect(() => {
+    if (chefAvatarUrl) {
+      setHeaderAvatarUrl(chefAvatarUrl);
+    }
+  }, [chefAvatarUrl]);
 
   return (
     <div className="flex min-h-screen h-[100dvh] bg-gradient-to-br from-orange-50/50 via-background to-background overflow-hidden">
@@ -187,7 +205,23 @@ export default function AppLayout() {
       </aside>
 
       {/* ── Main content ── */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <main className="relative flex-1 flex flex-col min-w-0 overflow-hidden">
+        {showGlobalAvatar ? (
+          <div className="pointer-events-none absolute right-4 top-[max(0.5rem,env(safe-area-inset-top))] z-30 md:right-6 md:top-4">
+            <button
+              type="button"
+              onClick={() => navigate("/settings")}
+              className="pointer-events-auto relative h-10 w-10 overflow-hidden rounded-full border-2 border-white bg-white shadow-[0_8px_24px_rgba(28,25,23,0.12)] ring-2 ring-orange-200 transition-transform hover:scale-[1.02]"
+              aria-label="Open account settings"
+            >
+              <img
+                src={headerAvatarUrl || chefAvatarUrl || defaultChefAvatar}
+                alt="Your avatar"
+                className="h-full w-full object-cover"
+              />
+            </button>
+          </div>
+        ) : null}
         <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pt-[max(0.25rem,calc(env(safe-area-inset-top)-1rem))] pb-[calc(var(--mobile-nav-offset)+0.35rem)] md:pt-0 md:pb-0">
           <div className="app-page">
             <Outlet />

@@ -282,7 +282,9 @@ export default function Settings() {
                     onClick={() => openPremiumPage('Munch Membership')}
                     className="inline-flex items-center gap-2 rounded-xl bg-violet-600 text-white hover:bg-violet-700"
                   >
-                    <Crown className="h-4 w-4" />
+                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-orange-100/95 text-orange-500">
+                      <Crown className="h-3.5 w-3.5" />
+                    </span>
                     Upgrade
                   </Button>
                 )}
@@ -458,7 +460,7 @@ export default function Settings() {
                     <Button
                       variant="secondary"
                       size="sm"
-                      onClick={() => navigate('/onboarding')}
+                      onClick={() => navigate('/dashboard', { state: { openAvatarEditor: true, returnTo: '/settings' } })}
                       className="h-8 text-xs bg-orange-50 text-orange-600 hover:bg-orange-100 border-orange-100"
                     >
                       <ChefHat className="h-3 w-3 mr-1.5" /> Redesign Avatar

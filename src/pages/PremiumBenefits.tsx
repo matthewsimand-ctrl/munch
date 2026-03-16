@@ -1,5 +1,6 @@
 import { ArrowLeft, Check, Crown, Lock, Sparkles, Star } from "lucide-react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { useStore } from "@/lib/store";
 
 const MEMBER_BENEFITS = [
   "AI imports from URLs, PDFs, and photos",
@@ -9,10 +10,17 @@ const MEMBER_BENEFITS = [
   "Premium cooking insights and savings estimates",
 ];
 
-const PLAN_COLUMNS = [
-  { name: "Free", price: "$0", note: "Save recipes and cook with the essentials" },
-  { name: "Member", price: "$7.99", note: "Unlock every premium Munch tool" },
-];
+const MEMBERSHIP_BASE_PRICE_USD = 7.99;
+
+const CURRENCY_MULTIPLIERS: Record<string, number> = {
+  USD: 1,
+  CAD: 1.35,
+  EUR: 0.92,
+  GBP: 0.79,
+  AUD: 1.52,
+  JPY: 149,
+  INR: 83,
+};
 
 const PLAN_FEATURES = [
   { label: "Browse and save recipes", free: true, member: true },
@@ -45,16 +53,44 @@ function PlanMarker({ enabled, tone }: { enabled: boolean; tone: "free" | "membe
   );
 }
 
+function formatMembershipPrice(currency: string) {
+  const normalizedCurrency = CURRENCY_MULTIPLIERS[currency] ? currency : "USD";
+  const amount = MEMBERSHIP_BASE_PRICE_USD * (CURRENCY_MULTIPLIERS[normalizedCurrency] || 1);
+  const roundedAmount = normalizedCurrency === "JPY" ? Math.round(amount) : Math.round(amount * 100) / 100;
+
+  return new Intl.NumberFormat(undefined, {
+    style: "currency",
+    currency: normalizedCurrency,
+    maximumFractionDigits: normalizedCurrency === "JPY" ? 0 : 2,
+  }).format(roundedAmount);
+}
+
+function formatCurrencyAmount(amount: number, currency: string) {
+  const normalizedCurrency = CURRENCY_MULTIPLIERS[currency] ? currency : "USD";
+  return new Intl.NumberFormat(undefined, {
+    style: "currency",
+    currency: normalizedCurrency,
+    maximumFractionDigits: normalizedCurrency === "JPY" ? 0 : 2,
+  }).format(amount);
+}
+
 export default function PremiumBenefits() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const { userProfile } = useStore();
   const requestedFeature = searchParams.get("feature");
   const backTarget = (location.state as { from?: string } | null)?.from || "/dashboard";
+  const preferredCurrency = userProfile.groceryCurrency || "USD";
+  const formattedMemberPrice = formatMembershipPrice(preferredCurrency);
+  const planColumns = [
+    { name: "Free", price: formatCurrencyAmount(0, preferredCurrency), note: "Save recipes and cook with the essentials" },
+    { name: "Member", price: formattedMemberPrice, note: "Unlock every premium Munch tool" },
+  ];
 
   const intro = requestedFeature && requestedFeature !== "Munch Membership"
     ? `${requestedFeature} is a member feature. Upgrade to unlock it, along with the rest of the premium Munch toolkit.`
-    : "Upgrade to Munch Membership to unlock every premium recipe, planning, and AI cooking tool in one place.";
+    : null;
 
   return (
     <div className="min-h-full px-4 py-5 md:px-8 md:py-8" style={{ background: "#FFFAF5" }}>
@@ -76,56 +112,81 @@ export default function PremiumBenefits() {
             boxShadow: "0 18px 60px rgba(28,25,23,0.08)",
           }}
         >
-          <div className="max-w-2xl">
+          <div className="max-w-4xl">
               <div className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-orange-500 shadow-sm">
                 <Crown className="h-3.5 w-3.5" />
                 Membership
               </div>
-              <h1 className="mt-4 text-3xl font-bold text-stone-900 md:text-5xl" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+              <h1 className="mt-4 max-w-3xl text-3xl font-bold leading-[1.05] text-stone-900 md:text-5xl" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
                 Unlock the full Munch kitchen
               </h1>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-stone-600 md:text-base">
-                {intro}
-              </p>
+              {intro ? (
+                <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600 md:text-base">
+                  {intro}
+                </p>
+              ) : (
+                <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600 md:text-base">
+                  Upgrade to Munch Membership to unlock every premium recipe, planning, and{" "}
+                  <span className="whitespace-nowrap">AI cooking tool in one place.</span>
+                </p>
+              )}
           </div>
 
-          <div
-            className="mt-6 w-full rounded-[1.75rem] border p-5 shadow-[0_18px_44px_rgba(249,115,22,0.10)]"
-            style={{ background: "rgba(255,255,255,0.5)", borderColor: "rgba(249,115,22,0.28)" }}
-          >
-            <div className="space-y-5">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-500">Munch Member</p>
-                  <p className="mt-2 text-4xl font-bold text-stone-900">$7.99</p>
-                  <p className="mt-1 text-sm text-stone-500">per month</p>
-                </div>
-                <div className="rounded-full bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-600 border border-orange-200">
-                  Cancel anytime
-                </div>
-              </div>
-
-              <div className="space-y-2.5">
-                {MEMBER_BENEFITS.map((benefit) => (
-                  <div key={benefit} className="flex items-start gap-3 rounded-2xl border border-orange-200 bg-white/70 px-3 py-3">
-                    <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-orange-100 text-orange-600">
-                      <Check className="h-3.5 w-3.5" />
-                    </span>
-                    <p className="text-sm leading-6 text-stone-700">{benefit}</p>
-                  </div>
-                ))}
-              </div>
-
-              <button
-                type="button"
-                onClick={() => navigate("/#pricing")}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600"
+          <div className="mt-6 flex justify-center">
+            <div className="relative w-full max-w-md overflow-hidden rounded-[2rem] bg-white shadow-[0_28px_70px_rgba(249,115,22,0.16)]">
+              <div
+                className="relative px-6 pb-24 pt-7 text-white"
+                style={{ background: "linear-gradient(135deg,#FB923C 0%,#F97316 52%,#EA580C 100%)" }}
               >
-                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white/20 text-white">
-                  <Crown className="h-3.5 w-3.5" />
-                </span>
-                Become a Member
-              </button>
+                <div className="absolute inset-x-0 bottom-0 h-36">
+                  <div className="absolute -left-10 bottom-3 h-32 w-72 rounded-[999px] bg-white/14" />
+                  <div className="absolute right-[-3rem] bottom-[-1.5rem] h-44 w-80 rounded-[999px] bg-white/20" />
+                  <div className="absolute left-1/2 bottom-[-6.5rem] h-52 w-[128%] -translate-x-1/2 rounded-[50%] bg-white" />
+                </div>
+                <div className="relative z-10 flex items-start justify-between gap-3">
+                  <div className="rounded-full bg-white/16 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-orange-50">
+                    Munch Member
+                  </div>
+                  <div className="rounded-full border border-white/35 bg-white/15 px-3 py-1 text-xs font-semibold text-orange-50">
+                    Cancel anytime
+                  </div>
+                </div>
+              </div>
+
+              <div className="relative px-6 pb-7 pt-0">
+                <div className="absolute left-1/2 top-0 z-10 flex h-28 w-28 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-8 border-white bg-white shadow-[0_16px_34px_rgba(28,25,23,0.12)]">
+                  <div className="text-center">
+                    <p className="text-3xl font-bold leading-none text-orange-500">{formattedMemberPrice}</p>
+                  </div>
+                </div>
+
+                <div className="pt-16 text-center">
+                  <h2 className="text-3xl font-bold uppercase tracking-[0.08em] text-orange-500">Member</h2>
+                  <p className="mt-1 text-sm font-medium uppercase tracking-[0.18em] text-stone-400">Per Month</p>
+                </div>
+
+                <div className="mt-6 space-y-3">
+                  {MEMBER_BENEFITS.map((benefit) => (
+                    <div key={benefit} className="flex items-start gap-3 px-1">
+                      <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-orange-100 text-orange-600">
+                        <Check className="h-3.5 w-3.5" />
+                      </span>
+                      <p className="text-sm leading-6 text-stone-600">{benefit}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => navigate("/#pricing")}
+                  className="mt-8 inline-flex w-full items-center justify-center gap-2 rounded-full border-2 border-orange-300 bg-transparent px-5 py-3 text-sm font-semibold text-orange-600 transition-colors hover:border-orange-400 hover:bg-orange-50"
+                >
+                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-orange-100 text-orange-600">
+                    <Crown className="h-3.5 w-3.5" />
+                  </span>
+                  Become a Member
+                </button>
+              </div>
             </div>
           </div>
 
@@ -143,7 +204,7 @@ export default function PremiumBenefits() {
             <div className="mt-5 overflow-hidden rounded-2xl border border-stone-200">
               <div className="grid grid-cols-[minmax(0,1.6fr)_minmax(120px,0.7fr)_minmax(120px,0.7fr)] bg-stone-50">
                 <div className="px-4 py-4 text-sm font-semibold text-stone-500">Features</div>
-                {PLAN_COLUMNS.map((plan) => (
+                {planColumns.map((plan) => (
                   <div key={plan.name} className="border-l border-stone-200 px-4 py-4 text-center">
                     <p className="text-sm font-bold text-stone-900">{plan.name}</p>
                     <p className={`mt-1 text-xl font-bold ${plan.name === "Member" ? "text-orange-600" : "text-stone-700"}`}>{plan.price}</p>
@@ -203,8 +264,8 @@ export default function PremiumBenefits() {
                   <Lock className="h-3.5 w-3.5" />
                   Premium features stay clearly gated
                 </span>
-                <span className="rounded-full bg-stone-100 px-3 py-1.5">Orange crown accents</span>
-                <span className="rounded-full bg-stone-100 px-3 py-1.5">Purple upgrade CTA</span>
+                <span className="rounded-full bg-stone-100 px-3 py-1.5">Orange premium accents</span>
+                <span className="rounded-full bg-stone-100 px-3 py-1.5">Dedicated upgrade destination</span>
               </div>
             </div>
           </div>

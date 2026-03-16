@@ -18,6 +18,7 @@
     "@dicebear/big-ears-neutral": "^9.4.0",
     "@dicebear/big-smile": "^9.4.0",
     "@dicebear/core": "^9.4.0",
+    "@dicebear/notionists": "^9.4.0",
     "@dicebear/personas": "^9.4.0",
     "@dicebear/thumbs": "^9.4.0",
     "@hookform/resolvers": "^3.10.0",

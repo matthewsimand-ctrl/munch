@@ -30,10 +30,12 @@ export default function PremiumFeatureButton({
     >
       <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.18),transparent_38%),radial-gradient(circle_at_bottom_right,rgba(251,146,60,0.22),transparent_34%)]" />
       <span className="relative flex min-w-0 items-center gap-2.5">
-        <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-orange-200/45 bg-orange-400/18 text-orange-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.28)]">
+        <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-orange-200/45 bg-orange-400/18 text-orange-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.28)] transition-all duration-200 group-hover:bg-orange-300/24 group-hover:text-orange-50 group-hover:drop-shadow-[0_0_10px_rgba(251,146,60,0.8)]">
           <Crown className="h-3.5 w-3.5" />
         </span>
-        <span className="truncate text-sm font-semibold tracking-[0.01em]">{label}</span>
+        <span className="truncate text-sm font-semibold tracking-[0.01em] transition-all duration-200 group-hover:text-orange-50 group-hover:drop-shadow-[0_0_10px_rgba(251,146,60,0.8)]">
+          {label}
+        </span>
       </span>
       {trailing ? <span className="relative ml-2 shrink-0">{trailing}</span> : null}
     </Button>

@@ -5,7 +5,7 @@ import {
   Trophy, ChefHat, Zap, Award, Camera, Sparkles, TrendingUp, Play, Beef, Wheat, Droplets, Bell, CheckCheck,
   Settings,
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useStore } from "@/lib/store";
 import { useBrowseFeed } from "@/hooks/useBrowseFeed";
@@ -171,6 +171,7 @@ function RecipeSuggestionCard({
 export default function Dashboard() {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
+  const location = useLocation();
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [greeting] = useState(() => {
     const h = new Date().getHours();
@@ -227,6 +228,21 @@ export default function Dashboard() {
   };
 
   const avatarBuilderPreview = useMemo(() => buildMunchAvatarUrl(avatarConfig), [avatarConfig]);
+  const avatarReturnTo = (location.state as { returnTo?: string } | null)?.returnTo;
+
+  useEffect(() => {
+    const shouldOpenAvatarEditor = Boolean((location.state as { openAvatarEditor?: boolean } | null)?.openAvatarEditor);
+    if (!shouldOpenAvatarEditor) return;
+
+    setAvatarDialogOpen(true);
+  }, [location.state]);
+
+  const handleAvatarDialogOpenChange = (open: boolean) => {
+    setAvatarDialogOpen(open);
+    if (!open && avatarReturnTo) {
+      navigate(avatarReturnTo, { replace: true });
+    }
+  };
 
   const clearPendingAvatarPhoto = () => {
     if (avatarPhotoPreview?.startsWith("blob:")) {
@@ -250,6 +266,9 @@ export default function Dashboard() {
     setPendingUploadedAvatarUrl(null);
     setAvatarDialogOpen(false);
     toast.success("Custom avatar updated!");
+    if (avatarReturnTo) {
+      navigate(avatarReturnTo, { replace: true });
+    }
   };
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -862,7 +881,7 @@ export default function Dashboard() {
         </section>
       </div>
 
-      <Dialog open={avatarDialogOpen} onOpenChange={setAvatarDialogOpen}>
+      <Dialog open={avatarDialogOpen} onOpenChange={handleAvatarDialogOpenChange}>
         <DialogContent className="max-h-[94vh] max-w-6xl overflow-hidden p-0">
           <DialogHeader>
             <DialogTitle className="px-4 pt-4 sm:px-6 sm:pt-6">Customize your avatar</DialogTitle>

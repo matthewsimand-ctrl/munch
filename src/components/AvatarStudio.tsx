@@ -65,14 +65,23 @@ const COLLECTION_PRESET_VARIANTS: Record<
     { label: 'Preset 5', seed: 'PersonasE', gender: 'female', hair: 'bun', backgroundColor: '#dcfce7', skinTone: '#c68642', hairColor: '#2c222b' },
     { label: 'Preset 6', seed: 'PersonasF', gender: 'male', hair: 'curls', backgroundColor: '#ffe4e6', skinTone: '#6c4326', hairColor: '#cdd3de' },
   ],
-  thumbs: [
-    { label: 'Preset 1', seed: 'ThumbsA', gender: 'female', hairColor: '#714e3b', skinTone: '#f1c27d', backgroundColor: '#ffedd5' },
-    { label: 'Preset 2', seed: 'ThumbsB', gender: 'male', hairColor: '#2c222b', skinTone: '#e0ac69', backgroundColor: '#dbeafe' },
-    { label: 'Preset 3', seed: 'ThumbsC', gender: 'female', hairColor: '#a14d39', skinTone: '#f8d8c0', backgroundColor: '#ede9fe' },
-    { label: 'Preset 4', seed: 'ThumbsD', gender: 'male', hairColor: '#4a312c', skinTone: '#8d5524', backgroundColor: '#fef3c7' },
-    { label: 'Preset 5', seed: 'ThumbsE', gender: 'female', hairColor: '#2c222b', skinTone: '#c68642', backgroundColor: '#dcfce7' },
-    { label: 'Preset 6', seed: 'ThumbsF', gender: 'male', hairColor: '#cdd3de', skinTone: '#6c4326', backgroundColor: '#ffe4e6' },
+  notionists: [
+    { label: 'Preset 1', seed: 'NotionistsA', gender: 'female', hair: 'waves', hairColor: '#714e3b', skinTone: '#f1c27d', backgroundColor: '#ffedd5' },
+    { label: 'Preset 2', seed: 'NotionistsB', gender: 'male', hair: 'fade', hairColor: '#2c222b', skinTone: '#e0ac69', backgroundColor: '#dbeafe' },
+    { label: 'Preset 3', seed: 'NotionistsC', gender: 'female', hair: 'bob', hairColor: '#a14d39', skinTone: '#f8d8c0', backgroundColor: '#ede9fe' },
+    { label: 'Preset 4', seed: 'NotionistsD', gender: 'male', hair: 'long', hairColor: '#4a312c', skinTone: '#8d5524', backgroundColor: '#fef3c7' },
+    { label: 'Preset 5', seed: 'NotionistsE', gender: 'female', hair: 'bun', hairColor: '#2c222b', skinTone: '#c68642', backgroundColor: '#dcfce7' },
+    { label: 'Preset 6', seed: 'NotionistsF', gender: 'male', hair: 'curls', hairColor: '#cdd3de', skinTone: '#6c4326', backgroundColor: '#ffe4e6' },
   ],
+};
+
+const COLLECTION_STYLE_PREVIEW_SEEDS: Record<MunchAvatarStyle, string> = {
+  adventurer: 'CollectionPreviewAdventurer',
+  adventurerNeutral: 'CollectionPreviewAdventurerNeutral',
+  bigEarsNeutral: 'CollectionPreviewBigEarsNeutral',
+  bigSmile: 'CollectionPreviewBigSmile',
+  personas: 'CollectionPreviewPersonas',
+  notionists: 'CollectionPreviewNotionists',
 };
 
 function OptionCard({
@@ -171,9 +180,13 @@ export function AvatarStudio({
     () =>
       MUNCH_AVATAR_STYLE_OPTIONS.map((option) => ({
         ...option,
-        previewUrl: buildMunchAvatarUrl({ ...config, style: option.value }),
+        previewUrl: buildMunchAvatarUrl({
+          style: option.value,
+          seed: COLLECTION_STYLE_PREVIEW_SEEDS[option.value],
+          backgroundColor: config.backgroundColor,
+        }),
       })),
-    [config],
+    [config.backgroundColor],
   );
 
   const collectionPresets = useMemo(
@@ -184,6 +197,7 @@ export function AvatarStudio({
           ...preset,
           style: config.style,
           seed: preset.seed ?? `${config.style}-${preset.label}`,
+          backgroundColor: config.backgroundColor,
         });
         return {
           ...preset,
@@ -203,7 +217,7 @@ export function AvatarStudio({
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.22em] text-orange-500">Live preview</p>
             <p className="mt-2 text-sm leading-5 text-stone-500">
-              Pick one of the DiceBear collections, then tune the palette and presentation.
+              Pick one of the collections, then tune the outline and presentation.
             </p>
           </div>
           <div className="rounded-full bg-white/90 p-2 text-orange-500 shadow-sm">
@@ -253,7 +267,7 @@ export function AvatarStudio({
               className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl border border-stone-200 bg-white px-4 py-2.5 text-sm font-semibold text-stone-600 transition-colors hover:border-orange-300 hover:text-orange-600"
             >
               <RotateCcw className="h-4 w-4" />
-              Return to DiceBear builder
+              Return to avatar builder
             </button>
           ) : null}
 
@@ -265,7 +279,7 @@ export function AvatarStudio({
         <div className="rounded-[1.75rem] border border-stone-200 bg-white p-4">
           <div className="flex items-center gap-2">
             <Wand2 className="h-4 w-4 text-orange-500" />
-            <p className="text-sm font-semibold text-stone-800">DiceBear collections</p>
+            <p className="text-sm font-semibold text-stone-800">Collections</p>
           </div>
           <div className="mt-3 grid gap-2 sm:grid-cols-3">
             {stylePreviews.map((option) => (
@@ -284,7 +298,7 @@ export function AvatarStudio({
         <div className="rounded-[1.75rem] border border-stone-200 bg-white p-4">
           <p className="text-sm font-semibold text-stone-800">{selectedStyle?.name} presets</p>
           <p className="mt-1 text-xs leading-5 text-stone-500">
-            Each DiceBear collection comes with a range of looks. Pick a preset, then customize from there.
+            Each collection comes with a range of looks. Pick a preset, then customize from there.
           </p>
           <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
             {collectionPresets.map((preset) => (
