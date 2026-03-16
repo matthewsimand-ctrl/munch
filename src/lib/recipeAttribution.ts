@@ -16,6 +16,10 @@ export function isMunchSeedRecipe(recipe: Recipe) {
   return String(recipe.source || '').toLowerCase() === 'community-seed';
 }
 
+export function isMunchAuthoredRecipe(recipe: Recipe) {
+  return isMunchSeedRecipe(recipe) || String(recipe.chef || '').trim().toLowerCase() === 'munch';
+}
+
 export function isImportedUrlRecipe(recipe: Recipe) {
   return isImportedCommunityRecipe(recipe) && Boolean(String(recipe.source_url || '').trim());
 }
@@ -37,7 +41,7 @@ export function getRecipeSharedByName(recipe: Recipe): string | null {
 }
 
 export function getRecipeSourceBadge(recipe: Recipe): string | null {
-  if (isMunchSeedRecipe(recipe)) return 'Munch';
+  if (isMunchAuthoredRecipe(recipe)) return 'munch';
 
   if (!isImportedCommunityRecipe(recipe)) return null;
 

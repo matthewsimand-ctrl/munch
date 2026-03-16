@@ -11,6 +11,7 @@ import MatchBadge from '@/components/MatchBadge';
 import RecipeTweakDialog from '@/components/RecipeTweakDialog';
 import NutritionCard from '@/components/NutritionCard';
 import { getRecipeSourceBadge, isImportedCommunityRecipe } from '@/lib/recipeAttribution';
+import RecipeAttributionIcon from '@/components/RecipeAttributionIcon';
 import { useStore } from '@/lib/store';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -78,7 +79,10 @@ function getImportedPreviewData(recipe: Recipe) {
   const payload = recipe.raw_api_payload as Record<string, unknown>;
 
   return {
-    sourceUrl: typeof payload.source_url === 'string' ? payload.source_url : '',
+    sourceUrl:
+      typeof payload.source_url === 'string' ? payload.source_url
+      : typeof payload.original_source_url === 'string' ? payload.original_source_url
+      : '',
     rawPayloadKeys: Object.keys(payload),
   };
 }
@@ -122,12 +126,13 @@ export default function RecipePreviewDialog({
 
   const displayMatch = match ?? fallbackMatch;
   const importedRecipe = recipe ? isImportedRecipe(recipe) : false;
-  const embedBlockReason = recipe?.source_url ? getEmbedBlockReason(recipe.source_url) : null;
   const importedPreview = useMemo(() => recipe ? getImportedPreviewData(recipe) : EMPTY_IMPORTED_PREVIEW, [recipe]);
-  const canEmbedSource = Boolean(recipe?.source_url) && !embedBlockReason;
+  const resolvedSourceUrl = recipe?.source_url || importedPreview.sourceUrl;
+  const embedBlockReason = resolvedSourceUrl ? getEmbedBlockReason(resolvedSourceUrl) : null;
+  const canEmbedSource = Boolean(resolvedSourceUrl) && !embedBlockReason;
   const showStructuredFallback = recipe ? importedRecipe && hasStructuredRecipeContent(recipe) : false;
   const sourceHostname = useMemo(() => {
-    const url = recipe?.source_url || importedPreview.sourceUrl;
+    const url = resolvedSourceUrl;
 
     if (!url) return '';
 
@@ -136,25 +141,28 @@ export default function RecipePreviewDialog({
     } catch {
       return '';
     }
-  }, [importedPreview.sourceUrl, recipe?.source_url]);
+  }, [resolvedSourceUrl]);
+  const displayChefName = chefName || recipe?.chef || null;
+  const displayChefId = chefId || recipe?.created_by || null;
+  const sourceBadge = getRecipeSourceBadge(recipe);
   const dialogSizeClass = expanded
     ? 'h-[calc(100dvh-0.75rem)] w-[calc(100vw-0.75rem)] max-w-[calc(100vw-0.75rem)] sm:h-[96vh] sm:w-[96vw] sm:max-w-[96vw]'
     : `h-[calc(100dvh-0.75rem)] max-h-[calc(100dvh-0.75rem)] w-[calc(100vw-0.75rem)] max-w-[calc(100vw-0.75rem)] sm:h-[92vh] ${
-        recipe?.source_url && importedRecipe ? 'sm:max-w-5xl' : 'sm:max-w-md'
+        resolvedSourceUrl && importedRecipe ? 'sm:max-w-5xl' : 'sm:max-w-md'
       }`;
 
   useEffect(() => {
-    if (!open || !recipe || !importedRecipe || !recipe.source_url || !embedBlockReason) return;
+    if (!open || !recipe || !importedRecipe || !resolvedSourceUrl || !embedBlockReason) return;
 
     console.info('[RecipePreviewDialog] Source embed disabled', {
       recipeId: recipe.id,
       recipeName: recipe.name,
-      sourceUrl: recipe.source_url,
+      sourceUrl: resolvedSourceUrl,
       reason: embedBlockReason,
       hasStructuredFallback: showStructuredFallback,
       rawPayloadKeys: importedPreview.rawPayloadKeys,
     });
-  }, [embedBlockReason, importedPreview.rawPayloadKeys, importedRecipe, open, recipe?.id, recipe?.name, recipe?.source_url, showStructuredFallback]);
+  }, [embedBlockReason, importedPreview.rawPayloadKeys, importedRecipe, open, recipe?.id, recipe?.name, resolvedSourceUrl, showStructuredFallback]);
 
   useEffect(() => {
     if (!recipe || !open) return;
@@ -256,7 +264,7 @@ export default function RecipePreviewDialog({
           onOpenAutoFocus={(event) => event.preventDefault()}
           data-tutorial="recipe-dialog-content"
         >
-          <div className={`relative overflow-hidden ${expanded ? 'h-32 sm:h-40 md:h-48' : recipe.source_url && importedRecipe ? 'h-28 sm:h-32 md:h-36' : 'h-36 sm:h-40 md:h-48'}`}>
+          <div className={`relative overflow-hidden ${expanded ? 'h-32 sm:h-40 md:h-48' : resolvedSourceUrl && importedRecipe ? 'h-28 sm:h-32 md:h-36' : 'h-36 sm:h-40 md:h-48'}`}>
             <img src={recipe.image} alt={recipe.name} className="w-full h-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-background/90 to-transparent" />
             <div className="absolute bottom-3 left-4 right-16 sm:right-4">
@@ -264,23 +272,24 @@ export default function RecipePreviewDialog({
                 <DialogTitle className="text-xl text-foreground">{recipe.name}</DialogTitle>
               </DialogHeader>
             </div>
-            {chefName && chefId && (
+            {displayChefName && displayChefId && (
               <button
-                onClick={() => { onOpenChange(false); navigate(`/chef/${chefId}`); }}
-                className="absolute top-3 left-3 inline-flex items-center gap-1 text-[11px] text-white/90 hover:text-white font-medium bg-black/30 backdrop-blur-sm px-2.5 py-1 rounded-full transition-colors"
+                onClick={() => { onOpenChange(false); navigate(`/chef/${displayChefId}`); }}
+                className="absolute top-3 left-3 inline-flex items-center gap-1.5 text-[11px] text-white/90 hover:text-white font-medium bg-black/30 backdrop-blur-sm px-2.5 py-1 rounded-full transition-colors"
               >
-                <ChefHat className="h-3 w-3" /> by {chefName}
+                <RecipeAttributionIcon recipe={recipe} sizeClassName="h-4 w-4" className="rounded-full bg-white/90 p-0.5" />
+                <span>{displayChefName}</span>
               </button>
             )}
             <button
               type="button"
               onClick={() => setExpanded((value) => !value)}
-              className={`absolute top-2.5 ${importedRecipe && recipe.source_url ? 'right-[6.25rem] sm:right-[7.25rem]' : 'right-12 sm:right-14'} inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/30 bg-black/35 text-white shadow-sm backdrop-blur-sm transition-colors hover:bg-black/50 sm:h-9 sm:w-9`}
+              className={`absolute top-2.5 ${importedRecipe && resolvedSourceUrl ? 'right-[6.25rem] sm:right-[7.25rem]' : 'right-12 sm:right-14'} inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/30 bg-black/35 text-white shadow-sm backdrop-blur-sm transition-colors hover:bg-black/50 sm:h-9 sm:w-9`}
               aria-label={expanded ? 'Collapse recipe preview' : 'Expand recipe preview'}
             >
               {expanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
             </button>
-            {importedRecipe && recipe.source_url && (
+            {importedRecipe && resolvedSourceUrl && (
               <div className="absolute top-2.5 right-11 inline-flex items-center rounded-full border border-white/30 bg-black/35 p-1 backdrop-blur-sm sm:top-3 sm:right-14">
                 <button
                   type="button"
@@ -315,9 +324,9 @@ export default function RecipePreviewDialog({
                 <Badge variant="secondary" className="gap-1"><Clock className="h-3 w-3" /> {recipe.cook_time}</Badge>
                 <Badge variant="secondary" className="gap-1"><BarChart3 className="h-3 w-3" /> {recipe.difficulty}</Badge>
                 <MatchBadge percentage={displayMatch.percentage} />
-                {isImportedCommunityRecipe(recipe) && (
+                {sourceBadge && (
                   <Badge variant="outline" className="gap-1 text-orange-700 border-orange-200 bg-orange-50">
-                    <FileText className="h-3 w-3" /> {getRecipeSourceBadge(recipe)}
+                    <FileText className="h-3 w-3" /> {sourceBadge}
                   </Badge>
                 )}
                 {recipe.cuisine && <Badge variant="outline" className="gap-1"><MapPin className="h-3 w-3" /> {recipe.cuisine}</Badge>}
@@ -331,12 +340,12 @@ export default function RecipePreviewDialog({
               )}
 
               {/* ── Recipe Content ── */}
-              {recipe.source_url && importedRecipe && importedView === 'web' && canEmbedSource ? (
+              {resolvedSourceUrl && importedRecipe && importedView === 'web' && canEmbedSource ? (
                 <div className="space-y-3">
                   <div className={`relative w-full ${expanded ? 'h-[60dvh] sm:h-[72vh] lg:h-[76vh]' : 'h-[52dvh] sm:h-[62vh] lg:h-[74vh]'} rounded-xl overflow-hidden border border-stone-200 bg-muted`}>
                     <div className="absolute inset-0 overflow-hidden rounded-xl">
                       <iframe
-                        src={recipe.source_url}
+                        src={resolvedSourceUrl}
                         className="border-0 rounded-xl"
                         title={recipe.name}
                         sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
@@ -349,7 +358,7 @@ export default function RecipePreviewDialog({
                       />
                     </div>
                     <a
-                      href={recipe.source_url}
+                      href={resolvedSourceUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="absolute top-2 right-2 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold bg-white/95 backdrop-blur-sm border border-stone-200 text-stone-700 shadow-sm hover:bg-orange-500 hover:text-white hover:border-orange-400 transition-colors"
@@ -393,7 +402,7 @@ export default function RecipePreviewDialog({
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {recipe.source_url && importedRecipe && (
+                  {resolvedSourceUrl && importedRecipe && (
                     <div
                       className="relative rounded-xl overflow-hidden border border-stone-200 bg-stone-100 p-4"
                       style={{ minHeight: 88 }}
@@ -406,7 +415,7 @@ export default function RecipePreviewDialog({
                       </div>
                       <div className="relative z-10 flex items-center justify-end">
                         <a
-                          href={recipe.source_url}
+                          href={resolvedSourceUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold bg-orange-500 text-white hover:bg-orange-600 transition-colors shadow-lg"
