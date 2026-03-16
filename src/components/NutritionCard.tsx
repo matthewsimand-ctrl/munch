@@ -72,6 +72,13 @@ export default function NutritionCard({ recipeId, recipeName, ingredients, servi
   }, [cacheNutrition, cachedNutrition, recipeId]);
 
   const analyze = async (options?: { silent?: boolean }) => {
+    if (!isPremium) {
+      if (!options?.silent) {
+        openPremiumPage("Nutritional Facts");
+      }
+      return;
+    }
+
     const silent = options?.silent ?? false;
     setLoading(true);
     try {
@@ -110,10 +117,10 @@ export default function NutritionCard({ recipeId, recipeName, ingredients, servi
   };
 
   useEffect(() => {
-    if (nutrition || loading || autoRequestedRef.current || !recipeId || ingredients.length === 0) return;
+    if (!isPremium || nutrition || loading || autoRequestedRef.current || !recipeId || ingredients.length === 0) return;
     autoRequestedRef.current = true;
     void analyze({ silent: true });
-  }, [ingredients.length, loading, nutrition, recipeId, recipeName, servings]);
+  }, [ingredients.length, isPremium, loading, nutrition, recipeId, recipeName, servings]);
 
   if (!nutrition) {
     return (
@@ -129,6 +136,67 @@ export default function NutritionCard({ recipeId, recipeName, ingredients, servi
             <p className="inline-flex items-center gap-2 text-sm font-medium text-stone-500">
               <Loader2 className="h-4 w-4 animate-spin" /> Loading nutritional facts...
             </p>
+          ) : !isPremium ? (
+            <div className="mx-auto w-full max-w-[420px]">
+              <div className="relative min-h-[260px] overflow-hidden rounded-2xl border border-stone-200 bg-white px-5 py-5 text-left shadow-sm">
+                <div className="pointer-events-none select-none blur-[5px]">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-amber-500" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Nutritional Facts</span>
+                    </div>
+                    <div className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">8/10</div>
+                  </div>
+                  <div className="mt-3 flex items-center gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-orange-100">
+                      <Flame className="h-5 w-5 text-orange-500" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-stone-900">520</p>
+                      <p className="text-[10px] uppercase tracking-wide text-stone-500">kcal per serving</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-stone-100">
+                    <div className="flex h-full">
+                      <div className="h-full w-[34%] bg-sky-400" />
+                      <div className="h-full w-[41%] bg-amber-400" />
+                      <div className="h-full w-[25%] bg-rose-400" />
+                    </div>
+                  </div>
+                  <div className="mt-4 grid grid-cols-4 gap-3">
+                    {[
+                      { label: 'Protein', value: '28g', color: 'text-sky-500' },
+                      { label: 'Carbs', value: '42g', color: 'text-amber-500' },
+                      { label: 'Fat', value: '18g', color: 'text-rose-400' },
+                      { label: 'Fiber', value: '7g', color: 'text-emerald-500' },
+                    ].map((item) => (
+                      <div key={item.label} className="text-center">
+                        <div className={`mx-auto mb-1 h-3.5 w-3.5 rounded-full bg-current ${item.color}`} />
+                        <p className="text-sm font-bold text-stone-900">{item.value}</p>
+                        <p className="text-[9px] text-stone-500">{item.label}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="absolute inset-0 bg-white/18" />
+                <div className="absolute inset-0 z-10 flex items-center justify-center p-4">
+                  <div className="w-full rounded-2xl border border-orange-300 bg-white px-4 py-4 text-center shadow-lg">
+                    <p className="inline-flex items-center gap-2 text-sm font-bold text-stone-900">
+                      <Lock className="h-4 w-4 text-orange-500" />
+                      Premium unlock
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-stone-700">
+                      Become a member to view nutritional information about your recipe.
+                    </p>
+                    <PremiumFeatureButton
+                      label="See Member Benefits"
+                      onClick={() => openPremiumPage("Nutritional Facts")}
+                      className="mt-3 h-10 rounded-xl px-3 text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
           ) : (
             <Button
               variant="outline"

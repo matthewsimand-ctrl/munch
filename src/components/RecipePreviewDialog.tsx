@@ -150,6 +150,7 @@ export default function RecipePreviewDialog({
   const displayChefName = chefName || recipe?.chef || (isMunchRecipe ? MUNCH_CHEF_NAME : null);
   const displayChefId = chefId || recipe?.created_by || (isMunchRecipe ? MUNCH_OFFICIAL_USER_ID : null);
   const sourceBadge = getRecipeSourceBadge(recipe);
+  const isMealDbRecipe = String(recipe?.source || '').toLowerCase() === 'themealdb';
   const dialogSizeClass = expanded
     ? 'h-[calc(100dvh-0.75rem)] w-[calc(100vw-0.75rem)] max-w-[calc(100vw-0.75rem)] sm:h-[96vh] sm:w-[96vw] sm:max-w-[96vw]'
     : `h-[calc(100dvh-0.75rem)] max-h-[calc(100dvh-0.75rem)] w-[calc(100vw-0.75rem)] max-w-[calc(100vw-0.75rem)] sm:h-[92vh] ${
@@ -277,7 +278,7 @@ export default function RecipePreviewDialog({
                 <DialogTitle className="text-xl text-foreground">{recipe.name}</DialogTitle>
               </DialogHeader>
             </div>
-            {resolvedSourceUrl && sourceHostname ? (
+            {resolvedSourceUrl && sourceHostname && !isMealDbRecipe ? (
               <a
                 href={resolvedSourceUrl}
                 target="_blank"
@@ -298,7 +299,7 @@ export default function RecipePreviewDialog({
             {displayChefName && displayChefId ? (
               <button
                 onClick={() => { onOpenChange(false); navigate(`/chef/${displayChefId}`); }}
-                className={`absolute inline-flex items-center gap-1.5 text-[11px] text-white/90 hover:text-white font-medium bg-black/30 backdrop-blur-sm px-2.5 py-1 rounded-full transition-colors ${resolvedSourceUrl && sourceHostname ? 'top-14 left-3' : 'top-3 left-3'}`}
+                className={`absolute inline-flex items-center gap-1.5 text-[11px] text-white/90 hover:text-white font-medium bg-black/30 backdrop-blur-sm px-2.5 py-1 rounded-full transition-colors ${resolvedSourceUrl && sourceHostname && !isMealDbRecipe ? 'top-14 left-3' : 'top-3 left-3'}`}
               >
                 <RecipeAttributionIcon recipe={recipe} sizeClassName="h-4 w-4" className="rounded-full bg-white/90 p-0.5" />
                 <span>{displayChefName}</span>

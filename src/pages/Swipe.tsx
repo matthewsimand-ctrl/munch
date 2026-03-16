@@ -64,6 +64,7 @@ function SwipeCard({
   const sourceBadge = getRecipeSourceBadge(recipe);
   const resolvedSourceUrl = getResolvedRecipeSourceUrl(recipe);
   const isMunchRecipe = isMunchAuthoredRecipe(recipe);
+  const isMealDbRecipe = String(recipe.source || '').toLowerCase() === 'themealdb';
   const resolvedChefName = recipe.chef || (isMunchRecipe ? MUNCH_CHEF_NAME : null);
   const resolvedChefId = recipe.created_by || (isMunchRecipe ? MUNCH_OFFICIAL_USER_ID : null);
 
@@ -115,7 +116,7 @@ function SwipeCard({
         {/* Top badges */}
         <div className="absolute top-4 left-4 right-4 flex items-start justify-between">
           <div className="flex flex-col gap-2">
-            {sourceBadge && (
+            {sourceBadge && !isMealDbRecipe && (
               resolvedSourceUrl ? (
                 <a
                   href={resolvedSourceUrl}

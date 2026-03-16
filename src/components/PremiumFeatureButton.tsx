@@ -24,7 +24,7 @@ export default function PremiumFeatureButton({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "group relative w-full justify-between rounded-2xl border border-violet-300/60 bg-[linear-gradient(135deg,#5B21B6_0%,#7C3AED_55%,#9333EA_100%)] px-3.5 py-2.5 text-white shadow-[0_14px_32px_rgba(91,33,182,0.28)] transition-all hover:brightness-[1.03] hover:shadow-[0_18px_36px_rgba(91,33,182,0.34)]",
+        "group relative w-full justify-center rounded-2xl border border-violet-300/60 bg-[linear-gradient(135deg,#5B21B6_0%,#7C3AED_55%,#9333EA_100%)] px-3.5 py-2.5 text-white shadow-[0_14px_32px_rgba(91,33,182,0.28)] transition-all hover:brightness-[1.03] hover:shadow-[0_18px_36px_rgba(91,33,182,0.34)]",
         className,
       )}
     >
