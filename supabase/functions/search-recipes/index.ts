@@ -140,7 +140,11 @@ async function fetchPublicRecipes(query?: string): Promise<NormalizedRecipe[]> {
       .order('created_at', { ascending: false });
 
     if (query) {
-      request = request.limit(1500);
+      const escapedQuery = query.replace(/[%_,()]/g, ' ').trim();
+      const ilikeQuery = `%${escapedQuery}%`;
+      request = request
+        .or(`name.ilike.${ilikeQuery},cuisine.ilike.${ilikeQuery},chef.ilike.${ilikeQuery},source.ilike.${ilikeQuery},source_url.ilike.${ilikeQuery}`)
+        .limit(1500);
     } else {
       request = request.limit(450);
     }
@@ -205,7 +209,11 @@ async function fetchCachedExternalRecipes(query?: string): Promise<NormalizedRec
       .order('updated_at', { ascending: false });
 
     if (query) {
-      request = request.limit(1500);
+      const escapedQuery = query.replace(/[%_,()]/g, ' ').trim();
+      const ilikeQuery = `%${escapedQuery}%`;
+      request = request
+        .or(`name.ilike.${ilikeQuery},cuisine.ilike.${ilikeQuery},source.ilike.${ilikeQuery},source_url.ilike.${ilikeQuery}`)
+        .limit(1500);
     } else {
       request = request.limit(800);
     }
