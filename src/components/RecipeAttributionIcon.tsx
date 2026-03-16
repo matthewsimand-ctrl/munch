@@ -1,6 +1,7 @@
 import { ChefHat } from 'lucide-react';
 import type { Recipe } from '@/data/recipes';
 import { getRecipeSourceHostname, isImportedCommunityRecipe, isImportedUrlRecipe, isMunchSeedRecipe } from '@/lib/recipeAttribution';
+import munchLogo from '@/assets/munch-logo.png';
 
 interface RecipeAttributionIconProps {
   recipe: Recipe;
@@ -23,7 +24,7 @@ export default function RecipeAttributionIcon({
   if (isMunchSeedRecipe(recipe)) {
     return (
       <img
-        src="/favicon.ico"
+        src={munchLogo}
         alt="Munch"
         className={`${sizeClassName} shrink-0 rounded-sm object-cover ${className}`.trim()}
       />

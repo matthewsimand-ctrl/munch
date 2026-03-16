@@ -152,6 +152,41 @@ function curateBrowseCatalog(recipes: BrowseRecipe[]) {
   return curated;
 }
 
+function orderSearchResults(recipes: BrowseRecipe[], query: string) {
+  const loweredQuery = normalizeText(query);
+
+  const scoreRecipe = (recipe: BrowseRecipe) => {
+    const name = normalizeText(recipe.name);
+    const chef = normalizeText(recipe.chef || '');
+    const cuisine = normalizeText(recipe.cuisine || '');
+    const tags = (recipe.tags || []).map((tag) => normalizeText(tag)).join(' ');
+    const ingredients = (recipe.ingredients || []).map((ingredient) => normalizeText(ingredient)).join(' ');
+    const instructions = (recipe.instructions || []).slice(0, 6).map((step) => normalizeText(step)).join(' ');
+    const source = normalizeText(recipe.source || '');
+
+    let score = 0;
+    if (name === loweredQuery) score += 120;
+    else if (name.startsWith(loweredQuery)) score += 80;
+    else if (name.includes(loweredQuery)) score += 60;
+
+    if (chef.includes(loweredQuery)) score += 24;
+    if (cuisine.includes(loweredQuery)) score += 20;
+    if (tags.includes(loweredQuery)) score += 18;
+    if (ingredients.includes(loweredQuery)) score += 14;
+    if (instructions.includes(loweredQuery)) score += 10;
+    if (source.includes(loweredQuery)) score += 8;
+
+    const sourceKey = String(recipe.source || '').toLowerCase();
+    if (sourceKey === 'community' || sourceKey === 'community-seed' || sourceKey === 'imported') {
+      score += 6;
+    }
+
+    return score;
+  };
+
+  return [...recipes].sort((a, b) => scoreRecipe(b) - scoreRecipe(a));
+}
+
 async function fetchPublicRecipesFallback(): Promise<BrowseRecipe[]> {
   const { data, error } = await supabase
     .from('recipes')
@@ -449,16 +484,16 @@ export function useBrowseFeed() {
         .filter((recipe): recipe is BrowseRecipe => Boolean(recipe) && !likedIds.has(String(recipe.id)));
 
       const deduped = dedupeRecipes(fetched);
-      const curated = curateBrowseCatalog(deduped);
+      const ordered = orderSearchResults(deduped, trimmedQuery);
 
       if (likedRecipes.length > 0 || userProfile.cuisinePreferences.length > 0 || userProfile.skillLevel || effectivePantryNames.length > 0) {
         const likedRecipesList: Recipe[] = likedRecipes
           .map((id) => savedApiRecipes[id])
           .filter(Boolean);
-        const ranked = rankByRecommendation(curated, likedRecipesList, likedIds, userProfile, effectivePantryNames);
+        const ranked = rankByRecommendation(ordered, likedRecipesList, likedIds, userProfile, effectivePantryNames);
         setSearchResults(ranked.map((item) => item.recipe as BrowseRecipe));
       } else {
-        setSearchResults(curated);
+        setSearchResults(ordered);
       }
     } catch (error) {
       console.error('Search feed error:', error);

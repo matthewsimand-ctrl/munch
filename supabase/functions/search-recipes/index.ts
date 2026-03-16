@@ -140,11 +140,7 @@ async function fetchPublicRecipes(query?: string): Promise<NormalizedRecipe[]> {
       .order('created_at', { ascending: false });
 
     if (query) {
-      const escapedQuery = query.replace(/[%_,()]/g, ' ').trim();
-      const ilikeQuery = `%${escapedQuery}%`;
-      request = request
-        .or(`name.ilike.${ilikeQuery},cuisine.ilike.${ilikeQuery},chef.ilike.${ilikeQuery},source.ilike.${ilikeQuery}`)
-        .limit(1000);
+      request = request.limit(1500);
     } else {
       request = request.limit(450);
     }
@@ -183,9 +179,13 @@ async function fetchPublicRecipes(query?: string): Promise<NormalizedRecipe[]> {
     const loweredQuery = query.toLowerCase().trim();
     return normalized.filter((recipe) =>
       recipe.name.toLowerCase().includes(loweredQuery) ||
+      (recipe.chef || '').toLowerCase().includes(loweredQuery) ||
       recipe.ingredients.some((ingredient: string) => ingredient.toLowerCase().includes(loweredQuery)) ||
       recipe.tags.some((tag: string) => tag.toLowerCase().includes(loweredQuery)) ||
-      (recipe.cuisine || '').toLowerCase().includes(loweredQuery)
+      recipe.instructions.some((step: string) => step.toLowerCase().includes(loweredQuery)) ||
+      (recipe.cuisine || '').toLowerCase().includes(loweredQuery) ||
+      (recipe.source || '').toLowerCase().includes(loweredQuery) ||
+      (recipe.source_url || '').toLowerCase().includes(loweredQuery)
     );
   } catch (error) {
     console.error('Public recipe fetch failure:', error);
@@ -205,11 +205,7 @@ async function fetchCachedExternalRecipes(query?: string): Promise<NormalizedRec
       .order('updated_at', { ascending: false });
 
     if (query) {
-      const escapedQuery = query.replace(/[%_,()]/g, ' ').trim();
-      const ilikeQuery = `%${escapedQuery}%`;
-      request = request
-        .or(`name.ilike.${ilikeQuery},cuisine.ilike.${ilikeQuery},source.ilike.${ilikeQuery}`)
-        .limit(1000);
+      request = request.limit(1500);
     } else {
       request = request.limit(800);
     }
@@ -250,7 +246,10 @@ async function fetchCachedExternalRecipes(query?: string): Promise<NormalizedRec
       recipe.name.toLowerCase().includes(loweredQuery) ||
       recipe.ingredients.some((ingredient: string) => ingredient.toLowerCase().includes(loweredQuery)) ||
       recipe.tags.some((tag: string) => tag.toLowerCase().includes(loweredQuery)) ||
-      (recipe.cuisine || '').toLowerCase().includes(loweredQuery)
+      recipe.instructions.some((step: string) => step.toLowerCase().includes(loweredQuery)) ||
+      (recipe.cuisine || '').toLowerCase().includes(loweredQuery) ||
+      (recipe.source || '').toLowerCase().includes(loweredQuery) ||
+      (recipe.source_url || '').toLowerCase().includes(loweredQuery)
     );
   } catch (error) {
     console.error('External cache read failure:', error);

@@ -9,6 +9,7 @@ const targetPath = path.join(
   'migrations',
   '20260315193000_seed_community_seed_recipes.sql',
 );
+const officialMunchUserId = 'e280c6c4-4c73-4085-9851-634f69bc7e68';
 
 function sqlString(value) {
   return `'${String(value).replace(/'/g, "''")}'`;
@@ -52,6 +53,7 @@ const inserts = rows.map((recipe) => {
   tags,
   instructions,
   source,
+  created_by,
   source_url,
   chef,
   cuisine,
@@ -61,15 +63,16 @@ const inserts = rows.map((recipe) => {
 )
 select
   ${sqlString(recipe.name)},
-  ${sqlNullableString(recipe.image || '')},
+  ${sqlString(recipe.image || '')},
   ${sqlString(recipe.cook_time || '30 min')},
   ${sqlString(recipe.difficulty || 'Intermediate')},
   ${sqlTextArray(recipe.ingredients)},
   ${sqlTextArray(recipe.tags)},
   ${sqlTextArray(recipe.instructions)},
   'community-seed',
+  ${sqlString(officialMunchUserId)}::uuid,
   ${sqlNullableString(recipe.source_url)},
-  'Munch',
+  'munch',
   ${sqlNullableString(recipe.cuisine)},
   ${Number.isFinite(recipe.servings) ? recipe.servings : 4},
   ${recipe.is_public === false ? 'false' : 'true'},
@@ -89,6 +92,21 @@ const output = `-- Generated from output/community-seed-master.cleaned.jsonl
 -- Run this migration to load Munch-curated seed recipes into public.recipes.
 
 begin;
+
+insert into public.profiles (
+  user_id,
+  display_name,
+  username
+)
+values (
+  ${sqlString(officialMunchUserId)}::uuid,
+  'munch',
+  'munch'
+)
+on conflict (user_id) do update
+set
+  display_name = excluded.display_name,
+  username = excluded.username;
 
 ${inserts.join('\n\n')}
 
