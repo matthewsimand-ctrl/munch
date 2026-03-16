@@ -27,7 +27,7 @@ export default function MobileActionButton({
         : { background: "linear-gradient(135deg,#FDBA74 0%,#F97316 45%,#EA580C 100%)" }}
       aria-label={label}
     >
-      <span className={`inline-flex items-center justify-center rounded-full ${compact ? "h-10 w-10 bg-orange-50 text-orange-600" : "h-8 w-8 bg-white/20"}`}>
+      <span className={`inline-flex items-center justify-center rounded-full ${compact ? "h-10 w-10 bg-gradient-to-br from-orange-300 via-orange-500 to-orange-600 text-white shadow-[0_6px_16px_rgba(249,115,22,0.32)]" : "h-8 w-8 bg-white/20"}`}>
         <Plus size={18} />
       </span>
       {!compact ? label : null}

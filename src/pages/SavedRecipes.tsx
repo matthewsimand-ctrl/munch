@@ -237,6 +237,7 @@ export default function MyRecipesScreen() {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importDialogTab, setImportDialogTab] = useState<"url" | "pdf" | "photo">("url");
   const [mobileAddSheetOpen, setMobileAddSheetOpen] = useState(false);
+  const [hideImportTabs, setHideImportTabs] = useState(false);
   const [recipeToDelete, setRecipeToDelete] = useState<Recipe | null>(null);
 
   useEffect(() => {
@@ -354,6 +355,7 @@ export default function MyRecipesScreen() {
                   <DropdownMenuItem
                     onClick={() => {
                       setImportDialogTab("url");
+                      setHideImportTabs(false);
                       setImportDialogOpen(true);
                     }}
                     className="gap-2"
@@ -364,6 +366,7 @@ export default function MyRecipesScreen() {
                   <DropdownMenuItem
                     onClick={() => {
                       setImportDialogTab("pdf");
+                      setHideImportTabs(false);
                       setImportDialogOpen(true);
                     }}
                     className="gap-2"
@@ -508,8 +511,12 @@ export default function MyRecipesScreen() {
 
       <ImportRecipeDialog
         open={importDialogOpen}
-        onOpenChange={setImportDialogOpen}
+        onOpenChange={(open) => {
+          setImportDialogOpen(open);
+          if (!open) setHideImportTabs(false);
+        }}
         initialTab={importDialogTab}
+        hideTabSelector={hideImportTabs}
       />
 
       <Dialog open={mobileAddSheetOpen} onOpenChange={setMobileAddSheetOpen}>
@@ -526,6 +533,7 @@ export default function MyRecipesScreen() {
                 onClick: () => {
                   setMobileAddSheetOpen(false);
                   setImportDialogTab("url");
+                  setHideImportTabs(true);
                   setImportDialogOpen(true);
                 },
               },
@@ -536,6 +544,7 @@ export default function MyRecipesScreen() {
                 onClick: () => {
                   setMobileAddSheetOpen(false);
                   setImportDialogTab("pdf");
+                  setHideImportTabs(true);
                   setImportDialogOpen(true);
                 },
               },

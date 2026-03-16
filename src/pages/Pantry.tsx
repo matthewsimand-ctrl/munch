@@ -924,7 +924,7 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
         </DialogContent>
       </Dialog>
 
-      {embedded && <MobileActionButton label="Add Item" onClick={() => setAddDialogOpen(true)} />}
+      {embedded && <MobileActionButton label="Add Item" compact onClick={() => setAddDialogOpen(true)} />}
     </div>
   );
 }

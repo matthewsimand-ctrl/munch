@@ -27,6 +27,7 @@ interface ImportRecipeDialogProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   initialTab?: ImportTab;
+  hideTabSelector?: boolean;
 }
 
 type ImportTab = 'url' | 'pdf' | 'photo';
@@ -188,6 +189,7 @@ export default function ImportRecipeDialog({
   open: controlledOpen,
   onOpenChange,
   initialTab = 'url',
+  hideTabSelector = false,
 }: ImportRecipeDialogProps) {
   const navigate = useNavigate();
   const [internalOpen, setInternalOpen] = useState(false);
@@ -1440,19 +1442,21 @@ export default function ImportRecipeDialog({
           // Import Mode (URL/PDF/Paste)
           <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-6">
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ImportTab)} className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="url" className="flex items-center gap-1.5">
-                  <Link2 className="h-3.5 w-3.5" /> From URL
-                </TabsTrigger>
-                <TabsTrigger value="pdf" className="flex items-center gap-1.5">
-                  <FileText className="h-3.5 w-3.5" /> From PDF
-                </TabsTrigger>
-                <TabsTrigger value="photo" className="flex items-center gap-1.5">
-                  <Camera className="h-3.5 w-3.5" /> From Photo
-                </TabsTrigger>
-              </TabsList>
+              {!hideTabSelector ? (
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="url" className="flex items-center gap-1.5">
+                    <Link2 className="h-3.5 w-3.5" /> From URL
+                  </TabsTrigger>
+                  <TabsTrigger value="pdf" className="flex items-center gap-1.5">
+                    <FileText className="h-3.5 w-3.5" /> From PDF
+                  </TabsTrigger>
+                  <TabsTrigger value="photo" className="flex items-center gap-1.5">
+                    <Camera className="h-3.5 w-3.5" /> From Photo
+                  </TabsTrigger>
+                </TabsList>
+              ) : null}
 
-              <TabsContent value="url" className="space-y-4 pt-4">
+              <TabsContent value="url" className={`space-y-4 ${hideTabSelector ? "" : "pt-4"}`}>
                 <p className="text-sm text-muted-foreground">
                   🧠 Paste a recipe page URL and we'll import it only when the original page can be displayed in-app.
                 </p>
@@ -1561,7 +1565,7 @@ export default function ImportRecipeDialog({
                 )}
               </TabsContent>
 
-              <TabsContent value="pdf" className="space-y-4 pt-4">
+              <TabsContent value="pdf" className={`space-y-4 ${hideTabSelector ? "" : "pt-4"}`}>
                 <p className="text-sm text-muted-foreground">
                   🧠 Upload a PDF with a recipe and AI will extract the details. {!isPremium && <span className="font-semibold">Premium required.</span>}
                 </p>
@@ -1601,7 +1605,7 @@ export default function ImportRecipeDialog({
                 )}
               </TabsContent>
 
-              <TabsContent value="photo" className="space-y-4 pt-4">
+              <TabsContent value="photo" className={`space-y-4 ${hideTabSelector ? "" : "pt-4"}`}>
                 <p className="text-sm text-muted-foreground">
                   🧠 Upload a photo of a recipe card, cookbook page, or screenshot. AI will read the image and map it to recipe fields. {!isPremium && <span className="font-semibold">Premium required.</span>}
                 </p>
