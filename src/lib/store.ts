@@ -54,6 +54,7 @@ export interface KitchenSummary {
 }
 
 interface AppState {
+  storeOwnerUserId: string | null;
   userProfile: UserProfile;
   pantryList: PantryItem[];
   mealPlan: MealPlanItem[];
@@ -70,6 +71,7 @@ interface AppState {
   activeKitchenName: string | null;
   kitchenViewMode: 'solo' | 'kitchen';
   displayName: string;
+  setStoreOwnerUserId: (userId: string | null) => void;
   setDisplayName: (name: string) => void;
   onboardingComplete: boolean;
   isGuest: boolean;
@@ -151,6 +153,7 @@ const initialProfile: UserProfile = {
 export const useStore = create<AppState>()(
   persist(
     (set) => ({
+      storeOwnerUserId: null,
       userProfile: initialProfile,
       pantryList: [],
       mealPlan: [],
@@ -167,6 +170,7 @@ export const useStore = create<AppState>()(
       activeKitchenName: null,
       kitchenViewMode: 'solo',
       displayName: '',
+      setStoreOwnerUserId: (storeOwnerUserId) => set({ storeOwnerUserId }),
       setDisplayName: (displayName) => set({ displayName }),
       onboardingComplete: false,
       isGuest: false,
@@ -300,14 +304,20 @@ export const useStore = create<AppState>()(
         })),
 
       unlikeRecipe: (id) =>
-        set((state) => ({
-          likedRecipes: state.likedRecipes.filter((r) => r !== id),
-          groceryRecipes: state.groceryRecipes.filter((r) => r !== id),
-          recipeFolders: state.recipeFolders.map(f => ({
-            ...f,
-            recipeIds: f.recipeIds.filter(r => r !== id),
-          })),
-        })),
+        set((state) => {
+          const nextSavedApiRecipes = { ...state.savedApiRecipes };
+          delete nextSavedApiRecipes[id];
+
+          return {
+            likedRecipes: state.likedRecipes.filter((r) => r !== id),
+            savedApiRecipes: nextSavedApiRecipes,
+            groceryRecipes: state.groceryRecipes.filter((r) => r !== id),
+            recipeFolders: state.recipeFolders.map(f => ({
+              ...f,
+              recipeIds: f.recipeIds.filter(r => r !== id),
+            })),
+          };
+        }),
 
       cacheNutrition: (recipeId, data) =>
         set((state) => ({
@@ -615,6 +625,7 @@ export const useStore = create<AppState>()(
           activeKitchenId: null,
           activeKitchenName: null,
           displayName: '',
+          storeOwnerUserId: null,
           onboardingComplete: false,
           isGuest: false,
           tutorialComplete: false,

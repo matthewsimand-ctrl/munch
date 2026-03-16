@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { forwardRef, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import type { Recipe } from '@/data/recipes';
@@ -95,7 +95,7 @@ function scaleIngredient(ingredient: string, factor: number) {
   });
 }
 
-export default function RecipePreviewDialog({
+const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePreviewDialog({
   recipe,
   match,
   open,
@@ -107,7 +107,7 @@ export default function RecipePreviewDialog({
   isSaved = false,
   onAddMissingToGrocery,
   onRegenerate,
-}: Props) {
+}: Props, _ref) {
   const navigate = useNavigate();
   const [portionFactor, setPortionFactor] = useState(1);
   const [tweakOpen, setTweakOpen] = useState(false);
@@ -610,4 +610,6 @@ export default function RecipePreviewDialog({
       )}
     </>
   );
-}
+});
+
+export default RecipePreviewDialog;

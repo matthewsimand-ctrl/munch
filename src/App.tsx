@@ -1,8 +1,10 @@
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { useStore } from "@/lib/store";
 import AppLayout from "@/components/AppLayout";
 import Index from "./pages/Index";
@@ -33,12 +35,40 @@ import SpotlightTutorial from "./components/SpotlightTutorial";
 const queryClient = new QueryClient();
 
 function AppRoutes() {
-  const { completeTutorial, showTutorial, setShowTutorial } = useStore();
+  const {
+    completeTutorial,
+    showTutorial,
+    setShowTutorial,
+    storeOwnerUserId,
+    setStoreOwnerUserId,
+    resetStore,
+  } = useStore();
 
   const handleTutorialComplete = () => {
     setShowTutorial(false);
     completeTutorial();
   };
+
+  useEffect(() => {
+    const syncStoreOwner = (nextUserId: string | null) => {
+      if (storeOwnerUserId && storeOwnerUserId !== nextUserId) {
+        resetStore();
+      }
+      setStoreOwnerUserId(nextUserId);
+    };
+
+    void supabase.auth.getSession().then(({ data: { session } }) => {
+      syncStoreOwner(session?.user?.id ?? null);
+    });
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      syncStoreOwner(session?.user?.id ?? null);
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, [resetStore, setStoreOwnerUserId, storeOwnerUserId]);
 
   return (
     <>
