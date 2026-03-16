@@ -1,9 +1,8 @@
 import { createAvatar } from '@dicebear/core';
-import * as adventurer from '@dicebear/adventurer';
 import * as adventurerNeutral from '@dicebear/adventurer-neutral';
 import * as bigEarsNeutral from '@dicebear/big-ears-neutral';
-import * as bigSmile from '@dicebear/big-smile';
-import * as notionists from '@dicebear/notionists';
+import * as bottts from '@dicebear/bottts';
+import * as croodlesNeutral from '@dicebear/croodles-neutral';
 import * as personas from '@dicebear/personas';
 
 export const MUNCH_AVATAR_SKIN_TONES = [
@@ -48,12 +47,11 @@ export const MUNCH_AVATAR_GENDER_OPTIONS = [
 ] as const;
 
 export const MUNCH_AVATAR_STYLE_OPTIONS = [
-  { id: 'adventurer', name: 'Adventurer', value: 'adventurer', description: 'Classic illustrated portraits' },
   { id: 'adventurerNeutral', name: 'Adventurer Neutral', value: 'adventurerNeutral', description: 'Neutral illustrated faces' },
   { id: 'bigEarsNeutral', name: 'Big Ears Neutral', value: 'bigEarsNeutral', description: 'Rounded neutral caricatures' },
-  { id: 'bigSmile', name: 'Big Smile', value: 'bigSmile', description: 'Cheerful cartoon portraits' },
+  { id: 'croodlesNeutral', name: 'Croodles Neutral', value: 'croodlesNeutral', description: 'Hand-drawn doodle portraits' },
+  { id: 'bottts', name: 'Bottts', value: 'bottts', description: 'Friendly robot characters' },
   { id: 'personas', name: 'Personas', value: 'personas', description: 'Modern editorial characters' },
-  { id: 'notionists', name: 'Notionists', value: 'notionists', description: 'Playful illustrated faces' },
 ] as const;
 
 export type MunchAvatarHairStyle = typeof MUNCH_AVATAR_HAIR_STYLES[number]['value'];
@@ -64,12 +62,11 @@ export const AVATAR_STYLE_CAPABILITIES: Record<
   MunchAvatarStyle,
   { supportsHair: boolean; supportsHairColor: boolean; supportsSkinTone: boolean }
 > = {
-  adventurer: { supportsHair: true, supportsHairColor: true, supportsSkinTone: true },
   adventurerNeutral: { supportsHair: false, supportsHairColor: false, supportsSkinTone: false },
   bigEarsNeutral: { supportsHair: false, supportsHairColor: false, supportsSkinTone: false },
-  bigSmile: { supportsHair: true, supportsHairColor: true, supportsSkinTone: true },
+  croodlesNeutral: { supportsHair: false, supportsHairColor: false, supportsSkinTone: false },
+  bottts: { supportsHair: false, supportsHairColor: false, supportsSkinTone: false },
   personas: { supportsHair: true, supportsHairColor: true, supportsSkinTone: true },
-  notionists: { supportsHair: false, supportsHairColor: true, supportsSkinTone: true },
 };
 
 export interface MunchAvatarConfig {
@@ -84,17 +81,6 @@ export interface MunchAvatarConfig {
 
 export const MUNCH_AVATAR_STARTERS = [
   {
-    label: 'Adventurer',
-    description: 'Classic illustrated portraits',
-    seed: 'MunchMarigold',
-    style: 'adventurer',
-    gender: 'female',
-    skinTone: '#f1c27d',
-    hair: 'waves',
-    hairColor: '#714e3b',
-    backgroundColor: '#ffedd5',
-  },
-  {
     label: 'Adventurer Neutral',
     description: 'Neutral illustrated faces',
     seed: 'MunchTheo',
@@ -106,10 +92,10 @@ export const MUNCH_AVATAR_STARTERS = [
     backgroundColor: '#dbeafe',
   },
   {
-    label: 'Big Smile',
-    description: 'Cheerful cartoon portraits',
+    label: 'Croodles Neutral',
+    description: 'Hand-drawn doodle portraits',
     seed: 'MunchClover',
-    style: 'bigSmile',
+    style: 'croodlesNeutral',
     gender: 'female',
     skinTone: '#c68642',
     hair: 'curls',
@@ -128,6 +114,17 @@ export const MUNCH_AVATAR_STARTERS = [
     backgroundColor: '#fef3c7',
   },
   {
+    label: 'Bottts',
+    description: 'Friendly robot characters',
+    seed: 'MunchRiver',
+    style: 'bottts',
+    gender: 'male',
+    skinTone: '#6c4326',
+    hair: 'long',
+    hairColor: '#cdd3de',
+    backgroundColor: '#ffe4e6',
+  },
+  {
     label: 'Personas',
     description: 'Modern editorial characters',
     seed: 'MunchNova',
@@ -137,17 +134,6 @@ export const MUNCH_AVATAR_STARTERS = [
     hair: 'bob',
     hairColor: '#a14d39',
     backgroundColor: '#ede9fe',
-  },
-  {
-    label: 'Thumbs',
-    description: 'Playful illustrated faces',
-    seed: 'MunchRiver',
-    style: 'notionists',
-    gender: 'male',
-    skinTone: '#6c4326',
-    hair: 'long',
-    hairColor: '#cdd3de',
-    backgroundColor: '#ffe4e6',
   },
 ] as const satisfies readonly (MunchAvatarConfig & {
   label: string;
@@ -183,31 +169,12 @@ export function createMunchAvatarConfig(overrides: Partial<MunchAvatarConfig> = 
 }
 
 const STYLE_REGISTRY = {
-  adventurer,
   adventurerNeutral,
   bigEarsNeutral,
-  bigSmile,
+  croodlesNeutral,
+  bottts,
   personas,
-  notionists,
 } as const;
-
-const ADVENTURER_HAIR: Record<MunchAvatarHairStyle, string> = {
-  fade: 'short03',
-  bob: 'long11',
-  waves: 'long21',
-  curls: 'long24',
-  bun: 'long16',
-  long: 'long26',
-};
-
-const BIG_SMILE_HAIR: Record<MunchAvatarHairStyle, string> = {
-  fade: 'shortHair',
-  bob: 'wavyBob',
-  waves: 'straightHair',
-  curls: 'curlyBob',
-  bun: 'bunHair',
-  long: 'braids',
-};
 
 const PERSONAS_HAIR: Record<MunchAvatarHairStyle, string> = {
   fade: 'fade',
@@ -255,24 +222,6 @@ const BIG_EARS_MOUTHS: Record<MunchAvatarGender, Record<MunchAvatarHairStyle, st
   },
 };
 
-const THUMBS_EYES: Record<MunchAvatarHairStyle, string> = {
-  fade: 'variant1W12',
-  bob: 'variant2W14',
-  waves: 'variant3W16',
-  curls: 'variant4W12',
-  bun: 'variant5W14',
-  long: 'variant2W16',
-};
-
-const NOTIONISTS_HAIR: Record<MunchAvatarHairStyle, string> = {
-  fade: 'variant09',
-  bob: 'variant24',
-  waves: 'variant42',
-  curls: 'variant47',
-  bun: 'variant54',
-  long: 'variant33',
-};
-
 const CLOTHING_COLORS = {
   female: '#f97316',
   male: '#2563eb',
@@ -313,22 +262,6 @@ export function buildMunchAvatarUrl(input: Partial<MunchAvatarConfig> = {}) {
   const resolved = createMunchAvatarConfig(input);
   const styleModule = STYLE_REGISTRY[resolved.style];
 
-  if (resolved.style === 'adventurer') {
-    return createAvatarWithRing(styleModule, {
-      seed: resolved.seed,
-      skinColor: [resolved.skinTone],
-      hairColor: [resolved.hairColor],
-      hair: [ADVENTURER_HAIR[resolved.hair]],
-      eyebrows: [resolved.gender === 'female' ? 'variant02' : 'variant14'],
-      eyes: [resolved.gender === 'female' ? 'variant06' : 'variant18'],
-      mouth: [resolved.gender === 'female' ? 'variant24' : 'variant11'],
-      features: [resolved.gender === 'female' ? 'blush' : 'mustache'],
-      featuresProbability: resolved.gender === 'female' ? 35 : 20,
-      earringsProbability: resolved.gender === 'female' ? 12 : 0,
-      glassesProbability: 0,
-    }, resolved.backgroundColor);
-  }
-
   if (resolved.style === 'adventurerNeutral') {
     return createAvatarWithRing(styleModule, {
       seed: resolved.seed,
@@ -351,16 +284,20 @@ export function buildMunchAvatarUrl(input: Partial<MunchAvatarConfig> = {}) {
     }, resolved.backgroundColor);
   }
 
-  if (resolved.style === 'bigSmile') {
+  if (resolved.style === 'croodlesNeutral') {
     return createAvatarWithRing(styleModule, {
       seed: resolved.seed,
-      skinColor: [resolved.skinTone],
-      hairColor: [resolved.hairColor],
-      hair: [BIG_SMILE_HAIR[resolved.hair]],
-      eyes: [resolved.gender === 'female' ? 'cheery' : 'normal'],
-      mouth: [resolved.gender === 'female' ? 'teethSmile' : 'openedSmile'],
-      accessories: [resolved.gender === 'female' ? 'glasses' : 'sunglasses'],
-      accessoriesProbability: resolved.gender === 'male' && resolved.hair === 'fade' ? 14 : 0,
+      mood: [resolved.gender === 'female' ? 'happy' : 'hopeful'],
+      face: [resolved.gender === 'female' ? 'variant01' : 'variant02'],
+    }, resolved.backgroundColor);
+  }
+
+  if (resolved.style === 'bottts') {
+    return createAvatarWithRing(styleModule, {
+      seed: resolved.seed,
+      colors: [resolved.hairColor, resolved.skinTone, '#f97316', '#fdba74'],
+      eyes: [resolved.gender === 'female' ? 'bulging' : 'round'],
+      mouth: [resolved.gender === 'female' ? 'smile' : 'grill02'],
     }, resolved.backgroundColor);
   }
 
@@ -380,37 +317,5 @@ export function buildMunchAvatarUrl(input: Partial<MunchAvatarConfig> = {}) {
     }, resolved.backgroundColor);
   }
 
-  if (resolved.style === 'notionists') {
-    return createAvatarWithRing(styleModule, {
-      seed: resolved.seed,
-      base: ['variant01'],
-      body: [resolved.gender === 'female' ? 'variant11' : 'variant17'],
-      hair: [NOTIONISTS_HAIR[resolved.hair]],
-      lips: [resolved.gender === 'female' ? 'variant24' : 'variant05'],
-      beard: ['variant05'],
-      beardProbability: resolved.gender === 'male' ? 20 : 0,
-      nose: [resolved.gender === 'female' ? 'variant03' : 'variant12'],
-      eyes: [resolved.gender === 'female' ? 'variant02' : 'variant05'],
-      brows: [resolved.gender === 'female' ? 'variant03' : 'variant08'],
-      glasses: ['variant05'],
-      glassesProbability: resolved.hair === 'fade' ? 16 : 0,
-      gesture: ['wavePointLongArms'],
-      gestureProbability: 8,
-      bodyIcon: ['saturn'],
-      bodyIconProbability: 10,
-    }, resolved.backgroundColor);
-  }
-
-  return createAvatarWithRing(styleModule, {
-    seed: resolved.seed,
-    eyes: [THUMBS_EYES[resolved.hair]],
-    eyesColor: [resolved.hairColor],
-    face: [resolved.gender === 'female' ? 'variant2' : 'variant5'],
-    mouth: [resolved.gender === 'female' ? 'variant2' : 'variant5'],
-    mouthColor: [resolved.hairColor],
-    shape: ['default'],
-    shapeColor: [resolved.skinTone],
-    shapeRotation: [resolved.gender === 'female' ? 4 : -4],
-    faceOffsetY: [resolved.gender === 'female' ? 2 : -2],
-  }, resolved.backgroundColor);
+  return createAvatarWithRing(styleModule, { seed: resolved.seed }, resolved.backgroundColor);
 }

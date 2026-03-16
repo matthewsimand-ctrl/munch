@@ -25,14 +25,6 @@ const COLLECTION_PRESET_VARIANTS: Record<
   MunchAvatarStyle,
   Array<Partial<MunchAvatarConfig> & { label: string }>
 > = {
-  adventurer: [
-    { label: 'Preset 1', seed: 'AdventurerA', gender: 'female', hair: 'waves', backgroundColor: '#ffedd5', skinTone: '#f1c27d', hairColor: '#714e3b' },
-    { label: 'Preset 2', seed: 'AdventurerB', gender: 'male', hair: 'fade', backgroundColor: '#dbeafe', skinTone: '#e0ac69', hairColor: '#2c222b' },
-    { label: 'Preset 3', seed: 'AdventurerC', gender: 'female', hair: 'bob', backgroundColor: '#ede9fe', skinTone: '#f8d8c0', hairColor: '#a14d39' },
-    { label: 'Preset 4', seed: 'AdventurerD', gender: 'male', hair: 'long', backgroundColor: '#fef3c7', skinTone: '#8d5524', hairColor: '#4a312c' },
-    { label: 'Preset 5', seed: 'AdventurerE', gender: 'female', hair: 'bun', backgroundColor: '#dcfce7', skinTone: '#c68642', hairColor: '#2c222b' },
-    { label: 'Preset 6', seed: 'AdventurerF', gender: 'male', hair: 'curls', backgroundColor: '#ffe4e6', skinTone: '#6c4326', hairColor: '#cdd3de' },
-  ],
   adventurerNeutral: [
     { label: 'Preset 1', seed: 'AdventurerNeutralA', gender: 'female', backgroundColor: '#ffedd5' },
     { label: 'Preset 2', seed: 'AdventurerNeutralB', gender: 'male', backgroundColor: '#dbeafe' },
@@ -49,13 +41,21 @@ const COLLECTION_PRESET_VARIANTS: Record<
     { label: 'Preset 5', seed: 'BigEarsNeutralE', gender: 'female', hair: 'bun', backgroundColor: '#dcfce7' },
     { label: 'Preset 6', seed: 'BigEarsNeutralF', gender: 'male', hair: 'long', backgroundColor: '#ffe4e6' },
   ],
-  bigSmile: [
-    { label: 'Preset 1', seed: 'BigSmileA', gender: 'female', hair: 'waves', backgroundColor: '#ffedd5', skinTone: '#f1c27d', hairColor: '#714e3b' },
-    { label: 'Preset 2', seed: 'BigSmileB', gender: 'male', hair: 'fade', backgroundColor: '#dbeafe', skinTone: '#e0ac69', hairColor: '#2c222b' },
-    { label: 'Preset 3', seed: 'BigSmileC', gender: 'female', hair: 'bob', backgroundColor: '#ede9fe', skinTone: '#f8d8c0', hairColor: '#a14d39' },
-    { label: 'Preset 4', seed: 'BigSmileD', gender: 'female', hair: 'curls', backgroundColor: '#dcfce7', skinTone: '#c68642', hairColor: '#2c222b' },
-    { label: 'Preset 5', seed: 'BigSmileE', gender: 'male', hair: 'bun', backgroundColor: '#fef3c7', skinTone: '#8d5524', hairColor: '#4a312c' },
-    { label: 'Preset 6', seed: 'BigSmileF', gender: 'male', hair: 'long', backgroundColor: '#ffe4e6', skinTone: '#6c4326', hairColor: '#cdd3de' },
+  croodlesNeutral: [
+    { label: 'Preset 1', seed: 'CroodlesNeutralA', gender: 'female', backgroundColor: '#ffedd5' },
+    { label: 'Preset 2', seed: 'CroodlesNeutralB', gender: 'male', backgroundColor: '#dbeafe' },
+    { label: 'Preset 3', seed: 'CroodlesNeutralC', gender: 'female', backgroundColor: '#ede9fe' },
+    { label: 'Preset 4', seed: 'CroodlesNeutralD', gender: 'male', backgroundColor: '#fef3c7' },
+    { label: 'Preset 5', seed: 'CroodlesNeutralE', gender: 'female', backgroundColor: '#dcfce7' },
+    { label: 'Preset 6', seed: 'CroodlesNeutralF', gender: 'male', backgroundColor: '#ffe4e6' },
+  ],
+  bottts: [
+    { label: 'Preset 1', seed: 'BotttsA', gender: 'female', backgroundColor: '#ffedd5', hairColor: '#f97316' },
+    { label: 'Preset 2', seed: 'BotttsB', gender: 'male', backgroundColor: '#dbeafe', hairColor: '#2563eb' },
+    { label: 'Preset 3', seed: 'BotttsC', gender: 'female', backgroundColor: '#ede9fe', hairColor: '#a855f7' },
+    { label: 'Preset 4', seed: 'BotttsD', gender: 'male', backgroundColor: '#fef3c7', hairColor: '#eab308' },
+    { label: 'Preset 5', seed: 'BotttsE', gender: 'female', backgroundColor: '#dcfce7', hairColor: '#10b981' },
+    { label: 'Preset 6', seed: 'BotttsF', gender: 'male', backgroundColor: '#ffe4e6', hairColor: '#ef4444' },
   ],
   personas: [
     { label: 'Preset 1', seed: 'PersonasA', gender: 'female', hair: 'bob', backgroundColor: '#ffedd5', skinTone: '#f8d8c0', hairColor: '#a14d39' },
@@ -65,23 +65,14 @@ const COLLECTION_PRESET_VARIANTS: Record<
     { label: 'Preset 5', seed: 'PersonasE', gender: 'female', hair: 'bun', backgroundColor: '#dcfce7', skinTone: '#c68642', hairColor: '#2c222b' },
     { label: 'Preset 6', seed: 'PersonasF', gender: 'male', hair: 'curls', backgroundColor: '#ffe4e6', skinTone: '#6c4326', hairColor: '#cdd3de' },
   ],
-  notionists: [
-    { label: 'Preset 1', seed: 'NotionistsA', gender: 'female', hair: 'waves', hairColor: '#714e3b', skinTone: '#f1c27d', backgroundColor: '#ffedd5' },
-    { label: 'Preset 2', seed: 'NotionistsB', gender: 'male', hair: 'fade', hairColor: '#2c222b', skinTone: '#e0ac69', backgroundColor: '#dbeafe' },
-    { label: 'Preset 3', seed: 'NotionistsC', gender: 'female', hair: 'bob', hairColor: '#a14d39', skinTone: '#f8d8c0', backgroundColor: '#ede9fe' },
-    { label: 'Preset 4', seed: 'NotionistsD', gender: 'male', hair: 'long', hairColor: '#4a312c', skinTone: '#8d5524', backgroundColor: '#fef3c7' },
-    { label: 'Preset 5', seed: 'NotionistsE', gender: 'female', hair: 'bun', hairColor: '#2c222b', skinTone: '#c68642', backgroundColor: '#dcfce7' },
-    { label: 'Preset 6', seed: 'NotionistsF', gender: 'male', hair: 'curls', hairColor: '#cdd3de', skinTone: '#6c4326', backgroundColor: '#ffe4e6' },
-  ],
 };
 
 const COLLECTION_STYLE_PREVIEW_SEEDS: Record<MunchAvatarStyle, string> = {
-  adventurer: 'CollectionPreviewAdventurer',
   adventurerNeutral: 'CollectionPreviewAdventurerNeutral',
   bigEarsNeutral: 'CollectionPreviewBigEarsNeutral',
-  bigSmile: 'CollectionPreviewBigSmile',
+  croodlesNeutral: 'CollectionPreviewCroodlesNeutral',
+  bottts: 'CollectionPreviewBottts',
   personas: 'CollectionPreviewPersonas',
-  notionists: 'CollectionPreviewNotionists',
 };
 
 function OptionCard({

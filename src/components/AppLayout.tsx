@@ -12,7 +12,6 @@ import {
   ChevronRight,
   BookMarked,
   CookingPot,
-  History,
   Users,
   Crown,
 } from "lucide-react";
@@ -32,7 +31,6 @@ const NAV_ITEMS = [
   { to: "/grocery", icon: ShoppingCart, label: "Grocery List" },
   { to: "/meal-prep", icon: CalendarDays, label: "Meal Prep", premium: true },
   { to: "/kitchens", icon: Users, label: "Kitchens", premium: true },
-  { to: "/cooked-history", icon: History, label: "Cooked" },
   { to: "/dictionary", icon: BookMarked, label: "Dictionary" },
 ];
 

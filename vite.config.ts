@@ -21,12 +21,11 @@ export default defineConfig(({ mode }) => ({
   optimizeDeps: {
     include: [
       "@dicebear/core",
-      "@dicebear/adventurer",
       "@dicebear/adventurer-neutral",
       "@dicebear/big-ears-neutral",
-      "@dicebear/big-smile",
+      "@dicebear/bottts",
+      "@dicebear/croodles-neutral",
       "@dicebear/personas",
-      "@dicebear/thumbs",
     ],
   },
 }));
