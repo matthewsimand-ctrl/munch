@@ -304,7 +304,7 @@ function createAvatarWithRing(
   options: Record<string, unknown>,
   ringColor: string,
 ) {
-  const avatarSvg = createAvatar(styleModule, options).toString();
+  const avatarSvg = createAvatar(styleModule as any, options).toString();
   const avatarDataUri = svgToDataUri(avatarSvg);
   return wrapAvatarWithRing(avatarDataUri, ringColor);
 }
