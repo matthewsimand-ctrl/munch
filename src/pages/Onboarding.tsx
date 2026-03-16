@@ -125,7 +125,7 @@ export default function Onboarding() {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('display_name, username, default_servings, discovery_source, discovery_source_detail')
+        .select('display_name, username, default_servings')
         .eq('user_id', session.user.id)
         .maybeSingle();
 

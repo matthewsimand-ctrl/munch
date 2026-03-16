@@ -664,7 +664,7 @@ export default function SwipeScreen() {
                 <p className="text-sm text-stone-400 mt-1">Try a different filter or check back soon</p>
               </div>
               <button
-                onClick={() => { setCardIndex(0); setSelectedMealTypes([]); setSelectedCuisine([]); }}
+                onClick={() => { setCardIndex(0); setSelectedMealTypes([]); setSelectedCuisine(""); }}
                 className="mt-2 px-5 py-2.5 rounded-full text-sm font-bold text-white shadow-lg transition-transform active:scale-95"
                 style={{ background: "linear-gradient(135deg,#FB923C,#F97316,#EA580C)" }}
               >
