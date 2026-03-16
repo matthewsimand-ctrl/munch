@@ -236,6 +236,7 @@ export default function MyRecipesScreen() {
   const [showManualRecipeDialog, setShowManualRecipeDialog] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importDialogTab, setImportDialogTab] = useState<"url" | "pdf" | "photo">("url");
+  const [mobileAddSheetOpen, setMobileAddSheetOpen] = useState(false);
   const [recipeToDelete, setRecipeToDelete] = useState<Recipe | null>(null);
 
   useEffect(() => {
@@ -511,6 +512,62 @@ export default function MyRecipesScreen() {
         initialTab={importDialogTab}
       />
 
+      <Dialog open={mobileAddSheetOpen} onOpenChange={setMobileAddSheetOpen}>
+        <DialogContent className="w-[calc(100vw-1rem)] max-w-sm overflow-hidden rounded-[1.75rem] border border-orange-100 bg-[#fffaf5] p-0 shadow-[0_24px_60px_rgba(249,115,22,0.16)]">
+          <DialogHeader className="border-b border-orange-100/80 bg-gradient-to-br from-orange-50 via-white to-orange-50/60 px-5 py-4 text-left">
+            <DialogTitle className="text-left">Add a recipe</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 px-4 py-4">
+            {[
+              {
+                title: "Import from URL",
+                description: "Paste a recipe link and bring it into Munch.",
+                icon: Link2,
+                onClick: () => {
+                  setMobileAddSheetOpen(false);
+                  setImportDialogTab("url");
+                  setImportDialogOpen(true);
+                },
+              },
+              {
+                title: "Upload a file",
+                description: "Use a PDF or image and let Munch extract the recipe.",
+                icon: FileUp,
+                onClick: () => {
+                  setMobileAddSheetOpen(false);
+                  setImportDialogTab("pdf");
+                  setImportDialogOpen(true);
+                },
+              },
+              {
+                title: "Write it manually",
+                description: "Add your own recipe with ingredients and steps.",
+                icon: PenSquare,
+                onClick: () => {
+                  setMobileAddSheetOpen(false);
+                  setShowManualRecipeDialog(true);
+                },
+              },
+            ].map(({ title, description, icon: Icon, onClick }) => (
+              <button
+                key={title}
+                type="button"
+                onClick={onClick}
+                className="flex w-full items-start gap-3 rounded-2xl border border-orange-100 bg-white px-4 py-3 text-left transition-all hover:border-orange-200 hover:bg-orange-50/60"
+              >
+                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-500">
+                  <Icon size={18} />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold text-stone-800">{title}</span>
+                  <span className="mt-1 block text-xs leading-5 text-stone-500">{description}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={showManualRecipeDialog} onOpenChange={setShowManualRecipeDialog}>
         <DialogContent className="w-[calc(100vw-1rem)] max-w-2xl max-h-[calc(100dvh-1rem)] overflow-y-auto">
           <DialogHeader>
@@ -560,7 +617,7 @@ export default function MyRecipesScreen() {
         }}
       />
 
-      <MobileActionButton label="Add Recipe" onClick={() => setImportDialogOpen(true)} />
+      <MobileActionButton label="Add Recipe" compact onClick={() => setMobileAddSheetOpen(true)} />
     </div>
   );
 }

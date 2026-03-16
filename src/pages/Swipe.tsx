@@ -517,7 +517,7 @@ export default function SwipeScreen() {
         className="border-b px-4 sm:px-6 py-3 sm:py-4"
         style={{ background: "linear-gradient(135deg,#FFF7ED 0%,#FFFAF5 100%)", borderColor: "rgba(249,115,22,0.12)" }}
       >
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-2xl mx-auto pr-12 sm:pr-0">
           <div className="flex flex-col gap-2 sm:gap-3">
             <div className="flex items-start justify-between gap-4">
               <div>

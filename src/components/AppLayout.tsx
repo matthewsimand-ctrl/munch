@@ -46,6 +46,7 @@ export default function AppLayout() {
   const { displayName: storeDisplayName, activeKitchenName, chefAvatarUrl } = useStore();
   const { kitchens } = useKitchens();
   const showGlobalAvatar = location.pathname !== "/dashboard";
+  const mobileSwipeLayout = location.pathname === "/swipe";
 
   useEffect(() => {
     const hydrateFooterProfile = async () => {
@@ -207,11 +208,11 @@ export default function AppLayout() {
       {/* ── Main content ── */}
       <main className="relative flex-1 flex flex-col min-w-0 overflow-hidden">
         {showGlobalAvatar ? (
-          <div className="pointer-events-none absolute right-4 top-[max(0.5rem,env(safe-area-inset-top))] z-30 md:right-6 md:top-4">
+          <div className={`pointer-events-none absolute z-30 md:right-6 md:top-4 ${mobileSwipeLayout ? "right-3 top-[max(0.4rem,env(safe-area-inset-top))] md:right-6" : "right-4 top-[max(0.5rem,env(safe-area-inset-top))]"}`}>
             <button
               type="button"
               onClick={() => navigate("/settings")}
-              className="pointer-events-auto relative h-10 w-10 overflow-hidden rounded-full border-2 border-white bg-white shadow-[0_8px_24px_rgba(28,25,23,0.12)] ring-2 ring-orange-200 transition-transform hover:scale-[1.02]"
+              className={`pointer-events-auto relative overflow-hidden rounded-full border-2 border-white bg-white shadow-[0_8px_24px_rgba(28,25,23,0.12)] ring-2 ring-orange-200 transition-transform hover:scale-[1.02] ${mobileSwipeLayout ? "h-9 w-9 md:h-10 md:w-10" : "h-10 w-10"}`}
               aria-label="Open account settings"
             >
               <img
@@ -222,7 +223,7 @@ export default function AppLayout() {
             </button>
           </div>
         ) : null}
-        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pt-[max(0.25rem,calc(env(safe-area-inset-top)-1rem))] pb-[calc(var(--mobile-nav-offset)+0.35rem)] md:pt-0 md:pb-0">
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pt-[max(0.25rem,calc(env(safe-area-inset-top)-1rem))] pb-[calc(var(--mobile-nav-offset)+0.1rem)] md:pt-0 md:pb-0">
           <div className="app-page">
             <Outlet />
           </div>

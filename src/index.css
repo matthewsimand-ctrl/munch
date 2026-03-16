@@ -7,7 +7,7 @@
 
 @layer base {
   :root {
-    --mobile-nav-height: 3.75rem;
+    --mobile-nav-height: 3.5rem;
     --mobile-nav-offset: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom));
     --background: 30 25% 96%;
     --foreground: 20 20% 14%;
@@ -153,6 +153,10 @@
 }
 
 @media (max-width: 768px) {
+  .app-page {
+    padding-bottom: 0.15rem;
+  }
+
   input,
   textarea,
   select {

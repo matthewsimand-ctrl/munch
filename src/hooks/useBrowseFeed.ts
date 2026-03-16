@@ -9,6 +9,38 @@ import { supabase } from '@/integrations/supabase/client';
 
 const BROWSE_FEED_CACHE_KEY = 'munch:browse-feed-cache:v1';
 
+function readCachedBrowseFeed() {
+  if (typeof window === 'undefined') return [];
+
+  for (const storage of [window.sessionStorage, window.localStorage]) {
+    try {
+      const cached = storage.getItem(BROWSE_FEED_CACHE_KEY);
+      if (!cached) continue;
+
+      const parsed = JSON.parse(cached);
+      if (!Array.isArray(parsed)) continue;
+
+      const normalized = parsed
+        .map(normalizeRecipe)
+        .filter((recipe): recipe is BrowseRecipe => Boolean(recipe));
+
+      if (normalized.length > 0) return normalized;
+    } catch {
+      continue;
+    }
+  }
+
+  return [];
+}
+
+function writeCachedBrowseFeed(recipes: BrowseRecipe[]) {
+  if (typeof window === 'undefined') return;
+
+  const serialized = JSON.stringify(recipes);
+  window.sessionStorage.setItem(BROWSE_FEED_CACHE_KEY, serialized);
+  window.localStorage.setItem(BROWSE_FEED_CACHE_KEY, serialized);
+}
+
 interface BrowseRecipe extends Recipe {
   source: string;
   cuisine?: string;
@@ -208,27 +240,11 @@ function normalizeRecipe(raw: any): BrowseRecipe | null {
 }
 
 export function useBrowseFeed() {
-  const [recipes, setRecipes] = useState<BrowseRecipe[]>(() => {
-    if (typeof window === 'undefined') return [];
-
-    try {
-      const cached = window.sessionStorage.getItem(BROWSE_FEED_CACHE_KEY);
-      if (!cached) return [];
-
-      const parsed = JSON.parse(cached);
-      if (!Array.isArray(parsed)) return [];
-
-      return parsed
-        .map(normalizeRecipe)
-        .filter((recipe): recipe is BrowseRecipe => Boolean(recipe));
-    } catch {
-      return [];
-    }
-  });
+  const [recipes, setRecipes] = useState<BrowseRecipe[]>(() => readCachedBrowseFeed());
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(() => {
     if (typeof window === 'undefined') return false;
-    return Boolean(window.sessionStorage.getItem(BROWSE_FEED_CACHE_KEY));
+    return readCachedBrowseFeed().length > 0;
   });
   const [searchResults, setSearchResults] = useState<BrowseRecipe[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -323,22 +339,48 @@ export function useBrowseFeed() {
       const likedIds = new Set(likedRecipes);
       let fetched: BrowseRecipe[] = [];
 
-      try {
+      const edgePromise = (async () => {
         const { data, error } = await invokeAppFunction('search-recipes', {
           body: { mode: 'browse' },
         });
         if (error) throw error;
 
-        fetched = (data?.recipes || [])
+        return (data?.recipes || [])
           .map(normalizeRecipe)
           .filter((recipe): recipe is BrowseRecipe => Boolean(recipe) && !likedIds.has(String(recipe.id)));
+      })();
+
+      const quickFallbackPromise = fetchPublicRecipesFallback()
+        .then((results) => results.filter((recipe) => !likedIds.has(String(recipe.id))));
+
+      const timeoutPromise = new Promise<null>((resolve) => {
+        window.setTimeout(() => resolve(null), 1200);
+      });
+
+      const earlyResult = await Promise.race([
+        edgePromise.then((results) => ({ type: 'edge' as const, recipes: results })).catch((error) => {
+          console.error('Browse feed edge fallback triggered:', error);
+          return { type: 'edge' as const, recipes: [] as BrowseRecipe[] };
+        }),
+        quickFallbackPromise.then((results) => ({ type: 'public' as const, recipes: results })).catch(() => ({ type: 'public' as const, recipes: [] as BrowseRecipe[] })),
+        timeoutPromise,
+      ]);
+
+      if (earlyResult && earlyResult.recipes.length > 0) {
+        const earlyCurated = curateBrowseCatalog(dedupeRecipes(earlyResult.recipes));
+        if (earlyCurated.length > 0) {
+          setRecipes(earlyCurated);
+        }
+      }
+
+      try {
+        fetched = await edgePromise;
       } catch (edgeError) {
         console.error('Browse feed edge fallback triggered:', edgeError);
       }
 
       if (fetched.length === 0) {
-        fetched = (await fetchPublicRecipesFallback())
-          .filter((recipe) => !likedIds.has(String(recipe.id)));
+        fetched = await quickFallbackPromise;
       }
 
       const externalCount = fetched.filter((recipe) => {
@@ -366,16 +408,12 @@ export function useBrowseFeed() {
         const ranked = rankByRecommendation(fetched, likedRecipesList, likedIds, userProfile, effectivePantryNames);
         const nextRecipes = diversifyBrowseOrder(ranked.map((item) => item.recipe as BrowseRecipe));
         setRecipes(nextRecipes);
-        if (typeof window !== 'undefined') {
-          window.sessionStorage.setItem(BROWSE_FEED_CACHE_KEY, JSON.stringify(nextRecipes));
-        }
+        writeCachedBrowseFeed(nextRecipes);
       } else {
         const shuffled = [...fetched].sort(() => Math.random() - 0.5);
         const nextRecipes = diversifyBrowseOrder(shuffled);
         setRecipes(nextRecipes);
-        if (typeof window !== 'undefined') {
-          window.sessionStorage.setItem(BROWSE_FEED_CACHE_KEY, JSON.stringify(nextRecipes));
-        }
+        writeCachedBrowseFeed(nextRecipes);
       }
 
       setLoaded(true);
