@@ -560,8 +560,6 @@ export type Database = {
           avatar_url: string | null
           created_at: string
           default_servings: number
-          discovery_source: string | null
-          discovery_source_detail: string | null
           display_name: string | null
           id: string
           updated_at: string
@@ -572,8 +570,6 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           default_servings?: number
-          discovery_source?: string | null
-          discovery_source_detail?: string | null
           display_name?: string | null
           id?: string
           updated_at?: string
@@ -584,8 +580,6 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           default_servings?: number
-          discovery_source?: string | null
-          discovery_source_detail?: string | null
           display_name?: string | null
           id?: string
           updated_at?: string
