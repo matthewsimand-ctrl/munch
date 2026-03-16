@@ -28,6 +28,7 @@ interface Props {
   chefId?: string | null;
   mode?: 'default' | 'explore';
   onSave?: (recipe: Recipe) => void;
+  isSaved?: boolean;
   onAddMissingToGrocery?: (recipe: Recipe, missingIngredients: string[]) => void;
   onRegenerate?: () => void;
 }
@@ -108,6 +109,7 @@ export default function RecipePreviewDialog({
   chefId,
   mode = 'default',
   onSave,
+  isSaved = false,
   onAddMissingToGrocery,
   onRegenerate,
 }: Props) {
@@ -578,9 +580,13 @@ export default function RecipePreviewDialog({
                       onOpenChange(false);
                     }}
                     data-tutorial="like-button"
-                    className="h-9 min-w-0 flex-1 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground inline-flex items-center justify-center gap-1.5 basis-[10rem]"
+                    className={`h-9 min-w-0 flex-1 rounded-lg px-3 text-sm font-semibold inline-flex items-center justify-center gap-1.5 basis-[10rem] ${
+                      isSaved
+                        ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
+                        : 'bg-primary text-primary-foreground'
+                    }`}
                   >
-                    <Heart className="h-4 w-4" /> Save
+                    <Heart className="h-4 w-4" fill={isSaved ? 'currentColor' : 'none'} /> {isSaved ? 'Saved' : 'Save'}
                   </button>
                   {onRegenerate && (
                     <button

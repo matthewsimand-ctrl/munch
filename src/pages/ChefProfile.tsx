@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { Recipe } from '@/data/recipes';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, ChefHat } from 'lucide-react';
+import { ArrowLeft, ChefHat, Search } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { normalizeRecipe } from '@/lib/normalizeRecipe';
 import { applyRecipeImageFallback } from '@/lib/recipeImage';
@@ -13,12 +13,14 @@ import { useStore } from '@/lib/store';
 import { toast } from 'sonner';
 import munchLogo from '@/assets/munch-logo.png';
 import { MUNCH_CHEF_NAME, MUNCH_OFFICIAL_USER_ID } from '@/lib/munchIdentity';
+import { Input } from '@/components/ui/input';
 
 export default function ChefProfile() {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
   const { likeRecipe, likedRecipes } = useStore();
   const [previewRecipe, setPreviewRecipe] = useState<Recipe | null>(null);
+  const [search, setSearch] = useState('');
 
   const { data: profile } = useQuery({
     queryKey: ['chef-profile', userId],
@@ -53,6 +55,28 @@ export default function ChefProfile() {
   const isMunchChef = (profile?.display_name || '').trim().toLowerCase() === MUNCH_CHEF_NAME || userId === MUNCH_OFFICIAL_USER_ID;
   const displayName = profile?.display_name || (isMunchChef ? MUNCH_CHEF_NAME : 'Chef');
   const likedSet = useMemo(() => new Set(likedRecipes), [likedRecipes]);
+  const filteredRecipes = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return recipes;
+
+    return recipes.filter((recipe) => {
+      const haystack = [
+        recipe.name,
+        recipe.cuisine,
+        recipe.chef,
+        recipe.cook_time,
+        ...(recipe.tags || []),
+        ...(recipe.ingredients || []),
+        ...(recipe.instructions || []),
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      return haystack.includes(query);
+    });
+  }, [recipes, search]);
+
   return (
     <div className="min-h-screen bg-background">
       <div className="px-6 pt-8 pb-6 max-w-5xl mx-auto w-full">
@@ -121,13 +145,25 @@ export default function ChefProfile() {
           </div>
         </div>
 
+        <div className="relative mb-5">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder={`Search ${displayName}'s recipes`}
+            className="h-11 rounded-2xl border-orange-100 bg-white pl-10"
+          />
+        </div>
+
         {isLoading ? (
           <div className="text-center py-16 text-muted-foreground">Loading recipes...</div>
         ) : recipes.length === 0 ? (
           <div className="text-center py-16 text-muted-foreground">No public recipes yet.</div>
+        ) : filteredRecipes.length === 0 ? (
+          <div className="text-center py-16 text-muted-foreground">No recipes match that search yet.</div>
         ) : (
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
-            {recipes.map((recipe, i) => (
+            {filteredRecipes.map((recipe, i) => (
               <motion.button
                 key={recipe.id}
                 initial={{ opacity: 0, y: 10 }}
@@ -167,6 +203,8 @@ export default function ChefProfile() {
         }}
         chefName={displayName}
         chefId={userId || null}
+        mode="explore"
+        isSaved={previewRecipe ? likedSet.has(previewRecipe.id) : false}
         onSave={(recipe) => {
           likeRecipe(recipe.id, recipe);
           toast.success(likedSet.has(recipe.id) ? `${recipe.name} is already in your recipes` : `Saved ${recipe.name}`);

@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Recipe } from '@/data/recipes';
 import { normalizeRecipe } from '@/lib/normalizeRecipe';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ChefHat, Loader2, Link as LinkIcon } from 'lucide-react';
+import { ChefHat, Loader2, Link as LinkIcon, Search } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import RecipePreviewDialog from '@/components/RecipePreviewDialog';
@@ -13,6 +13,7 @@ import { useStore } from '@/lib/store';
 import { toast } from 'sonner';
 import munchLogo from '@/assets/munch-logo.png';
 import { MUNCH_CHEF_NAME, MUNCH_OFFICIAL_USER_ID } from '@/lib/munchIdentity';
+import { Input } from '@/components/ui/input';
 
 interface ChefProfileModalProps {
     chefId: string | null;
@@ -25,6 +26,7 @@ export function ChefProfileModal({ chefId, chefName, open, onOpenChange }: ChefP
     const navigate = useNavigate();
     const { likeRecipe, likedRecipes } = useStore();
     const [previewRecipe, setPreviewRecipe] = useState<Recipe | null>(null);
+    const [search, setSearch] = useState('');
 
     const { data: profile, isLoading: loadingProfile } = useQuery({
         queryKey: ['chef-profile', chefId],
@@ -62,6 +64,27 @@ export function ChefProfileModal({ chefId, chefName, open, onOpenChange }: ChefP
     const displayName = profile?.display_name || chefName || (isMunchChef ? MUNCH_CHEF_NAME : 'Chef');
     const isLoading = loadingProfile || loadingRecipes;
     const likedSet = useMemo(() => new Set(likedRecipes), [likedRecipes]);
+    const filteredRecipes = useMemo(() => {
+        const query = search.trim().toLowerCase();
+        if (!query) return recipes;
+
+        return recipes.filter((recipe) => {
+            const haystack = [
+                recipe.name,
+                recipe.cuisine,
+                recipe.chef,
+                recipe.cook_time,
+                ...(recipe.tags || []),
+                ...(recipe.ingredients || []),
+                ...(recipe.instructions || []),
+            ]
+                .filter(Boolean)
+                .join(' ')
+                .toLowerCase();
+
+            return haystack.includes(query);
+        });
+    }, [recipes, search]);
 
     return (
         <>
@@ -143,6 +166,16 @@ export function ChefProfileModal({ chefId, chefName, open, onOpenChange }: ChefP
                             </div>
                         </div>
 
+                        <div className="relative mb-4">
+                            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+                            <Input
+                                value={search}
+                                onChange={(event) => setSearch(event.target.value)}
+                                placeholder={`Search ${displayName}'s recipes`}
+                                className="h-11 rounded-2xl border-orange-100 bg-white pl-10"
+                            />
+                        </div>
+
                         <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-stone-200 scrollbar-track-transparent">
                             {isLoading ? (
                                 <div className="flex flex-col items-center justify-center py-12 text-stone-400 gap-3">
@@ -153,9 +186,14 @@ export function ChefProfileModal({ chefId, chefName, open, onOpenChange }: ChefP
                                     <p className="text-sm font-semibold text-stone-600 mb-1">No public recipes</p>
                                     <p className="text-xs text-stone-400">This chef hasn't shared any recipes yet.</p>
                                 </div>
+                            ) : filteredRecipes.length === 0 ? (
+                                <div className="text-center py-10 px-4 rounded-xl border border-dashed border-stone-200 bg-stone-50/50">
+                                    <p className="text-sm font-semibold text-stone-600 mb-1">No matching recipes</p>
+                                    <p className="text-xs text-stone-400">Try a recipe name, cuisine, or ingredient.</p>
+                                </div>
                             ) : (
                                 <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
-                                    {recipes.map((recipe, i) => (
+                                    {filteredRecipes.map((recipe, i) => (
                                         <motion.button
                                             key={recipe.id}
                                             initial={{ opacity: 0, y: 10 }}
@@ -199,6 +237,8 @@ export function ChefProfileModal({ chefId, chefName, open, onOpenChange }: ChefP
             }}
             chefName={displayName}
             chefId={chefId}
+            mode="explore"
+            isSaved={previewRecipe ? likedSet.has(previewRecipe.id) : false}
             onSave={(recipe) => {
                 likeRecipe(recipe.id, recipe);
                 toast.success(likedSet.has(recipe.id) ? `${recipe.name} is already in your recipes` : `Saved ${recipe.name}`);
