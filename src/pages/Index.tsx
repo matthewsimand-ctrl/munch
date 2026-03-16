@@ -235,7 +235,7 @@ const Index = () => {
             className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold text-white transition-all hover:opacity-90 active:scale-95 disabled:opacity-70"
             style={{ background: "linear-gradient(135deg,#FB923C,#F97316,#EA580C)", boxShadow: "0 10px 30px rgba(249,115,22,0.22)" }}
           >
-            {loading ? "Opening..." : hasSession ? "Continue Cooking" : "Get Started"}
+            {loading ? "Opening..." : hasSession ? "Continue Cooking" : "Let's Cook"}
             <ArrowRight size={15} />
           </button>
         </div>
@@ -268,7 +268,7 @@ const Index = () => {
                 className="inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-bold text-white transition-all hover:opacity-90 active:scale-95 disabled:opacity-70"
                 style={{ background: "linear-gradient(135deg,#FB923C,#F97316,#EA580C)", boxShadow: "0 12px 34px rgba(249,115,22,0.24)" }}
               >
-                {loading ? "Opening..." : hasSession ? "Continue Cooking" : "Get Started"}
+                {loading ? "Opening..." : hasSession ? "Continue Cooking" : "Let's Cook"}
                 <ArrowRight size={16} />
               </button>
               <a
@@ -386,7 +386,7 @@ const Index = () => {
               disabled={loading}
               className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-5 py-2.5 text-sm font-bold text-orange-700 transition-colors hover:bg-orange-100 disabled:opacity-70"
             >
-              {loading ? "Opening..." : hasSession ? "Continue Cooking" : "Get Started"}
+              {loading ? "Opening..." : hasSession ? "Continue Cooking" : "Let's Cook"}
               <ArrowRight size={15} />
             </button>
           </div>

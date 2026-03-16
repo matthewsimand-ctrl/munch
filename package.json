@@ -13,6 +13,9 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@capacitor/cli": "^8.2.0",
+    "@capacitor/core": "^8.2.0",
+    "@capacitor/ios": "^8.2.0",
     "@dicebear/adventurer": "^9.4.0",
     "@dicebear/adventurer-neutral": "^9.4.0",
     "@dicebear/big-ears-neutral": "^9.4.0",
