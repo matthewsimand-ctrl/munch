@@ -43,7 +43,7 @@ export default function AppLayout() {
   const [headerAvatarUrl, setHeaderAvatarUrl] = useState<string | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const { displayName: storeDisplayName, activeKitchenName, chefAvatarUrl } = useStore();
+  const { displayName: storeDisplayName, activeKitchenName, chefAvatarUrl, kitchenViewMode } = useStore();
   const { kitchens } = useKitchens();
   const showGlobalAvatar = location.pathname !== "/dashboard";
   const mobileSwipeLayout = location.pathname === "/swipe";
@@ -130,7 +130,7 @@ export default function AppLayout() {
           </div>
         </div>
 
-        {!collapsed && kitchens.length > 0 && (
+        {!collapsed && kitchens.length > 0 && kitchenViewMode === "kitchen" && (
           <div className="mx-3 mt-3 rounded-2xl border border-orange-100 bg-orange-50/70 px-3 py-3">
             <p className="text-[10px] font-bold uppercase tracking-widest text-orange-500">Kitchen Mode</p>
             <p className="mt-1 text-sm font-semibold text-stone-800 truncate">{activeKitchenName || "Choose a kitchen"}</p>

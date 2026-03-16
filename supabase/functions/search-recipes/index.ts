@@ -128,6 +128,17 @@ function getSupabaseClient(useServiceRole = false) {
   return createClient(supabaseUrl, key);
 }
 
+function buildSearchPattern(query: string) {
+  const normalized = query
+    .replace(/[%_,()]/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .join('%');
+
+  return `%${normalized}%`;
+}
+
 async function fetchPublicRecipes(query?: string): Promise<NormalizedRecipe[]> {
   const supabase = getSupabaseClient(false);
   if (!supabase) return [];
@@ -140,8 +151,7 @@ async function fetchPublicRecipes(query?: string): Promise<NormalizedRecipe[]> {
       .order('created_at', { ascending: false });
 
     if (query) {
-      const escapedQuery = query.replace(/[%_,()]/g, ' ').trim();
-      const ilikeQuery = `%${escapedQuery}%`;
+      const ilikeQuery = buildSearchPattern(query);
       request = request
         .or(`name.ilike.${ilikeQuery},cuisine.ilike.${ilikeQuery},chef.ilike.${ilikeQuery},source.ilike.${ilikeQuery},source_url.ilike.${ilikeQuery}`)
         .limit(1500);
@@ -209,8 +219,7 @@ async function fetchCachedExternalRecipes(query?: string): Promise<NormalizedRec
       .order('updated_at', { ascending: false });
 
     if (query) {
-      const escapedQuery = query.replace(/[%_,()]/g, ' ').trim();
-      const ilikeQuery = `%${escapedQuery}%`;
+      const ilikeQuery = buildSearchPattern(query);
       request = request
         .or(`name.ilike.${ilikeQuery},cuisine.ilike.${ilikeQuery},source.ilike.${ilikeQuery},source_url.ilike.${ilikeQuery}`)
         .limit(1500);
