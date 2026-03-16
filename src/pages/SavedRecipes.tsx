@@ -8,6 +8,7 @@ import { useStore } from "@/lib/store";
 import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useBrowseFeed } from "@/hooks/useBrowseFeed";
+import { useDbRecipes } from "@/hooks/useDbRecipes";
 import { calculateMatch } from "@/lib/matchLogic";
 import RecipePreviewDialog from "@/components/RecipePreviewDialog";
 import MatchBadge from "@/components/MatchBadge";
@@ -249,6 +250,7 @@ export default function MyRecipesScreen() {
     recipeRatings, recipeCookCounts, pantryList, addCustomGroceryItem, cachedNutrition, displayName: storeDisplayName,
   } = useStore();
   const { loaded: exploreLoaded, loadFeed } = useBrowseFeed();
+  const { data: dbRecipes = [] } = useDbRecipes();
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"grid" | "list">("grid");
   const [sortBy, setSortBy] = useState(SORT_OPTIONS[0]);
@@ -278,8 +280,13 @@ export default function MyRecipesScreen() {
   }, []);
 
   const savedRecipes = useMemo<Recipe[]>(
-    () => likedRecipes.map((id) => savedApiRecipes[id]).filter(Boolean),
-    [likedRecipes, savedApiRecipes],
+    () => {
+      const dbRecipeMap = new Map(dbRecipes.map((recipe) => [recipe.id, recipe]));
+      return likedRecipes
+        .map((id) => dbRecipeMap.get(id) || savedApiRecipes[id])
+        .filter(Boolean);
+    },
+    [dbRecipes, likedRecipes, savedApiRecipes],
   );
   const pantryNames = useMemo(() => pantryList.map((item) => item.name), [pantryList]);
 

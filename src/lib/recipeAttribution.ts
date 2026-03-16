@@ -11,12 +11,16 @@ function getRawPayload(recipe: Recipe | null | undefined): Record<string, unknow
 
 export function isImportedCommunityRecipe(recipe: Recipe | null | undefined) {
   if (!recipe) return false;
-  return String(recipe.source || '').toLowerCase() === 'imported';
+  const source = String(recipe.source || '').toLowerCase();
+  if (source === 'imported') return true;
+  if (source === 'themealdb' || source === 'spoonacular' || source === 'tasty') return false;
+  if (isMunchAuthoredRecipe(recipe)) return false;
+  return Boolean(getResolvedRecipeSourceUrl(recipe));
 }
 
 export function isMunchSeedRecipe(recipe: Recipe | null | undefined) {
   if (!recipe) return false;
-  return String(recipe.source || '').toLowerCase() === 'community-seed';
+  return String(recipe.source || '').toLowerCase() === 'community-seed' && !getResolvedRecipeSourceUrl(recipe);
 }
 
 export function isMunchAuthoredRecipe(recipe: Recipe | null | undefined) {

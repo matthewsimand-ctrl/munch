@@ -172,6 +172,7 @@ export default function Dashboard() {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const location = useLocation();
+  const avatarEditorRequested = Boolean((location.state as { openAvatarEditor?: boolean } | null)?.openAvatarEditor);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [greeting] = useState(() => {
     const h = new Date().getHours();
@@ -193,7 +194,7 @@ export default function Dashboard() {
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [suggestionOffset, setSuggestionOffset] = useState(0);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
+  const [avatarDialogOpen, setAvatarDialogOpen] = useState(avatarEditorRequested);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [avatarConfig, setAvatarConfig] = useState<MunchAvatarConfig>(() => createMunchAvatarConfig());
   const [avatarPhotoPreview, setAvatarPhotoPreview] = useState<string | null>(null);
@@ -232,9 +233,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     const shouldOpenAvatarEditor = Boolean((location.state as { openAvatarEditor?: boolean } | null)?.openAvatarEditor);
-    if (!shouldOpenAvatarEditor) return;
-
-    setAvatarDialogOpen(true);
+    setAvatarDialogOpen(shouldOpenAvatarEditor);
   }, [location.state]);
 
   const handleAvatarDialogOpenChange = (open: boolean) => {
@@ -490,7 +489,7 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="min-h-full" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", background: "#FFFAF5" }}>
+    <div className={`min-h-full ${avatarEditorRequested && avatarDialogOpen ? "opacity-0 pointer-events-none" : ""}`} style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", background: "#FFFAF5" }}>
       {/* Hero header */}
       <div
         className="relative overflow-hidden border-b"

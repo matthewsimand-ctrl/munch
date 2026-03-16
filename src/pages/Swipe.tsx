@@ -314,6 +314,7 @@ export default function SwipeScreen() {
   const [saveButtonPulse, setSaveButtonPulse] = useState(false);
   const [likedBurst, setLikedBurst] = useState<{ id: number; recipeId: string } | null>(null);
   const [cardActionStamp, setCardActionStamp] = useState<"save" | "skip" | null>(null);
+  const previewDismissActionRef = useRef<"save" | "skip" | null>(null);
 
   const pantryNames = useMemo(() => pantryList.map((p) => p.name), [pantryList]);
   const likedSet = useMemo(() => new Set(likedRecipes), [likedRecipes]);
@@ -464,6 +465,11 @@ export default function SwipeScreen() {
     setLikedBurst({ id: Date.now(), recipeId });
   }, []);
 
+  const signalCardAction = useCallback((action: "save" | "skip") => {
+    setCardActionStamp(action);
+    window.setTimeout(() => setCardActionStamp(null), 320);
+  }, []);
+
   useEffect(() => {
     if (!likedBurst) return;
     const timeout = window.setTimeout(() => setLikedBurst(null), 700);
@@ -473,6 +479,8 @@ export default function SwipeScreen() {
   const saveAndAdvance = useCallback((recipe: Recipe, options?: { closePreview?: boolean; advanceCard?: boolean }) => {
     likeRecipe(recipe.id, recipe);
     triggerLikedAnimation(recipe.id);
+    signalCardAction("save");
+    toast.success(`Saved ${recipe.name}`, { duration: 1200, position: "bottom-right" });
 
     if (options?.closePreview) {
       setPreviewOpen(false);
@@ -482,7 +490,7 @@ export default function SwipeScreen() {
     if (options?.advanceCard !== false) {
       advance();
     }
-  }, [advance, likeRecipe, triggerLikedAnimation]);
+  }, [advance, likeRecipe, signalCardAction, triggerLikedAnimation]);
 
   const handleSave = useCallback(() => {
     if (!current) return;
@@ -491,30 +499,30 @@ export default function SwipeScreen() {
 
   const handleSkip = useCallback(() => {
     if (!current) return;
+    signalCardAction("skip");
     advance();
-  }, [current, advance]);
+  }, [current, advance, signalCardAction]);
 
   const handleSkipButton = useCallback(() => {
     if (!current) return;
-    setCardActionStamp("skip");
-    window.setTimeout(() => setCardActionStamp(null), 220);
+    signalCardAction("skip");
     window.setTimeout(() => {
       advance();
     }, 120);
-  }, [advance, current]);
+  }, [advance, current, signalCardAction]);
 
   const handleSaveButton = useCallback(() => {
     if (!current) return;
     setSaveButtonPulse(true);
     window.setTimeout(() => setSaveButtonPulse(false), 280);
-    setCardActionStamp("save");
-    window.setTimeout(() => setCardActionStamp(null), 220);
+    signalCardAction("save");
     likeRecipe(current.id, current);
     triggerLikedAnimation(current.id);
+    toast.success(`Saved ${current.name}`, { duration: 1200, position: "bottom-right" });
     window.setTimeout(() => {
       advance();
     }, 120);
-  }, [advance, current, likeRecipe, triggerLikedAnimation]);
+  }, [advance, current, likeRecipe, signalCardAction, triggerLikedAnimation]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -868,7 +876,21 @@ export default function SwipeScreen() {
         recipe={previewRecipe}
         match={previewRecipe ? calculateMatch(pantryNames, previewRecipe.ingredients || []) : null}
         open={previewOpen}
-        onOpenChange={setPreviewOpen}
+        onOpenChange={(open) => {
+          const pendingAction = previewDismissActionRef.current;
+          previewDismissActionRef.current = null;
+
+          if (!open && pendingAction === "save") {
+            setPreviewRecipe(null);
+            setPreviewOpen(false);
+            return;
+          }
+
+          setPreviewOpen(open);
+          if (!open) {
+            setPreviewRecipe(null);
+          }
+        }}
         mode="explore"
         onAddMissingToGrocery={(recipe, missingIngredients) => {
           missingIngredients.forEach((ing) => addCustomGroceryItem(ing));
@@ -876,6 +898,7 @@ export default function SwipeScreen() {
           toast.success(`Added ${missingIngredients.length} items from "${recipe.name}" to grocery list`);
         }}
         onSave={(recipe) => {
+          previewDismissActionRef.current = "save";
           saveAndAdvance(recipe, { closePreview: true, advanceCard: true });
         }}
       />

@@ -60,11 +60,6 @@ function getEmbedBlockReason(url: string): string | null {
   }
 }
 
-/** Only imported recipes (from URL) show the source site; API recipes (MealDB, etc.) use ingredients/instructions */
-function isImportedRecipe(recipe: Recipe): boolean {
-  return recipe.source?.toLowerCase() === 'imported';
-}
-
 function hasStructuredRecipeContent(recipe: Recipe): boolean {
   return recipe.ingredients.length > 0 || recipe.instructions.length > 0;
 }
@@ -129,7 +124,7 @@ export default function RecipePreviewDialog({
   }), [recipe]);
 
   const displayMatch = match ?? fallbackMatch;
-  const importedRecipe = recipe ? isImportedRecipe(recipe) : false;
+  const importedRecipe = recipe ? isImportedCommunityRecipe(recipe) : false;
   const importedPreview = useMemo(() => recipe ? getImportedPreviewData(recipe) : EMPTY_IMPORTED_PREVIEW, [recipe]);
   const resolvedSourceUrl = getResolvedRecipeSourceUrl(recipe) || importedPreview.sourceUrl;
   const embedBlockReason = resolvedSourceUrl ? getEmbedBlockReason(resolvedSourceUrl) : null;

@@ -16,6 +16,12 @@ import { usePremiumGate } from '@/hooks/usePremiumGate';
 import RecipeScraperTester from '@/components/RecipeScraperTester';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { isValidUsername, normalizeUsername } from '@/lib/username';
+import { AvatarStudio } from '@/components/AvatarStudio';
+import {
+  buildMunchAvatarUrl,
+  createMunchAvatarConfig,
+  type MunchAvatarConfig,
+} from '@/lib/munchAvatar';
 
 const DIETARY_OPTIONS = ['Vegetarian', 'Vegan', 'Gluten-Free', 'Dairy-Free', 'Nut-Free', 'None'];
 const SKILL_OPTIONS = ['Beginner', 'Intermediate', 'Advanced'];
@@ -69,6 +75,8 @@ export default function Settings() {
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [showClearDataConfirm, setShowClearDataConfirm] = useState(false);
   const [showResetTutorialConfirm, setShowResetTutorialConfirm] = useState(false);
+  const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
+  const [avatarConfig, setAvatarConfig] = useState<MunchAvatarConfig>(() => createMunchAvatarConfig());
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const membershipMetadata = user ? {
     ...(user.user_metadata || {}),
@@ -136,6 +144,8 @@ export default function Settings() {
     return () => window.clearTimeout(timeout);
   }, [username]);
 
+  const avatarBuilderPreview = buildMunchAvatarUrl(avatarConfig);
+
   const toggleDietary = (item: string) => {
     if (item === 'None') {
       setUserProfile({ dietaryRestrictions: ['None'] });
@@ -181,6 +191,12 @@ export default function Settings() {
     } finally {
       setUploadingAvatar(false);
     }
+  };
+
+  const handleSaveAvatarDesign = () => {
+    setChefAvatarUrl(avatarBuilderPreview);
+    setAvatarDialogOpen(false);
+    toast({ title: 'Avatar updated' });
   };
 
   const handleSave = async () => {
@@ -460,7 +476,7 @@ export default function Settings() {
                     <Button
                       variant="secondary"
                       size="sm"
-                      onClick={() => navigate('/dashboard', { state: { openAvatarEditor: true, returnTo: '/settings' } })}
+                      onClick={() => setAvatarDialogOpen(true)}
                       className="h-8 text-xs bg-orange-50 text-orange-600 hover:bg-orange-100 border-orange-100"
                     >
                       <ChefHat className="h-3 w-3 mr-1.5" /> Redesign Avatar
@@ -561,6 +577,28 @@ export default function Settings() {
           </section>
         </div>
       </div>
+
+      <Dialog open={avatarDialogOpen} onOpenChange={setAvatarDialogOpen}>
+        <DialogContent className="max-h-[94vh] max-w-6xl overflow-hidden p-0">
+          <DialogHeader>
+            <DialogTitle className="px-4 pt-4 sm:px-6 sm:pt-6">Customize your avatar</DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[calc(94vh-64px)] overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6">
+            <AvatarStudio
+              config={avatarConfig}
+              onChange={(updates) => setAvatarConfig((current) => createMunchAvatarConfig({ ...current, ...updates }))}
+              action={
+                <button
+                  onClick={handleSaveAvatarDesign}
+                  className="w-full rounded-2xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orange-600"
+                >
+                  Save this avatar
+                </button>
+              }
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showSignOutConfirm} onOpenChange={setShowSignOutConfirm}>
         <DialogContent className="max-w-xs p-6 rounded-2xl">

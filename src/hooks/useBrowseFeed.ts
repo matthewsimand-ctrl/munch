@@ -7,7 +7,7 @@ import { normalizeIngredients } from '@/lib/normalizeIngredients';
 import { classifyMealType } from '@/lib/mealTimeUtils';
 import { supabase } from '@/integrations/supabase/client';
 
-const BROWSE_FEED_CACHE_KEY = 'munch:browse-feed-cache:v1';
+const BROWSE_FEED_CACHE_KEY = 'munch:browse-feed-cache:v2';
 
 function readCachedBrowseFeed() {
   if (typeof window === 'undefined') return [];
@@ -469,7 +469,6 @@ export function useBrowseFeed() {
     }
 
     setSearchLoading(true);
-    setActiveSearchQuery(trimmedQuery);
 
     try {
       const likedIds = new Set(likedRecipes);
@@ -495,9 +494,11 @@ export function useBrowseFeed() {
       } else {
         setSearchResults(ordered);
       }
+      setActiveSearchQuery(trimmedQuery);
     } catch (error) {
       console.error('Search feed error:', error);
       setSearchResults([]);
+      setActiveSearchQuery(trimmedQuery);
     } finally {
       setSearchLoading(false);
     }
