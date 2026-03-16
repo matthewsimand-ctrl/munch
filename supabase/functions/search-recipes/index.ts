@@ -153,7 +153,7 @@ async function fetchPublicRecipes(query?: string): Promise<NormalizedRecipe[]> {
     if (query) {
       const ilikeQuery = buildSearchPattern(query);
       request = request
-        .or(`name.ilike.${ilikeQuery},cuisine.ilike.${ilikeQuery},chef.ilike.${ilikeQuery},source.ilike.${ilikeQuery},source_url.ilike.${ilikeQuery}`)
+        .or(`name.ilike.${ilikeQuery},cuisine.ilike.${ilikeQuery},source.ilike.${ilikeQuery},source_url.ilike.${ilikeQuery}`)
         .limit(1500);
     } else {
       request = request.limit(450);
