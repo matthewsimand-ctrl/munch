@@ -29,12 +29,16 @@ import os
 import re
 import sys
 import time
+import warnings
 from typing import Dict, Iterable, Iterator, List, Optional, Set, Tuple
 
 import requests
 from bs4 import BeautifulSoup, Tag
 from requests.adapters import HTTPAdapter
+from urllib3.exceptions import NotOpenSSLWarning
 from urllib3.util.retry import Retry
+
+warnings.filterwarnings("ignore", category=NotOpenSSLWarning)
 
 
 API_URL = "https://en.wikibooks.org/w/api.php"
