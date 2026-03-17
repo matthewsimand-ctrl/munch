@@ -20,7 +20,11 @@ export function isImportedCommunityRecipe(recipe: Recipe | null | undefined) {
 
 export function isMunchSeedRecipe(recipe: Recipe | null | undefined) {
   if (!recipe) return false;
-  return String(recipe.source || '').toLowerCase() === 'community-seed' && !getResolvedRecipeSourceUrl(recipe);
+  return (
+    String(recipe.source || '').toLowerCase() === 'community-seed' &&
+    !getResolvedRecipeSourceUrl(recipe) &&
+    isMunchChefLabel(recipe.chef)
+  );
 }
 
 function isMunchChefLabel(value: string | null | undefined) {

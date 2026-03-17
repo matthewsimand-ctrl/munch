@@ -676,50 +676,96 @@ export default function Dashboard() {
                   </button>
                 }
               />
-              <div className="space-y-1.5">
-                {/* Current meal */}
-                <div className="flex items-center gap-3 px-4 py-3 rounded-xl border" style={{ background: "linear-gradient(135deg,#FFF7ED,#FFF3E4)", borderColor: "rgba(249,115,22,0.20)" }}>
-                  <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[10px] font-bold text-orange-500 uppercase tracking-wider mb-0.5">Now</p>
-                    <p className="text-sm font-semibold text-stone-800 truncate">
-                      {currentMealLoading ? "Loading…" : currentPlannedMeal ? currentPlannedMeal.recipe_name : "No meal planned"}
-                    </p>
-                  </div>
-                  {currentPlannedMeal && (
-                    <button
-                      onClick={startCurrentPlannedMeal}
-                      className="text-xs font-bold text-orange-600 bg-orange-100 hover:bg-orange-200 px-3 py-1.5 rounded-full transition-colors shrink-0"
-                    >
-                      Cook →
-                    </button>
-                  )}
-                </div>
-                {thisWeekMealRows.map(({ day, meal, done, recipeId }, index) => (
-                  <div
-                    key={day}
-                    className="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-colors"
-                    style={{ background: done ? "rgba(34,197,94,0.06)" : "rgba(0,0,0,0.02)" }}
-                  >
-                    <span className="text-xs font-bold w-8 shrink-0" style={{ color: done ? "#15803D" : "#A8A29E" }}>{day}</span>
-                    <span className="flex-1 text-sm truncate" style={{ color: done ? "#A8A29E" : "#292524", fontWeight: done ? 400 : 500, textDecoration: done ? "line-through" : "none" }}>
-                      {meal}
-                    </span>
-                    {done ? (
-                      <span className="flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
-                        <Check size={10} /> Done
-                      </span>
-                    ) : (
+              {isPremium ? (
+                <div className="space-y-1.5">
+                  {/* Current meal */}
+                  <div className="flex items-center gap-3 px-4 py-3 rounded-xl border" style={{ background: "linear-gradient(135deg,#FFF7ED,#FFF3E4)", borderColor: "rgba(249,115,22,0.20)" }}>
+                    <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] font-bold text-orange-500 uppercase tracking-wider mb-0.5">Now</p>
+                      <p className="text-sm font-semibold text-stone-800 truncate">
+                        {currentMealLoading ? "Loading…" : currentPlannedMeal ? currentPlannedMeal.recipe_name : "No meal planned"}
+                      </p>
+                    </div>
+                    {currentPlannedMeal && (
                       <button
-                        onClick={() => recipeId ? navigate(`/cook/${recipeId}`) : handleOpenMealPrep({ selectedDay: index, openAddDialog: true, mealType: "dinner" })}
-                        className="text-xs text-stone-400 hover:text-orange-500 font-semibold flex items-center gap-1 px-2 py-1 rounded-full hover:bg-orange-50 transition-colors"
+                        onClick={startCurrentPlannedMeal}
+                        className="text-xs font-bold text-orange-600 bg-orange-100 hover:bg-orange-200 px-3 py-1.5 rounded-full transition-colors shrink-0"
                       >
-                        {recipeId ? <Play size={11} /> : <Plus size={11} />} {recipeId ? "Cook" : "Add"}
+                        Cook →
                       </button>
                     )}
                   </div>
-                ))}
-              </div>
+                  {thisWeekMealRows.map(({ day, meal, done, recipeId }, index) => (
+                    <div
+                      key={day}
+                      className="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-colors"
+                      style={{ background: done ? "rgba(34,197,94,0.06)" : "rgba(0,0,0,0.02)" }}
+                    >
+                      <span className="text-xs font-bold w-8 shrink-0" style={{ color: done ? "#15803D" : "#A8A29E" }}>{day}</span>
+                      <span className="flex-1 text-sm truncate" style={{ color: done ? "#A8A29E" : "#292524", fontWeight: done ? 400 : 500, textDecoration: done ? "line-through" : "none" }}>
+                        {meal}
+                      </span>
+                      {done ? (
+                        <span className="flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
+                          <Check size={10} /> Done
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => recipeId ? navigate(`/cook/${recipeId}`) : handleOpenMealPrep({ selectedDay: index, openAddDialog: true, mealType: "dinner" })}
+                          className="text-xs text-stone-400 hover:text-orange-500 font-semibold flex items-center gap-1 px-2 py-1 rounded-full hover:bg-orange-50 transition-colors"
+                        >
+                          {recipeId ? <Play size={11} /> : <Plus size={11} />} {recipeId ? "Cook" : "Add"}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="relative mt-1 overflow-hidden rounded-2xl border border-violet-100 bg-gradient-to-br from-white via-violet-50/45 to-purple-100/45 p-5">
+                  <div className="pointer-events-none absolute inset-0">
+                    <div className="absolute -right-10 -top-10 h-28 w-28 rounded-full bg-violet-200/35 blur-2xl" />
+                    <div className="absolute -left-6 bottom-0 h-24 w-24 rounded-full bg-purple-200/25 blur-2xl" />
+                  </div>
+                  <div className="relative">
+                    <div className="space-y-2 opacity-30 blur-[1.5px]">
+                      <div className="flex items-center gap-3 rounded-xl border border-violet-100 bg-white/80 px-4 py-3">
+                        <div className="h-2 w-2 shrink-0 rounded-full bg-violet-500" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-violet-500">Now</p>
+                          <p className="truncate text-sm font-semibold text-stone-800">Lemon pesto pasta</p>
+                        </div>
+                        <span className="rounded-full bg-violet-100 px-3 py-1.5 text-xs font-bold text-violet-700">Cook →</span>
+                      </div>
+                      {["Mon", "Tue", "Wed", "Thu", "Fri"].map((day, index) => (
+                        <div key={day} className="flex items-center gap-3 rounded-xl bg-black/[0.02] px-4 py-2.5">
+                          <span className="w-8 shrink-0 text-xs font-bold text-stone-400">{day}</span>
+                          <span className="flex-1 truncate text-sm text-stone-700">
+                            {["Chicken tacos", "Baked salmon", "Grain bowl", "Tomato soup", "Veggie stir-fry"][index]}
+                          </span>
+                          <span className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold text-stone-400">
+                            <Plus size={11} /> Add
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center px-5 text-center">
+                      <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-white/94 text-violet-600 shadow-sm">
+                        <Lock size={20} />
+                      </div>
+                      <p className="mt-4 text-sm font-semibold text-stone-800">Meal planning is premium</p>
+                      <p className="mt-1 max-w-xs text-xs text-stone-500">
+                        Unlock your weekly planner, current meal queue, and one-tap meal scheduling.
+                      </p>
+                      <PremiumFeatureButton
+                        label="Get Premium"
+                        onClick={() => openPremiumPage("Meal Prep")}
+                        className="mt-4 mx-auto h-11 w-auto px-5"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </section>
           </div>
 
@@ -741,7 +787,7 @@ export default function Dashboard() {
                       onClick={() => handleOpenMealPrep()}
                       className={`flex flex-col items-center gap-1.5 p-3 sm:p-4 rounded-xl bg-gradient-to-br ${color} hover:opacity-80 transition-all active:scale-95 text-center group relative`}
                     >
-                      <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-bold text-violet-700">
+                      <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-0.5 text-[10px] font-bold text-violet-700 shadow-sm ring-1 ring-violet-200">
                         <Lock size={10} /> Premium
                       </span>
                       <span className="text-xl sm:text-2xl">{emoji}</span>
