@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import munchLogo from '@/assets/munch-logo.png';
 import { MUNCH_CHEF_NAME, MUNCH_OFFICIAL_USER_ID } from '@/lib/munchIdentity';
 import { Input } from '@/components/ui/input';
+import { isMunchAuthoredRecipe, shouldShowChefAttribution } from '@/lib/recipeAttribution';
 
 interface ChefProfileModalProps {
     chefId: string | null;
@@ -27,6 +28,7 @@ export function ChefProfileModal({ chefId, chefName, open, onOpenChange }: ChefP
     const { likeRecipe, likedRecipes } = useStore();
     const [previewRecipe, setPreviewRecipe] = useState<Recipe | null>(null);
     const [search, setSearch] = useState('');
+    const isKnownMunchChef = (chefName || '').trim().toLowerCase() === MUNCH_CHEF_NAME || chefId === MUNCH_OFFICIAL_USER_ID;
 
     const { data: profile, isLoading: loadingProfile } = useQuery({
         queryKey: ['chef-profile', chefId],
@@ -52,10 +54,14 @@ export function ChefProfileModal({ chefId, chefName, open, onOpenChange }: ChefP
                 .select('*')
                 .eq('created_by', chefId)
                 .eq('is_public', true)
-                .not('chef', 'is', null)
                 .order('created_at', { ascending: false });
             if (error) throw error;
-            return (data || []).map((r: any) => normalizeRecipe(r));
+            const normalized = (data || []).map((r: any) => normalizeRecipe(r));
+            return normalized.filter((recipe) => (
+                isKnownMunchChef
+                    ? isMunchAuthoredRecipe(recipe)
+                    : shouldShowChefAttribution(recipe)
+            ));
         },
         enabled: !!chefId && open,
     });
@@ -235,8 +241,8 @@ export function ChefProfileModal({ chefId, chefName, open, onOpenChange }: ChefP
             onOpenChange={(nextOpen) => {
                 if (!nextOpen) setPreviewRecipe(null);
             }}
-            chefName={displayName}
-            chefId={chefId}
+            chefName={previewRecipe && shouldShowChefAttribution(previewRecipe) ? displayName : null}
+            chefId={previewRecipe && shouldShowChefAttribution(previewRecipe) ? chefId : null}
             mode="explore"
             isSaved={previewRecipe ? likedSet.has(previewRecipe.id) : false}
             onSave={(recipe) => {

@@ -27,10 +27,10 @@ import { ChefProfileModal } from "@/components/ChefProfileModal";
 import { normalizeRecipe } from "@/lib/normalizeRecipe";
 import MobileActionButton from "@/components/MobileActionButton";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { getRecipeSourceBadge, getResolvedRecipeSourceUrl, isMunchAuthoredRecipe } from "@/lib/recipeAttribution";
+import { getRecipeChefName, getRecipeSourceBadge, getResolvedRecipeSourceUrl, isMunchAuthoredRecipe, shouldShowChefAttribution } from "@/lib/recipeAttribution";
 import RecipeAttributionIcon from "@/components/RecipeAttributionIcon";
 import { MUNCH_CHEF_NAME, MUNCH_OFFICIAL_USER_ID } from "@/lib/munchIdentity";
-import { applyRecipeImageFallback } from "@/lib/recipeImage";
+import { applyRecipeImageFallback, getRecipeImageSrc } from "@/lib/recipeImage";
 
 const SORT_OPTIONS = ["Recently Saved", "Cook Time", "Rating", "Name A–Z"];
 const CUISINE_TAGS = ["All", "Italian", "Asian", "Mexican", "Mediterranean", "American", "Indian"];
@@ -75,8 +75,10 @@ function RecipeCard({
   const isImported = recipe.source?.toLowerCase() === 'imported';
   const sourceHostname = isImported ? getSourceHostname(getResolvedRecipeSourceUrl(recipe) || undefined) : null;
   const isMunchRecipe = isMunchAuthoredRecipe(recipe);
-  const resolvedChefName = recipe.chef || (isMunchRecipe ? MUNCH_CHEF_NAME : null);
-  const resolvedChefId = recipe.created_by || (isMunchRecipe ? MUNCH_OFFICIAL_USER_ID : null);
+  const resolvedChefName = getRecipeChefName(recipe) || (isMunchRecipe ? MUNCH_CHEF_NAME : null);
+  const resolvedChefId = shouldShowChefAttribution(recipe)
+    ? (recipe.created_by || (isMunchRecipe ? MUNCH_OFFICIAL_USER_ID : null))
+    : null;
   const sourceBadge = getRecipeSourceBadge(recipe);
 
   if (view === "list") {
@@ -90,16 +92,12 @@ function RecipeCard({
         onClick={onCook}
       >
         <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 bg-stone-100">
-        {recipe.image && recipe.image !== "/placeholder.svg" ? (
-            <img
-              src={recipe.image}
-              alt={recipe.name}
-              className="w-full h-full object-cover"
-              onError={applyRecipeImageFallback}
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-2xl bg-gradient-to-br from-orange-50 to-amber-50">🍽️</div>
-          )}
+          <img
+            src={getRecipeImageSrc(recipe.image)}
+            alt={recipe.name}
+            className="w-full h-full object-cover"
+            onError={applyRecipeImageFallback}
+          />
         </div>
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-stone-800 truncate text-sm group-hover:text-orange-700 transition-colors">
@@ -171,16 +169,12 @@ function RecipeCard({
       onClick={onCook}
     >
       <div className="relative rounded-2xl overflow-hidden aspect-[4/3] mb-3 bg-stone-100">
-        {recipe.image && recipe.image !== "/placeholder.svg" ? (
-          <img
-            src={recipe.image}
-            alt={recipe.name}
-            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-            onError={applyRecipeImageFallback}
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-4xl bg-gradient-to-br from-orange-50 to-amber-50">🍽️</div>
-        )}
+        <img
+          src={getRecipeImageSrc(recipe.image)}
+          alt={recipe.name}
+          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+          onError={applyRecipeImageFallback}
+        />
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
         <button
           onClick={(e) => { e.stopPropagation(); onUnsave(); }}

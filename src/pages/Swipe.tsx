@@ -14,13 +14,13 @@ import RecipePreviewDialog from "@/components/RecipePreviewDialog";
 import { ChefProfileModal } from "@/components/ChefProfileModal";
 import { Input } from "@/components/ui/input";
 import { classifyMealType } from "@/lib/mealTimeUtils";
-import { getRecipeSourceBadge, getResolvedRecipeSourceUrl, isImportedCommunityRecipe, isMunchAuthoredRecipe } from "@/lib/recipeAttribution";
+import { getRecipeChefName, getRecipeSourceBadge, getResolvedRecipeSourceUrl, isImportedCommunityRecipe, isMunchAuthoredRecipe, shouldShowChefAttribution } from "@/lib/recipeAttribution";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import RecipeAttributionIcon from "@/components/RecipeAttributionIcon";
 import { MUNCH_CHEF_NAME, MUNCH_OFFICIAL_USER_ID } from "@/lib/munchIdentity";
-import { applyRecipeImageFallback } from "@/lib/recipeImage";
+import { applyRecipeImageFallback, getRecipeImageSrc } from "@/lib/recipeImage";
 
 /* ── Swipe card ────────────────────────────────────────────── */
 function SwipeCard({
@@ -65,8 +65,10 @@ function SwipeCard({
   const resolvedSourceUrl = getResolvedRecipeSourceUrl(recipe);
   const isMunchRecipe = isMunchAuthoredRecipe(recipe);
   const isMealDbRecipe = String(recipe.source || '').toLowerCase() === 'themealdb';
-  const resolvedChefName = recipe.chef || (isMunchRecipe ? MUNCH_CHEF_NAME : null);
-  const resolvedChefId = recipe.created_by || (isMunchRecipe ? MUNCH_OFFICIAL_USER_ID : null);
+  const resolvedChefName = getRecipeChefName(recipe) || (isMunchRecipe ? MUNCH_CHEF_NAME : null);
+  const resolvedChefId = shouldShowChefAttribution(recipe)
+    ? (recipe.created_by || (isMunchRecipe ? MUNCH_OFFICIAL_USER_ID : null))
+    : null;
 
   return (
     <motion.div
@@ -97,18 +99,12 @@ function SwipeCard({
         style={{ boxShadow: "0 20px 60px rgba(28,25,23,0.20), 0 4px 16px rgba(28,25,23,0.10)" }}
       >
         {/* Hero image */}
-        {recipe.image && recipe.image !== "/placeholder.svg" ? (
-          <img
-            src={recipe.image}
-            alt={recipe.name}
-            className="w-full h-full object-cover"
-            onError={applyRecipeImageFallback}
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-8xl bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50">
-            🍽️
-          </div>
-        )}
+        <img
+          src={getRecipeImageSrc(recipe.image)}
+          alt={recipe.name}
+          className="w-full h-full object-cover"
+          onError={applyRecipeImageFallback}
+        />
 
         {/* Gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
@@ -318,7 +314,10 @@ export default function SwipeScreen() {
 
   const pantryNames = useMemo(() => pantryList.map((p) => p.name), [pantryList]);
   const likedSet = useMemo(() => new Set(likedRecipes), [likedRecipes]);
-  const sourceRecipes = activeSearchQuery ? searchResults : recipes;
+  const sourceRecipes = useMemo(() => {
+    const base = activeSearchQuery ? searchResults : recipes;
+    return base.filter((recipe) => !likedSet.has(recipe.id));
+  }, [activeSearchQuery, likedSet, recipes, searchResults]);
   const searchFeedRef = useRef(searchFeed);
   const availableCuisines = useMemo(
     () => Array.from(new Set(sourceRecipes.map((recipe) => recipe.cuisine?.trim()).filter(Boolean) as string[])).sort(),
@@ -397,7 +396,18 @@ export default function SwipeScreen() {
         }
 
         // Higher priority fields
-        const coreMatch = [recipe.name, recipe.cuisine || "", recipe.chef || ""]
+        const sourceUrl = getResolvedRecipeSourceUrl(recipe) || "";
+        const sourceHostname = sourceUrl
+          ? (() => {
+              try {
+                return new URL(sourceUrl).hostname.replace(/^www\./, "");
+              } catch {
+                return sourceUrl;
+              }
+            })()
+          : "";
+
+        const coreMatch = [recipe.name, recipe.cuisine || "", recipe.chef || "", recipe.source || "", sourceHostname, sourceUrl]
           .some(text => text.toLowerCase().includes(normalizedQuery));
 
         if (coreMatch) return true;
@@ -451,6 +461,13 @@ export default function SwipeScreen() {
     onlyEasy,
   ]);
 
+  useEffect(() => {
+    setCardIndex((currentIndex) => {
+      if (filtered.length === 0) return 0;
+      return Math.min(currentIndex, filtered.length - 1);
+    });
+  }, [filtered.length]);
+
   const current = filtered[cardIndex] || null;
   const prev = cardIndex > 0 ? filtered[cardIndex - 1] : null;
   const next = filtered[cardIndex + 1] || null;
@@ -476,7 +493,7 @@ export default function SwipeScreen() {
     return () => window.clearTimeout(timeout);
   }, [likedBurst]);
 
-  const saveAndAdvance = useCallback((recipe: Recipe, options?: { closePreview?: boolean; advanceCard?: boolean }) => {
+  const saveAndContinue = useCallback((recipe: Recipe, options?: { closePreview?: boolean }) => {
     likeRecipe(recipe.id, recipe);
     triggerLikedAnimation(recipe.id);
     signalCardAction("save");
@@ -486,16 +503,12 @@ export default function SwipeScreen() {
       setPreviewOpen(false);
       setPreviewRecipe(null);
     }
-
-    if (options?.advanceCard !== false) {
-      advance();
-    }
-  }, [advance, likeRecipe, signalCardAction, triggerLikedAnimation]);
+  }, [likeRecipe, signalCardAction, triggerLikedAnimation]);
 
   const handleSave = useCallback(() => {
     if (!current) return;
-    saveAndAdvance(current);
-  }, [current, saveAndAdvance]);
+    saveAndContinue(current);
+  }, [current, saveAndContinue]);
 
   const handleSkip = useCallback(() => {
     if (!current) return;
@@ -515,14 +528,8 @@ export default function SwipeScreen() {
     if (!current) return;
     setSaveButtonPulse(true);
     window.setTimeout(() => setSaveButtonPulse(false), 280);
-    signalCardAction("save");
-    likeRecipe(current.id, current);
-    triggerLikedAnimation(current.id);
-    toast.success(`Saved ${current.name}`, { duration: 1200, position: "bottom-right" });
-    window.setTimeout(() => {
-      advance();
-    }, 120);
-  }, [advance, current, likeRecipe, signalCardAction, triggerLikedAnimation]);
+    saveAndContinue(current);
+  }, [current, saveAndContinue]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -595,7 +602,7 @@ export default function SwipeScreen() {
             </div>
 
             <p className="text-xs text-stone-400 font-medium">
-              {filtered.length - cardIndex} recipes matching your taste
+              {Math.max(filtered.length - cardIndex, 0)} recipes matching your taste
             </p>
             {activeFilterCount > 0 && (
               <div className="flex flex-wrap gap-2">
@@ -691,9 +698,9 @@ export default function SwipeScreen() {
       <div className="flex-1 flex flex-col items-center justify-start px-4 sm:px-6 pt-3 sm:pt-6 pb-4 overflow-hidden">
         <div className="w-full max-w-5xl flex flex-col items-center">
           <div className="relative flex items-center justify-center h-[360px] sm:h-[520px] w-full">
-          {loading || searchLoading ? (
+          {loading && filtered.length === 0 ? (
             <div className="aspect-[3/4] rounded-3xl bg-stone-100 animate-pulse" />
-          ) : filtered.length === cardIndex ? (
+          ) : cardIndex >= filtered.length ? (
             <div className="w-[300px] sm:w-[340px] aspect-[3/4] rounded-3xl flex flex-col items-center justify-center gap-4 border-2 border-dashed border-stone-200 bg-white shadow-sm">
               <span className="text-6xl">🍳</span>
               <div className="text-center">
@@ -899,7 +906,7 @@ export default function SwipeScreen() {
         }}
         onSave={(recipe) => {
           previewDismissActionRef.current = "save";
-          saveAndAdvance(recipe, { closePreview: true, advanceCard: true });
+          saveAndContinue(recipe, { closePreview: true });
         }}
       />
 

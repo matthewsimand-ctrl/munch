@@ -163,6 +163,7 @@ function orderSearchResults(recipes: BrowseRecipe[], query: string) {
     const ingredients = (recipe.ingredients || []).map((ingredient) => normalizeText(ingredient)).join(' ');
     const instructions = (recipe.instructions || []).slice(0, 6).map((step) => normalizeText(step)).join(' ');
     const source = normalizeText(recipe.source || '');
+    const sourceUrl = normalizeUrl(recipe.source_url);
 
     let score = 0;
     if (name === loweredQuery) score += 120;
@@ -174,6 +175,7 @@ function orderSearchResults(recipes: BrowseRecipe[], query: string) {
     if (tags.includes(loweredQuery)) score += 18;
     if (ingredients.includes(loweredQuery)) score += 14;
     if (instructions.includes(loweredQuery)) score += 10;
+    if (sourceUrl.includes(loweredQuery)) score += 22;
     if (source.includes(loweredQuery)) score += 8;
 
     const sourceKey = String(recipe.source || '').toLowerCase();
@@ -185,6 +187,26 @@ function orderSearchResults(recipes: BrowseRecipe[], query: string) {
   };
 
   return [...recipes].sort((a, b) => scoreRecipe(b) - scoreRecipe(a));
+}
+
+function recipeMatchesSearch(recipe: BrowseRecipe, query: string) {
+  const loweredQuery = normalizeText(query);
+  if (!loweredQuery) return true;
+
+  const searchableFields = [
+    recipe.name,
+    recipe.chef || '',
+    recipe.cuisine || '',
+    recipe.source || '',
+    normalizeUrl(recipe.source_url),
+    ...(recipe.tags || []),
+    ...(recipe.ingredients || []),
+    ...(recipe.instructions || []).slice(0, 6),
+  ]
+    .map((value) => normalizeText(String(value || '')))
+    .filter(Boolean);
+
+  return searchableFields.some((value) => value.includes(loweredQuery));
 }
 
 async function fetchPublicRecipesFallback(): Promise<BrowseRecipe[]> {
@@ -482,7 +504,12 @@ export function useBrowseFeed() {
         .map(normalizeRecipe)
         .filter((recipe): recipe is BrowseRecipe => Boolean(recipe) && !likedIds.has(String(recipe.id)));
 
-      const deduped = dedupeRecipes(fetched);
+      const localMatches = dedupeRecipes([
+        ...recipes.filter((recipe) => !likedIds.has(String(recipe.id)) && recipeMatchesSearch(recipe, trimmedQuery)),
+        ...readCachedBrowseFeed().filter((recipe) => !likedIds.has(String(recipe.id)) && recipeMatchesSearch(recipe, trimmedQuery)),
+      ]);
+
+      const deduped = dedupeRecipes([...fetched, ...localMatches]);
       const ordered = orderSearchResults(deduped, trimmedQuery);
 
       if (likedRecipes.length > 0 || userProfile.cuisinePreferences.length > 0 || userProfile.skillLevel || effectivePantryNames.length > 0) {
@@ -497,12 +524,18 @@ export function useBrowseFeed() {
       setActiveSearchQuery(trimmedQuery);
     } catch (error) {
       console.error('Search feed error:', error);
-      setSearchResults([]);
+      const localFallback = orderSearchResults(
+        dedupeRecipes(
+          recipes.filter((recipe) => !likedIds.has(String(recipe.id)) && recipeMatchesSearch(recipe, trimmedQuery)),
+        ),
+        trimmedQuery,
+      );
+      setSearchResults(localFallback);
       setActiveSearchQuery(trimmedQuery);
     } finally {
       setSearchLoading(false);
     }
-  }, [effectivePantryNames, likedRecipes, savedApiRecipes, userProfile]);
+  }, [effectivePantryNames, likedRecipes, recipes, savedApiRecipes, userProfile]);
 
   return {
     recipes,

@@ -18,6 +18,45 @@ export const RECIPE_IMAGE_FALLBACK_DATA_URI =
     </svg>
   `);
 
+const RECIPE_IMAGE_PLACEHOLDERS = new Set([
+  '',
+  '/placeholder.svg',
+  'placeholder.svg',
+]);
+
+export function getRecipeImageSrc(imageUrl: string | null | undefined) {
+  const trimmed = String(imageUrl || '').trim();
+  if (!trimmed || RECIPE_IMAGE_PLACEHOLDERS.has(trimmed)) {
+    return RECIPE_IMAGE_FALLBACK_DATA_URI;
+  }
+
+  if (trimmed.startsWith('data:image/') || trimmed.startsWith('blob:')) {
+    return trimmed;
+  }
+
+  if (trimmed.startsWith('//')) {
+    return `https:${trimmed}`;
+  }
+
+  if (trimmed.startsWith('http://')) {
+    return `https://${trimmed.slice('http://'.length)}`;
+  }
+
+  if (trimmed.startsWith('https://') || trimmed.startsWith('/')) {
+    return trimmed;
+  }
+
+  if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) {
+    return trimmed;
+  }
+
+  if (/^[^/\s]+\.[^/\s]/.test(trimmed)) {
+    return `https://${trimmed}`;
+  }
+
+  return RECIPE_IMAGE_FALLBACK_DATA_URI;
+}
+
 export function applyRecipeImageFallback(event: SyntheticEvent<HTMLImageElement>) {
   const target = event.currentTarget;
   target.onerror = null;

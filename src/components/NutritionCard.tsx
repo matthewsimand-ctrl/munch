@@ -123,28 +123,28 @@ export default function NutritionCard({ recipeId, recipeName, ingredients, servi
   }, [ingredients.length, isPremium, loading, nutrition, recipeId, recipeName, servings]);
 
   if (!nutrition) {
+    const showOuterHeader = true;
+
     return (
       <div className="rounded-xl border border-border bg-gradient-to-br from-card to-muted/30 p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {isPremium ? <Sparkles className="h-4 w-4 text-amber-500" /> : <Lock className="h-4 w-4 text-muted-foreground" />}
-            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Nutritional Facts</span>
+        {showOuterHeader && (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {isPremium ? <Sparkles className="h-4 w-4 text-amber-500" /> : <Lock className="h-4 w-4 text-muted-foreground" />}
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Nutritional Facts</span>
+            </div>
           </div>
-        </div>
-        <div className="rounded-xl border border-dashed border-stone-200 bg-stone-50 px-4 py-6 text-center">
+        )}
+        <div className="px-1 py-2 text-center">
           {loading ? (
             <p className="inline-flex items-center gap-2 text-sm font-medium text-stone-500">
               <Loader2 className="h-4 w-4 animate-spin" /> Loading nutritional facts...
             </p>
           ) : !isPremium ? (
-            <div className="mx-auto w-full max-w-[420px]">
-              <div className="relative min-h-[260px] overflow-hidden rounded-2xl border border-stone-200 bg-white px-5 py-5 text-left shadow-sm">
-                <div className="pointer-events-none select-none blur-[5px]">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="h-4 w-4 text-amber-500" />
-                      <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Nutritional Facts</span>
-                    </div>
+            <div className="mx-auto w-full max-w-[520px]">
+              <div className="relative min-h-[320px] overflow-hidden rounded-[1.75rem] border border-stone-200 bg-white px-6 py-6 text-left shadow-sm">
+                <div className="pointer-events-none select-none blur-[6px]">
+                  <div className="flex items-center justify-end">
                     <div className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">8/10</div>
                   </div>
                   <div className="mt-3 flex items-center gap-3">
@@ -163,7 +163,7 @@ export default function NutritionCard({ recipeId, recipeName, ingredients, servi
                       <div className="h-full w-[25%] bg-rose-400" />
                     </div>
                   </div>
-                  <div className="mt-4 grid grid-cols-4 gap-3">
+                  <div className="mt-5 grid grid-cols-4 gap-4">
                     {[
                       { label: 'Protein', value: '28g', color: 'text-sky-500' },
                       { label: 'Carbs', value: '42g', color: 'text-amber-500' },
@@ -179,8 +179,8 @@ export default function NutritionCard({ recipeId, recipeName, ingredients, servi
                   </div>
                 </div>
                 <div className="absolute inset-0 bg-white/18" />
-                <div className="absolute inset-0 z-10 flex items-center justify-center p-4">
-                  <div className="w-full rounded-2xl border border-orange-300 bg-white px-4 py-4 text-center shadow-lg">
+                <div className="absolute inset-0 z-10 flex items-center justify-center p-5">
+                  <div className="w-full max-w-[360px] rounded-2xl border border-orange-300 bg-white px-5 py-5 text-center shadow-lg">
                     <p className="inline-flex items-center gap-2 text-sm font-bold text-stone-900">
                       <Lock className="h-4 w-4 text-orange-500" />
                       Premium unlock

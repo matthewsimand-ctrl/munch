@@ -9,6 +9,7 @@ import type { Recipe } from "@/data/recipes";
 import { normalizeRecipe } from "@/lib/normalizeRecipe";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { applyRecipeImageFallback, getRecipeImageSrc } from "@/lib/recipeImage";
 
 export default function LetMeCook() {
   const navigate = useNavigate();
@@ -257,17 +258,12 @@ function GridCard({ recipe, index, onStart }: { recipe: Recipe; index: number; o
     >
       {/* Image */}
       <div className="relative aspect-[16/9] overflow-hidden bg-stone-100">
-        {recipe.image && recipe.image !== "/placeholder.svg" ? (
-          <img
-            src={recipe.image}
-            alt={recipe.name}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-4xl bg-gradient-to-br from-orange-50 to-amber-50">
-            🍽️
-          </div>
-        )}
+        <img
+          src={getRecipeImageSrc(recipe.image)}
+          alt={recipe.name}
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+          onError={applyRecipeImageFallback}
+        />
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
         <span
           className="absolute top-3 left-3 px-2 py-0.5 rounded-full text-[10px] font-bold"
@@ -318,11 +314,12 @@ function ListRow({ recipe, index, onStart }: { recipe: Recipe; index: number; on
       className="flex items-center gap-4 p-4 group hover:bg-orange-50/40 transition-colors"
     >
       <div className="w-16 h-16 rounded-xl overflow-hidden bg-stone-100 shrink-0">
-        {recipe.image && recipe.image !== "/placeholder.svg" ? (
-          <img src={recipe.image} alt={recipe.name} className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-2xl bg-gradient-to-br from-orange-50 to-amber-50">🍽️</div>
-        )}
+        <img
+          src={getRecipeImageSrc(recipe.image)}
+          alt={recipe.name}
+          className="w-full h-full object-cover"
+          onError={applyRecipeImageFallback}
+        />
       </div>
       <div className="flex-1 min-w-0">
         <p className="font-semibold text-stone-800 truncate group-hover:text-orange-700 transition-colors">

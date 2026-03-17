@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import RecipePreviewDialog from "@/components/RecipePreviewDialog";
 import { calculateMatch } from "@/lib/matchLogic";
 import type { Recipe } from "@/data/recipes";
+import { applyRecipeImageFallback, getRecipeImageSrc } from "@/lib/recipeImage";
 
 function getSourceHostname(url: string | undefined): string | null {
   if (!url) return null;
@@ -198,11 +199,12 @@ export default function CookbookDetails() {
                   >
                     <button onClick={() => openPreview(recipe)} className="w-full text-left">
                       <div className="relative aspect-[4/3] bg-stone-100 overflow-hidden">
-                        {recipe.image && recipe.image !== "/placeholder.svg" ? (
-                          <img src={recipe.image} alt={recipe.name} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-4xl bg-gradient-to-br from-orange-50 to-amber-50">🍽️</div>
-                        )}
+                        <img
+                          src={getRecipeImageSrc(recipe.image)}
+                          alt={recipe.name}
+                          className="w-full h-full object-cover"
+                          onError={applyRecipeImageFallback}
+                        />
                         {sourceHostname && (
                           <div className="absolute top-2 left-2 flex items-center gap-1 px-1.5 py-1 rounded-md bg-black/30 backdrop-blur-sm">
                             <img
@@ -258,11 +260,12 @@ export default function CookbookDetails() {
                 return (
                   <div key={recipe.id} className="rounded-xl border border-stone-200 bg-white p-3 flex items-center gap-3">
                     <button onClick={() => openPreview(recipe)} className="relative w-16 h-16 rounded-lg overflow-hidden bg-stone-100 shrink-0">
-                      {recipe.image && recipe.image !== "/placeholder.svg" ? (
-                        <img src={recipe.image} alt={recipe.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-xl bg-gradient-to-br from-orange-50 to-amber-50">🍽️</div>
-                      )}
+                      <img
+                        src={getRecipeImageSrc(recipe.image)}
+                        alt={recipe.name}
+                        className="w-full h-full object-cover"
+                        onError={applyRecipeImageFallback}
+                      />
                       {sourceHostname && (
                         <div className="absolute bottom-0.5 right-0.5 flex items-center justify-center w-4 h-4 rounded bg-black/40">
                           <img

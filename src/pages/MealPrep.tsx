@@ -18,6 +18,7 @@ import { usePremiumGate } from "@/hooks/usePremiumGate";
 import { calculateMatch } from "@/lib/matchLogic";
 import { useKitchenMealPlan } from "@/hooks/useKitchenMealPlan";
 import { useKitchenGroceryList } from "@/hooks/useKitchenGroceryList";
+import { applyRecipeImageFallback, getRecipeImageSrc } from "@/lib/recipeImage";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MEAL_TYPES = ["Breakfast", "Lunch", "Dinner"] as const;
@@ -947,11 +948,12 @@ export default function MealPrepScreen() {
                         className="w-full flex items-center gap-3 px-3 py-3 rounded-2xl border border-stone-100 hover:border-orange-200 hover:bg-orange-50/70 transition-colors text-left group bg-white"
                       >
                         <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 bg-stone-100">
-                          {recipe.image && recipe.image !== "/placeholder.svg" ? (
-                            <img src={recipe.image} alt={recipe.name} className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-lg">🍽️</div>
-                          )}
+                          <img
+                            src={getRecipeImageSrc(recipe.image)}
+                            alt={recipe.name}
+                            className="w-full h-full object-cover"
+                            onError={applyRecipeImageFallback}
+                          />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-stone-800 truncate group-hover:text-orange-700 transition-colors">{recipe.name}</p>

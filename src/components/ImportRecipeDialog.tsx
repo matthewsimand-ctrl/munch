@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,6 +21,7 @@ import { useNavigate } from 'react-router-dom';
 import { usePremiumAccess } from '@/hooks/usePremiumAccess';
 import { usePremiumGate } from '@/hooks/usePremiumGate';
 import PremiumFeatureButton from '@/components/PremiumFeatureButton';
+import { getGeneratedRecipeCoverDataUri, isGeneratedRecipeCoverDataUri } from '@/lib/recipeCover';
 
 interface ImportRecipeDialogProps {
   children?: React.ReactNode;
@@ -225,6 +226,22 @@ export default function ImportRecipeDialog({
   const [magicProgress, setMagicProgress] = useState(0);
   const [magicMessage, setMagicMessage] = useState('Summoning recipe magic...');
   const aiAgentCallsDisabled = useAiAgentCallsDisabled();
+  const reviewGeneratedCover = useMemo(() => {
+    if (!reviewData) return '';
+    return getGeneratedRecipeCoverDataUri({
+      name: reviewData.name.trim() || 'Imported Recipe',
+      cuisine: reviewData.cuisine,
+      tags: reviewData.tags,
+    });
+  }, [reviewData]);
+  const reviewImageValue = String(reviewData?.image || '').trim();
+  const hasReviewImage = Boolean(reviewImageValue) && reviewImageValue !== '/placeholder.svg';
+  const reviewPhotoFieldValue = hasReviewImage && !isGeneratedRecipeCoverDataUri(reviewImageValue)
+    ? reviewImageValue
+    : '';
+  const reviewPreviewImage = hasReviewImage
+    ? reviewImageValue
+    : reviewGeneratedCover;
 
   const MAGIC_MESSAGES = [
     'Summoning recipe magic... ✨',
@@ -296,6 +313,11 @@ export default function ImportRecipeDialog({
     const normalizedInstructions = Array.isArray(recipe.instructions)
       ? recipe.instructions.map((item: unknown) => String(item).trim()).filter(Boolean)
       : [];
+    const fallbackImage = getGeneratedRecipeCoverDataUri({
+      name: String(recipe.name || 'Imported Recipe').trim() || 'Imported Recipe',
+      cuisine: recipe.cuisine ? String(recipe.cuisine) : null,
+      tags: Array.isArray(recipe.tags) ? recipe.tags.map((tag: unknown) => String(tag).trim()).filter(Boolean) : [],
+    });
 
 
     return {
@@ -307,7 +329,7 @@ export default function ImportRecipeDialog({
       difficulty: String(recipe.difficulty || 'Intermediate'),
       cuisine: recipe.cuisine ? String(recipe.cuisine) : null,
       tags: Array.isArray(recipe.tags) ? recipe.tags.map((tag: unknown) => String(tag).trim()).filter(Boolean) : [],
-      image: String(recipe.image || '/placeholder.svg').trim() || '/placeholder.svg',
+      image: String(recipe.image || '').trim() || fallbackImage,
       source: 'imported',
       source_url: recipe.source_url ? String(recipe.source_url).trim() : null,
       raw_api_payload: recipe.raw_api_payload ?? null,
@@ -402,10 +424,15 @@ export default function ImportRecipeDialog({
         }
       }
 
+      const fallbackImage = getGeneratedRecipeCoverDataUri({
+        name: String(payload.name || 'Imported Recipe').trim() || 'Imported Recipe',
+        cuisine: payload.cuisine ? String(payload.cuisine) : null,
+        tags: Array.isArray(payload.tags) ? payload.tags.map((tag: unknown) => String(tag).trim()).filter(Boolean) : [],
+      });
       const insertData = {
         id: payload.id,
         name: String(payload.name || 'Imported Recipe').trim(),
-        image: String(payload.image || '/placeholder.svg').trim() || '/placeholder.svg',
+        image: String(payload.image || '').trim() || fallbackImage,
         cook_time: String(payload.cook_time || '30 min'),
         difficulty: String(payload.difficulty || 'Intermediate'),
         ingredients: Array.isArray(payload.ingredients) ? payload.ingredients : [],
@@ -576,6 +603,11 @@ export default function ImportRecipeDialog({
           return { name: parsed.name, quantity: parsed.quantity };
         });
 
+      const extractedImage = String(recipe.image || '').trim() || getGeneratedRecipeCoverDataUri({
+        name: String(recipe.name || 'Imported Recipe'),
+        cuisine: recipe.cuisine ? String(recipe.cuisine) : null,
+        tags: Array.isArray(recipe.tags) ? recipe.tags.map((tag: unknown) => String(tag).trim()).filter(Boolean) : [],
+      });
       setReviewData({
         name: String(recipe.name || ''),
         ingredients: normalizeIngredients(recipe.ingredients),
@@ -585,7 +617,7 @@ export default function ImportRecipeDialog({
         cuisine: recipe.cuisine || '',
         chef: recipe.chef || '',
         tags: normalizeList(recipe.tags),
-        image: recipe.image || '/placeholder.svg',
+        image: extractedImage,
         servings: String(recipe.servings || 4),
       });
       setIsDiscoverable(true);
@@ -627,6 +659,7 @@ export default function ImportRecipeDialog({
 
     try {
       const ingredientLines = reviewData.ingredients.map(composeIngredientLine);
+      const reviewImage = reviewData.image || reviewGeneratedCover;
       const existingRecipe = await findExistingRecipeByFingerprint(reviewData.name, ingredientLines);
       if (existingRecipe) {
         const existingPayload = mapDbRecipeToImportedPayload(existingRecipe);
@@ -656,7 +689,7 @@ export default function ImportRecipeDialog({
             difficulty: reviewData.difficulty,
             cuisine: reviewData.cuisine || null,
             tags: reviewData.tags,
-            image: reviewData.image,
+            image: reviewImage,
             source: 'imported',
             created_by: user.id,
             is_public: true,
@@ -686,7 +719,7 @@ export default function ImportRecipeDialog({
         cuisine: reviewData.cuisine || null,
         chef: reviewData.chef || null,
         tags: reviewData.tags,
-        image: reviewData.image,
+        image: reviewImage,
         source: 'imported',
         raw_api_payload: sharedMetadata,
         servings: parseInt(reviewData.servings) || 4,
@@ -947,19 +980,12 @@ export default function ImportRecipeDialog({
     }
   };
 
-  const fetchRandomPhoto = async () => {
+  const generateReviewCover = async () => {
     if (!reviewData) return;
     setFetchingPhoto(true);
     try {
-      const res = await fetch('https://foodish-api.com/api/');
-      if (res.ok) {
-        const data = await res.json();
-        if (data?.image) {
-          setReviewData({ ...reviewData, image: data.image });
-        }
-      }
-    } catch {
-      toast.error('Could not fetch photo');
+      setReviewData({ ...reviewData, image: reviewGeneratedCover });
+      toast.success('Generated a recipe cover');
     } finally {
       setFetchingPhoto(false);
     }
@@ -980,7 +1006,7 @@ export default function ImportRecipeDialog({
       cuisine: websitePreview.cuisine,
       chef: websitePreview.chef,
       tags: websitePreview.tags,
-      image: websitePreview.image,
+      image: websitePreview.image || reviewGeneratedCover,
       servings: websitePreview.servings,
     });
     setReviewMode(true);
@@ -1075,7 +1101,7 @@ export default function ImportRecipeDialog({
         {websitePreview ? (
           <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6">
             <div className="space-y-5">
-              {websitePreview.image && websitePreview.image !== '/placeholder.svg' && (
+              {websitePreview.image && (
                 <img src={websitePreview.image} alt={websitePreview.name} className="h-44 w-full rounded-xl object-cover" />
               )}
 
@@ -1208,8 +1234,8 @@ export default function ImportRecipeDialog({
                 <label className="text-sm font-medium text-foreground">Photo</label>
                 <div className="flex gap-2 mt-1">
                   <Input
-                    value={reviewData.image === '/placeholder.svg' ? '' : reviewData.image}
-                    onChange={(e) => setReviewData({ ...reviewData, image: e.target.value || '/placeholder.svg' })}
+                    value={reviewPhotoFieldValue}
+                    onChange={(e) => setReviewData({ ...reviewData, image: e.target.value })}
                     placeholder="Image URL (optional)"
                     className="flex-1"
                   />
@@ -1234,15 +1260,15 @@ export default function ImportRecipeDialog({
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={fetchRandomPhoto}
+                    onClick={generateReviewCover}
                     disabled={fetchingPhoto}
-                    title="Use random photo"
+                    title="Generate cover"
                   >
                     {fetchingPhoto ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
                   </Button>
                 </div>
-                {reviewData.image && reviewData.image !== '/placeholder.svg' && (
-                  <img src={reviewData.image} alt="Preview" className="mt-2 h-24 w-full object-cover rounded-lg" />
+                {reviewPreviewImage && (
+                  <img src={reviewPreviewImage} alt="Preview" className="mt-2 h-24 w-full object-cover rounded-lg" />
                 )}
               </div>
 

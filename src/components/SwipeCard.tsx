@@ -5,6 +5,7 @@ import MatchBadge from '@/components/MatchBadge';
 import { useNavigate } from 'react-router-dom';
 import type { Recipe } from '@/data/recipes';
 import type { MatchResult } from '@/lib/matchLogic';
+import { applyRecipeImageFallback, getRecipeImageSrc } from '@/lib/recipeImage';
 
 interface SwipeCardProps {
   recipe: Recipe;
@@ -68,10 +69,11 @@ export default function SwipeCard({ recipe, match, onSwipe, onImageTap, isTop, c
         >
           <div className="relative h-56 bg-muted overflow-hidden flex-shrink-0">
             <img
-              src={recipe.image}
+              src={getRecipeImageSrc(recipe.image)}
               alt={recipe.name}
               className="w-full h-full object-cover"
               loading="lazy"
+              onError={applyRecipeImageFallback}
             />
             <div className="absolute bottom-3 right-3"><MatchBadge percentage={match.percentage} /></div>
           </div>
@@ -108,11 +110,12 @@ export default function SwipeCard({ recipe, match, onSwipe, onImageTap, isTop, c
         {/* Image */}
         <div className="relative h-56 bg-muted overflow-hidden flex-shrink-0">
           <img
-            src={recipe.image}
+            src={getRecipeImageSrc(recipe.image)}
             alt={recipe.name}
             className="w-full h-full object-cover"
             draggable={false}
             loading="lazy"
+            onError={applyRecipeImageFallback}
           />
           {/* Swipe feedback overlays */}
           <motion.div

@@ -23,14 +23,35 @@ export function isMunchSeedRecipe(recipe: Recipe | null | undefined) {
   return String(recipe.source || '').toLowerCase() === 'community-seed' && !getResolvedRecipeSourceUrl(recipe);
 }
 
+function isMunchChefLabel(value: string | null | undefined) {
+  const normalized = String(value || '').trim().toLowerCase();
+  return normalized === 'munch' || normalized === 'munch kitchen';
+}
+
 export function isMunchAuthoredRecipe(recipe: Recipe | null | undefined) {
   if (!recipe) return false;
-  return isMunchSeedRecipe(recipe) || String(recipe.chef || '').trim().toLowerCase() === 'munch';
+  if (getResolvedRecipeSourceUrl(recipe)) return false;
+  return isMunchSeedRecipe(recipe) || isMunchChefLabel(recipe.chef);
 }
 
 export function isImportedUrlRecipe(recipe: Recipe | null | undefined) {
   if (!recipe) return false;
   return isImportedCommunityRecipe(recipe) && Boolean(getResolvedRecipeSourceUrl(recipe));
+}
+
+export function getRecipeChefName(recipe: Recipe | null | undefined): string | null {
+  if (!recipe) return null;
+  const chef = String(recipe.chef || '').trim();
+  if (getResolvedRecipeSourceUrl(recipe) && isMunchChefLabel(chef)) {
+    return null;
+  }
+  return chef || null;
+}
+
+export function shouldShowChefAttribution(recipe: Recipe | null | undefined) {
+  if (!recipe) return false;
+  if (getRecipeChefName(recipe)) return true;
+  return isMunchAuthoredRecipe(recipe);
 }
 
 export function getResolvedRecipeSourceUrl(recipe: Recipe | null | undefined): string | null {

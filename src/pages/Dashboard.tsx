@@ -11,7 +11,6 @@ import { useStore } from "@/lib/store";
 import { useBrowseFeed } from "@/hooks/useBrowseFeed";
 import defaultChefAvatar from "@/assets/chef-avatar.png";
 import { calculateMatch } from "@/lib/matchLogic";
-import { parseIngredientLine } from "@/lib/ingredientText";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -30,6 +29,8 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { AvatarStudio } from "@/components/AvatarStudio";
 import PremiumFeatureButton from "@/components/PremiumFeatureButton";
+import RecipePreviewDialog from "@/components/RecipePreviewDialog";
+import { applyRecipeImageFallback, getRecipeImageSrc } from "@/lib/recipeImage";
 import {
   buildMunchAvatarUrl,
   createMunchAvatarConfig,
@@ -128,11 +129,12 @@ function RecipeSuggestionCard({
       onClick={onClick}
     >
       <div className="relative rounded-xl overflow-hidden mb-3 aspect-[4/3] bg-stone-100">
-        {recipe.image && recipe.image !== "/placeholder.svg" ? (
-          <img src={recipe.image} alt={recipe.name} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-4xl bg-gradient-to-br from-orange-50 to-amber-50">🍽️</div>
-        )}
+        <img
+          src={getRecipeImageSrc(recipe.image)}
+          alt={recipe.name}
+          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+          onError={applyRecipeImageFallback}
+        />
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
         <button
           onClick={(e) => { e.stopPropagation(); onDismiss(); }}
@@ -426,7 +428,6 @@ export default function Dashboard() {
   }, [storeDisplayName]);
 
   const selectedMatch = selectedRecipe ? calculateMatch(pantryNames, selectedRecipe.ingredients || []) : null;
-  const formatIngredient = (s: string) => { const p = parseIngredientLine(s); return p.quantity ? `${p.name} (${p.quantity})` : p.name; };
 
   const formatCookedAt = (dateString: string) =>
     new Date(dateString).toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -1001,79 +1002,26 @@ export default function Dashboard() {
         </DialogContent>
       </Dialog>
 
-      {/* Recipe detail dialog */}
-      <Dialog open={!!selectedRecipe} onOpenChange={() => setSelectedRecipe(null)}>
-        <DialogContent className="max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
-          {selectedRecipe && selectedMatch && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="text-xl font-bold" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
-                  {selectedRecipe.name}
-                </DialogTitle>
-              </DialogHeader>
-              <div className="flex-1 min-h-0 overflow-y-auto pr-1">
-                <div className="space-y-4 pr-2">
-                  {selectedRecipe.image && selectedRecipe.image !== "/placeholder.svg" && (
-                    <img src={selectedRecipe.image} alt={selectedRecipe.name} className="w-full h-44 object-cover rounded-xl" />
-                  )}
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant="secondary" className="gap-1"><Clock className="h-3 w-3" /> {selectedRecipe.cook_time}</Badge>
-                    <Badge variant="secondary">{selectedRecipe.difficulty}</Badge>
-                    <MatchBadge percentage={selectedMatch.percentage} />
-                    {selectedRecipe.cuisine && <Badge variant="outline" className="gap-1"><MapPin className="h-3 w-3" /> {selectedRecipe.cuisine}</Badge>}
-                    {selectedRecipe.servings && <Badge variant="secondary" className="gap-1"><Users className="h-3 w-3" /> Serves {selectedRecipe.servings}</Badge>}
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-stone-400 uppercase tracking-widest mb-2">Ingredients</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {selectedMatch.matched.map((ing) => (
-                        <span key={ing} className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 font-medium border border-emerald-100">
-                          <Check className="h-3 w-3" />{formatIngredient(ing)}
-                        </span>
-                      ))}
-                      {selectedMatch.missing.map((ing) => (
-                        <span key={ing} className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-red-50 text-red-600 font-medium border border-red-100">
-                          <ShoppingCart className="h-3 w-3" />{formatIngredient(ing)}
-                        </span>
-                      ))}
-                    </div>
-                    {selectedMatch.missing.length > 0 && (
-                      <button onClick={() => handleAddMissing(selectedRecipe)} className="mt-2 text-xs text-orange-500 hover:text-orange-600 font-semibold flex items-center gap-1">
-                        <ShoppingCart size={12} /> Add {selectedMatch.missing.length} missing to grocery list
-                      </button>
-                    )}
-                  </div>
-                  {(selectedRecipe.instructions || []).length > 0 && (
-                    <div>
-                      <p className="text-xs font-semibold text-stone-400 uppercase tracking-widest mb-2">Instructions</p>
-                      <ol className="space-y-2">
-                        {selectedRecipe.instructions
-                          .map((s) => String(s || "").replace(/^step\s*\d+\s*[:.)-]?\s*/i, "").replace(/^\d+\s*[:.)-]\s*/, "").trim())
-                          .filter((s) => s.length > 0)
-                          .map((s, i) => (
-                            <li key={i} className="flex gap-2.5 text-sm text-stone-700">
-                              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-orange-500 text-white text-xs flex items-center justify-center font-bold mt-0.5">{i + 1}</span>
-                              {s}
-                            </li>
-                          ))}
-                      </ol>
-                    </div>
-                  )}
-                  {!likedSet.has(selectedRecipe.id) && (
-                    <button
-                      onClick={() => { handleSave(selectedRecipe); setSelectedRecipe(null); }}
-                      className="w-full flex items-center justify-center gap-2 text-white font-bold py-3 rounded-xl transition-all hover:opacity-90 active:scale-95"
-                      style={{ background: "linear-gradient(135deg,#FB923C,#F97316,#EA580C)", boxShadow: "0 4px 16px rgba(249,115,22,0.30)" }}
-                    >
-                      <Heart size={16} /> Save Recipe
-                    </button>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+      <RecipePreviewDialog
+        recipe={selectedRecipe}
+        match={selectedMatch}
+        open={!!selectedRecipe}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedRecipe(null);
+          }
+        }}
+        mode="explore"
+        isSaved={selectedRecipe ? likedSet.has(selectedRecipe.id) : false}
+        onSave={(recipe) => {
+          handleSave(recipe);
+          setSelectedRecipe(null);
+        }}
+        onAddMissingToGrocery={(recipe, missingIngredients) => {
+          missingIngredients.forEach((ingredient) => addCustomGroceryItem(ingredient));
+          toast.success(`Added ${missingIngredients.length} items from "${recipe.name}" to grocery list`);
+        }}
+      />
     </div>
   );
 }

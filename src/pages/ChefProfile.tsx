@@ -7,13 +7,14 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, ChefHat, Search } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { normalizeRecipe } from '@/lib/normalizeRecipe';
-import { applyRecipeImageFallback } from '@/lib/recipeImage';
+import { applyRecipeImageFallback, getRecipeImageSrc } from '@/lib/recipeImage';
 import RecipePreviewDialog from '@/components/RecipePreviewDialog';
 import { useStore } from '@/lib/store';
 import { toast } from 'sonner';
 import munchLogo from '@/assets/munch-logo.png';
 import { MUNCH_CHEF_NAME, MUNCH_OFFICIAL_USER_ID } from '@/lib/munchIdentity';
 import { Input } from '@/components/ui/input';
+import { isMunchAuthoredRecipe, shouldShowChefAttribution } from '@/lib/recipeAttribution';
 
 export default function ChefProfile() {
   const { userId } = useParams<{ userId: string }>();
@@ -21,6 +22,7 @@ export default function ChefProfile() {
   const { likeRecipe, likedRecipes } = useStore();
   const [previewRecipe, setPreviewRecipe] = useState<Recipe | null>(null);
   const [search, setSearch] = useState('');
+  const isKnownMunchChef = userId === MUNCH_OFFICIAL_USER_ID;
 
   const { data: profile } = useQuery({
     queryKey: ['chef-profile', userId],
@@ -44,10 +46,14 @@ export default function ChefProfile() {
         .select('*')
         .eq('created_by', userId!)
         .eq('is_public', true)
-        .not('chef', 'is', null)
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return (data || []).map((r: any) => normalizeRecipe(r));
+      const normalized = (data || []).map((r: any) => normalizeRecipe(r));
+      return normalized.filter((recipe) => (
+        isKnownMunchChef
+          ? isMunchAuthoredRecipe(recipe)
+          : shouldShowChefAttribution(recipe)
+      ));
     },
     enabled: !!userId,
   });
@@ -174,7 +180,7 @@ export default function ChefProfile() {
               >
                 <div className="aspect-square overflow-hidden">
                   <img
-                    src={recipe.image}
+                    src={getRecipeImageSrc(recipe.image)}
                     alt={recipe.name}
                     className="w-full h-full object-cover"
                     loading="lazy"
@@ -201,8 +207,8 @@ export default function ChefProfile() {
         onOpenChange={(nextOpen) => {
           if (!nextOpen) setPreviewRecipe(null);
         }}
-        chefName={displayName}
-        chefId={userId || null}
+        chefName={previewRecipe && shouldShowChefAttribution(previewRecipe) ? displayName : null}
+        chefId={previewRecipe && shouldShowChefAttribution(previewRecipe) ? userId || null : null}
         mode="explore"
         isSaved={previewRecipe ? likedSet.has(previewRecipe.id) : false}
         onSave={(recipe) => {

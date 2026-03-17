@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,70 +11,7 @@ import { Plus, X, Loader2, Camera, ClipboardPaste, Globe, Upload, Sparkles } fro
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { useStore } from '@/lib/store';
-
-const FOODISH_API = 'https://foodish-api.com/api/';
-
-// Keyword → Foodish category mapping (no AI)
-const FOODISH_CATEGORIES = [
-  'biryani', 'burger', 'butter-chicken', 'dessert', 'dosa',
-  'idly', 'pasta', 'pizza', 'rice', 'samosa',
-];
-
-const KEYWORD_TO_CATEGORY: Record<string, string> = {
-  // Biryani / rice dishes
-  biryani: 'biryani', rice: 'biryani', pilaf: 'biryani', fried: 'biryani',
-  // Burger / sandwiches
-  burger: 'burger', sandwich: 'burger', wrap: 'burger', hot: 'burger',
-  // Chicken / curries
-  chicken: 'butter-chicken', curry: 'butter-chicken', tikka: 'butter-chicken',
-  masala: 'butter-chicken', korma: 'butter-chicken', gravy: 'butter-chicken',
-  // Desserts
-  cake: 'dessert', cookie: 'dessert', brownie: 'dessert', dessert: 'dessert',
-  sweet: 'dessert', pudding: 'dessert', pie: 'dessert', tart: 'dessert',
-  chocolate: 'dessert', ice: 'dessert', muffin: 'dessert', cupcake: 'dessert',
-  // Dosa
-  dosa: 'dosa', crepe: 'dosa', pancake: 'dosa',
-  // Idly
-  idly: 'idly', idli: 'idly', steamed: 'idly',
-  // Pasta
-  pasta: 'pasta', spaghetti: 'pasta', noodle: 'pasta', lasagna: 'pasta',
-  penne: 'pasta', fettuccine: 'pasta', mac: 'pasta', macaroni: 'pasta',
-  // Pizza
-  pizza: 'pizza', flatbread: 'pizza', calzone: 'pizza',
-  // Samosa
-  samosa: 'samosa', dumpling: 'samosa', spring: 'samosa', empanada: 'samosa',
-};
-
-function getCategoryFromName(recipeName: string): string {
-  const words = recipeName.toLowerCase().replace(/[^a-z\s]/g, '').split(/\s+/);
-  for (const word of words) {
-    if (KEYWORD_TO_CATEGORY[word]) return KEYWORD_TO_CATEGORY[word];
-    // Partial match
-    for (const key of Object.keys(KEYWORD_TO_CATEGORY)) {
-      if (word.includes(key) || key.includes(word)) return KEYWORD_TO_CATEGORY[key];
-    }
-  }
-  // Random fallback
-  return FOODISH_CATEGORIES[Math.floor(Math.random() * FOODISH_CATEGORIES.length)];
-}
-
-async function getRandomFoodishImage(recipeName = ''): Promise<string | null> {
-  try {
-    const category = getCategoryFromName(recipeName);
-    const res = await fetch(`${FOODISH_API}images/${category}`);
-    if (!res.ok) {
-      // Fallback to generic random
-      const fallback = await fetch(FOODISH_API);
-      if (!fallback.ok) return null;
-      const fd = await fallback.json();
-      return typeof fd?.image === 'string' ? fd.image : null;
-    }
-    const data = await res.json();
-    return typeof data?.image === 'string' ? data.image : null;
-  } catch {
-    return null;
-  }
-}
+import { getGeneratedRecipeCoverDataUri, isGeneratedRecipeCoverDataUri } from '@/lib/recipeCover';
 
 interface Props {
   onClose: () => void;
@@ -255,6 +192,12 @@ export default function CreateRecipeForm({ onClose }: Props) {
   const { likeRecipe, shareCustomRecipesByDefault } = useStore();
   const [isPublic, setIsPublic] = useState(shareCustomRecipesByDefault);
   const [chefUsername, setChefUsername] = useState<string | null>(null);
+  const generatedCover = useMemo(
+    () => getGeneratedRecipeCoverDataUri({ name: name.trim() || 'Untitled Recipe', cuisine, tags }),
+    [cuisine, name, tags],
+  );
+  const photoFieldValue = image && !isGeneratedRecipeCoverDataUri(image) ? image : '';
+  const previewImage = image || generatedCover;
 
   useEffect(() => {
     let active = true;
@@ -297,17 +240,11 @@ export default function CreateRecipeForm({ onClose }: Props) {
     toast({ title: `Parsed ${parsed.ingredients.length} ingredients & ${parsed.instructions.length} steps` });
   };
 
-  const fetchRandomPhoto = async () => {
+  const generateCover = async () => {
     setFetchingPhoto(true);
     try {
-      const randomImage = await getRandomFoodishImage(name);
-      if (randomImage) {
-        setImage(randomImage);
-      } else {
-        toast({ title: 'Could not fetch photo', variant: 'destructive' });
-      }
-    } catch {
-      toast({ title: 'Could not fetch photo', variant: 'destructive' });
+      setImage(generatedCover);
+      toast({ title: 'Generated a recipe cover' });
     } finally {
       setFetchingPhoto(false);
     }
@@ -425,7 +362,7 @@ export default function CreateRecipeForm({ onClose }: Props) {
     setLoading(true);
     try {
       const stepList = instructions.map((s) => s.trim()).filter(Boolean);
-      const finalImage = image || (await getRandomFoodishImage(name)) || '/placeholder.svg';
+      const finalImage = image || generatedCover;
 
       const { data: profile } = await supabase
         .from('profiles')
@@ -550,7 +487,7 @@ export default function CreateRecipeForm({ onClose }: Props) {
             <div>
               <label className="text-sm font-medium text-foreground">Photo</label>
               <div className="flex gap-2 mt-1">
-                <Input value={image} onChange={e => setImage(e.target.value)} placeholder="Image URL (optional)" className="flex-1" />
+                <Input value={photoFieldValue} onChange={e => setImage(e.target.value)} placeholder="Image URL (optional)" className="flex-1" />
                 <input
                   ref={photoInputRef}
                   type="file"
@@ -572,18 +509,16 @@ export default function CreateRecipeForm({ onClose }: Props) {
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={fetchRandomPhoto}
+                  onClick={generateCover}
                   disabled={fetchingPhoto}
-                  title="Use random photo"
+                  title="Generate cover"
                   className="gap-1.5"
                 >
                   {fetchingPhoto ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
-                  <span className="hidden sm:inline">Random Photo</span>
+                  <span className="hidden sm:inline">Generate Cover</span>
                 </Button>
               </div>
-              {image && (
-                <img src={image} alt="Preview" className="mt-2 h-24 w-full object-cover rounded-lg" />
-              )}
+              <img src={previewImage} alt="Preview" className="mt-2 h-24 w-full object-cover rounded-lg" />
             </div>
 
             <div className="grid grid-cols-2 gap-3">

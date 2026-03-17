@@ -1,3 +1,5 @@
+import { createServiceSupabaseClient, extractRecipePageImageCandidates, resolveRecipeImage } from "../_shared/recipe-images.ts";
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
@@ -63,19 +65,6 @@ const IMAGE_EXTRACT_PROMPT = `Read the recipe from this image and return ONLY a 
 }
 If some fields are missing in the image, infer conservatively or leave as empty string / empty array.`;
 
-const FOODISH_API = 'https://foodish-api.com/api/';
-const FOODISH_CATEGORIES = ['biryani', 'burger', 'butter-chicken', 'dessert', 'dosa', 'idly', 'pasta', 'pizza', 'rice', 'samosa'];
-const KEYWORD_TO_CATEGORY: Record<string, string> = {
-  pasta: 'pasta', spaghetti: 'pasta', penne: 'pasta', noodle: 'pasta',
-  pizza: 'pizza', flatbread: 'pizza',
-  rice: 'rice', risotto: 'rice', biryani: 'biryani',
-  burger: 'burger', sandwich: 'burger',
-  dosa: 'dosa', idli: 'idly', idly: 'idly',
-  chicken: 'butter-chicken', curry: 'butter-chicken',
-  cake: 'dessert', cookie: 'dessert', brownie: 'dessert', pie: 'dessert',
-  samosa: 'samosa', dumpling: 'samosa',
-};
-
 const durationPart = (value: number, unit: string) => `${value} ${unit}${value === 1 ? '' : 's'}`;
 
 function isoDurationToText(value?: string): string {
@@ -96,31 +85,6 @@ function isoDurationToText(value?: string): string {
   if (seconds && parts.length === 0) parts.push(durationPart(seconds, 'second'));
 
   return parts.length ? parts.join(' ') : value;
-}
-
-function getCategoryFromName(recipeName: string): string {
-  const words = recipeName.toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter(Boolean);
-  for (const word of words) {
-    if (KEYWORD_TO_CATEGORY[word]) return KEYWORD_TO_CATEGORY[word];
-  }
-  return FOODISH_CATEGORIES[Math.floor(Math.random() * FOODISH_CATEGORIES.length)];
-}
-
-async function getRandomFoodishImage(recipeName = ''): Promise<string | null> {
-  try {
-    const category = getCategoryFromName(recipeName);
-    const res = await fetch(`${FOODISH_API}images/${category}`);
-    if (!res.ok) {
-      const fallback = await fetch(FOODISH_API);
-      if (!fallback.ok) return null;
-      const data = await fallback.json();
-      return typeof data?.image === 'string' ? data.image : null;
-    }
-    const data = await res.json();
-    return typeof data?.image === 'string' ? data.image : null;
-  } catch {
-    return null;
-  }
 }
 
 function normalizeYield(recipeYield: unknown): string {
@@ -593,9 +557,10 @@ Deno.serve(async (req) => {
     let structuredText = '';
     let extractedIngredientLines: string[] = [];
     let wasBlocked = false;
+    let html = '';
+    const serviceSupabase = createServiceSupabaseClient();
 
     if (normalizedUrl) {
-      let html = '';
       const attemptedStatuses: string[] = [];
       try {
         const pageRes = await fetch(normalizedUrl, {
@@ -692,22 +657,42 @@ Deno.serve(async (req) => {
     }
 
     recipe = normalizeRecipePayload(recipe);
-    if (!String(recipe.image ?? '').trim()) {
+    recipe = upgradeIngredientLines(recipe, extractedIngredientLines);
+    const normalizedTags = Array.isArray(recipe.tags)
+      ? recipe.tags.map((tag) => String(tag).trim()).filter(Boolean)
+      : [];
+    const resolvedImage = await resolveRecipeImage(serviceSupabase, {
+      recipeName: String(recipe.name ?? "Imported Recipe"),
+      cuisine: recipe.cuisine ? String(recipe.cuisine) : null,
+      tags: normalizedTags,
+      sourceUrl: normalizedUrl || undefined,
+      existingImageUrl: String(recipe.image ?? ""),
+      html,
+    });
+    if (resolvedImage.image) {
       recipe = {
         ...recipe,
-        image: await getRandomFoodishImage(String(recipe.name ?? '')),
+        image: resolvedImage.image,
       };
     }
-    recipe = upgradeIngredientLines(recipe, extractedIngredientLines);
 
     if (normalizedUrl) {
+      const existingRawPayload =
+        recipe.raw_api_payload && typeof recipe.raw_api_payload === "object" && !Array.isArray(recipe.raw_api_payload)
+          ? (recipe.raw_api_payload as Record<string, unknown>)
+          : {};
       recipe = {
         ...recipe,
         source_url: normalizedUrl,
         raw_api_payload: {
+          ...existingRawPayload,
           import_type: 'website',
           source_url: normalizedUrl,
           extracted_ingredient_lines: extractedIngredientLines,
+          original_image_url: resolvedImage.originalImageUrl ?? null,
+          stored_image_url: resolvedImage.image || null,
+          image_strategy: resolvedImage.strategy,
+          image_candidates: html ? extractRecipePageImageCandidates(html, normalizedUrl).slice(0, 8) : [],
         },
       };
     }

@@ -1,5 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { DOMParser } from "https://deno.land/x/deno_dom@v0.1.48/deno-dom-wasm.ts";
+import {
+  copyRemoteImageToStorage,
+  createServiceSupabaseClient,
+  extractJsonLdImageCandidates,
+  extractRecipePageImageCandidates,
+} from "../_shared/recipe-images.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -109,6 +115,8 @@ serve(async (req) => {
           title: fallback.title,
           listItems: fallback.listItems,
           ogImage: fallback.ogImage,
+          jsonLdImage: null,
+          storedImage: null,
         }), {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -143,12 +151,23 @@ serve(async (req) => {
       .querySelector('meta[property="og:image"]')
       ?.getAttribute('content')
       ?.trim() || null;
+    const jsonLdImage = extractJsonLdImageCandidates(html, normalizedUrl)[0] || null;
+    const imageCandidates = extractRecipePageImageCandidates(html, normalizedUrl);
+    const storedImage = imageCandidates.length > 0
+      ? await copyRemoteImageToStorage(createServiceSupabaseClient(), {
+          imageUrl: imageCandidates[0],
+          recipeName: pageTitle || inferTitleFromUrl(normalizedUrl),
+          sourceUrl: normalizedUrl,
+        })
+      : null;
 
     return new Response(JSON.stringify({
       url: normalizedUrl,
       title: pageTitle,
       listItems,
       ogImage,
+      jsonLdImage,
+      storedImage,
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -165,6 +184,8 @@ serve(async (req) => {
             title: fallback.title,
             listItems: fallback.listItems,
             ogImage: fallback.ogImage,
+            jsonLdImage: null,
+            storedImage: null,
           }), {
             status: 200,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },

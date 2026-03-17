@@ -1,48 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { buildGeneratedRecipeCoverDataUri } from "../_shared/recipe-images.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
-
-const FOODISH_API = "https://foodish-api.com/api/";
-const FOODISH_CATEGORIES = ["biryani", "burger", "butter-chicken", "dessert", "dosa", "idly", "pasta", "pizza", "rice", "samosa"];
-const KEYWORD_TO_CATEGORY: Record<string, string> = {
-  pasta: "pasta", spaghetti: "pasta", penne: "pasta", noodle: "pasta",
-  pizza: "pizza", flatbread: "pizza",
-  rice: "rice", risotto: "rice", biryani: "biryani",
-  burger: "burger", sandwich: "burger",
-  dosa: "dosa", idli: "idly", idly: "idly",
-  chicken: "butter-chicken", curry: "butter-chicken",
-  cake: "dessert", cookie: "dessert", brownie: "dessert", pie: "dessert",
-  samosa: "samosa", dumpling: "samosa",
-};
-
-function getCategoryFromName(recipeName: string) {
-  const words = recipeName.toLowerCase().replace(/[^a-z\s]/g, " ").split(/\s+/).filter(Boolean);
-  for (const word of words) {
-    if (KEYWORD_TO_CATEGORY[word]) return KEYWORD_TO_CATEGORY[word];
-  }
-  return FOODISH_CATEGORIES[Math.floor(Math.random() * FOODISH_CATEGORIES.length)];
-}
-
-async function getRandomFoodishImage(recipeName = ""): Promise<string | null> {
-  try {
-    const category = getCategoryFromName(recipeName);
-    const response = await fetch(`${FOODISH_API}images/${category}`);
-    if (!response.ok) {
-      const fallback = await fetch(FOODISH_API);
-      if (!fallback.ok) return null;
-      const data = await fallback.json();
-      return typeof data?.image === "string" ? data.image : null;
-    }
-    const data = await response.json();
-    return typeof data?.image === "string" ? data.image : null;
-  } catch {
-    return null;
-  }
-}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -109,7 +72,7 @@ Return the recipe only via the generate_pantry_recipe tool.`;
                     type: "object",
                     properties: {
                       name: { type: "string" },
-                      image: { type: "string", description: "Use /placeholder.svg when no image exists." },
+                      image: { type: "string", description: "Use a real image URL when available; otherwise leave blank and Munch will generate a recipe cover." },
                       cook_time: { type: "string" },
                       difficulty: { type: "string", enum: ["Beginner", "Intermediate", "Advanced"] },
                       ingredients: {
@@ -192,13 +155,17 @@ Return the recipe only via the generate_pantry_recipe tool.`;
 
     const image = typeof recipe.image === "string" && recipe.image.trim()
       ? recipe.image
-      : await getRandomFoodishImage(typeof recipe.name === "string" ? recipe.name : "");
+      : buildGeneratedRecipeCoverDataUri({
+          name: typeof recipe.name === "string" ? recipe.name : "Pantry Recipe",
+          cuisine: typeof recipe.cuisine === "string" ? recipe.cuisine : null,
+          tags: Array.isArray(recipe.tags) ? recipe.tags.map((tag: unknown) => String(tag).trim()).filter(Boolean) : [],
+        });
 
     return new Response(
       JSON.stringify({
         recipe: {
           ...recipe,
-          image: image || "/placeholder.svg",
+          image,
           source: typeof recipe.source === "string" && recipe.source.trim() ? recipe.source : "Fridge Cleanup AI",
           chef: typeof recipe.chef === "string" && recipe.chef.trim() ? recipe.chef : "Munch AI",
         },

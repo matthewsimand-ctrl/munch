@@ -19,6 +19,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useCookedMeals } from "@/hooks/useCookedMeals";
 import { composeIngredientLine, parseIngredientLine, scaleIngredientQuantity } from "@/lib/ingredientText";
 import { useKitchenPantry } from "@/hooks/useKitchenPantry";
+import { applyRecipeImageFallback, getRecipeImageSrc } from "@/lib/recipeImage";
 
 interface ActiveTimer {
   id: string;
@@ -773,30 +774,29 @@ export default function CookMode() {
             animate={{ opacity: 1, y: 0 }}
             className="bg-white rounded-[32px] border border-stone-100 overflow-hidden shadow-[0_20px_48px_rgba(249,115,22,0.08)] mb-8"
           >
-            {recipe.image && recipe.image !== "/placeholder.svg" && (
-              <div className="relative w-full aspect-[16/9] overflow-hidden">
-                <img
-                  src={recipe.image}
-                  alt={recipe.name}
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
-                <div className="absolute bottom-4 left-6 right-6">
-                  <h2
-                    className="text-xl font-bold text-white drop-shadow-md"
-                    style={{ fontFamily: "'Fraunces', Georgia, serif" }}
-                  >
-                    {recipe.name}
-                  </h2>
-                  {(recipe.cook_time || recipe.difficulty) && (
-                    <p className="text-sm text-white/90 mt-0.5">
-                      {[recipe.cook_time, recipe.difficulty].filter(Boolean).join(" · ")}
-                    </p>
-                  )}
-                </div>
+            <div className="relative w-full aspect-[16/9] overflow-hidden">
+              <img
+                src={getRecipeImageSrc(recipe.image)}
+                alt={recipe.name}
+                className="w-full h-full object-cover"
+                onError={applyRecipeImageFallback}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
+              <div className="absolute bottom-4 left-6 right-6">
+                <h2
+                  className="text-xl font-bold text-white drop-shadow-md"
+                  style={{ fontFamily: "'Fraunces', Georgia, serif" }}
+                >
+                  {recipe.name}
+                </h2>
+                {(recipe.cook_time || recipe.difficulty) && (
+                  <p className="text-sm text-white/90 mt-0.5">
+                    {[recipe.cook_time, recipe.difficulty].filter(Boolean).join(" · ")}
+                  </p>
+                )}
               </div>
-            )}
-            <div className={`${recipe.image && recipe.image !== "/placeholder.svg" ? "px-8 pt-6 pb-8" : "p-8"}`}>
+            </div>
+            <div className="px-8 pt-6 pb-8">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>Ingredients Needed</h2>
               <div className="flex items-center gap-3">

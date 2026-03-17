@@ -135,16 +135,17 @@ async function resolveAppStartRoute({
 const Index = () => {
   const navigate = useNavigate();
   const { onboardingComplete, isGuest, completeOnboarding, setDisplayName } = useStore();
-  const [isDesktopBrowser, setIsDesktopBrowser] = useState(
-    () => window.innerWidth >= DESKTOP_BREAKPOINT && !isNativeAppPlatform()
+  const [isDesktopViewport, setIsDesktopViewport] = useState(
+    () => window.innerWidth >= DESKTOP_BREAKPOINT
   );
   const [loading, setLoading] = useState(false);
   const [hasSession, setHasSession] = useState(false);
   const [sessionResolved, setSessionResolved] = useState(false);
+  const isNativeApp = isNativeAppPlatform();
 
   useEffect(() => {
     const onResize = () => {
-      setIsDesktopBrowser(window.innerWidth >= DESKTOP_BREAKPOINT && !isNativeAppPlatform());
+      setIsDesktopViewport(window.innerWidth >= DESKTOP_BREAKPOINT);
     };
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
@@ -170,7 +171,8 @@ const Index = () => {
   }, []);
 
   useEffect(() => {
-    if (!isDesktopBrowser || !sessionResolved || !hasSession) return;
+    if (!sessionResolved) return;
+    if (!isNativeApp && !hasSession && !isGuest) return;
 
     const redirectToApp = async () => {
       const target = await resolveAppStartRoute({
@@ -183,23 +185,7 @@ const Index = () => {
     };
 
     void redirectToApp();
-  }, [completeOnboarding, hasSession, isDesktopBrowser, isGuest, navigate, onboardingComplete, sessionResolved, setDisplayName]);
-
-  useEffect(() => {
-    if (isDesktopBrowser) return;
-
-    const redirectToApp = async () => {
-      const target = await resolveAppStartRoute({
-        onboardingComplete,
-        isGuest,
-        completeOnboarding,
-        setDisplayName,
-      });
-      navigate(target, { replace: true });
-    };
-
-    void redirectToApp();
-  }, [completeOnboarding, isDesktopBrowser, isGuest, navigate, onboardingComplete, setDisplayName]);
+  }, [completeOnboarding, hasSession, isGuest, isNativeApp, navigate, onboardingComplete, sessionResolved, setDisplayName]);
 
   const handleGetStarted = async () => {
     setLoading(true);
@@ -216,7 +202,7 @@ const Index = () => {
     }
   };
 
-  if (!isDesktopBrowser) return null;
+  if (isNativeApp) return null;
 
   return (
     <div
@@ -228,7 +214,7 @@ const Index = () => {
       }}
     >
       <header className="sticky top-0 z-20 border-b border-orange-100/70 backdrop-blur bg-white/78">
-        <div className="max-w-7xl mx-auto px-8 py-4 flex items-center justify-between gap-6">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
           <MunchLogo
             size={48}
             subtitle="Cook smarter with the food you already have"
@@ -251,7 +237,7 @@ const Index = () => {
           <button
             onClick={() => void handleGetStarted()}
             disabled={loading}
-            className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold text-white transition-all hover:opacity-90 active:scale-95 disabled:opacity-70"
+            className="inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-bold text-white transition-all hover:opacity-90 active:scale-95 disabled:opacity-70 sm:px-5"
             style={{ background: "linear-gradient(135deg,#FB923C,#F97316,#EA580C)", boxShadow: "0 10px 30px rgba(249,115,22,0.22)" }}
           >
             {loading ? "Opening..." : hasSession ? "Continue Cooking" : "Let's Cook"}
@@ -260,8 +246,8 @@ const Index = () => {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-8 py-12 space-y-14">
-        <section id="overview" className="grid lg:grid-cols-[1.1fr_0.9fr] gap-8 items-center scroll-mt-28">
+      <main className="mx-auto max-w-7xl space-y-14 px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
+        <section id="overview" className="grid gap-8 scroll-mt-28 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
           <div className="space-y-6">
             <div className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-white/80 px-3 py-1.5 text-xs font-semibold text-orange-700">
               <Sparkles size={13} />
@@ -270,12 +256,12 @@ const Index = () => {
 
             <div className="space-y-4">
               <h1
-                className="text-5xl xl:text-6xl font-bold leading-[1.05] text-stone-900"
+                className="text-4xl font-bold leading-[1.05] text-stone-900 sm:text-5xl xl:text-6xl"
                 style={{ fontFamily: "'Fraunces', Georgia, serif" }}
               >
                 Munch helps people turn ingredients, recipes, and routines into a cooking habit that sticks.
               </h1>
-              <p className="text-lg text-stone-600 max-w-2xl leading-8">
+              <p className="max-w-2xl text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">
                 It started as a better way to answer one daily question: what can I actually make right now? From there, Munch grew into a full cooking companion that helps you discover recipes, plan meals, manage your pantry, shop faster, and enjoy the cooking process.
               </p>
             </div>
@@ -298,7 +284,7 @@ const Index = () => {
               </a>
             </div>
 
-            <div className="grid grid-cols-3 gap-3 max-w-2xl">
+            <div className="grid max-w-2xl gap-3 sm:grid-cols-3">
               {[
                 { value: "Recipe to stove", label: "Discovery, planning, and cooking in one workflow" },
                 { value: "AI + utility", label: "Smart help without losing practical control" },
@@ -314,10 +300,10 @@ const Index = () => {
 
           <div className="relative">
             <div className="absolute inset-0 rounded-[2rem] bg-gradient-to-br from-orange-200/50 via-amber-100/40 to-transparent blur-3xl" />
-            <div className="relative rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-[0_24px_80px_rgba(28,25,23,0.12)]">
-              <div className="grid gap-6 items-center">
+            <div className="relative rounded-[2rem] border border-white/70 bg-white/85 p-5 shadow-[0_24px_80px_rgba(28,25,23,0.12)] sm:p-6">
+              <div className="grid items-center gap-6">
                 <div className="flex justify-center">
-                  <MunchHeroLogo size={340} />
+                  <MunchHeroLogo size={isDesktopViewport ? 340 : 260} />
                 </div>
                 <div className="rounded-[1.5rem] bg-gradient-to-br from-stone-900 via-orange-950 to-orange-700 p-6 text-white overflow-hidden">
                   <div className="flex items-center justify-between">
@@ -328,7 +314,7 @@ const Index = () => {
                     <MunchLogo size={54} showWordmark={false} />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3 mt-6">
+                  <div className="mt-6 grid gap-3 sm:grid-cols-2">
                     <div className="rounded-2xl bg-white/10 border border-white/10 p-4">
                       <p className="text-xs text-orange-100">Voice-ready steps</p>
                       <p className="text-lg font-bold mt-1">Hands-free prompts, timers, and pacing</p>
@@ -351,7 +337,7 @@ const Index = () => {
           </div>
         </section>
 
-        <section id="features" className="grid lg:grid-cols-2 gap-5 scroll-mt-28">
+        <section id="features" className="grid gap-5 scroll-mt-28 lg:grid-cols-2">
           {FEATURE_CARDS.map(({ icon: Icon, title, body }) => (
             <article key={title} className="rounded-[1.75rem] border border-white/70 bg-white/85 p-6 shadow-[0_18px_60px_rgba(28,25,23,0.06)]">
               <div className="w-11 h-11 rounded-2xl bg-orange-50 text-orange-500 flex items-center justify-center">
@@ -365,7 +351,7 @@ const Index = () => {
           ))}
         </section>
 
-        <section id="story" className="grid lg:grid-cols-[0.85fr_1.15fr] gap-8 items-start scroll-mt-28">
+        <section id="story" className="grid gap-8 scroll-mt-28 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
           <div className="rounded-[2rem] border border-orange-100 bg-gradient-to-br from-orange-50 via-white to-amber-50 p-7 shadow-[0_18px_60px_rgba(28,25,23,0.06)]">
             <p className="text-xs font-bold uppercase tracking-[0.28em] text-orange-500">The story</p>
             <h2 className="text-4xl font-bold text-stone-900 mt-3 leading-tight" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
