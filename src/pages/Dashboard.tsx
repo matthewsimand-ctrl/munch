@@ -3,7 +3,7 @@ import {
   Flame, Clock, Heart, ShoppingCart, ChevronRight,
   Calendar, Star, Plus, Check, Users, MapPin, X, RotateCw,
   Trophy, ChefHat, Zap, Award, Camera, Sparkles, TrendingUp, Play, Beef, Wheat, Droplets, Bell, CheckCheck,
-  Settings,
+  Settings, Lock,
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -454,6 +454,15 @@ export default function Dashboard() {
     setEstimatingMealId(null);
   };
 
+  const handleOpenMealPrep = (state?: Record<string, unknown>) => {
+    if (!isPremium) {
+      openPremiumPage("Meal Prep");
+      return;
+    }
+
+    navigate("/meal-prep", state ? { state } : undefined);
+  };
+
   const handleOpenNotification = async (notification: typeof notifications[number]) => {
     try {
       if (!notification.read_at) {
@@ -485,7 +494,7 @@ export default function Dashboard() {
     { label: "Find Recipe", to: "/swipe", emoji: "🔍", color: "from-orange-50 to-amber-50" },
     { label: "Saved", to: "/saved", emoji: "❤️", color: "from-rose-50 to-orange-50" },
     { label: "Groceries", to: "/groceries", emoji: "🛒", color: "from-sky-50 to-blue-50" },
-    { label: "Plan Meals", to: "/meal-prep", emoji: "📅", color: "from-violet-50 to-purple-50" },
+    { label: "Plan Meals", to: "/meal-prep", emoji: "📅", color: "from-violet-50 to-purple-50", premium: true },
     ...(isMobile ? [{ label: "Settings", to: "/settings", emoji: "⚙️", color: "from-stone-50 to-slate-100" }] : [{ label: "Add to Pantry", to: "/pantry", emoji: "📦", color: "from-emerald-50 to-teal-50" }]),
   ];
 
@@ -658,9 +667,13 @@ export default function Dashboard() {
                 icon={Calendar}
                 title="This week"
                 action={
-                  <Link to="/meal-prep" className="text-xs text-orange-500 font-semibold hover:text-orange-600 flex items-center gap-0.5">
+                  <button
+                    type="button"
+                    onClick={() => handleOpenMealPrep()}
+                    className="text-xs text-orange-500 font-semibold hover:text-orange-600 flex items-center gap-0.5"
+                  >
                     Meal Prep <ChevronRight size={13} />
-                  </Link>
+                  </button>
                 }
               />
               <div className="space-y-1.5">
@@ -698,7 +711,7 @@ export default function Dashboard() {
                       </span>
                     ) : (
                       <button
-                        onClick={() => recipeId ? navigate(`/cook/${recipeId}`) : navigate("/meal-prep", { state: { selectedDay: index, openAddDialog: true, mealType: "dinner" } })}
+                        onClick={() => recipeId ? navigate(`/cook/${recipeId}`) : handleOpenMealPrep({ selectedDay: index, openAddDialog: true, mealType: "dinner" })}
                         className="text-xs text-stone-400 hover:text-orange-500 font-semibold flex items-center gap-1 px-2 py-1 rounded-full hover:bg-orange-50 transition-colors"
                       >
                         {recipeId ? <Play size={11} /> : <Plus size={11} />} {recipeId ? "Cook" : "Add"}
@@ -720,11 +733,26 @@ export default function Dashboard() {
             >
               <h2 className="text-[15px] font-bold text-stone-800 mb-3">Quick actions</h2>
               <div className="grid grid-cols-2 gap-2">
-                {QUICK_ACTIONS.map(({ label, to, emoji, color }) => (
-                  <Link key={label} to={to} className={`flex flex-col items-center gap-1.5 p-3 sm:p-4 rounded-xl bg-gradient-to-br ${color} hover:opacity-80 transition-all active:scale-95 text-center group`}>
-                    <span className="text-xl sm:text-2xl">{emoji}</span>
-                    <span className="text-xs font-semibold text-stone-600 group-hover:text-stone-800 leading-tight">{label}</span>
-                  </Link>
+                {QUICK_ACTIONS.map(({ label, to, emoji, color, premium }) => (
+                  premium ? (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => handleOpenMealPrep()}
+                      className={`flex flex-col items-center gap-1.5 p-3 sm:p-4 rounded-xl bg-gradient-to-br ${color} hover:opacity-80 transition-all active:scale-95 text-center group relative`}
+                    >
+                      <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-bold text-violet-700">
+                        <Lock size={10} /> Premium
+                      </span>
+                      <span className="text-xl sm:text-2xl">{emoji}</span>
+                      <span className="text-xs font-semibold text-stone-600 group-hover:text-stone-800 leading-tight">{label}</span>
+                    </button>
+                  ) : (
+                    <Link key={label} to={to} className={`flex flex-col items-center gap-1.5 p-3 sm:p-4 rounded-xl bg-gradient-to-br ${color} hover:opacity-80 transition-all active:scale-95 text-center group`}>
+                      <span className="text-xl sm:text-2xl">{emoji}</span>
+                      <span className="text-xs font-semibold text-stone-600 group-hover:text-stone-800 leading-tight">{label}</span>
+                    </Link>
+                  )
                 ))}
               </div>
             </section>
@@ -732,35 +760,79 @@ export default function Dashboard() {
             {/* Cooked history */}
             <section className={`rounded-2xl border p-4 sm:p-5 ${isMobile ? "hidden" : ""}`} style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}>
               <SectionHeader icon={Sparkles} title="Cooked history" />
-              {cookedMealsLoading ? (
-                <p className="text-xs text-stone-400">Loading meals...</p>
-              ) : cookedMeals.length === 0 ? (
-                <p className="text-xs text-stone-400">Cook your first meal to start your history.</p>
-              ) : (
-                <div className="space-y-2.5">
-                  {cookedMeals.slice(0, 6).map((meal) => (
-                    <div key={meal.id} className="rounded-xl border border-stone-100 px-3 py-2.5">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="text-xs font-semibold text-stone-800 truncate">{meal.recipe_name}</p>
-                          <p className="text-[10px] text-stone-400 mt-0.5">Cooked {formatCookedAt(meal.cooked_at)}</p>
+              {isPremium ? (
+                cookedMealsLoading ? (
+                  <p className="text-xs text-stone-400">Loading meals...</p>
+                ) : cookedMeals.length === 0 ? (
+                  <p className="text-xs text-stone-400">Cook your first meal to start your history.</p>
+                ) : (
+                  <div className="space-y-2.5">
+                    {cookedMeals.slice(0, 6).map((meal) => (
+                      <div key={meal.id} className="rounded-xl border border-stone-100 px-3 py-2.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold text-stone-800 truncate">{meal.recipe_name}</p>
+                            <p className="text-[10px] text-stone-400 mt-0.5">Cooked {formatCookedAt(meal.cooked_at)}</p>
+                          </div>
+                          {meal.estimated_savings != null ? (
+                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full whitespace-nowrap">
+                              Saved ≈ ${meal.estimated_savings.toFixed(2)}
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => handleEstimateSavings(meal.id)}
+                              disabled={estimatingMealId === meal.id}
+                              className="text-[10px] font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 px-2 py-1 rounded-full disabled:opacity-60"
+                            >
+                              ✨ AI savings
+                            </button>
+                          )}
                         </div>
-                        {meal.estimated_savings != null && isPremium ? (
-                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full whitespace-nowrap">
-                            Saved ≈ ${meal.estimated_savings.toFixed(2)}
-                          </span>
-                        ) : (
-                          <button
-                            onClick={() => handleEstimateSavings(meal.id)}
-                            disabled={estimatingMealId === meal.id}
-                            className="text-[10px] font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 px-2 py-1 rounded-full disabled:opacity-60"
-                          >
-                            {isPremium ? "✨ AI savings" : "🔒 Premium"}
-                          </button>
-                        )}
                       </div>
+                    ))}
+                  </div>
+                )
+              ) : (
+                <div className="relative mt-1 overflow-hidden rounded-2xl border border-orange-100 bg-gradient-to-br from-white via-orange-50/40 to-orange-100/40 p-5">
+                  <div className="pointer-events-none absolute inset-0">
+                    <div className="absolute -right-10 -top-10 h-28 w-28 rounded-full bg-orange-200/30 blur-2xl" />
+                    <div className="absolute -left-6 bottom-0 h-24 w-24 rounded-full bg-amber-200/25 blur-2xl" />
+                  </div>
+                  <div className="relative">
+                    <div className="space-y-2.5 opacity-30 blur-[1.5px]">
+                      {[
+                        { name: "Spicy rigatoni", date: "Cooked Mar 14", savings: "Saved ≈ $8.40" },
+                        { name: "Crispy salmon bowls", date: "Cooked Mar 12", savings: "Saved ≈ $11.20" },
+                        { name: "Lemon chicken soup", date: "Cooked Mar 10", savings: "Saved ≈ $6.90" },
+                      ].map((meal) => (
+                        <div key={meal.name} className="rounded-xl border border-stone-100 bg-stone-50/90 px-3 py-2.5">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="text-xs font-semibold text-stone-800 truncate">{meal.name}</p>
+                              <p className="text-[10px] text-stone-400 mt-0.5">{meal.date}</p>
+                            </div>
+                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full whitespace-nowrap">
+                              {meal.savings}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-5">
+                      <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-white/92 text-orange-500 shadow-sm">
+                        <Lock size={20} />
+                      </div>
+                      <p className="mt-4 text-sm font-semibold text-stone-800">Cooked history is premium</p>
+                      <p className="mt-1 max-w-xs text-xs text-stone-500">
+                        Unlock your meal archive, revisit past cooks, and track your savings over time.
+                      </p>
+                      <PremiumFeatureButton
+                        label="Get Premium"
+                        onClick={() => openPremiumPage("Cooked history")}
+                        className="mt-4 mx-auto h-11 w-auto px-5"
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
             </section>

@@ -29,8 +29,13 @@ import json
 import logging
 import os
 import tempfile
+import warnings
 from datetime import datetime, timezone
 from typing import Dict, Iterable, Iterator, List, Optional, Tuple
+
+from urllib3.exceptions import NotOpenSSLWarning
+
+warnings.filterwarnings("ignore", category=NotOpenSSLWarning)
 
 from import_wikibooks_cookbook import (
     build_session,
