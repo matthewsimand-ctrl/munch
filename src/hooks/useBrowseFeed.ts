@@ -6,6 +6,7 @@ import { rankByRecommendation } from '@/lib/recommendations';
 import { normalizeIngredients } from '@/lib/normalizeIngredients';
 import { classifyMealType } from '@/lib/mealTimeUtils';
 import { supabase } from '@/integrations/supabase/client';
+import { canPubliclyShareImportedUrlRecipe, isImportedUrlRecipe } from '@/lib/importVisibilityPolicy';
 
 const BROWSE_FEED_CACHE_KEY = 'munch:browse-feed-cache:v2';
 
@@ -22,7 +23,7 @@ function readCachedBrowseFeed() {
 
       const normalized = parsed
         .map(normalizeRecipe)
-        .filter((recipe): recipe is BrowseRecipe => Boolean(recipe));
+        .filter((recipe): recipe is BrowseRecipe => Boolean(recipe) && isBrowseVisibleRecipe(recipe));
 
       if (normalized.length > 0) return normalized;
     } catch {
@@ -45,6 +46,11 @@ interface BrowseRecipe extends Recipe {
   source: string;
   cuisine?: string;
   chef?: string | null;
+}
+
+function isBrowseVisibleRecipe(recipe: BrowseRecipe) {
+  if (!isImportedUrlRecipe(recipe.source, recipe.source_url)) return true;
+  return canPubliclyShareImportedUrlRecipe(recipe.source_url).allowed;
 }
 
 function normalizeText(value: string) {
@@ -221,7 +227,7 @@ async function fetchPublicRecipesFallback(): Promise<BrowseRecipe[]> {
 
   return (data || [])
     .map(normalizeRecipe)
-    .filter((recipe): recipe is BrowseRecipe => Boolean(recipe));
+    .filter((recipe): recipe is BrowseRecipe => Boolean(recipe) && isBrowseVisibleRecipe(recipe));
 }
 
 async function fetchMealDbBrowseFallback(): Promise<BrowseRecipe[]> {

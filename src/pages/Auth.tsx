@@ -10,17 +10,23 @@ import { Mail, Ghost } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { MunchLogo } from '@/components/MunchLogo';
 import { isNativeAppPlatform } from '@/lib/platform';
+import AppPromoVideo from '@/components/AppPromoVideo';
 export default function Auth() {
   const navigate = useNavigate();
   const location = useLocation();
   const { resetStore } = useStore();
   const { toast } = useToast();
-  const [isLogin, setIsLogin] = useState(true);
+  const authMode = new URLSearchParams(location.search).get('mode');
+  const [isLogin, setIsLogin] = useState(authMode === 'signup' ? false : true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const nextPath = new URLSearchParams(location.search).get('next') || '/dashboard';
+
+  useEffect(() => {
+    setIsLogin(authMode === 'signup' ? false : true);
+  }, [authMode]);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -147,73 +153,119 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-6">
-      <div className="w-full max-w-sm space-y-8">
-        <div className="text-center">
-          <MunchLogo className="justify-center mb-3" size={62} wordmarkClassName="font-display text-3xl font-bold text-foreground" />
-          <p className="text-muted-foreground text-sm mt-1">
-            {isLogin ? 'Welcome back, chef!' : 'Create your account'}
-          </p>
-        </div>
+    <div
+      className="min-h-screen px-4 py-6 sm:px-6 lg:px-8"
+      style={{
+        background:
+          "radial-gradient(circle at top left, rgba(251,146,60,0.18), transparent 24%), radial-gradient(circle at top right, rgba(251,191,36,0.14), transparent 18%), linear-gradient(180deg, #fffaf5 0%, #fff7ed 46%, #ffffff 100%)",
+      }}
+    >
+      <div className="mx-auto flex min-h-[calc(100vh-3rem)] max-w-6xl items-center justify-center">
+        <div className="grid w-full max-w-5xl gap-8 lg:grid-cols-[minmax(0,430px)_minmax(0,1fr)] lg:items-center">
+          <div className="order-2 lg:order-1">
+            <div className="rounded-[32px] border border-white/80 bg-white/90 p-6 shadow-[0_30px_80px_rgba(28,25,23,0.12)] backdrop-blur sm:p-8">
+              <div className="text-center">
+                <MunchLogo className="justify-center mb-3" size={62} wordmarkClassName="font-display text-3xl font-bold text-foreground" />
+                <p className="text-muted-foreground text-sm mt-1">
+                  {isLogin ? 'Welcome back, chef!' : 'Create your account'}
+                </p>
+              </div>
 
-        <div className="space-y-3">
-          <Button variant="outline" className="w-full h-12" onClick={handleGoogle}>
-            <svg className="h-5 w-5 mr-2" viewBox="0 0 24 24">
-              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z" />
-              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-            </svg>
-            Continue with Google
-          </Button>
+              <div className="mt-8 space-y-3">
+                <Button variant="outline" className="w-full h-12" onClick={handleGoogle}>
+                  <svg className="h-5 w-5 mr-2" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z" />
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                  </svg>
+                  Continue with Google
+                </Button>
 
-          <Button variant="outline" className="w-full h-12" onClick={handleApple}>
-            <svg className="h-5 w-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
-            </svg>
-            Continue with Apple
-          </Button>
-        </div>
+                <Button variant="outline" className="w-full h-12" onClick={handleApple}>
+                  <svg className="h-5 w-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
+                  </svg>
+                  Continue with Apple
+                </Button>
+              </div>
 
-        <Button variant="outline" className="w-full h-12 mt-3" onClick={handleGuestLogin} disabled={loading}>
-          <Ghost className="h-4 w-4 mr-2" />
-          Continue as Guest
-        </Button>
+              <Button variant="outline" className="w-full h-12 mt-3" onClick={handleGuestLogin} disabled={loading}>
+                <Ghost className="h-4 w-4 mr-2" />
+                Continue as Guest
+              </Button>
 
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-background px-2 text-muted-foreground">or</span>
-          </div>
-        </div>
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-white px-2 text-muted-foreground">or</span>
+                </div>
+              </div>
 
-        <form onSubmit={handleEmailAuth} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="chef@example.com" required className="h-12" />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required minLength={6} className="h-12" />
-          </div>
-          {!isLogin && (
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
-              <Input id="confirmPassword" type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="••••••••" required minLength={6} className="h-12" />
+              <form onSubmit={handleEmailAuth} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="chef@example.com" required className="h-12" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required minLength={6} className="h-12" />
+                </div>
+                {!isLogin && (
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword">Confirm Password</Label>
+                    <Input id="confirmPassword" type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="••••••••" required minLength={6} className="h-12" />
+                  </div>
+                )}
+                <Button type="submit" className="w-full h-12" disabled={loading}>
+                  <Mail className="h-4 w-4 mr-2" />
+                  {loading ? 'Loading...' : isLogin ? 'Sign In' : 'Create Account'}
+                </Button>
+              </form>
+
+              <p className="mt-6 text-center text-sm text-muted-foreground">
+                {isLogin ? "Don't have an account?" : 'Already have an account?'}{' '}
+                <button onClick={() => setIsLogin(!isLogin)} className="text-primary font-medium hover:underline">
+                  {isLogin ? 'Sign Up' : 'Sign In'}
+                </button>
+              </p>
             </div>
-          )}
-          <Button type="submit" className="w-full h-12" disabled={loading}>
-            <Mail className="h-4 w-4 mr-2" />
-            {loading ? 'Loading...' : isLogin ? 'Sign In' : 'Create Account'}
-          </Button>
-        </form>
+          </div>
 
-        <p className="text-center text-sm text-muted-foreground">
-          {isLogin ? "Don't have an account?" : 'Already have an account?'}{' '}
-          <button onClick={() => setIsLogin(!isLogin)} className="text-primary font-medium hover:underline">
-            {isLogin ? 'Sign Up' : 'Sign In'}
-          </button>
-        </p>
+          <div className="order-1 lg:order-2">
+            <div className="mx-auto max-w-md lg:max-w-none">
+              <div className="mb-5 text-center lg:text-left">
+                <p className="text-xs font-bold uppercase tracking-[0.24em] text-orange-500">Quick Tour</p>
+                <h1
+                  className="mt-3 text-3xl font-bold leading-tight text-stone-900 sm:text-4xl"
+                  style={{ fontFamily: "'Fraunces', Georgia, serif" }}
+                >
+                  See how Munch turns pantry chaos into dinner.
+                </h1>
+                <p className="mt-3 text-sm leading-6 text-stone-600 sm:text-base">
+                  Watch the app flow through recipe discovery, saved recipes, and guided cooking before you sign in.
+                </p>
+              </div>
+
+              <div className="relative mx-auto aspect-[9/16] w-full max-w-[360px] overflow-hidden rounded-[34px] border border-white/80 bg-stone-950 shadow-[0_40px_100px_rgba(28,25,23,0.22)]">
+                <AppPromoVideo
+                  className="absolute inset-0"
+                  videoClassName="h-full w-full object-cover"
+                  posterClassName="hidden"
+                  priority
+                />
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/50 via-black/10 to-transparent" />
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/60 via-black/15 to-transparent" />
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 p-5 text-white">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-white/14 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] backdrop-blur">
+                    Munch Demo
+                  </div>
+                  <p className="mt-3 text-lg font-semibold">Pantry, planning, recipes, and cooking in one flow.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

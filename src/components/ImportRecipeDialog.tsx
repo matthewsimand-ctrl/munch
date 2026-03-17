@@ -22,6 +22,7 @@ import { usePremiumAccess } from '@/hooks/usePremiumAccess';
 import { usePremiumGate } from '@/hooks/usePremiumGate';
 import PremiumFeatureButton from '@/components/PremiumFeatureButton';
 import { getGeneratedRecipeCoverDataUri, isGeneratedRecipeCoverDataUri } from '@/lib/recipeCover';
+import { canPubliclyShareImportedUrlRecipe, isImportedUrlRecipe } from '@/lib/importVisibilityPolicy';
 
 interface ImportRecipeDialogProps {
   children?: React.ReactNode;
@@ -69,25 +70,6 @@ interface WebsitePreviewData {
 
 const DIFFICULTY_OPTIONS = ['Beginner', 'Intermediate', 'Advanced'];
 const CUISINE_OPTIONS = ['Italian', 'Asian', 'Mexican', 'Mediterranean', 'American', 'French', 'Indian', 'Other'];
-const EMBED_BLOCKED_DOMAINS = [
-  'foodnetwork.com',
-  'www.foodnetwork.com',
-  'allrecipes.com',
-  'www.allrecipes.com',
-  'epicurious.com',
-  'www.epicurious.com',
-];
-
-function getEmbedBlockReason(url: string): string | null {
-  try {
-    const host = new URL(url).hostname.toLowerCase();
-    const blockedDomain = EMBED_BLOCKED_DOMAINS.find((d) => host === d || host.endsWith(`.${d}`));
-    return blockedDomain ? `blocked-domain:${blockedDomain}` : null;
-  } catch {
-    return 'invalid-url';
-  }
-}
-
 function normalizeList(value: unknown): string[] {
   if (Array.isArray(value)) {
     return value.map((v) => String(v).replace(/^▢\s*/, '').trim()).filter(Boolean);
@@ -404,7 +386,11 @@ export default function ImportRecipeDialog({
       return { reusedExisting: true, payload: existingPayload };
     }
 
-    const shouldDiscover = options?.forceDiscoverable ?? isDiscoverable;
+    const requestedDiscoverability = options?.forceDiscoverable ?? isDiscoverable;
+    const importedUrlVisibility = isImportedUrlRecipe(payload.source, payload.source_url)
+      ? canPubliclyShareImportedUrlRecipe(payload.source_url)
+      : { allowed: true, reason: null as string | null };
+    const shouldDiscover = requestedDiscoverability && importedUrlVisibility.allowed;
     const { user, sharedByName } = await getCurrentSharer();
     const payloadWithShareMetadata = user && shouldDiscover
       ? {
@@ -466,6 +452,8 @@ export default function ImportRecipeDialog({
       } else {
         console.info(`[Import] Successfully saved "${insertData.name}" to database.`);
       }
+    } else if (requestedDiscoverability && !importedUrlVisibility.allowed && importedUrlVisibility.reason) {
+      toast.info(importedUrlVisibility.reason);
     }
 
     likeRecipe(payloadWithShareMetadata.id, payloadWithShareMetadata);
@@ -585,8 +573,13 @@ export default function ImportRecipeDialog({
         });
 
         try {
-          await persistRecipe(autoPayload, { forceDiscoverable: true });
-          toast.success(`Imported "${autoPayload.name}".`);
+          const visibility = canPubliclyShareImportedUrlRecipe(autoPayload.source_url);
+          await persistRecipe(autoPayload, { forceDiscoverable: visibility.allowed });
+          toast.success(
+            visibility.allowed
+              ? `Imported "${autoPayload.name}".`
+              : `Imported "${autoPayload.name}" to your library.`
+          );
           setOpen(false);
           resetState();
           navigate('/saved');
@@ -675,7 +668,8 @@ export default function ImportRecipeDialog({
         ? withSharedMetadata(null, user.id, sharedByName)
         : null;
 
-      if (isDiscoverable) {
+      const reviewVisibility = canPubliclyShareImportedUrlRecipe(null);
+      if (isDiscoverable && reviewVisibility.allowed) {
         if (!user) {
           toast.info('Not logged in — saved privately. Log in to make it discoverable.');
         } else {
@@ -727,7 +721,7 @@ export default function ImportRecipeDialog({
 
       likeRecipe(id, recipeData);
 
-      if (!isDiscoverable) {
+      if (!isDiscoverable || !reviewVisibility.allowed) {
         toast.success(`Imported "${reviewData.name}"!`);
       }
 

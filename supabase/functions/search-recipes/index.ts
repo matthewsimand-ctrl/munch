@@ -118,6 +118,23 @@ const BROWSE_SOURCE_CAPS: Record<string, number> = {
   external: 220,
 };
 
+function hasImportedSourceUrl(source: string | null | undefined, sourceUrl: string | null | undefined) {
+  return String(source || '').trim().toLowerCase() === 'imported' && Boolean(String(sourceUrl || '').trim());
+}
+
+function canPubliclyShareImportedUrlRecipe(sourceUrl: string | null | undefined) {
+  if (!String(sourceUrl || '').trim()) return true;
+
+  // Legal-safe default: imported URL recipes stay private unless an explicit
+  // reviewed allowlist is added here and in the app/database policy.
+  return false;
+}
+
+function isPubliclyVisibleRecipe(recipe: { source?: string | null; source_url?: string | null }) {
+  if (!hasImportedSourceUrl(recipe.source, recipe.source_url)) return true;
+  return canPubliclyShareImportedUrlRecipe(recipe.source_url);
+}
+
 function getSupabaseClient(useServiceRole = false) {
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const key = useServiceRole
@@ -188,10 +205,12 @@ async function fetchPublicRecipes(query?: string): Promise<NormalizedRecipe[]> {
       created_by: recipe.created_by ? String(recipe.created_by) : null,
     }));
 
-    if (!query) return normalized;
+    const visibleRecipes = normalized.filter(isPubliclyVisibleRecipe);
+
+    if (!query) return visibleRecipes;
 
     const loweredQuery = query.toLowerCase().trim();
-    return normalized.filter((recipe) =>
+    return visibleRecipes.filter((recipe) =>
       recipe.name.toLowerCase().includes(loweredQuery) ||
       (recipe.chef || '').toLowerCase().includes(loweredQuery) ||
       recipe.ingredients.some((ingredient: string) => ingredient.toLowerCase().includes(loweredQuery)) ||

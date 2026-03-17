@@ -16,6 +16,7 @@ import { useStore } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
 import { MunchHeroLogo, MunchLogo } from "@/components/MunchLogo";
 import { isNativeAppPlatform } from "@/lib/platform";
+import AppPromoVideo from "@/components/AppPromoVideo";
 
 const DESKTOP_BREAKPOINT = 768;
 
@@ -201,6 +202,67 @@ const Index = () => {
       setLoading(false);
     }
   };
+
+  if (isNativeApp && !hasSession && !isGuest) {
+    return (
+      <div className="relative min-h-screen overflow-hidden bg-stone-950 text-white">
+        <AppPromoVideo
+          className="absolute inset-0"
+          videoClassName="h-full w-full object-cover"
+          posterClassName="hidden"
+          priority
+        />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(251,146,60,0.18),transparent_22%),linear-gradient(180deg,rgba(17,24,39,0.08)_0%,rgba(17,24,39,0.56)_50%,rgba(17,24,39,0.82)_100%)]" />
+
+        <div className="relative z-10 flex min-h-screen flex-col justify-between px-6 pb-8 pt-10">
+          <div className="flex justify-center">
+            <div className="rounded-full border border-white/20 bg-black/20 px-4 py-2 backdrop-blur">
+              <MunchLogo
+                size={40}
+                wordmarkClassName="text-xl font-bold tracking-tight text-white"
+                subtitleClassName="hidden"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <div className="space-y-4">
+              <div className="inline-flex items-center gap-2 rounded-full bg-white/14 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-orange-100 backdrop-blur">
+                Quick Tour
+              </div>
+              <h1
+                className="max-w-sm text-4xl font-bold leading-tight text-white"
+                style={{ fontFamily: "'Fraunces', Georgia, serif" }}
+              >
+                Your kitchen runs smoother with Munch.
+              </h1>
+              <p className="max-w-sm text-sm leading-6 text-white/78">
+                Save recipes, swipe for ideas, plan meals, and cook with a step-by-step flow built for real kitchens.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <button
+                onClick={() => navigate(`/auth?mode=signup&next=${encodeURIComponent("/onboarding")}`)}
+                className="flex w-full items-center justify-center gap-2 rounded-full px-5 py-4 text-sm font-bold text-white shadow-[0_20px_40px_rgba(249,115,22,0.28)] transition-all active:scale-[0.98]"
+                style={{ background: "linear-gradient(135deg,#FB923C,#F97316,#EA580C)" }}
+              >
+                Get Started
+                <ArrowRight size={16} />
+              </button>
+
+              <button
+                onClick={() => navigate(`/auth?next=${encodeURIComponent("/onboarding")}`)}
+                className="w-full rounded-full border border-white/22 bg-white/12 px-5 py-4 text-sm font-semibold text-white backdrop-blur transition-colors hover:bg-white/18"
+              >
+                I already have an account
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (isNativeApp) return null;
 

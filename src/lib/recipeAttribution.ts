@@ -30,8 +30,11 @@ function isMunchChefLabel(value: string | null | undefined) {
 
 export function isMunchAuthoredRecipe(recipe: Recipe | null | undefined) {
   if (!recipe) return false;
+  const source = String(recipe.source || '').trim().toLowerCase();
   if (getResolvedRecipeSourceUrl(recipe)) return false;
-  return isMunchSeedRecipe(recipe) || isMunchChefLabel(recipe.chef);
+  if (source === 'imported') return false;
+  if (isMunchSeedRecipe(recipe)) return true;
+  return source === 'community' && isMunchChefLabel(recipe.chef);
 }
 
 export function isImportedUrlRecipe(recipe: Recipe | null | undefined) {
