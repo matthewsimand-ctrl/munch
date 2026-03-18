@@ -530,9 +530,10 @@ export function useBrowseFeed() {
       setActiveSearchQuery(trimmedQuery);
     } catch (error) {
       console.error('Search feed error:', error);
+      const catchLikedIds = new Set(likedRecipes);
       const localFallback = orderSearchResults(
         dedupeRecipes(
-          recipes.filter((recipe) => !likedIds.has(String(recipe.id)) && recipeMatchesSearch(recipe, trimmedQuery)),
+          recipes.filter((recipe) => !catchLikedIds.has(String(recipe.id)) && recipeMatchesSearch(recipe, trimmedQuery)),
         ),
         trimmedQuery,
       );
