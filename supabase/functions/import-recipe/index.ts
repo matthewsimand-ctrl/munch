@@ -678,7 +678,7 @@ Deno.serve(async (req) => {
     let resolvedImage = {
       image: '',
       originalImageUrl: null as string | null,
-      strategy: 'none' as const,
+      strategy: 'none' as 'none' | 'copied' | 'generated',
     };
 
     try {
