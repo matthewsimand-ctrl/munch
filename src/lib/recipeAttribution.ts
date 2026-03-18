@@ -27,7 +27,7 @@ export function isMunchSeedRecipe(recipe: Recipe | null | undefined) {
   );
 }
 
-function isMunchChefLabel(value: string | null | undefined) {
+export function isMunchChefLabel(value: string | null | undefined) {
   const normalized = String(value || '').trim().toLowerCase();
   return normalized === 'munch' || normalized === 'munch kitchen';
 }

@@ -59,6 +59,7 @@ interface AppState {
   pantryList: PantryItem[];
   mealPlan: MealPlanItem[];
   likedRecipes: string[];
+  dislikedRecipes: Record<string, number>;
   savedApiRecipes: Record<string, any>;
   cachedNutrition: Record<string, any>;
   groceryRecipes: string[];
@@ -100,6 +101,8 @@ interface AppState {
   updatePantryItem: (id: string, updates: Partial<PantryItem>) => void;
   addPantryItems: (items: string[]) => void;
   likeRecipe: (id: string, recipeData?: any) => void;
+  dislikeRecipe: (id: string) => void;
+  clearExpiredDislikes: (olderThanMs: number) => void;
   unlikeRecipe: (id: string) => void;
   cacheNutrition: (recipeId: string, data: any) => void;
   addToGrocery: (recipeId: string) => void;
@@ -158,6 +161,7 @@ export const useStore = create<AppState>()(
       pantryList: [],
       mealPlan: [],
       likedRecipes: [],
+      dislikedRecipes: {},
       savedApiRecipes: {},
       cachedNutrition: {},
       groceryRecipes: [],
@@ -292,6 +296,12 @@ export const useStore = create<AppState>()(
           likedRecipes: state.likedRecipes.includes(id)
             ? state.likedRecipes
             : [...state.likedRecipes, id],
+          dislikedRecipes: (() => {
+            if (!(id in state.dislikedRecipes)) return state.dislikedRecipes;
+            const next = { ...state.dislikedRecipes };
+            delete next[id];
+            return next;
+          })(),
           savedApiRecipes: recipeData
             ? {
               ...state.savedApiRecipes,
@@ -301,6 +311,24 @@ export const useStore = create<AppState>()(
               },
             }
             : state.savedApiRecipes,
+        })),
+
+      dislikeRecipe: (id) =>
+        set((state) => ({
+          dislikedRecipes: {
+            ...state.dislikedRecipes,
+            [id]: Date.now(),
+          },
+        })),
+
+      clearExpiredDislikes: (olderThanMs) =>
+        set((state) => ({
+          dislikedRecipes: Object.fromEntries(
+            Object.entries(state.dislikedRecipes).filter(([, timestamp]) => {
+              const numericTimestamp = typeof timestamp === 'number' ? timestamp : Number(timestamp);
+              return Number.isFinite(numericTimestamp) && numericTimestamp >= olderThanMs;
+            }),
+          ),
         })),
 
       unlikeRecipe: (id) =>
@@ -615,6 +643,7 @@ export const useStore = create<AppState>()(
           pantryList: [],
           mealPlan: [],
           likedRecipes: [],
+          dislikedRecipes: {},
           savedApiRecipes: {},
           cachedNutrition: {},
           groceryRecipes: [],

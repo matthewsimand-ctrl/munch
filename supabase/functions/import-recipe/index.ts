@@ -648,12 +648,26 @@ Deno.serve(async (req) => {
         );
       }
 
-      recipe = await callAiExtraction({
-        apiKey: LOVABLE_API_KEY,
-        textContent: content,
-        imageBase64,
-        imageMimeType,
-      });
+      try {
+        recipe = await callAiExtraction({
+          apiKey: LOVABLE_API_KEY,
+          textContent: content,
+          imageBase64,
+          imageMimeType,
+        });
+      } catch (aiError) {
+        console.error('AI extraction error:', aiError);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: normalizedUrl
+              ? 'Could not extract a recipe from that URL. Try another recipe page or paste the recipe text manually.'
+              : 'Could not extract a valid recipe from this content.',
+            blocked: wasBlocked,
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
     }
 
     recipe = normalizeRecipePayload(recipe);
@@ -661,14 +675,24 @@ Deno.serve(async (req) => {
     const normalizedTags = Array.isArray(recipe.tags)
       ? recipe.tags.map((tag) => String(tag).trim()).filter(Boolean)
       : [];
-    const resolvedImage = await resolveRecipeImage(serviceSupabase, {
-      recipeName: String(recipe.name ?? "Imported Recipe"),
-      cuisine: recipe.cuisine ? String(recipe.cuisine) : null,
-      tags: normalizedTags,
-      sourceUrl: normalizedUrl || undefined,
-      existingImageUrl: String(recipe.image ?? ""),
-      html,
-    });
+    let resolvedImage = {
+      image: '',
+      originalImageUrl: null as string | null,
+      strategy: 'none' as const,
+    };
+
+    try {
+      resolvedImage = await resolveRecipeImage(serviceSupabase, {
+        recipeName: String(recipe.name ?? "Imported Recipe"),
+        cuisine: recipe.cuisine ? String(recipe.cuisine) : null,
+        tags: normalizedTags,
+        sourceUrl: normalizedUrl || undefined,
+        existingImageUrl: String(recipe.image ?? ""),
+        html,
+      });
+    } catch (imageError) {
+      console.error('Recipe image resolution failed:', imageError);
+    }
     if (resolvedImage.image) {
       recipe = {
         ...recipe,

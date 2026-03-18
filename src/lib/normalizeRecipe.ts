@@ -25,6 +25,43 @@ function splitInstructionBlock(text: string): string[] {
     .filter((line) => Boolean(line) && !/^step$/i.test(line));
 }
 
+export function normalizeImage(value: unknown): string {
+  if (!value) return '/placeholder.svg';
+
+  if (Array.isArray(value)) {
+    const first = value.find(v => typeof v === 'string' || (v && typeof v === 'object' && ('url' in v || 'src' in v)));
+    if (!first) return '/placeholder.svg';
+    if (typeof first === 'object' && first !== null) {
+      if ('url' in first) return String((first as any).url).trim() || '/placeholder.svg';
+      if ('src' in first) return String((first as any).src).trim() || '/placeholder.svg';
+    }
+    return String(first).trim() || '/placeholder.svg';
+  }
+
+  if (typeof value === 'object' && value !== null) {
+    if ('url' in value) return String((value as any).url).trim() || '/placeholder.svg';
+    if ('src' in value) return String((value as any).src).trim() || '/placeholder.svg';
+  }
+
+  if (typeof value === 'string') {
+    let clean = value.trim();
+    if (clean.startsWith('"') && clean.endsWith('"')) clean = clean.slice(1, -1);
+    if (clean.startsWith("'") && clean.endsWith("'")) clean = clean.slice(1, -1);
+
+    if (clean.startsWith('{') || clean.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(clean);
+        return normalizeImage(parsed);
+      } catch {
+        // fallback
+      }
+    }
+    return clean || '/placeholder.svg';
+  }
+
+  return '/placeholder.svg';
+}
+
 export function normalizeStringArray(value: unknown): string[] {
   if (Array.isArray(value)) return value.map((v) => String(v).trim()).filter(Boolean);
   if (typeof value === 'string') {
@@ -38,7 +75,7 @@ export function normalizeRecipe(recipe: any, idFallback?: string): Recipe {
     ...recipe,
     id: String(recipe?.id || idFallback || ''),
     name: String(recipe?.name || 'Untitled Recipe'),
-    image: String(recipe?.image || '/placeholder.svg'),
+    image: normalizeImage(recipe?.image),
     cook_time: String(recipe?.cook_time || '30 min'),
     difficulty: String(recipe?.difficulty || 'Intermediate'),
     ingredients: normalizeIngredients(recipe?.ingredients, recipe?.raw_api_payload),

@@ -1,6 +1,7 @@
 import type { Recipe } from '@/data/recipes';
 import type { UserProfile } from '@/lib/store';
 import { getTimeBoost } from '@/lib/mealTimeUtils';
+import { ingredientNameOnly } from '@/lib/ingredientText';
 
 /**
  * Recommendation engine: scores recipes based on similarity to liked recipes
@@ -20,6 +21,32 @@ function normalize(s: string): string {
   return s.toLowerCase().trim();
 }
 
+function normalizeIngredientName(value: string): string {
+  return normalize(ingredientNameOnly(value) || value)
+    .replace(/[^a-z0-9\s/-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function buildIngredientVariants(value: string): string[] {
+  const normalized = normalizeIngredientName(value);
+  if (!normalized) return [];
+
+  const variants = new Set<string>([normalized]);
+  const stripped = normalized.replace(/\b(chopped|diced|minced|sliced|fresh|ground|crushed|large|small|medium|boneless|skinless)\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (stripped) variants.add(stripped);
+
+  const tokens = stripped.split(' ').filter(Boolean);
+  if (tokens.length > 1) {
+    variants.add(tokens[tokens.length - 1]);
+    variants.add(tokens.slice(-2).join(' '));
+  }
+
+  return Array.from(variants).filter(Boolean);
+}
+
 function hasNoPreference(values: string[]): boolean {
   return values.some((value) => normalize(value) === 'no preference');
 }
@@ -37,8 +64,9 @@ export function buildTasteProfile(likedRecipes: Recipe[]): UserTasteProfile {
       tagFreq[t] = (tagFreq[t] || 0) + 1;
     }
     for (const ing of (r.ingredients || [])) {
-      const i = normalize(ing);
-      ingFreq[i] = (ingFreq[i] || 0) + 1;
+      for (const variant of buildIngredientVariants(ing)) {
+        ingFreq[variant] = (ingFreq[variant] || 0) + 1;
+      }
     }
     if (r.cuisine) {
       const c = normalize(r.cuisine);
@@ -73,6 +101,7 @@ function dietaryCompatibility(recipe: Recipe, dietaryRestrictions: string[]): nu
   if (dietaryRestrictions.length === 0 || dietaryRestrictions.includes('None')) return 1;
 
   const recipeIngs = (recipe.ingredients || []).map(normalize);
+  const recipeIngredientVariants = (recipe.ingredients || []).flatMap(buildIngredientVariants);
   const recipeTags = (recipe.tags || []).map(normalize);
 
   for (const restriction of dietaryRestrictions) {
@@ -84,7 +113,7 @@ function dietaryCompatibility(recipe: Recipe, dietaryRestrictions: string[]): nu
     const badIngredients = DIETARY_INGREDIENT_MAP[key] || [];
     if (badIngredients.length === 0) continue;
 
-    const hasConflict = recipeIngs.some(ing =>
+    const hasConflict = [...recipeIngs, ...recipeIngredientVariants].some(ing =>
       badIngredients.some(bad => ing.includes(bad))
     );
 
@@ -115,7 +144,7 @@ export function scoreRecipe(recipe: Recipe, profile: UserTasteProfile, userPrefs
     maxScore += 20;
 
     // Ingredient overlap (weight: 15)
-    const recipeIngs = (recipe.ingredients || []).map(normalize);
+    const recipeIngs = (recipe.ingredients || []).flatMap(buildIngredientVariants);
     if (recipeIngs.length > 0) {
       let ingScore = 0;
       for (const ing of recipeIngs) {
@@ -154,11 +183,11 @@ export function scoreRecipe(recipe: Recipe, profile: UserTasteProfile, userPrefs
   }
 
   // === Pantry match scoring (5 points, or 10 if no likes) ===
-  const pantryWeight = hasLikes ? 5 : 10;
+  const pantryWeight = hasLikes ? 16 : 22;
   if (pantryItems && pantryItems.length > 0) {
-    const recipeIngs = (recipe.ingredients || []).map(normalize);
+    const recipeIngs = (recipe.ingredients || []).flatMap(buildIngredientVariants);
     if (recipeIngs.length > 0) {
-      const pantryNorm = pantryItems.map(normalize);
+      const pantryNorm = pantryItems.flatMap(buildIngredientVariants);
       let matched = 0;
       for (const ing of recipeIngs) {
         if (pantryNorm.some(p => p.includes(ing) || ing.includes(p))) {
@@ -174,7 +203,7 @@ export function scoreRecipe(recipe: Recipe, profile: UserTasteProfile, userPrefs
   }
 
   // === Onboarding preference scoring (35 points, or 90 if no likes) ===
-  const prefWeight = hasLikes ? 35 : 90;
+  const prefWeight = hasLikes ? 44 : 92;
   const prefScale = prefWeight / (hasLikes ? 40 : 40); // Maintain relative internal weights
 
   if (userPrefs) {
@@ -212,7 +241,7 @@ export function scoreRecipe(recipe: Recipe, profile: UserTasteProfile, userPrefs
       : userPrefs.flavorProfiles;
     if (flavorPrefs.length > 0) {
       const recipeTags = (recipe.tags || []).map(normalize);
-      const recipeIngs = (recipe.ingredients || []).map(normalize);
+      const recipeIngs = (recipe.ingredients || []).flatMap(buildIngredientVariants);
       const allText = [...recipeTags, ...recipeIngs].join(' ');
 
       const flavorKeywords: Record<string, string[]> = {
@@ -274,7 +303,7 @@ export function rankByRecommendation(
     // Add a stronger time-of-day boost, while keeping a little randomness for discovery.
     .map(item => ({
       ...item,
-      recScore: item.recScore + getTimeBoost(item.recipe) + (Math.random() * 8 - 4),
+      recScore: item.recScore + getTimeBoost(item.recipe) + (Math.random() * 3 - 1.5),
     }))
     .sort((a, b) => b.recScore - a.recScore);
 }

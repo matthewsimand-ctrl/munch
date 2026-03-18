@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 import munchLogo from '@/assets/munch-logo.png';
 import { MUNCH_CHEF_NAME, MUNCH_OFFICIAL_USER_ID } from '@/lib/munchIdentity';
 import { Input } from '@/components/ui/input';
-import { isMunchAuthoredRecipe, shouldShowChefAttribution } from '@/lib/recipeAttribution';
+import { getRecipeChefName, isMunchAuthoredRecipe, isMunchChefLabel, shouldShowChefAttribution } from '@/lib/recipeAttribution';
 
 export default function ChefProfile() {
   const { userId } = useParams<{ userId: string }>();
@@ -49,11 +49,21 @@ export default function ChefProfile() {
         .order('created_at', { ascending: false });
       if (error) throw error;
       const normalized = (data || []).map((r: any) => normalizeRecipe(r));
-      return normalized.filter((recipe) => (
-        isKnownMunchChef
-          ? isMunchAuthoredRecipe(recipe)
-          : shouldShowChefAttribution(recipe)
-      ));
+      return normalized.filter((recipe) => {
+        const recipeChefName = getRecipeChefName(recipe);
+        const isMunch = !recipeChefName || isMunchChefLabel(recipeChefName);
+
+        if (isKnownMunchChef) {
+          // Strictly only show recipes that are munch-authored OR recipes that were curated/imported by Munch and strictly labelled as Munch
+          return isMunchAuthoredRecipe(recipe) || (recipe.created_by === MUNCH_OFFICIAL_USER_ID && isMunch);
+        }
+
+        // For other chefs, match the display name or created_by
+        const matchesName = recipeChefName && profile?.display_name && (
+          recipeChefName.toLowerCase() === profile.display_name.toLowerCase()
+        );
+        return matchesName || recipe.created_by === userId;
+      });
     },
     enabled: !!userId,
   });
@@ -207,8 +217,8 @@ export default function ChefProfile() {
         onOpenChange={(nextOpen) => {
           if (!nextOpen) setPreviewRecipe(null);
         }}
-        chefName={previewRecipe && shouldShowChefAttribution(previewRecipe) ? displayName : null}
-        chefId={previewRecipe && shouldShowChefAttribution(previewRecipe) ? userId || null : null}
+        chefName={previewRecipe ? (getRecipeChefName(previewRecipe) || (isMunchChef ? MUNCH_CHEF_NAME : displayName)) : null}
+        chefId={previewRecipe ? (isMunchChef ? MUNCH_OFFICIAL_USER_ID : (userId || previewRecipe.created_by || null)) : null}
         mode="explore"
         isSaved={previewRecipe ? likedSet.has(previewRecipe.id) : false}
         onSave={(recipe) => {

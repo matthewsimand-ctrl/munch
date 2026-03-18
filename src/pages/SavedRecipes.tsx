@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import {
   Search, Folder, Clock,
-  Filter, Grid3X3, List, Star, BookOpen, X, Trash2, Plus, Link2, FileUp, PenSquare,
+  ArrowUpDown, Grid3X3, List, Star, BookOpen, X, Trash2, Plus, Link2, FileUp, PenSquare,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "@/lib/store";
@@ -453,7 +453,7 @@ export default function MyRecipesScreen() {
             >
               {SORT_OPTIONS.map((o) => <option key={o}>{o}</option>)}
             </select>
-            <Filter size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
+            <ArrowUpDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
           </div>
         </div>
 

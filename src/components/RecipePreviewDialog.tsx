@@ -47,6 +47,13 @@ const EMBED_BLOCKED_DOMAINS = [
   'epicurious.com',
   'tastesbetterfromscratch.com',
   'recipetineats.com',
+  'nytimes.com',
+  'cooking.nytimes.com',
+  'bonappetit.com',
+  'food.com',
+  'delish.com',
+  'simplyrecipes.com',
+  'seriouseats.com',
 ];
 const runtimeBlockedEmbedHosts = new Set<string>();
 
@@ -115,8 +122,8 @@ function getImportedPreviewData(recipe: Recipe) {
   return {
     sourceUrl:
       typeof payload.source_url === 'string' ? payload.source_url
-      : typeof payload.original_source_url === 'string' ? payload.original_source_url
-      : '',
+        : typeof payload.original_source_url === 'string' ? payload.original_source_url
+          : '',
     rawPayloadKeys: Object.keys(payload),
   };
 }
@@ -187,6 +194,7 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
   const [expanded, setExpanded] = useState(false);
   const [embedUnavailable, setEmbedUnavailable] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const embedFallbackTimeoutRef = useRef<number | null>(null);
   const { activeKitchenId, activeKitchenName } = useStore();
 
   const fallbackMatch: MatchResult = useMemo(() => ({
@@ -196,13 +204,14 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
     status: 'needs-shopping',
   }), [recipe]);
 
+  const isMealDbRecipe = useMemo(() => String(recipe?.source || '').toLowerCase() === 'themealdb', [recipe?.source]);
   const displayMatch = match ?? fallbackMatch;
   const importedRecipe = recipe ? isImportedCommunityRecipe(recipe) : false;
   const importedPreview = useMemo(() => recipe ? getImportedPreviewData(recipe) : EMPTY_IMPORTED_PREVIEW, [recipe]);
   const resolvedSourceUrl = getResolvedRecipeSourceUrl(recipe) || importedPreview.sourceUrl;
   const normalizedSourceUrl = useMemo(
-    () => normalizeSourceUrlForNavigation(resolvedSourceUrl || ''),
-    [resolvedSourceUrl],
+    () => isMealDbRecipe ? '' : normalizeSourceUrlForNavigation(resolvedSourceUrl || ''),
+    [resolvedSourceUrl, isMealDbRecipe],
   );
   const embedBlockReason = normalizedSourceUrl ? getEmbedBlockReason(normalizedSourceUrl) : null;
   const canEmbedSource = Boolean(normalizedSourceUrl) && !embedBlockReason;
@@ -217,18 +226,20 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
   const isMunchRecipe = isMunchAuthoredRecipe(recipe);
   const recipeChefName = getRecipeChefName(recipe);
   const showChefAttribution = Boolean(chefName) || shouldShowChefAttribution(recipe);
-  const displayChefName = chefName || recipeChefName || (isMunchRecipe ? MUNCH_CHEF_NAME : null);
+  const displayChefName = (recipeChefName && recipeChefName !== MUNCH_CHEF_NAME) ? recipeChefName : (chefName || (isMunchRecipe ? MUNCH_CHEF_NAME : null));
   const displayChefId = showChefAttribution ? (chefId || recipe?.created_by || (isMunchRecipe ? MUNCH_OFFICIAL_USER_ID : null)) : null;
   const sourceBadge = getRecipeSourceBadge(recipe);
-  const isMealDbRecipe = String(recipe?.source || '').toLowerCase() === 'themealdb';
   const showSourceLinkOverImage = Boolean(normalizedSourceUrl && sourceHostname && !isMealDbRecipe);
   const showSourceBadge = Boolean(sourceBadge) && !showSourceLinkOverImage;
   const showEmbeddedWebView = Boolean(normalizedSourceUrl && importedRecipe && importedView === 'web' && webViewEnabled);
+  const normalizedMatchedIngredients = useMemo(
+    () => new Set(displayMatch.matched.map((item) => item.toLowerCase().trim())),
+    [displayMatch.matched],
+  );
   const dialogSizeClass = expanded
     ? 'h-[calc(100dvh-0.75rem)] w-[calc(100vw-0.75rem)] max-w-[calc(100vw-0.75rem)] sm:h-[96vh] sm:w-[96vw] sm:max-w-[96vw]'
-    : `h-[calc(100dvh-0.75rem)] max-h-[calc(100dvh-0.75rem)] w-[calc(100vw-0.75rem)] max-w-[calc(100vw-0.75rem)] sm:h-[92vh] ${
-        showEmbeddedWebView ? 'sm:max-w-5xl' : 'sm:max-w-lg'
-      }`;
+    : `h-[calc(100dvh-0.75rem)] max-h-[calc(100dvh-0.75rem)] w-[calc(100vw-0.75rem)] max-w-[calc(100vw-0.75rem)] sm:h-[92vh] ${showEmbeddedWebView ? 'sm:max-w-5xl' : 'sm:max-w-6xl'
+    }`;
 
   useEffect(() => {
     if (!recipe || !open) return;
@@ -239,16 +250,45 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
     if (!open) {
       setExpanded(false);
       setEmbedUnavailable(false);
+      if (embedFallbackTimeoutRef.current !== null) {
+        window.clearTimeout(embedFallbackTimeoutRef.current);
+        embedFallbackTimeoutRef.current = null;
+      }
     }
   }, [open]);
 
   useEffect(() => {
     setEmbedUnavailable(false);
+    if (embedFallbackTimeoutRef.current !== null) {
+      window.clearTimeout(embedFallbackTimeoutRef.current);
+      embedFallbackTimeoutRef.current = null;
+    }
   }, [normalizedSourceUrl, recipe?.id]);
+
+  useEffect(() => {
+    setAddedToGrocery(false);
+  }, [recipe?.id, open]);
 
   if (!recipe) return null;
 
+  const clearEmbedFallbackTimeout = () => {
+    if (embedFallbackTimeoutRef.current !== null) {
+      window.clearTimeout(embedFallbackTimeoutRef.current);
+      embedFallbackTimeoutRef.current = null;
+    }
+  };
+
+  const scheduleEmbedFallback = () => {
+    clearEmbedFallbackTimeout();
+    if (!open || !normalizedSourceUrl || !webViewEnabled) return;
+    embedFallbackTimeoutRef.current = window.setTimeout(() => {
+      handleEmbedUnavailable();
+    }, 2500);
+  };
+
   const handleEmbedUnavailable = () => {
+    clearEmbedFallbackTimeout();
+
     if (normalizedSourceHost) {
       runtimeBlockedEmbedHosts.add(normalizedSourceHost);
     }
@@ -267,12 +307,29 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
 
     try {
       const loadedUrl = iframe.contentWindow?.location.href;
-      if (loadedUrl?.startsWith('chrome-error://')) {
+      // If we can read the href, it means it didn't cross origins successfully.
+      // E.g. chrome-error://, about:blank, or empty string.
+      if (
+        loadedUrl?.startsWith('chrome-error://') ||
+        loadedUrl === 'about:blank' ||
+        loadedUrl === '' ||
+        loadedUrl === 'about:srcdoc'
+      ) {
         handleEmbedUnavailable();
+        return;
       }
+
+      clearEmbedFallbackTimeout();
     } catch {
-      // Cross-origin access errors are expected for successful embeds.
+      // SecurityError thrown -> cross-origin access blocked, which means it successfully loaded the external page!
+      clearEmbedFallbackTimeout();
     }
+  };
+
+  const handleSelectWebView = () => {
+    if (!webViewEnabled) return;
+    setImportedView('web');
+    scheduleEmbedFallback();
   };
 
   const handleShareRecipe = async () => {
@@ -301,7 +358,6 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
     if (!onAddMissingToGrocery || displayMatch.missing.length === 0) return;
     onAddMissingToGrocery(recipe, displayMatch.missing);
     setAddedToGrocery(true);
-    window.setTimeout(() => setAddedToGrocery(false), 1400);
   };
 
   const handleShareToKitchen = async () => {
@@ -356,113 +412,48 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
-          className={`${dialogSizeClass} rounded-[1.5rem] p-0 overflow-hidden flex flex-col sm:rounded-2xl [&>button[data-tutorial='dialog-close']]:right-2.5 [&>button[data-tutorial='dialog-close']]:top-2.5 sm:[&>button[data-tutorial='dialog-close']]:right-3 sm:[&>button[data-tutorial='dialog-close']]:top-3 [&>button[data-tutorial='dialog-close']]:h-8 [&>button[data-tutorial='dialog-close']]:w-8 sm:[&>button[data-tutorial='dialog-close']]:h-9 sm:[&>button[data-tutorial='dialog-close']]:w-9 [&>button[data-tutorial='dialog-close']]:p-0 [&>button[data-tutorial='dialog-close']]:inline-flex [&>button[data-tutorial='dialog-close']]:items-center [&>button[data-tutorial='dialog-close']]:justify-center [&>button[data-tutorial='dialog-close']]:rounded-full [&>button[data-tutorial='dialog-close']]:bg-orange-500 [&>button[data-tutorial='dialog-close']]:text-white [&>button[data-tutorial='dialog-close']]:opacity-100 [&>button[data-tutorial='dialog-close']]:shadow-md [&>button[data-tutorial='dialog-close']]:ring-2 [&>button[data-tutorial='dialog-close']]:ring-white/70 [&>button[data-tutorial='dialog-close']]:ring-offset-0 hover:[&>button[data-tutorial='dialog-close']]:bg-orange-600 hover:[&>button[data-tutorial='dialog-close']]:text-white [&>button[data-tutorial='dialog-close']>svg]:h-4 [&>button[data-tutorial='dialog-close']>svg]:w-4`}
-          onOpenAutoFocus={(event) => event.preventDefault()}
+          className={`${dialogSizeClass} rounded-[1.5rem] p-0 overflow-hidden flex flex-col sm:rounded-2xl [&>button[data-tutorial='dialog-close']]:right-2 [&>button[data-tutorial='dialog-close']]:top-1 sm:[&>button[data-tutorial='dialog-close']]:right-2.5 sm:[&>button[data-tutorial='dialog-close']]:top-1.5 [&>button[data-tutorial='dialog-close']]:h-7 [&>button[data-tutorial='dialog-close']]:w-7 sm:[&>button[data-tutorial='dialog-close']]:h-8 sm:[&>button[data-tutorial='dialog-close']]:w-8 [&>button[data-tutorial='dialog-close']]:p-0 [&>button[data-tutorial='dialog-close']]:inline-flex [&>button[data-tutorial='dialog-close']]:items-center [&>button[data-tutorial='dialog-close']]:justify-center [&>button[data-tutorial='dialog-close']]:rounded-full [&>button[data-tutorial='dialog-close']]:bg-orange-500 [&>button[data-tutorial='dialog-close']]:text-white [&>button[data-tutorial='dialog-close']]:opacity-100 [&>button[data-tutorial='dialog-close']]:shadow-md [&>button[data-tutorial='dialog-close']]:ring-2 [&>button[data-tutorial='dialog-close']]:ring-white/70 [&>button[data-tutorial='dialog-close']]:ring-offset-0 hover:[&>button[data-tutorial='dialog-close']]:bg-orange-600 hover:[&>button[data-tutorial='dialog-close']]:text-white [&>button[data-tutorial='dialog-close']>svg]:h-3.5 [&>button[data-tutorial='dialog-close']>svg]:w-3.5`}
           data-tutorial="recipe-dialog-content"
         >
-          <div className={`relative overflow-hidden ${expanded ? 'h-32 sm:h-40 md:h-48' : showEmbeddedWebView ? 'h-28 sm:h-32 md:h-36' : 'h-36 sm:h-40 md:h-48'}`}>
-            <img src={getRecipeImageSrc(recipe.image)} alt={recipe.name} className="w-full h-full object-cover" onError={applyRecipeImageFallback} />
-            <div className="absolute inset-0 bg-gradient-to-t from-background/90 to-transparent" />
-            <div className="absolute bottom-3 left-4 right-16 sm:right-4">
-              <DialogHeader data-tutorial="recipe-dialog-header">
-                <DialogTitle className="text-xl text-foreground">{recipe.name}</DialogTitle>
-              </DialogHeader>
-            </div>
-            {showSourceLinkOverImage ? (
-              <a
-                href={normalizedSourceUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="absolute top-3 left-3 inline-flex items-center gap-1.5 text-[11px] text-white/90 hover:text-white font-medium bg-black/30 backdrop-blur-sm px-2.5 py-1 rounded-full transition-colors"
-              >
-                <img
-                  src={`https://www.google.com/s2/favicons?domain=${sourceHostname}&sz=32`}
-                  alt=""
-                  className="h-4 w-4 shrink-0 rounded-sm bg-white/90 p-0.5"
-                  onError={(event) => {
-                    (event.currentTarget as HTMLImageElement).style.display = 'none';
-                  }}
-                />
-                <span>{sourceHostname.replace(/^www\./, '')}</span>
-              </a>
-            ) : null}
-            {displayChefName && displayChefId ? (
+          <DialogHeader className="sr-only">
+            <DialogTitle>{recipe.name}</DialogTitle>
+          </DialogHeader>
+          <button
+            type="button"
+            onClick={() => setExpanded((value) => !value)}
+            className={`absolute top-1 z-20 ${importedRecipe && normalizedSourceUrl && webViewEnabled ? 'right-[5.25rem] sm:right-[6.25rem]' : 'right-9 sm:right-11'} inline-flex h-7 w-7 items-center justify-center rounded-full border border-orange-200 bg-white text-orange-600 shadow-sm transition-colors hover:bg-orange-50 sm:top-1.5 sm:h-8 sm:w-8`}
+            aria-label={expanded ? 'Collapse recipe preview' : 'Expand recipe preview'}
+          >
+            {expanded ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+          </button>
+          {importedRecipe && normalizedSourceUrl && webViewEnabled && (
+            <div className="absolute top-1 right-9 z-20 inline-flex items-center rounded-full border border-orange-200 bg-white p-1 shadow-sm sm:top-1.5 sm:right-11">
               <button
-                onClick={() => { onOpenChange(false); navigate(`/chef/${displayChefId}`); }}
-                className={`absolute inline-flex items-center gap-1.5 text-[11px] text-white/90 hover:text-white font-medium bg-black/30 backdrop-blur-sm px-2.5 py-1 rounded-full transition-colors ${showSourceLinkOverImage ? 'top-14 left-3' : 'top-3 left-3'}`}
-              >
-                <RecipeAttributionIcon recipe={recipe} sizeClassName="h-4 w-4" className="rounded-full bg-white/90 p-0.5" />
-                <span>{displayChefName}</span>
-              </button>
-            ) : null}
-            <button
-              type="button"
-              onClick={() => setExpanded((value) => !value)}
-              className={`absolute top-2.5 ${importedRecipe && normalizedSourceUrl && webViewEnabled ? 'right-[6.25rem] sm:right-[7.25rem]' : 'right-11 sm:right-14'} inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/30 bg-black/35 text-white shadow-sm backdrop-blur-sm transition-colors hover:bg-black/50 sm:h-9 sm:w-9`}
-              aria-label={expanded ? 'Collapse recipe preview' : 'Expand recipe preview'}
-            >
-              {expanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-            </button>
-            {importedRecipe && normalizedSourceUrl && webViewEnabled && (
-              <div className="absolute top-2.5 right-11 inline-flex items-center rounded-full border border-white/30 bg-black/35 p-1 backdrop-blur-sm sm:top-3 sm:right-14">
-                <button
-                  type="button"
-                  onClick={() => setImportedView('web')}
-                  disabled={!webViewEnabled}
-                  className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors sm:px-3 sm:text-[11px] ${
-                    importedView === 'web'
-                      ? 'bg-white text-stone-900 shadow-sm'
-                      : 'text-white/85'
+                type="button"
+                onClick={() => setImportedView('web')}
+                disabled={!webViewEnabled}
+                className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors sm:px-3 sm:text-[11px] ${importedView === 'web'
+                  ? 'bg-orange-500 text-white shadow-sm'
+                  : 'text-stone-600'
                   } ${!webViewEnabled ? 'cursor-not-allowed opacity-50' : ''}`}
-                >
-                  Web
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setImportedView('app')}
-                  className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors sm:px-3 sm:text-[11px] ${
-                    importedView === 'app'
-                      ? 'bg-white text-stone-900 shadow-sm'
-                      : 'text-white/85'
+              >
+                Web
+              </button>
+              <button
+                type="button"
+                onClick={() => setImportedView('app')}
+                className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors sm:px-3 sm:text-[11px] ${importedView === 'app'
+                  ? 'bg-orange-500 text-white shadow-sm'
+                  : 'text-stone-600'
                   }`}
-                >
-                  App
-                </button>
-              </div>
-            )}
-          </div>
+              >
+                App
+              </button>
+            </div>
+          )}
 
           <ScrollArea className="flex-1 min-h-0 px-4 pb-3 sm:px-5 sm:pb-4">
-            <div className="space-y-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="secondary" className="gap-1"><Clock className="h-3 w-3" /> {recipe.cook_time}</Badge>
-                <Badge variant="secondary" className="gap-1"><BarChart3 className="h-3 w-3" /> {recipe.difficulty}</Badge>
-                <MatchBadge percentage={displayMatch.percentage} />
-                {showSourceBadge && (
-                  <Badge variant="outline" className="gap-1 text-orange-700 border-orange-200 bg-orange-50">
-                    <FileText className="h-3 w-3" /> {sourceBadge}
-                  </Badge>
-                )}
-                {recipe.cuisine && <Badge variant="outline" className="gap-1"><MapPin className="h-3 w-3" /> {recipe.cuisine}</Badge>}
-                {recipe.servings && <Badge variant="secondary" className="gap-1"><Users className="h-3 w-3" /> Serves {recipe.servings}</Badge>}
-                {normalizedSourceUrl && importedRecipe && !showEmbeddedWebView && (
-                  <a
-                    href={normalizedSourceUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-orange-700 transition-colors hover:text-orange-800"
-                  >
-                    <ExternalLink className="h-3.5 w-3.5" /> Open in Browser
-                  </a>
-                )}
-              </div>
-
-              {!!recipe.tags?.length && (
-                <div className="flex flex-wrap gap-1.5">
-                  {recipe.tags.slice(0, 4).map((tag) => <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>)}
-                </div>
-              )}
-
+            <div className="space-y-4 pt-4 sm:pt-5">
               {/* ── Recipe Content ── */}
               {normalizedSourceUrl && importedRecipe && importedView === 'web' && webViewEnabled ? (
                 <div className="space-y-3">
@@ -500,11 +491,10 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
                       whileTap={{ scale: 0.98 }}
                       animate={addedToGrocery ? { scale: [1, 1.02, 1] } : { scale: 1 }}
                       transition={{ duration: 0.3 }}
-                      className={`w-full px-3 py-2 rounded-lg border text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-colors ${
-                        addedToGrocery
-                          ? 'border-emerald-500/60 bg-emerald-500/10 text-emerald-700'
-                          : 'border-border'
-                      }`}
+                      className={`w-full px-3 py-2 rounded-lg border text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-colors ${addedToGrocery
+                        ? 'border-emerald-500/60 bg-emerald-500/10 text-emerald-700'
+                        : 'border-border'
+                        }`}
                     >
                       <motion.span
                         animate={addedToGrocery ? { rotate: [0, -12, 12, 0] } : { rotate: 0 }}
@@ -528,87 +518,183 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {recipe.ingredients.length > 0 && (
-                    <>
-                      <div>
-                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Portion Size</p>
-                        <div className="inline-flex rounded-lg border p-1 gap-1">
-                          {SCALE_OPTIONS.map((option) => (
-                            <button
-                              key={option.label}
-                              onClick={() => setPortionFactor(option.factor)}
-                              className={`px-3 py-1.5 text-xs rounded-md font-semibold ${portionFactor === option.factor ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
-                            >
-                              {option.label}
-                            </button>
-                          ))}
+                  <div className="grid gap-4 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:items-start">
+                    <div className="space-y-3 lg:sticky lg:top-0">
+                      <div className="overflow-hidden rounded-[1.4rem] border border-orange-100 bg-white shadow-[0_18px_40px_rgba(28,25,23,0.07)]">
+                        <div className="aspect-[4/3] bg-stone-100">
+                          <img
+                            src={getRecipeImageSrc(recipe.image)}
+                            alt={recipe.name}
+                            className="h-full w-full object-cover"
+                            onError={applyRecipeImageFallback}
+                          />
                         </div>
                       </div>
 
-                      <div>
-                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Ingredients</p>
-                        <ul className="space-y-2">
-                          {recipe.ingredients.map((ing) => {
-                            const scaledIngredient = scaleIngredient(ing, portionFactor);
-                            const hasIngredient = displayMatch.matched.some((m) => m.toLowerCase() === ing.toLowerCase());
-                            return (
-                              <li key={ing} className="text-sm flex items-start gap-2 text-foreground">
-                                {hasIngredient ? <Check className="h-4 w-4 mt-0.5 text-emerald-600" /> : <ShoppingCart className="h-4 w-4 mt-0.5 text-orange-500" />}
-                                <span>{scaledIngredient}</span>
-                              </li>
-                            );
-                          })}
-                        </ul>
+                      <div className="px-1">
+                        <h2 className="text-xl font-bold leading-tight text-stone-900 sm:text-[1.6rem]" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+                          {recipe.name}
+                        </h2>
+                        <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[12px] font-semibold text-stone-500">
+                          <span className="inline-flex items-center gap-1.5">
+                            <Clock className="h-3.5 w-3.5 text-orange-500" />
+                            {recipe.cook_time}
+                          </span>
+                          {recipe.servings && (
+                            <span className="inline-flex items-center gap-1.5">
+                              <Users className="h-3.5 w-3.5 text-orange-500" />
+                              {recipe.servings} serving{recipe.servings === 1 ? '' : 's'}
+                            </span>
+                          )}
+                          {recipe.difficulty && (
+                            <span className="inline-flex items-center gap-1.5">
+                              <BarChart3 className="h-3.5 w-3.5 text-orange-500" />
+                              {recipe.difficulty}
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-4 flex flex-wrap items-center gap-2">
+                          <MatchBadge percentage={displayMatch.percentage} />
+                          {recipe.cuisine && (
+                            <Badge variant="outline" className="gap-1 border-orange-200 bg-orange-50 text-orange-700">
+                              <MapPin className="h-3 w-3" /> {recipe.cuisine}
+                            </Badge>
+                          )}
+                          {showSourceBadge && (
+                            <Badge variant="outline" className="gap-1 border-orange-200 bg-orange-50 text-orange-700">
+                              <FileText className="h-3 w-3" /> {sourceBadge}
+                            </Badge>
+                          )}
+                        </div>
+
+                        {!!recipe.tags?.length && (
+                          <div className="mt-2.5 flex flex-wrap gap-1.5">
+                            {recipe.tags.slice(0, 4).map((tag) => (
+                              <span key={tag} className="rounded-full border border-stone-200 bg-white px-2.5 py-0.5 text-[10px] font-semibold text-stone-500">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    </>
-                  )}
-
-                  {recipe.instructions.length > 0 && (
-                    <div>
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Instructions</p>
-                      <ol className="space-y-2">
-                        {recipe.instructions.map((step, i) => (
-                          <li key={i} className="flex gap-2 text-sm text-foreground">
-                            <span className="flex-shrink-0 h-5 w-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold">{i + 1}</span>
-                            {step}
-                          </li>
-                        ))}
-                      </ol>
                     </div>
-                  )}
 
-                  {displayMatch.missing.length > 0 && onAddMissingToGrocery && (
-                    <motion.button
-                      onClick={handleAddMissingToGrocery}
-                      data-tutorial="add-missing-button"
-                      whileTap={{ scale: 0.98 }}
-                      animate={addedToGrocery ? { scale: [1, 1.02, 1] } : { scale: 1 }}
-                      transition={{ duration: 0.3 }}
-                      className={`w-full px-3 py-2 rounded-lg border text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-colors ${addedToGrocery
-                        ? 'border-emerald-500/60 bg-emerald-500/10 text-emerald-700'
-                        : 'border-border'
-                        }`}
-                    >
-                      <motion.span
-                        animate={addedToGrocery ? { rotate: [0, -12, 12, 0] } : { rotate: 0 }}
-                        transition={{ duration: 0.35 }}
-                      >
-                        {addedToGrocery ? <Check className="h-4 w-4" /> : <ShoppingCart className="h-4 w-4" />}
-                      </motion.span>
-                      {addedToGrocery ? 'Added to grocery list' : `Add ${displayMatch.missing.length} missing ingredients to Grocery List`}
-                    </motion.button>
-                  )}
+                    <div className="space-y-4">
+                      {recipe.ingredients.length > 0 && (
+                        <section className="rounded-[1.4rem] border border-orange-100 bg-white p-3.5 shadow-[0_14px_34px_rgba(28,25,23,0.05)] sm:p-4">
+                          <div className="mb-3 flex flex-wrap items-center justify-between gap-2.5">
+                            <div className="flex items-center gap-2.5">
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-orange-400">Ingredients</p>
+                              <span className="inline-flex items-center rounded-full bg-sky-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-sky-600">
+                                Smart Pantry Sync
+                              </span>
+                            </div>
+                            <div className="inline-flex rounded-full border border-stone-200 bg-stone-50 p-1">
+                              {SCALE_OPTIONS.map((option) => (
+                                <button
+                                  key={option.label}
+                                  onClick={() => setPortionFactor(option.factor)}
+                                  className={`rounded-full px-3 py-1.5 text-[11px] font-semibold transition-colors ${portionFactor === option.factor ? 'bg-white text-orange-600 shadow-sm' : 'text-stone-500'}`}
+                                >
+                                  {option.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
 
-                  {recipe.ingredients.length > 0 && (
-                    <div>
-                      <NutritionCard
-                        recipeId={recipe.id}
-                        recipeName={recipe.name}
-                        ingredients={recipe.ingredients}
-                        servings={recipe.servings ?? 1}
-                      />
+                          <div className="space-y-2">
+                            {recipe.ingredients.map((ing) => {
+                              const scaledIngredient = scaleIngredient(ing, portionFactor);
+                              const hasIngredient = normalizedMatchedIngredients.has(ing.toLowerCase().trim());
+
+                              return (
+                                <div
+                                  key={ing}
+                                  className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 ${hasIngredient
+                                    ? 'border-emerald-200 bg-emerald-50/55'
+                                    : 'border-orange-200 bg-orange-50/45'
+                                    }`}
+                                >
+                                  <div
+                                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${hasIngredient
+                                      ? 'bg-emerald-100 text-emerald-600'
+                                      : 'bg-orange-100 text-orange-500'
+                                      }`}
+                                  >
+                                    {hasIngredient ? <Check className="h-3 w-3" /> : <ShoppingCart className="h-3 w-3" />}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="text-[11px] font-semibold leading-4 text-stone-900">
+                                      {scaledIngredient}
+                                    </p>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {displayMatch.missing.length > 0 && onAddMissingToGrocery && (
+                            <motion.button
+                              onClick={handleAddMissingToGrocery}
+                              data-tutorial="add-missing-button"
+                              whileTap={{ scale: 0.98 }}
+                              animate={addedToGrocery ? { scale: [1, 1.02, 1] } : { scale: 1 }}
+                              transition={{ duration: 0.3 }}
+                              className={`mt-3 w-full rounded-xl border px-3 py-2.5 text-[12px] font-semibold inline-flex items-center justify-center gap-2 transition-colors ${addedToGrocery
+                                ? 'border-emerald-500/60 bg-emerald-500/10 text-emerald-700'
+                                : 'border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100/70'
+                                }`}
+                            >
+                              <motion.span
+                                animate={addedToGrocery ? { rotate: [0, -12, 12, 0] } : { rotate: 0 }}
+                                transition={{ duration: 0.35 }}
+                              >
+                                {addedToGrocery ? <Check className="h-4 w-4" /> : <ShoppingCart className="h-4 w-4" />}
+                              </motion.span>
+                              {addedToGrocery ? 'Added to grocery list' : `Add ${displayMatch.missing.length} missing ingredient${displayMatch.missing.length === 1 ? '' : 's'} to Grocery List`}
+                            </motion.button>
+                          )}
+                        </section>
+                      )}
+
+                      {recipe.instructions.length > 0 && (
+                        <section className="rounded-[1.4rem] border border-orange-100 bg-white p-3.5 shadow-[0_14px_34px_rgba(28,25,23,0.05)] sm:p-4">
+                          <div className="mb-3">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-orange-400">Instructions</p>
+                            <h3 className="mt-1 text-lg font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+                              Cook it step by step
+                            </h3>
+                          </div>
+                          <ol className="space-y-4">
+                            {recipe.instructions.map((step, i) => (
+                              <li key={i} className="flex gap-3">
+                                <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange-500 text-sm font-bold text-white shadow-[0_8px_18px_rgba(249,115,22,0.22)]">
+                                  {i + 1}
+                                </span>
+                                <div className="pt-1">
+                                  <p className="text-sm font-semibold text-orange-600">
+                                    {stripInstructionPrefix(step).split('. ')[0] || `Step ${i + 1}`}
+                                  </p>
+                                  <p className="mt-1 text-[13px] leading-6 text-stone-700">
+                                    {stripInstructionPrefix(step)}
+                                  </p>
+                                </div>
+                              </li>
+                            ))}
+                          </ol>
+                        </section>
+                      )}
+
+                      {recipe.ingredients.length > 0 && (
+                        <NutritionCard
+                          recipeId={recipe.id}
+                          recipeName={recipe.name}
+                          ingredients={recipe.ingredients}
+                          servings={recipe.servings ?? 1}
+                        />
+                      )}
                     </div>
-                  )}
+                  </div>
                 </div>
               )}
             </div>
@@ -658,11 +744,10 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
                       onOpenChange(false);
                     }}
                     data-tutorial="like-button"
-                    className={`h-9 min-w-0 flex-1 rounded-lg px-3 text-sm font-semibold inline-flex items-center justify-center gap-1.5 basis-[10rem] ${
-                      isSaved
-                        ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
-                        : 'bg-primary text-primary-foreground'
-                    }`}
+                    className={`h-9 min-w-0 flex-1 rounded-lg px-3 text-sm font-semibold inline-flex items-center justify-center gap-1.5 basis-[10rem] ${isSaved
+                      ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
+                      : 'bg-primary text-primary-foreground'
+                      }`}
                   >
                     <Heart className="h-4 w-4" fill={isSaved ? 'currentColor' : 'none'} /> {isSaved ? 'Saved' : 'Save'}
                   </button>
