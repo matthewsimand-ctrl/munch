@@ -8,9 +8,46 @@ const corsHeaders = {
 const AI_GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
 const R_JINA_PROXY_PREFIX = 'https://r.jina.ai/';
 
-const PROXY_FETCHERS: Array<{ label: string; buildUrl: (url: string) => string; parseResponse?: (res: Response) => Promise<string> }> = [
-  { label: 'r.jina.ai direct', buildUrl: (url) => `${R_JINA_PROXY_PREFIX}${url}` },
-  { label: 'r.jina.ai encoded', buildUrl: (url) => `${R_JINA_PROXY_PREFIX}http://${encodeURIComponent(url)}` },
+/** How long to wait for any single fetch before giving up and trying the next proxy */
+const FETCH_TIMEOUT_MS = 8000;
+
+/** Wrap a fetch with a timeout so one slow proxy doesn't block the whole chain */
+async function fetchWithTimeout(url: string, init: RequestInit = {}): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+const PROXY_FETCHERS: Array<{
+  label: string;
+  buildUrl: (url: string) => string;
+  buildHeaders?: () => Record<string, string>;
+  parseResponse?: (res: Response) => Promise<string>;
+}> = [
+  {
+    label: 'r.jina.ai',
+    buildUrl: (url) => `${R_JINA_PROXY_PREFIX}${url}`,
+    buildHeaders: () => ({
+      // Ask Jina for markdown — cleaner signal-to-noise than raw HTML
+      'Accept': 'text/markdown, text/plain, */*',
+      'X-Return-Format': 'markdown',
+      'X-Timeout': '6',
+    }),
+  },
+  {
+    // Alternate Jina form that works on some sites the first form misses
+    label: 'r.jina.ai (encoded)',
+    buildUrl: (url) => `${R_JINA_PROXY_PREFIX}https://${encodeURIComponent(url.replace(/^https?:\/\//, ''))}`,
+    buildHeaders: () => ({
+      'Accept': 'text/markdown, text/plain, */*',
+      'X-Return-Format': 'markdown',
+      'X-Timeout': '6',
+    }),
+  },
   {
     label: 'allorigins',
     buildUrl: (url) => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
@@ -22,6 +59,10 @@ const PROXY_FETCHERS: Array<{ label: string; buildUrl: (url: string) => string; 
   {
     label: 'corsproxy.io',
     buildUrl: (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  },
+  {
+    label: 'htmldriven',
+    buildUrl: (url) => `https://htmldriven.com/cors?url=${encodeURIComponent(url)}`,
   },
 ];
 
@@ -72,18 +113,15 @@ function isoDurationToText(value?: string): string {
   const iso = value.trim();
   const m = iso.match(/^P(?:([0-9]+)D)?(?:T(?:([0-9]+)H)?(?:([0-9]+)M)?(?:([0-9]+)S)?)?$/i);
   if (!m) return value;
-
   const days = parseInt(m[1] || '0', 10);
   const hours = parseInt(m[2] || '0', 10);
   const minutes = parseInt(m[3] || '0', 10);
   const seconds = parseInt(m[4] || '0', 10);
   const parts: string[] = [];
-
   if (days) parts.push(durationPart(days, 'day'));
   if (hours) parts.push(durationPart(hours, 'hour'));
   if (minutes) parts.push(durationPart(minutes, 'minute'));
   if (seconds && parts.length === 0) parts.push(durationPart(seconds, 'second'));
-
   return parts.length ? parts.join(' ') : value;
 }
 
@@ -102,39 +140,25 @@ function extractInstructionTexts(input: unknown): string[] {
   const out: string[] = [];
   const walk = (value: unknown) => {
     if (!value) return;
-    if (typeof value === 'string') {
-      const v = value.trim();
-      if (v) out.push(v);
-      return;
-    }
-    if (Array.isArray(value)) {
-      value.forEach(walk);
-      return;
-    }
+    if (typeof value === 'string') { const v = value.trim(); if (v) out.push(v); return; }
+    if (Array.isArray(value)) { value.forEach(walk); return; }
     if (typeof value === 'object') {
       const obj = value as Record<string, unknown>;
-      if (typeof obj.text === 'string' && obj.text.trim()) {
-        out.push(obj.text.trim());
-      }
+      if (typeof obj.text === 'string' && obj.text.trim()) { out.push(obj.text.trim()); }
       if (obj.itemListElement) walk(obj.itemListElement);
       return;
     }
   };
-
   walk(input);
   return out;
 }
 
 function parseJsonObjectFromText(raw: string): Record<string, unknown> {
   const cleaned = raw.replace(/```json\n?/gi, '').replace(/```\n?/g, '').trim();
-  try {
-    return JSON.parse(cleaned);
-  } catch {
+  try { return JSON.parse(cleaned); } catch {
     const start = cleaned.indexOf('{');
     const end = cleaned.lastIndexOf('}');
-    if (start !== -1 && end > start) {
-      return JSON.parse(cleaned.slice(start, end + 1));
-    }
+    if (start !== -1 && end > start) return JSON.parse(cleaned.slice(start, end + 1));
     throw new Error('AI returned invalid JSON');
   }
 }
@@ -151,7 +175,6 @@ function ingredientFromObject(value: Record<string, unknown>): string {
   const quantity = String(value.quantity ?? value.amount ?? value.qty ?? '').trim();
   const unit = String(value.unit ?? value.measure ?? '').trim();
   const name = String(value.name ?? value.ingredient ?? value.item ?? value.text ?? '').trim();
-
   if (!name) return '';
   const prefix = [quantity, unit].filter(Boolean).join(' ').trim();
   return prefix ? `${prefix} ${name}`.trim() : name;
@@ -159,7 +182,6 @@ function ingredientFromObject(value: Record<string, unknown>): string {
 
 function normalizeIngredients(input: unknown): string[] {
   if (!Array.isArray(input)) return [];
-
   return input
     .map((item) => {
       if (typeof item === 'string') return item.trim();
@@ -210,15 +232,12 @@ function looksLikeIngredientLine(line: string): boolean {
 
 function extractStructuredText(html: string): string {
   let cleaned = html;
-
   for (const tag of NON_CONTENT_TAGS) {
     cleaned = cleaned.replace(new RegExp(`<${tag}[^>]*>[\\s\\S]*?<\\/${tag}>`, 'gi'), '\n');
   }
-
   for (const tag of NON_ESSENTIAL_SECTIONS) {
     cleaned = cleaned.replace(new RegExp(`<${tag}[^>]*>[\\s\\S]*?<\\/${tag}>`, 'gi'), '\n');
   }
-
   cleaned = cleaned
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/(p|div|section|article|li|ul|ol|h1|h2|h3|h4|h5|h6)>/gi, '\n')
@@ -226,7 +245,6 @@ function extractStructuredText(html: string): string {
     .replace(/<!--([\s\S]*?)-->/g, ' ')
     .replace(/<[^>]+>/g, ' ')
     .replace(/\r/g, '\n');
-
   return decodeHtmlEntities(cleaned)
     .split('\n')
     .map((line) => line.replace(/\s+/g, ' ').trim())
@@ -235,69 +253,40 @@ function extractStructuredText(html: string): string {
 }
 
 function extractIngredientSectionLines(text: string): string[] {
-  const lines = text
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-
+  const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   const startIndex = lines.findIndex((line) =>
     INGREDIENT_SECTION_HEADERS.some((header) => line.toLowerCase() === header || line.toLowerCase().startsWith(`${header}:`))
   );
-
   if (startIndex === -1) return [];
-
   const extracted: string[] = [];
   for (let i = startIndex + 1; i < lines.length; i++) {
     const line = lines[i];
     const lowered = line.toLowerCase();
-
-    if (RECIPE_SECTION_END_HEADERS.some((header) => lowered === header || lowered.startsWith(`${header}:`))) {
-      break;
-    }
-
-    if (!looksLikeIngredientLine(line)) {
-      if (extracted.length > 0) break;
-      continue;
-    }
-
+    if (RECIPE_SECTION_END_HEADERS.some((header) => lowered === header || lowered.startsWith(`${header}:`))) break;
+    if (!looksLikeIngredientLine(line)) { if (extracted.length > 0) break; continue; }
     extracted.push(cleanIngredientCandidate(line));
   }
-
   return extracted.filter(Boolean);
 }
 
 function upgradeIngredientLines(recipe: Record<string, unknown>, fallbackLines: string[]): Record<string, unknown> {
   const currentIngredients = normalizeIngredients(recipe.ingredients);
   if (currentIngredients.length === 0 || fallbackLines.length === 0) return recipe;
-
   const upgraded = currentIngredients.map((line, index) => {
     if (hasIngredientQuantity(line)) return line;
-
     const currentName = ingredientNameForMatch(line);
     const byName = fallbackLines.find((candidate) => ingredientNameForMatch(candidate) === currentName && hasIngredientQuantity(candidate));
     if (byName) return byName;
-
     const byIndex = fallbackLines[index];
-    if (byIndex && hasIngredientQuantity(byIndex) && ingredientNameForMatch(byIndex) === currentName) {
-      return byIndex;
-    }
-
+    if (byIndex && hasIngredientQuantity(byIndex) && ingredientNameForMatch(byIndex) === currentName) return byIndex;
     return line;
   });
-
-  return {
-    ...recipe,
-    ingredients: upgraded,
-  };
+  return { ...recipe, ingredients: upgraded };
 }
 
 function normalizeRecipePayload(recipe: Record<string, unknown>): Record<string, unknown> {
-  return {
-    ...recipe,
-    ingredients: normalizeIngredients(recipe.ingredients),
-  };
+  return { ...recipe, ingredients: normalizeIngredients(recipe.ingredients) };
 }
-
 
 function extractRecipeFromMealDbPayload(payload: unknown): Record<string, unknown> | null {
   if (!payload || typeof payload !== 'object') return null;
@@ -305,10 +294,8 @@ function extractRecipeFromMealDbPayload(payload: unknown): Record<string, unknow
   const meals = Array.isArray(data.meals) ? data.meals : [];
   const first = meals[0];
   if (!first || typeof first !== 'object') return null;
-
   const meal = first as Record<string, unknown>;
   if (!meal.idMeal && !meal.strMeal) return null;
-
   const ingredients: string[] = [];
   for (let i = 1; i <= 20; i++) {
     const name = String(meal[`strIngredient${i}`] ?? '').trim();
@@ -316,12 +303,7 @@ function extractRecipeFromMealDbPayload(payload: unknown): Record<string, unknow
     const measure = String(meal[`strMeasure${i}`] ?? '').trim();
     ingredients.push(measure ? `${measure} ${name}`.replace(/\s+/g, ' ').trim() : name);
   }
-
-  const instructions = String(meal.strInstructions ?? '')
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-
+  const instructions = String(meal.strInstructions ?? '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   return {
     name: String(meal.strMeal || '').trim(),
     ingredients,
@@ -329,9 +311,7 @@ function extractRecipeFromMealDbPayload(payload: unknown): Record<string, unknow
     cook_time: '30 min',
     difficulty: 'Intermediate',
     cuisine: meal.strArea ? String(meal.strArea) : null,
-    tags: meal.strTags
-      ? String(meal.strTags).split(',').map((t) => t.trim()).filter(Boolean)
-      : [],
+    tags: meal.strTags ? String(meal.strTags).split(',').map((t) => t.trim()).filter(Boolean) : [],
     image: String(meal.strMealThumb || ''),
     servings: '4',
   };
@@ -339,17 +319,13 @@ function extractRecipeFromMealDbPayload(payload: unknown): Record<string, unknow
 
 function extractRecipeFromJsonPayload(payload: unknown): Record<string, unknown> | null {
   if (!payload || typeof payload !== 'object') return null;
-
   const mealDb = extractRecipeFromMealDbPayload(payload);
   if (mealDb) return mealDb;
-
   const data = payload as Record<string, unknown>;
   const ingredients = normalizeIngredients(data.ingredients ?? data.recipeIngredient);
   const instructions = extractInstructionTexts(data.instructions ?? data.recipeInstructions);
   const name = String(data.name ?? data.title ?? '').trim();
-
   if (!name || ingredients.length === 0) return null;
-
   return {
     name,
     ingredients,
@@ -357,9 +333,7 @@ function extractRecipeFromJsonPayload(payload: unknown): Record<string, unknown>
     cook_time: String(data.cook_time ?? data.totalTime ?? data.cookTime ?? '30 min'),
     difficulty: String(data.difficulty ?? 'Intermediate'),
     cuisine: data.cuisine ? String(data.cuisine) : null,
-    tags: Array.isArray(data.tags)
-      ? data.tags.map((t) => String(t).trim()).filter(Boolean)
-      : [],
+    tags: Array.isArray(data.tags) ? data.tags.map((t) => String(t).trim()).filter(Boolean) : [],
     image: String(data.image ?? ''),
     servings: String(data.servings ?? data.recipeYield ?? '4'),
   };
@@ -368,26 +342,13 @@ function extractRecipeFromJsonPayload(payload: unknown): Record<string, unknown>
 function extractRecipeWindow(text: string): string {
   const normalized = text.replace(/\s+/g, ' ').trim();
   if (!normalized) return '';
-
-  const recipeSignals = [
-    'ingredients',
-    'instructions',
-    'directions',
-    'method',
-    'prep time',
-    'cook time',
-    'servings',
-    'nutrition',
-  ];
-
+  const recipeSignals = ['ingredients', 'instructions', 'directions', 'method', 'prep time', 'cook time', 'servings', 'nutrition'];
   const lower = normalized.toLowerCase();
   const firstHit = recipeSignals
     .map((signal) => lower.indexOf(signal))
     .filter((idx) => idx >= 0)
     .sort((a, b) => a - b)[0];
-
   if (typeof firstHit !== 'number') return normalized.slice(0, 20000);
-
   const start = Math.max(0, firstHit - 1800);
   const end = Math.min(normalized.length, firstHit + 15000);
   return normalized.slice(start, end);
@@ -439,7 +400,6 @@ function extractRecipeFromJsonLd(html: string): Record<string, unknown> | null {
       const nutrition = recipe.nutrition && typeof recipe.nutrition === 'object'
         ? (recipe.nutrition as Record<string, unknown>)
         : null;
-
       const nutritionParts = nutrition
         ? [
             nutrition.calories ? `Calories: ${nutrition.calories}` : '',
@@ -473,7 +433,6 @@ function extractRecipeFromJsonLd(html: string): Record<string, unknown> | null {
       // Continue trying next JSON-LD blob
     }
   }
-
   return null;
 }
 
@@ -490,12 +449,7 @@ async function callAiExtraction(params: {
           role: 'user',
           content: [
             { type: 'text', text: 'Extract the recipe from this image.' },
-            {
-              type: 'image_url',
-              image_url: {
-                url: `data:${params.imageMimeType || 'image/jpeg'};base64,${params.imageBase64}`,
-              },
-            },
+            { type: 'image_url', image_url: { url: `data:${params.imageMimeType || 'image/jpeg'};base64,${params.imageBase64}` } },
           ],
         },
       ]
@@ -504,7 +458,7 @@ async function callAiExtraction(params: {
         { role: 'user', content: `Extract the recipe from this content:\n\n${params.textContent || ''}` },
       ];
 
-  const aiRes = await fetch(AI_GATEWAY_URL, {
+  const aiRes = await fetchWithTimeout(AI_GATEWAY_URL, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${params.apiKey}`,
@@ -562,13 +516,16 @@ Deno.serve(async (req) => {
 
     if (normalizedUrl) {
       const attemptedStatuses: string[] = [];
+
+      // 1. Try direct fetch first
       try {
-        const pageRes = await fetch(normalizedUrl, {
+        const pageRes = await fetchWithTimeout(normalizedUrl, {
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
-            Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
             'Accept-Language': 'en-US,en;q=0.9',
             'Cache-Control': 'no-cache',
+            'Upgrade-Insecure-Requests': '1',
           },
         });
 
@@ -580,7 +537,6 @@ Deno.serve(async (req) => {
 
         if (pageRes.ok) {
           const contentType = (pageRes.headers.get('content-type') || '').toLowerCase();
-
           if (contentType.includes('application/json')) {
             const jsonPayload = await pageRes.json();
             recipe = extractRecipeFromJsonPayload(jsonPayload);
@@ -593,23 +549,31 @@ Deno.serve(async (req) => {
         attemptedStatuses.push('direct:network_error');
       }
 
+      // 2. Try proxy chain if direct fetch didn't get us HTML or a recipe
       if (!recipe && !html) {
         for (const proxy of PROXY_FETCHERS) {
           try {
-            const proxyRes = await fetch(proxy.buildUrl(normalizedUrl));
+            const proxyRes = await fetchWithTimeout(
+              proxy.buildUrl(normalizedUrl),
+              proxy.buildHeaders ? { headers: proxy.buildHeaders() } : {},
+            );
             attemptedStatuses.push(`${proxy.label}:${proxyRes.status}`);
+
             if (proxyRes.ok) {
               if (proxy.parseResponse) {
                 html = await proxy.parseResponse(proxyRes);
               } else {
                 html = await proxyRes.text();
               }
-              if (html && html.length > 100) break;
+              if (html && html.length > 200) {
+                console.log(`Proxy "${proxy.label}" succeeded (${html.length} chars)`);
+                break;
+              }
               html = '';
             }
           } catch (proxyErr) {
             console.warn(`Proxy ${proxy.label} failed:`, proxyErr);
-            attemptedStatuses.push(`${proxy.label}:network_error`);
+            attemptedStatuses.push(`${proxy.label}:error`);
           }
         }
       }
@@ -618,13 +582,14 @@ Deno.serve(async (req) => {
         return new Response(
           JSON.stringify({
             success: false,
-            error: `Unable to fetch this URL. Attempts: ${attemptedStatuses.join(', ')}`,
+            error: `Unable to fetch this URL. Tried: ${attemptedStatuses.join(', ')}. Try pasting the recipe text instead.`,
             blocked: wasBlocked,
           }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         );
       }
 
+      // 3. Try JSON-LD extraction from the HTML before going to AI
       if (!recipe && html) {
         recipe = extractRecipeFromJsonLd(html);
       }
@@ -634,12 +599,9 @@ Deno.serve(async (req) => {
         extractedIngredientLines = extractIngredientSectionLines(structuredText);
         content = cleanHtmlForAi(html);
       }
-
-      if (!recipe && structuredText) {
-        content = cleanHtmlForAi(html);
-      }
     }
 
+    // 4. Fall back to AI if we don't have a structured recipe yet
     if (!recipe) {
       if (!imageBase64 && (!content || content.length < 20)) {
         return new Response(
@@ -672,9 +634,11 @@ Deno.serve(async (req) => {
 
     recipe = normalizeRecipePayload(recipe);
     recipe = upgradeIngredientLines(recipe, extractedIngredientLines);
+
     const normalizedTags = Array.isArray(recipe.tags)
       ? recipe.tags.map((tag) => String(tag).trim()).filter(Boolean)
       : [];
+
     let resolvedImage = {
       image: '',
       originalImageUrl: null as string | null,
@@ -683,26 +647,24 @@ Deno.serve(async (req) => {
 
     try {
       resolvedImage = await resolveRecipeImage(serviceSupabase, {
-        recipeName: String(recipe.name ?? "Imported Recipe"),
+        recipeName: String(recipe.name ?? 'Imported Recipe'),
         cuisine: recipe.cuisine ? String(recipe.cuisine) : null,
         tags: normalizedTags,
         sourceUrl: normalizedUrl || undefined,
-        existingImageUrl: String(recipe.image ?? ""),
+        existingImageUrl: String(recipe.image ?? ''),
         html,
       });
     } catch (imageError) {
       console.error('Recipe image resolution failed:', imageError);
     }
+
     if (resolvedImage.image) {
-      recipe = {
-        ...recipe,
-        image: resolvedImage.image,
-      };
+      recipe = { ...recipe, image: resolvedImage.image };
     }
 
     if (normalizedUrl) {
       const existingRawPayload =
-        recipe.raw_api_payload && typeof recipe.raw_api_payload === "object" && !Array.isArray(recipe.raw_api_payload)
+        recipe.raw_api_payload && typeof recipe.raw_api_payload === 'object' && !Array.isArray(recipe.raw_api_payload)
           ? (recipe.raw_api_payload as Record<string, unknown>)
           : {};
       recipe = {
