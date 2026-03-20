@@ -1,4 +1,5 @@
 import { ArrowLeft, Check, Crown, Lock, Sparkles, Star } from "lucide-react";
+import { useEffect } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useStore } from "@/lib/store";
 
@@ -91,6 +92,10 @@ export default function PremiumBenefits() {
   const intro = requestedFeature && requestedFeature !== "Munch Membership"
     ? `${requestedFeature} is a member feature. Upgrade to unlock it, along with the rest of the premium Munch toolkit.`
     : null;
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   return (
     <div className="min-h-full px-4 py-5 md:px-8 md:py-8" style={{ background: "#FFFAF5" }}>

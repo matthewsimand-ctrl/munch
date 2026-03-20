@@ -414,7 +414,7 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
-          className={`${dialogSizeClass} rounded-[1.5rem] p-0 overflow-hidden flex flex-col sm:rounded-2xl [&>button[data-tutorial='dialog-close']]:right-2 [&>button[data-tutorial='dialog-close']]:top-1 sm:[&>button[data-tutorial='dialog-close']]:right-2.5 sm:[&>button[data-tutorial='dialog-close']]:top-1.5 [&>button[data-tutorial='dialog-close']]:h-7 [&>button[data-tutorial='dialog-close']]:w-7 sm:[&>button[data-tutorial='dialog-close']]:h-8 sm:[&>button[data-tutorial='dialog-close']]:w-8 [&>button[data-tutorial='dialog-close']]:p-0 [&>button[data-tutorial='dialog-close']]:inline-flex [&>button[data-tutorial='dialog-close']]:items-center [&>button[data-tutorial='dialog-close']]:justify-center [&>button[data-tutorial='dialog-close']]:rounded-full [&>button[data-tutorial='dialog-close']]:bg-orange-500 [&>button[data-tutorial='dialog-close']]:text-white [&>button[data-tutorial='dialog-close']]:opacity-100 [&>button[data-tutorial='dialog-close']]:shadow-md [&>button[data-tutorial='dialog-close']]:ring-2 [&>button[data-tutorial='dialog-close']]:ring-white/70 [&>button[data-tutorial='dialog-close']]:ring-offset-0 hover:[&>button[data-tutorial='dialog-close']]:bg-orange-600 hover:[&>button[data-tutorial='dialog-close']]:text-white [&>button[data-tutorial='dialog-close']>svg]:h-3.5 [&>button[data-tutorial='dialog-close']>svg]:w-3.5`}
+          className={`${dialogSizeClass} rounded-[1.5rem] p-0 overflow-hidden flex flex-col sm:rounded-2xl [&>button[data-tutorial='dialog-close']]:right-2 [&>button[data-tutorial='dialog-close']]:top-2 sm:[&>button[data-tutorial='dialog-close']]:right-2.5 sm:[&>button[data-tutorial='dialog-close']]:top-2.5 [&>button[data-tutorial='dialog-close']]:h-7 [&>button[data-tutorial='dialog-close']]:w-7 sm:[&>button[data-tutorial='dialog-close']]:h-8 sm:[&>button[data-tutorial='dialog-close']]:w-8 [&>button[data-tutorial='dialog-close']]:p-0 [&>button[data-tutorial='dialog-close']]:inline-flex [&>button[data-tutorial='dialog-close']]:items-center [&>button[data-tutorial='dialog-close']]:justify-center [&>button[data-tutorial='dialog-close']]:rounded-full [&>button[data-tutorial='dialog-close']]:bg-orange-500 [&>button[data-tutorial='dialog-close']]:text-white [&>button[data-tutorial='dialog-close']]:opacity-100 [&>button[data-tutorial='dialog-close']]:shadow-md [&>button[data-tutorial='dialog-close']]:ring-2 [&>button[data-tutorial='dialog-close']]:ring-white/70 [&>button[data-tutorial='dialog-close']]:ring-offset-0 hover:[&>button[data-tutorial='dialog-close']]:bg-orange-600 hover:[&>button[data-tutorial='dialog-close']]:text-white [&>button[data-tutorial='dialog-close']>svg]:h-3.5 [&>button[data-tutorial='dialog-close']>svg]:w-3.5`}
           data-tutorial="recipe-dialog-content"
         >
           <DialogHeader className="sr-only">
@@ -424,7 +424,7 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
           <button
             type="button"
             onClick={() => setExpanded((value) => !value)}
-            className={`absolute top-1 z-20 ${importedRecipe && normalizedSourceUrl && webViewEnabled ? 'right-[5.25rem] sm:right-[6.25rem]' : 'right-9 sm:right-11'} inline-flex h-7 w-7 items-center justify-center rounded-full border border-orange-200 bg-white text-orange-600 shadow-sm transition-colors hover:bg-orange-50 sm:top-1.5 sm:h-8 sm:w-8`}
+            className={`absolute top-2 z-20 ${importedRecipe && normalizedSourceUrl && webViewEnabled ? 'right-[5.6rem] sm:right-[6.8rem]' : 'right-11 sm:right-12'} inline-flex h-7 w-7 items-center justify-center rounded-full border border-orange-200 bg-white text-orange-600 shadow-sm transition-colors hover:bg-orange-50 sm:top-2.5 sm:h-8 sm:w-8`}
             aria-label={expanded ? 'Collapse recipe preview' : 'Expand recipe preview'}
           >
             {expanded ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
@@ -432,7 +432,7 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
 
           {/* Web / App toggle — only shown when embedding is actually available */}
           {importedRecipe && normalizedSourceUrl && webViewEnabled && (
-            <div className="absolute top-1 right-9 z-20 inline-flex items-center rounded-full border border-orange-200 bg-white p-1 shadow-sm sm:top-1.5 sm:right-11">
+            <div className="absolute top-2 right-[4.75rem] z-20 inline-flex items-center rounded-full border border-orange-200 bg-white p-1 shadow-sm sm:top-2.5 sm:right-[5.75rem]">
               <button
                 type="button"
                 onClick={handleSelectWebView}
@@ -456,8 +456,8 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
             </div>
           )}
 
-          <ScrollArea className="flex-1 min-h-0 px-4 pb-3 sm:px-5 sm:pb-4">
-            <div className="space-y-4 pt-4 sm:pt-5">
+          <ScrollArea className="flex-1 min-h-0 px-4 pb-0 sm:px-5">
+            <div className="space-y-4 pb-6 pt-12 sm:pb-8 sm:pt-14">
               {showEmbeddedWebView ? (
                 <div className="space-y-3">
                   <div className={`relative w-full ${expanded ? 'h-[60dvh] sm:h-[72vh] lg:h-[76vh]' : 'h-[52dvh] sm:h-[62vh] lg:h-[74vh]'} rounded-xl overflow-hidden border border-stone-200 bg-muted`}>

@@ -175,7 +175,9 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const location = useLocation();
   const avatarEditorRequested = Boolean((location.state as { openAvatarEditor?: boolean } | null)?.openAvatarEditor);
-  const [displayName, setDisplayName] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState<string | null>('');
+  const [profileLoaded, setProfileLoaded] = useState(false);
+  const [loadedHeroImageSrc, setLoadedHeroImageSrc] = useState<string | null>(null);
   const [greeting] = useState(() => {
     const h = new Date().getHours();
     if (h < 12) return "Good morning";
@@ -411,6 +413,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     const loadProfile = async () => {
+      setProfileLoaded(false);
       const { data: sessionData } = await supabase.auth.getSession();
       const userId = sessionData.session?.user?.id;
 
@@ -418,15 +421,23 @@ export default function Dashboard() {
         const { data } = await supabase.from("profiles").select("display_name").eq("user_id", userId).maybeSingle();
         if (data?.display_name) {
           setDisplayName(data.display_name);
+          setProfileLoaded(true);
           return;
         }
       }
 
       // Fallback to store name for Guests or users without a profile record
       if (storeDisplayName) setDisplayName(storeDisplayName);
+      setProfileLoaded(true);
     };
     loadProfile();
   }, [storeDisplayName]);
+
+  useEffect(() => {
+    if (!displayName && storeDisplayName) {
+      setDisplayName(storeDisplayName);
+    }
+  }, [displayName, storeDisplayName]);
 
   const { isPremium } = usePremiumAccess();
   const { openPremiumPage } = usePremiumGate();
@@ -522,6 +533,34 @@ export default function Dashboard() {
     heroImageOptions.length > 0
       ? heroImageOptions[heroImageIndex % heroImageOptions.length]
       : null;
+  const resolvedChefName = displayName || storeDisplayName || "";
+  const heroHeading = resolvedChefName ? `Chef ${resolvedChefName}` : "Chef";
+
+  useEffect(() => {
+    if (!heroImageSrc) {
+      setLoadedHeroImageSrc(null);
+      return;
+    }
+
+    let cancelled = false;
+    const image = new Image();
+    image.onload = () => {
+      if (!cancelled) {
+        setLoadedHeroImageSrc(heroImageSrc);
+      }
+    };
+    image.onerror = () => {
+      if (!cancelled) {
+        setLoadedHeroImageSrc(null);
+      }
+    };
+    image.src = heroImageSrc;
+
+    return () => {
+      cancelled = true;
+    };
+  }, [heroImageSrc]);
+
   const dashboardQuestLabel = pantryList[0]?.name
     ? `Make something with ${pantryList[0].name}`
     : "Save a recipe that matches your pantry";
@@ -547,9 +586,6 @@ export default function Dashboard() {
   const upNextRecipe = isPremium ? currentPlannedMeal?.recipe_data || null : null;
   const upNextMatch = upNextRecipe ? calculateMatch(pantryNames, upNextRecipe.ingredients || []) : null;
   const upNextCoverage = upNextMatch ? Math.max(18, upNextMatch.percentage) : 24;
-  const tipOfDay = pantryList[0]?.name
-    ? `Try building tonight’s dish around ${pantryList[0].name} first. Using one ingredient you already have is the easiest way to turn browsing into an actual cooked meal.`
-    : "Pick one recipe you can cook in under 30 minutes tonight. Momentum beats perfection when you're building a cooking habit.";
 
   return (
     <div className={`min-h-full ${avatarEditorRequested && avatarDialogOpen ? "opacity-0 pointer-events-none" : ""}`} style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", background: "#FFFAF5" }}>
@@ -557,15 +593,15 @@ export default function Dashboard() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-5 space-y-5 sm:space-y-6">
         <section className="space-y-4">
           <div
-            className="relative overflow-hidden rounded-[2rem] border border-orange-100 min-h-[220px] p-6 sm:p-8"
+            className="relative overflow-hidden rounded-[2rem] border border-orange-100 min-h-[190px] p-5 sm:min-h-[200px] sm:px-8 sm:py-6"
             style={{
-              background: heroImageSrc
-                ? `linear-gradient(110deg, rgba(28,25,23,0.74) 0%, rgba(28,25,23,0.58) 34%, rgba(28,25,23,0.36) 62%, rgba(28,25,23,0.2) 100%), url(${heroImageSrc}) center/cover`
+              background: loadedHeroImageSrc
+                ? `linear-gradient(110deg, rgba(28,25,23,0.74) 0%, rgba(28,25,23,0.58) 34%, rgba(28,25,23,0.36) 62%, rgba(28,25,23,0.2) 100%), url(${loadedHeroImageSrc}) center/cover`
                 : "linear-gradient(135deg,#FED7AA 0%,#FDBA74 32%,#FFF7ED 100%)",
               boxShadow: "0 16px 40px rgba(28,25,23,0.10)",
             }}
           >
-            {heroImageSrc && (
+            {loadedHeroImageSrc && (
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.14),transparent_24%),radial-gradient(circle_at_bottom_left,rgba(0,0,0,0.22),transparent_30%)] backdrop-blur-[2px]" />
             )}
             <div className="relative flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
@@ -574,8 +610,17 @@ export default function Dashboard() {
                   {greeting}
                 </p>
                 <h2 className="mt-3 text-3xl font-bold text-orange-400 sm:text-5xl" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
-                  Chef {displayName || storeDisplayName || "there"}
+                  {heroHeading}
                 </h2>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-white/14 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-white backdrop-blur-sm">
+                    <Award className="h-3.5 w-3.5 text-amber-200" />
+                    Level {levelInfo.level}
+                  </span>
+                  <span className="inline-flex items-center rounded-full border border-white/20 bg-black/15 px-3 py-1 text-[11px] font-semibold text-orange-100">
+                    {levelInfo.current}/{levelInfo.needed} XP to next level
+                  </span>
+                </div>
                 <p className="mt-3 text-[11px] font-bold uppercase tracking-[0.22em] text-orange-300/95">
                   {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
                 </p>
@@ -696,7 +741,7 @@ export default function Dashboard() {
         </section>
 
         {/* 2-col layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-start">
 
           {/* Left 2/3 */}
           <div className="lg:col-span-2 space-y-6">
@@ -756,96 +801,78 @@ export default function Dashboard() {
               )}
             </section>
 
-            <section className="rounded-[1.9rem] border border-orange-100 bg-gradient-to-br from-orange-50/60 via-white to-orange-100/40 p-5 shadow-[0_10px_24px_rgba(28,25,23,0.05)]">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="text-2xl font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
-                  Chef's Tip of the Day
-                </h3>
-                <button className="rounded-full bg-white px-5 py-2 text-sm font-semibold text-stone-700 shadow-sm hover:bg-orange-50 transition-colors">
-                  Read More
-                </button>
-              </div>
-              <div className="mt-5 flex gap-4">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-orange-100 text-orange-700">
-                  <Sparkles size={20} />
-                </div>
-                <p className="max-w-2xl text-lg leading-8 text-stone-700">
-                  {tipOfDay}
-                </p>
-              </div>
-            </section>
           </div>
 
           {/* Right 1/3 */}
           <div className="space-y-5">
-            <section
-              className="rounded-[1.9rem] border border-orange-100 bg-gradient-to-br from-orange-100/70 via-orange-50 to-white p-5 shadow-[0_12px_28px_rgba(249,115,22,0.10)]"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="text-2xl font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
-                  Up Next
-                </h3>
-                {currentPlannedMeal && (
-                  <span className="rounded-full bg-white px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-orange-700">
-                    Scheduled
-                  </span>
-                )}
-              </div>
-              {upNextRecipe ? (
-                <>
-                  <div className="mt-5 flex items-start gap-4">
-                    <div className="h-24 w-24 overflow-hidden rounded-2xl bg-stone-100">
-                      <img
-                        src={getRecipeImageSrc(upNextRecipe.image)}
-                        alt={upNextRecipe.name}
-                        className="h-full w-full object-cover"
-                        onError={applyRecipeImageFallback}
-                      />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-2xl font-bold leading-tight text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
-                        {upNextRecipe.name}
-                      </p>
-                      <p className="mt-2 text-sm text-stone-600">
-                        {upNextRecipe.cuisine || "Tonight's pick"}{upNextRecipe.cook_time ? ` • ${upNextRecipe.cook_time}` : ""}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mt-6">
-                    <div className="flex items-center justify-between text-sm font-semibold text-stone-600">
-                      <span>Prep Progress</span>
-                      <span className="text-emerald-700">{upNextMatch ? `${upNextMatch.percentage}% ready` : "Ready to cook"}</span>
-                    </div>
-                    <div className="mt-2 h-2.5 rounded-full bg-white/90 overflow-hidden">
-                      <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-orange-500" style={{ width: `${upNextCoverage}%` }} />
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      startCurrentPlannedMeal();
-                    }}
-                    className="mt-6 w-full rounded-full bg-stone-900 px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-stone-800"
-                  >
-                    Launch Cooking Mode
-                  </button>
-                </>
-              ) : (
-                <div className="mt-5 space-y-3">
-                  <p className="text-sm text-stone-500">
-                    {isPremium
-                      ? "Plan a meal to see your next scheduled cook here."
-                      : "Up Next follows your meal plan, which is part of Premium."}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => handleOpenMealPrep()}
-                    className="inline-flex w-full items-center justify-center rounded-full bg-orange-500 px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-orange-600"
-                  >
-                    {isPremium ? "Open Meal Prep" : "Unlock Meal Prep"}
-                  </button>
+            {isPremium && (
+              <section
+                className="rounded-[1.9rem] border border-orange-100 bg-gradient-to-br from-orange-100/70 via-orange-50 to-white p-5 shadow-[0_12px_28px_rgba(249,115,22,0.10)]"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-2xl font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+                    Up Next
+                  </h3>
+                  {currentPlannedMeal && (
+                    <span className="rounded-full bg-white px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-orange-700">
+                      Scheduled
+                    </span>
+                  )}
                 </div>
-              )}
-            </section>
+                {upNextRecipe ? (
+                  <>
+                    <div className="mt-5 flex items-start gap-4">
+                      <div className="h-24 w-24 overflow-hidden rounded-2xl bg-stone-100">
+                        <img
+                          src={getRecipeImageSrc(upNextRecipe.image)}
+                          alt={upNextRecipe.name}
+                          className="h-full w-full object-cover"
+                          onError={applyRecipeImageFallback}
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-2xl font-bold leading-tight text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+                          {upNextRecipe.name}
+                        </p>
+                        <p className="mt-2 text-sm text-stone-600">
+                          {upNextRecipe.cuisine || "Tonight's pick"}{upNextRecipe.cook_time ? ` • ${upNextRecipe.cook_time}` : ""}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-6">
+                      <div className="flex items-center justify-between text-sm font-semibold text-stone-600">
+                        <span>Prep Progress</span>
+                        <span className="text-emerald-700">{upNextMatch ? `${upNextMatch.percentage}% ready` : "Ready to cook"}</span>
+                      </div>
+                      <div className="mt-2 h-2.5 rounded-full bg-white/90 overflow-hidden">
+                        <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-orange-500" style={{ width: `${upNextCoverage}%` }} />
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        startCurrentPlannedMeal();
+                      }}
+                      className="mt-6 w-full rounded-full bg-stone-900 px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-stone-800"
+                    >
+                      Launch Cooking Mode
+                    </button>
+                  </>
+                ) : (
+                  <div className="mt-5 space-y-3">
+                    <p className="text-sm text-stone-500">
+                      Plan a meal to see your next scheduled cook here.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenMealPrep()}
+                      className="inline-flex w-full items-center justify-center rounded-full bg-orange-500 px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-orange-600"
+                    >
+                      Open Meal Prep
+                    </button>
+                  </div>
+                )}
+              </section>
+            )}
 
             <section
               data-tutorial="dashboard-quick-actions"

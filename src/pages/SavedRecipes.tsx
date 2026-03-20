@@ -374,7 +374,7 @@ export default function MyRecipesScreen() {
               </button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className={`min-w-0 flex-1 px-3 py-2 rounded-xl bg-white border border-stone-200 text-[11px] font-semibold text-stone-600 hover:border-orange-300 inline-flex items-center justify-center gap-1.5 sm:flex-none sm:justify-start sm:text-xs ${isMobile ? "hidden" : ""}`}>
+                  <button className={`min-w-0 flex-1 cursor-pointer px-3 py-2 rounded-xl bg-white border border-stone-200 text-[11px] font-semibold text-stone-600 hover:border-orange-300 inline-flex items-center justify-center gap-1.5 sm:flex-none sm:justify-start sm:text-xs ${isMobile ? "hidden" : ""}`}>
                     <Plus size={12} /> Add Recipes
                   </button>
                 </DropdownMenuTrigger>
@@ -385,7 +385,7 @@ export default function MyRecipesScreen() {
                       setHideImportTabs(false);
                       setImportDialogOpen(true);
                     }}
-                    className="gap-2"
+                    className="cursor-pointer gap-2"
                   >
                     <Link2 size={14} />
                     URL Import
@@ -396,14 +396,14 @@ export default function MyRecipesScreen() {
                       setHideImportTabs(false);
                       setImportDialogOpen(true);
                     }}
-                    className="gap-2"
+                    className="cursor-pointer gap-2"
                   >
                     <FileUp size={14} />
                     File Upload
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => setShowManualRecipeDialog(true)}
-                    className="gap-2"
+                    className="cursor-pointer gap-2"
                   >
                     <PenSquare size={14} />
                     Manual

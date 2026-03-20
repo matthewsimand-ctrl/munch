@@ -745,7 +745,7 @@ export default function MealPrepScreen() {
         className="border-b"
         style={{ background: "linear-gradient(135deg,#FFF7ED 0%,#FFFAF5 100%)", borderColor: "rgba(249,115,22,0.12)" }}
       >
-        <div className="max-w-6xl mx-auto px-4 py-4 sm:px-6 sm:py-6">
+        <div className="mx-auto max-w-[1440px] px-4 py-4 sm:px-6 sm:py-6">
           <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1">Planning</p>
@@ -814,8 +814,9 @@ export default function MealPrepScreen() {
       </div>
 
       {/* Planner grid */}
-      <div className="max-w-6xl mx-auto px-4 py-4 sm:px-6 sm:py-6">
-        <div className="grid grid-cols-7 gap-3">
+      <div className="mx-auto max-w-[1440px] px-4 py-4 sm:px-6 sm:py-6">
+        <div className="overflow-x-auto pb-2">
+          <div className="grid min-w-[980px] grid-cols-7 gap-4 xl:min-w-0">
           {/* Day headers */}
           {DAYS.map((day) => {
             const dayMeals = plannedMeals.filter((m) => m.day === day);
@@ -859,6 +860,7 @@ export default function MealPrepScreen() {
             </div>
           ))}
         </div>
+        </div>
 
         {/* Summary cards */}
         {plannedCount > 0 && (
@@ -901,12 +903,12 @@ export default function MealPrepScreen() {
               initial={{ opacity: 0, y: 20, scale: 0.97 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.97 }}
-              className="fixed bottom-0 left-0 right-0 sm:bottom-auto sm:top-1/2 sm:left-1/2 sm:w-[calc(100%-1.5rem)] sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 z-50 rounded-t-3xl sm:rounded-3xl overflow-hidden max-h-[88vh] flex flex-col"
+              className="fixed bottom-0 left-0 right-0 sm:bottom-auto sm:top-1/2 sm:left-1/2 sm:w-[calc(100%-2rem)] sm:max-w-2xl lg:max-w-3xl sm:-translate-x-1/2 sm:-translate-y-1/2 z-50 rounded-t-3xl sm:rounded-3xl overflow-hidden max-h-[90vh] flex flex-col"
               style={{ background: "#fff", boxShadow: "0 -8px 40px rgba(0,0,0,0.15)" }}
             >
               <div className="flex-1 min-h-0 overflow-y-auto">
-                <div className="p-6">
-                <div className="flex items-center justify-between mb-4 sticky top-0 bg-white pb-3 z-10">
+                <div className="p-6 sm:p-7">
+                <div className="sticky top-0 z-10 mb-4 flex items-center justify-between bg-white pb-3">
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-widest mb-0.5" style={{ color: MEAL_COLORS[showAddModal.mealType].dot }}>
                       {showAddModal.mealType}
@@ -932,9 +934,9 @@ export default function MealPrepScreen() {
                   <Utensils size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-300" />
                 </div>
 
-              <div className="space-y-1 max-h-72 overflow-y-auto">
+              <div className="grid max-h-[56vh] grid-cols-1 gap-2 overflow-y-auto lg:grid-cols-2">
                   {filteredRecipes.length === 0 ? (
-                    <div className="py-8 text-center">
+                    <div className="py-8 text-center lg:col-span-2">
                       <p className="text-sm text-stone-400">No saved recipes found</p>
                       <button onClick={() => { setShowAddModal(null); navigate("/swipe"); }} className="mt-2 text-xs text-orange-500 font-semibold hover:underline">
                         Discover recipes →
@@ -945,9 +947,9 @@ export default function MealPrepScreen() {
                       <button
                         key={recipe.id}
                         onClick={() => handleAddMeal(recipe)}
-                        className="w-full flex items-center gap-3 px-3 py-3 rounded-2xl border border-stone-100 hover:border-orange-200 hover:bg-orange-50/70 transition-colors text-left group bg-white"
+                        className="w-full flex items-center gap-3 rounded-2xl border border-stone-100 bg-white px-3 py-3 text-left transition-colors group hover:border-orange-200 hover:bg-orange-50/70 sm:px-4 sm:py-3.5"
                       >
-                        <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 bg-stone-100">
+                        <div className="h-12 w-12 overflow-hidden rounded-xl shrink-0 bg-stone-100">
                           <img
                             src={getRecipeImageSrc(recipe.image)}
                             alt={recipe.name}
@@ -957,8 +959,8 @@ export default function MealPrepScreen() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-stone-800 truncate group-hover:text-orange-700 transition-colors">{recipe.name}</p>
-                          <div className="mt-1 flex items-center gap-2 text-[10px] text-stone-400">
-                            <span className="inline-flex items-center gap-1"><Clock size={9} /> {recipe.cook_time}</span>
+                          <div className="mt-1 flex items-center gap-2 text-[11px] text-stone-400">
+                            <span className="inline-flex items-center gap-1"><Clock size={10} /> {recipe.cook_time}</span>
                             {recipe.cuisine && (
                               <span className="inline-flex items-center gap-1">
                                 <span className="h-1 w-1 rounded-full bg-stone-300" />

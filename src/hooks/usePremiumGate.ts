@@ -11,6 +11,9 @@ export function usePremiumGate() {
     (feature?: string) => {
       const params = new URLSearchParams();
       if (feature) params.set("feature", feature);
+      if (typeof window !== "undefined") {
+        window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
+      }
       navigate(
         {
           pathname: "/premium",

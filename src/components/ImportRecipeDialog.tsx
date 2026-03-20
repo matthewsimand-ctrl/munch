@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
-import { Link2, FileText, Loader2, Import, ClipboardPaste, X, Plus, Globe, Lock, Camera, Upload, Brain } from 'lucide-react';
+import { Link2, FileText, Loader2, Import, ClipboardPaste, X, Plus, Globe, Lock, Camera, Upload } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { getAiDisabledMessage, isAiAgentCallsDisabledError } from '@/lib/ai';
 import { useAiAgentCallsDisabled } from '@/hooks/useAiAgentCallsDisabled';
@@ -50,6 +50,8 @@ interface ReviewData {
   tags: string[];
   image: string;
   servings: string;
+  source_url?: string;
+  raw_api_payload?: Record<string, unknown>;
 }
 
 interface WebsitePreviewData {
@@ -66,6 +68,15 @@ interface WebsitePreviewData {
   servings: string;
   source_url?: string;
   raw_api_payload?: Record<string, unknown>;
+}
+
+interface ScrapeRecipeFallbackResponse {
+  url: string;
+  title: string;
+  listItems: string[];
+  ogImage: string | null;
+  jsonLdImage?: string | null;
+  storedImage?: string | null;
 }
 
 const DIFFICULTY_OPTIONS = ['Beginner', 'Intermediate', 'Advanced'];
@@ -113,6 +124,86 @@ function sourceUrlCandidates(url: string): string[] {
 
 function normalizeRecipeNameForMatch(name: string) {
   return String(name || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function inferRecipeNameFromUrl(url: string) {
+  try {
+    const parsed = new URL(url);
+    const slug = parsed.pathname
+      .split('/')
+      .filter(Boolean)
+      .pop()
+      ?.replace(/[-_]+/g, ' ')
+      ?.trim();
+
+    if (slug) {
+      return slug.replace(/\b\w/g, (char) => char.toUpperCase());
+    }
+
+    return parsed.hostname.replace(/^www\./, '');
+  } catch {
+    return 'Imported Recipe';
+  }
+}
+
+function looksLikeFallbackIngredient(line: string) {
+  const cleaned = String(line || '').trim();
+  if (!cleaned) return false;
+  if (/^(?:step\s*\d+[:.)-]?|\d+[.)])\s+/i.test(cleaned)) return false;
+  if (/^(?:preheat|combine|mix|stir|cook|bake|roast|saute|sauté|whisk|heat|serve|add|place|transfer|drizzle|season|bring)\b/i.test(cleaned)) {
+    return false;
+  }
+  const parsed = parseIngredientLine(cleaned);
+  if (parsed.quantity) return true;
+  return cleaned.split(/\s+/).length <= 6;
+}
+
+function buildAutoImportedRecipeFromScrapeResult(normalizedUrl: string, fallback: ScrapeRecipeFallbackResponse): Record<string, unknown> | null {
+  const listItems = Array.isArray(fallback.listItems)
+    ? fallback.listItems.map((item) => String(item || '').trim()).filter(Boolean)
+    : [];
+
+  const numberedInstructions = listItems.filter((item) => /^(?:step\s*\d+[:.)-]?\s*|\d+[.)]\s+)/i.test(item));
+  const ingredients = listItems.filter((item) => looksLikeFallbackIngredient(item)).slice(0, 40);
+  const remainingItems = listItems.filter((item) => !ingredients.includes(item));
+  const instructions = (numberedInstructions.length > 0 ? numberedInstructions : remainingItems)
+    .map((step) => step.replace(/^(?:step\s*\d+[:.)-]?\s*|\d+[.)]\s+)/i, '').trim())
+    .filter(Boolean)
+    .slice(0, 30);
+
+  const resolvedIngredients = ingredients.length > 0 ? ingredients : listItems.slice(0, Math.min(12, listItems.length));
+  const resolvedInstructions = instructions.length > 0
+    ? instructions
+    : listItems
+        .slice(resolvedIngredients.length)
+        .map((step) => step.replace(/^(?:step\s*\d+[:.)-]?\s*|\d+[.)]\s+)/i, '').trim())
+        .filter(Boolean)
+        .slice(0, 20);
+
+  if (!fallback.title && resolvedIngredients.length === 0 && resolvedInstructions.length === 0) {
+    return null;
+  }
+
+  return {
+    name: String(fallback.title || inferRecipeNameFromUrl(normalizedUrl)).trim() || 'Imported Recipe',
+    ingredients: resolvedIngredients,
+    instructions: resolvedInstructions,
+    cook_time: '30 min',
+    difficulty: 'Intermediate',
+    cuisine: '',
+    tags: [],
+    image: String(fallback.storedImage || fallback.jsonLdImage || fallback.ogImage || '').trim(),
+    source: 'imported',
+    servings: '4',
+    source_url: normalizedUrl,
+    raw_api_payload: {
+      import_type: 'website-fallback',
+      source_url: normalizedUrl,
+      preview_text: listItems.join('\n'),
+      fallback_title: fallback.title || null,
+      fallback_list_items: listItems,
+    },
+  };
 }
 
 function normalizeIngredientForMatch(line: string) {
@@ -206,7 +297,7 @@ export default function ImportRecipeDialog({
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [fetchingPhoto, setFetchingPhoto] = useState(false);
   const [magicProgress, setMagicProgress] = useState(0);
-  const [magicMessage, setMagicMessage] = useState('Summoning recipe magic...');
+  const [magicMessage, setMagicMessage] = useState('Preparing recipe import...');
   const aiAgentCallsDisabled = useAiAgentCallsDisabled();
   const reviewGeneratedCover = useMemo(() => {
     if (!reviewData) return '';
@@ -226,11 +317,11 @@ export default function ImportRecipeDialog({
     : reviewGeneratedCover;
 
   const MAGIC_MESSAGES = [
-    'Summoning recipe magic... ✨',
-    'Whisking through the webpage... 🥣',
-    'Parsing the recipe page... 🌐',
-    'Decoding ingredients and steps... 🧠',
-    'Plating your recipe card... 🍽️',
+    'Preparing recipe import...',
+    'Loading recipe page...',
+    'Reading ingredients and steps...',
+    'Structuring recipe details...',
+    'Finalizing recipe preview...',
   ];
 
   const open = controlledOpen ?? internalOpen;
@@ -484,6 +575,49 @@ export default function ImportRecipeDialog({
     }
   };
 
+  const handleUrlFallbackImport = async (normalizedUrl: string, importErrorMessage?: string) => {
+    const existingRecipe = await findExistingRecipeByUrl(normalizedUrl);
+    if (existingRecipe) {
+      const existingPayload = mapDbRecipeToImportedPayload(existingRecipe);
+      likeRecipe(existingPayload.id, existingPayload);
+      toast.success(`"${existingPayload.name}" is already in your library!`);
+      setOpen(false);
+      resetState();
+      navigate('/saved');
+      return true;
+    }
+
+    const { data, error } = await invokeAppFunction('scrape-recipe', {
+      body: { url: normalizedUrl },
+    });
+
+    if (error || data?.error) {
+      throw new Error(String(data?.error || error?.message || importErrorMessage || 'Could not load recipe from that URL'));
+    }
+
+    const fallbackRecipe = buildAutoImportedRecipeFromScrapeResult(normalizedUrl, data as ScrapeRecipeFallbackResponse);
+    if (!fallbackRecipe) {
+      throw new Error(importErrorMessage || 'Could not extract recipe details from that URL');
+    }
+
+    const id = crypto.randomUUID();
+    const payload = buildImportedPayload(id, fallbackRecipe);
+    const visibility = canPubliclyShareImportedUrlRecipe(payload.source_url);
+    const result = await persistRecipe(payload, { forceDiscoverable: visibility.allowed });
+    setWebsitePreview(null);
+    setReviewMode(false);
+    setShowManualPaste(false);
+    toast.success(
+      result.reusedExisting
+        ? `Loaded existing recipe "${result.payload.name}" from your library.`
+        : `Imported "${payload.name}" from a simplified page capture.`
+    );
+    setOpen(false);
+    resetState();
+    navigate('/saved');
+    return true;
+  };
+
   const resetState = () => {
     setUrl('');
     setLoading(false);
@@ -536,14 +670,22 @@ export default function ImportRecipeDialog({
 
       if (error || !data?.success) {
         const message = data?.error || error?.message || 'Failed to import recipe';
-        setLastImportError(message);
-
-        if (payload.url) {
-          setShowManualPaste(true);
-          toast.error('Could not import from that URL. You can paste recipe text or upload a PDF.');
-        } else {
-          toast.error(message);
+        if (payload.url && normalizedPayload.url) {
+          try {
+            await handleUrlFallbackImport(normalizedPayload.url, message);
+            setLastImportError('');
+            return;
+          } catch (fallbackError) {
+            const fallbackMessage = fallbackError instanceof Error ? fallbackError.message : message;
+            setLastImportError(fallbackMessage);
+            setShowManualPaste(true);
+            toast.error('Could not fully import from that URL. You can paste recipe text or upload a PDF.');
+            return;
+          }
         }
+
+        setLastImportError(message);
+        toast.error(message);
         return;
       }
 
@@ -612,6 +754,11 @@ export default function ImportRecipeDialog({
         tags: normalizeList(recipe.tags),
         image: extractedImage,
         servings: String(recipe.servings || 4),
+        source_url: recipe.source_url ? String(recipe.source_url) : undefined,
+        raw_api_payload:
+          recipe.raw_api_payload && typeof recipe.raw_api_payload === 'object' && !Array.isArray(recipe.raw_api_payload)
+            ? recipe.raw_api_payload as Record<string, unknown>
+            : undefined,
       });
       setIsDiscoverable(true);
       setReviewMode(true);
@@ -623,12 +770,23 @@ export default function ImportRecipeDialog({
       }
 
       console.error('Import error:', err);
-      const message = 'Something went wrong importing the recipe';
-      setLastImportError(message);
+      const message = err instanceof Error && err.message ? err.message : 'Something went wrong importing the recipe';
       if (payload.url) {
-        setShowManualPaste(true);
-        toast.error('URL import failed. Paste recipe text instead or upload a PDF.');
+        try {
+          const normalizedUrl = /^https?:\/\//i.test(String(payload.url).trim())
+            ? String(payload.url).trim()
+            : `https://${String(payload.url).trim()}`;
+          await handleUrlFallbackImport(normalizedUrl, message);
+          setLastImportError('');
+          return;
+        } catch (fallbackError) {
+          const fallbackMessage = fallbackError instanceof Error ? fallbackError.message : message;
+          setLastImportError(fallbackMessage);
+          setShowManualPaste(true);
+          toast.error('URL import failed. Paste recipe text instead or upload a PDF.');
+        }
       } else {
+        setLastImportError(message);
         toast.error(message);
       }
     } finally {
@@ -665,10 +823,10 @@ export default function ImportRecipeDialog({
 
       const { user, sharedByName } = await getCurrentSharer();
       const sharedMetadata = user && isDiscoverable
-        ? withSharedMetadata(null, user.id, sharedByName)
-        : null;
+        ? withSharedMetadata(reviewData.raw_api_payload, user.id, sharedByName)
+        : reviewData.raw_api_payload ?? null;
 
-      const reviewVisibility = canPubliclyShareImportedUrlRecipe(null);
+      const reviewVisibility = canPubliclyShareImportedUrlRecipe(reviewData.source_url || null);
       if (isDiscoverable && reviewVisibility.allowed) {
         if (!user) {
           toast.info('Not logged in — saved privately. Log in to make it discoverable.');
@@ -685,6 +843,7 @@ export default function ImportRecipeDialog({
             tags: reviewData.tags,
             image: reviewImage,
             source: 'imported',
+            source_url: reviewData.source_url || null,
             created_by: user.id,
             is_public: true,
             servings: parseInt(reviewData.servings) || 4,
@@ -715,6 +874,7 @@ export default function ImportRecipeDialog({
         tags: reviewData.tags,
         image: reviewImage,
         source: 'imported',
+        source_url: reviewData.source_url || null,
         raw_api_payload: sharedMetadata,
         servings: parseInt(reviewData.servings) || 4,
       };
@@ -1002,6 +1162,8 @@ export default function ImportRecipeDialog({
       tags: websitePreview.tags,
       image: websitePreview.image || reviewGeneratedCover,
       servings: websitePreview.servings,
+      source_url: websitePreview.source_url,
+      raw_api_payload: websitePreview.raw_api_payload,
     });
     setReviewMode(true);
     setWebsitePreview(null);
@@ -1088,7 +1250,7 @@ export default function ImportRecipeDialog({
               ? 'Website Recipe Preview'
               : reviewMode
                 ? 'Review & Edit Recipe'
-                : <><Brain className="h-4 w-4 text-violet-500" /> Import Recipe (AI) {!isPremium && <Badge variant="secondary" className="ml-1">Premium</Badge>}</>}
+                : <>Import Recipe {!isPremium && <Badge variant="secondary" className="ml-1">Premium</Badge>}</>}
           </DialogTitle>
         </DialogHeader>
 
@@ -1476,10 +1638,10 @@ export default function ImportRecipeDialog({
                 </TabsList>
               ) : null}
 
-              <TabsContent value="url" className={`space-y-4 ${hideTabSelector ? "" : "pt-4"}`}>
-                <p className="text-sm text-muted-foreground">
-                  🧠 Paste a recipe page URL and we'll import it only when the original page can be displayed in-app.
-                </p>
+                <TabsContent value="url" className={`space-y-4 ${hideTabSelector ? "" : "pt-4"}`}>
+                  <p className="text-sm text-muted-foreground">
+                    Paste a recipe page URL and Munch will import the recipe details. If the webpage cannot be embedded, you can still use the app view with the saved image, ingredients, and steps.
+                  </p>
 
                 <form onSubmit={handleUrlSubmit} noValidate className="space-y-3">
                   <Input
@@ -1569,7 +1731,7 @@ export default function ImportRecipeDialog({
                                 <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Importing...
                               </>
                             ) : (
-                              '🧠 Import Pasted Text'
+                              'Import Pasted Text'
                             )}
                           </Button>
                         ) : (
@@ -1585,10 +1747,10 @@ export default function ImportRecipeDialog({
                 )}
               </TabsContent>
 
-              <TabsContent value="pdf" className={`space-y-4 ${hideTabSelector ? "" : "pt-4"}`}>
-                <p className="text-sm text-muted-foreground">
-                  🧠 Upload a PDF with a recipe and AI will extract the details. {!isPremium && <span className="font-semibold">Premium required.</span>}
-                </p>
+                <TabsContent value="pdf" className={`space-y-4 ${hideTabSelector ? "" : "pt-4"}`}>
+                  <p className="text-sm text-muted-foreground">
+                    Upload a PDF with a recipe and Munch will extract the details. {!isPremium && <span className="font-semibold">Premium required.</span>}
+                  </p>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -1625,10 +1787,10 @@ export default function ImportRecipeDialog({
                 )}
               </TabsContent>
 
-              <TabsContent value="photo" className={`space-y-4 ${hideTabSelector ? "" : "pt-4"}`}>
-                <p className="text-sm text-muted-foreground">
-                  🧠 Upload a photo of a recipe card, cookbook page, or screenshot. AI will read the image and map it to recipe fields. {!isPremium && <span className="font-semibold">Premium required.</span>}
-                </p>
+                <TabsContent value="photo" className={`space-y-4 ${hideTabSelector ? "" : "pt-4"}`}>
+                  <p className="text-sm text-muted-foreground">
+                    Upload a photo of a recipe card, cookbook page, or screenshot. Munch will read the image and map it to recipe fields. {!isPremium && <span className="font-semibold">Premium required.</span>}
+                  </p>
                 <input
                   ref={recipePhotoInputRef}
                   type="file"
