@@ -1,12 +1,13 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useStore } from '@/lib/store';
+import { useBrowseFeed } from '@/hooks/useBrowseFeed';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, LogOut, User, Users, Utensils, Trash2, Flame, Camera, ChefHat, Crown, MapPin, Compass } from 'lucide-react';
+import { ArrowLeft, LogOut, User, Users, Utensils, Trash2, Flame, Camera, ChefHat, Crown, MapPin, Compass, RotateCw, Pencil } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Switch } from '@/components/ui/switch';
 import { useAiAgentCallsDisabled } from '@/hooks/useAiAgentCallsDisabled';
@@ -17,6 +18,7 @@ import RecipeScraperTester from '@/components/RecipeScraperTester';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { isValidUsername, normalizeUsername } from '@/lib/username';
 import { AvatarStudio } from '@/components/AvatarStudio';
+import { applyRecipeImageFallback, getRecipeImageSrc } from '@/lib/recipeImage';
 import {
   buildMunchAvatarUrl,
   createMunchAvatarConfig,
@@ -61,11 +63,16 @@ export default function Settings() {
   const { openPremiumPage } = usePremiumGate();
   const {
     userProfile, setUserProfile, resetStore, resetTutorial,
-    chefAvatarUrl, setChefAvatarUrl, shareCustomRecipesByDefault, setShareCustomRecipesByDefault
+    chefAvatarUrl, setChefAvatarUrl, shareCustomRecipesByDefault, setShareCustomRecipesByDefault,
+    savedApiRecipes, mealPlan, dashboardHeroImageMode, dashboardHeroImageSeed,
+    setDashboardHeroImageMode, setDashboardHeroImageSeed,
   } = useStore();
+  const { recipes: browseRecipes, loadFeed } = useBrowseFeed();
   const [user, setUser] = useState<any>(null);
   const [displayName, setDisplayName] = useState('');
   const [username, setUsername] = useState('');
+  const [originalUsername, setOriginalUsername] = useState('');
+  const [usernameEditUnlocked, setUsernameEditUnlocked] = useState(false);
   const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
   const [defaultServings, setDefaultServings] = useState(mapServingPreference(2));
   const [loading, setLoading] = useState(false);
@@ -75,7 +82,9 @@ export default function Settings() {
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [showClearDataConfirm, setShowClearDataConfirm] = useState(false);
   const [showResetTutorialConfirm, setShowResetTutorialConfirm] = useState(false);
+  const [showUsernameChangeConfirm, setShowUsernameChangeConfirm] = useState(false);
   const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
+  const [heroImagePickerOpen, setHeroImagePickerOpen] = useState(false);
   const [avatarConfig, setAvatarConfig] = useState<MunchAvatarConfig>(() => createMunchAvatarConfig());
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const membershipMetadata = user ? {
@@ -116,7 +125,9 @@ export default function Settings() {
         .then(({ data }) => {
           if (data) {
             setDisplayName(data.display_name || '');
-            setUsername((data as any).username || '');
+            const persistedUsername = (data as any).username || '';
+            setUsername(persistedUsername);
+            setOriginalUsername(persistedUsername);
             setDefaultServings(mapServingPreference((data as any).default_servings));
           }
         });
@@ -124,9 +135,19 @@ export default function Settings() {
   }, [navigate]);
 
   useEffect(() => {
+    if (originalUsername && !usernameEditUnlocked) {
+      setUsernameStatus('idle');
+      return;
+    }
+
     const normalized = normalizeUsername(username);
     if (!normalized || !isValidUsername(normalized)) {
       setUsernameStatus(username.trim().length === 0 ? 'idle' : 'invalid');
+      return;
+    }
+
+    if (normalized === originalUsername) {
+      setUsernameStatus('idle');
       return;
     }
 
@@ -142,9 +163,22 @@ export default function Settings() {
     }, 250);
 
     return () => window.clearTimeout(timeout);
-  }, [username]);
+  }, [originalUsername, username, usernameEditUnlocked]);
+
+  useEffect(() => {
+    void loadFeed();
+  }, [loadFeed]);
 
   const avatarBuilderPreview = buildMunchAvatarUrl(avatarConfig);
+  const heroImageOptions = useMemo(
+    () =>
+      [...mealPlan.map((item) => item.recipeSnapshot).filter(Boolean), ...Object.values(savedApiRecipes), ...browseRecipes]
+        .map((recipe: any) => getRecipeImageSrc(recipe?.image))
+        .filter(Boolean)
+        .filter((src, index, arr) => arr.indexOf(src) === index),
+    [browseRecipes, mealPlan, savedApiRecipes],
+  );
+  const selectedHeroImageIndex = heroImageOptions.length > 0 ? dashboardHeroImageSeed % heroImageOptions.length : 0;
 
   const toggleDietary = (item: string) => {
     if (item === 'None') {
@@ -214,7 +248,15 @@ export default function Settings() {
       return;
     }
 
-    if (!isValidUsername(normalizeUsername(username)) || usernameStatus !== 'available') {
+    const normalizedUsername = normalizeUsername(username);
+    const usernameChanged = normalizedUsername !== originalUsername;
+
+    if (!normalizedUsername || !isValidUsername(normalizedUsername)) {
+      toast({ title: 'Choose a valid username', variant: 'destructive' });
+      return;
+    }
+
+    if (usernameChanged && usernameStatus !== 'available') {
       toast({ title: 'Choose an available username', variant: 'destructive' });
       return;
     }
@@ -225,7 +267,7 @@ export default function Settings() {
       .upsert({
         user_id: userId,
         display_name: displayName.trim() || null,
-        username: normalizeUsername(username),
+        username: normalizedUsername,
         default_servings: parseInt(defaultServings) || 2,
         avatar_url: chefAvatarUrl,
       } as any, { onConflict: 'user_id' });
@@ -235,6 +277,10 @@ export default function Settings() {
       console.error('Profile save error:', error);
       toast({ title: 'Failed to save', description: error.message, variant: 'destructive' });
     } else {
+      setOriginalUsername(normalizedUsername);
+      setUsername(normalizedUsername);
+      setUsernameEditUnlocked(false);
+      setUsernameStatus('idle');
       toast({ title: 'Settings saved! ✓' });
     }
   };
@@ -247,74 +293,40 @@ export default function Settings() {
 
   return (
     <div className="min-h-screen pb-20" style={{ background: "#FFFAF5" }}>
-      <div className="mx-auto w-full max-w-3xl px-4 pb-6 pt-4 sm:px-6 sm:pt-6">
+      <div className="mx-auto w-full max-w-6xl px-4 pb-8 pt-4 sm:px-6 sm:pt-6">
         <div
-          className="mb-6 rounded-[1.75rem] border px-4 py-4 sm:px-5"
-          style={{ background: "linear-gradient(135deg,#FFF7ED 0%,#FFFFFF 58%,#FFFAF5 100%)", borderColor: "rgba(249,115,22,0.12)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}
+          className="mb-6 rounded-[1.9rem] border px-4 py-5 sm:px-6"
+          style={{ background: "linear-gradient(135deg,#FFF7ED 0%,#FFFFFF 48%,#FFFAF5 100%)", borderColor: "rgba(249,115,22,0.12)", boxShadow: "0 12px 30px rgba(28,25,23,0.06)" }}
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
               <p className="text-[10px] font-bold uppercase tracking-widest text-orange-400">Your account</p>
               <h1 className="text-2xl font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>Settings</h1>
+              <p className="mt-1 text-sm text-stone-500">Manage your profile, dashboard look, cooking defaults, and chef identity.</p>
+            </div>
+          </div>
+            <div className="hidden rounded-2xl border border-orange-100 bg-white/80 px-4 py-3 text-right shadow-sm md:block">
+              <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-orange-400">Current chef</p>
+              <p className="mt-1 text-lg font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+                {displayName || 'Chef'}
+              </p>
+              <p className="text-xs text-stone-500">{originalUsername ? `@${originalUsername}` : 'Pick a username below'}</p>
             </div>
           </div>
         </div>
 
         <div className="space-y-8">
-          <section className="space-y-4">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Crown className="h-4 w-4" />
-              <span className="text-sm font-semibold uppercase tracking-wide">Current Plan</span>
-            </div>
-            <div
-              className="rounded-2xl border p-4 sm:p-5"
-              style={{ background: "linear-gradient(135deg,#FFF7ED 0%,#FFFFFF 55%,#F5F3FF 100%)", borderColor: "rgba(249,115,22,0.12)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}
-            >
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-orange-500">
-                    {isPremiumPlan ? 'Premium active' : 'Free plan'}
-                  </p>
-                  <p className="mt-1 text-lg font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
-                    {isPremiumPlan ? 'Munch Member' : 'Munch Free'}
-                  </p>
-                  <p className="mt-1 text-sm text-stone-500">
-                    {isPremiumPlan
-                      ? 'You have access to premium AI tools, imports, Kitchens, and meal planning.'
-                      : 'Upgrade to unlock meal planning, Kitchens, AI imports, nutritional facts, and premium cooking tools.'}
-                  </p>
-                  {isPremiumPlan && (
-                    <p className="mt-1 text-xs text-stone-400">
-                      {formattedPremiumDate ? `Renews or ends on ${formattedPremiumDate}` : 'Premium membership is active on this account.'}
-                    </p>
-                  )}
-                </div>
-                {!isPremiumPlan && (
-                  <Button
-                    type="button"
-                    onClick={() => openPremiumPage('Munch Membership')}
-                    className="inline-flex items-center gap-2 rounded-xl bg-violet-600 text-white hover:bg-violet-700"
-                  >
-                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-orange-100/95 text-orange-500">
-                      <Crown className="h-3.5 w-3.5" />
-                    </span>
-                    Upgrade
-                  </Button>
-                )}
+          <div className="grid gap-8 xl:grid-cols-[1.1fr_0.9fr]">
+            <section className="space-y-4">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <User className="h-4 w-4" />
+                <span className="text-sm font-semibold uppercase tracking-wide">Profile</span>
               </div>
-            </div>
-          </section>
-
-          {/* Profile */}
-          <section className="space-y-4">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <User className="h-4 w-4" />
-              <span className="text-sm font-semibold uppercase tracking-wide">Profile</span>
-            </div>
-            <div className="space-y-3 rounded-2xl border p-4" style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}>
+              <div className="space-y-4 rounded-[1.75rem] border p-5" style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 8px 24px rgba(28,25,23,0.05)" }}>
               <div>
                 <Label>Email</Label>
                 <p className="text-sm text-muted-foreground">{user?.email || '—'}</p>
@@ -330,24 +342,133 @@ export default function Settings() {
                 />
               </div>
               <div>
-                <Label htmlFor="username">Username</Label>
+                <div className="flex items-center justify-between gap-3">
+                  <Label htmlFor="username">Username</Label>
+                  {originalUsername && !usernameEditUnlocked && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowUsernameChangeConfirm(true)}
+                      className="h-8 rounded-full px-3 text-xs"
+                    >
+                      <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                      Edit
+                    </Button>
+                  )}
+                </div>
                 <Input
                   id="username"
                   value={username}
                   onChange={(e) => setUsername(normalizeUsername(e.target.value))}
                   placeholder="chefname"
                   maxLength={24}
+                  disabled={Boolean(originalUsername) && !usernameEditUnlocked}
+                  className={Boolean(originalUsername) && !usernameEditUnlocked ? 'bg-stone-50 text-stone-500' : ''}
                 />
                 <p className={`mt-1 text-xs ${usernameStatus === 'taken' || usernameStatus === 'invalid' ? 'text-red-500' : 'text-muted-foreground'}`}>
-                  {usernameStatus === 'checking' && 'Checking username...'}
-                  {usernameStatus === 'available' && `@${normalizeUsername(username)} is available`}
-                  {usernameStatus === 'taken' && 'That username is already taken'}
-                  {usernameStatus === 'invalid' && 'Use 3-24 lowercase letters, numbers, or underscores'}
-                  {usernameStatus === 'idle' && 'People can use this to find and invite you'}
+                  {originalUsername && !usernameEditUnlocked && 'Your username is locked until you choose to edit it.'}
+                  {(!originalUsername || usernameEditUnlocked) && usernameStatus === 'checking' && 'Checking username...'}
+                  {(!originalUsername || usernameEditUnlocked) && usernameStatus === 'available' && `@${normalizeUsername(username)} is available`}
+                  {(!originalUsername || usernameEditUnlocked) && usernameStatus === 'taken' && 'That username is already taken'}
+                  {(!originalUsername || usernameEditUnlocked) && usernameStatus === 'invalid' && 'Use 3-24 lowercase letters, numbers, or underscores'}
+                  {(!originalUsername || usernameEditUnlocked) && usernameStatus === 'idle' && 'People can use this to find and invite you'}
                 </p>
               </div>
-            </div>
-          </section>
+              </div>
+            </section>
+
+            <section className="space-y-4">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Crown className="h-4 w-4" />
+                <span className="text-sm font-semibold uppercase tracking-wide">Current Plan</span>
+              </div>
+              <div
+                className="rounded-[1.75rem] border p-5"
+                style={{ background: "linear-gradient(135deg,#FFF7ED 0%,#FFFFFF 55%,#F5F3FF 100%)", borderColor: "rgba(249,115,22,0.12)", boxShadow: "0 8px 24px rgba(28,25,23,0.05)" }}
+              >
+                <div className="flex flex-col gap-4">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-orange-500">
+                      {isPremiumPlan ? 'Premium active' : 'Free plan'}
+                    </p>
+                    <p className="mt-1 text-lg font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+                      {isPremiumPlan ? 'Munch Member' : 'Munch Free'}
+                    </p>
+                    <p className="mt-1 text-sm text-stone-500">
+                      {isPremiumPlan
+                        ? 'You have access to premium AI tools, imports, Kitchens, and meal planning.'
+                        : 'Upgrade to unlock meal planning, Kitchens, AI imports, nutritional facts, and premium cooking tools.'}
+                    </p>
+                    {isPremiumPlan && (
+                      <p className="mt-1 text-xs text-stone-400">
+                        {formattedPremiumDate ? `Renews or ends on ${formattedPremiumDate}` : 'Premium membership is active on this account.'}
+                      </p>
+                    )}
+                  </div>
+                  {!isPremiumPlan && (
+                    <Button
+                      type="button"
+                      onClick={() => openPremiumPage('Munch Membership')}
+                      className="inline-flex items-center gap-2 rounded-xl bg-violet-600 text-white hover:bg-violet-700"
+                    >
+                      <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-orange-100/95 text-orange-500">
+                        <Crown className="h-3.5 w-3.5" />
+                      </span>
+                      Upgrade
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Camera className="h-4 w-4" />
+                  <span className="text-sm font-semibold uppercase tracking-wide">Dashboard Header</span>
+                </div>
+                <div className="rounded-[1.75rem] border p-5" style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 8px 24px rgba(28,25,23,0.05)" }}>
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-stone-900">Hero background image</p>
+                      <p className="mt-1 text-sm text-stone-500">
+                        Choose a specific image for your dashboard header, or let Munch reshuffle it once per day.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant={dashboardHeroImageMode === 'manual' ? 'default' : 'outline'}
+                        onClick={() => setHeroImagePickerOpen(true)}
+                        className={dashboardHeroImageMode === 'manual' ? 'bg-orange-500 hover:bg-orange-600 text-white' : ''}
+                      >
+                        <Camera className="mr-2 h-4 w-4" />
+                        Choose Image
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={dashboardHeroImageMode === 'daily' ? 'default' : 'outline'}
+                        onClick={() => setDashboardHeroImageMode('daily')}
+                        className={dashboardHeroImageMode === 'daily' ? 'bg-orange-500 hover:bg-orange-600 text-white' : ''}
+                      >
+                        <RotateCw className="mr-2 h-4 w-4" />
+                        Shuffle Daily
+                      </Button>
+                    </div>
+                  </div>
+                  {heroImageOptions.length > 0 && (
+                    <div className="mt-4 overflow-hidden rounded-2xl border border-orange-100 bg-stone-100">
+                      <img
+                        src={heroImageOptions[selectedHeroImageIndex]}
+                        alt="Selected dashboard header"
+                        className="aspect-[16/6] w-full object-cover"
+                        onError={applyRecipeImageFallback}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </section>
+          </div>
 
           <RecipeScraperTester />
 
@@ -596,6 +717,81 @@ export default function Settings() {
                 </button>
               }
             />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={heroImagePickerOpen} onOpenChange={setHeroImagePickerOpen}>
+        <DialogContent className="max-h-[90vh] max-w-5xl overflow-hidden p-0">
+          <DialogHeader>
+            <DialogTitle className="px-4 pt-4 sm:px-6 sm:pt-6">Choose dashboard image</DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[calc(90vh-64px)] overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+              {heroImageOptions.map((src, index) => {
+                const isSelected = dashboardHeroImageMode === 'manual' && selectedHeroImageIndex === index;
+                return (
+                  <button
+                    key={`${src}-${index}`}
+                    type="button"
+                    onClick={() => {
+                      setDashboardHeroImageMode('manual');
+                      setDashboardHeroImageSeed(index);
+                      setHeroImagePickerOpen(false);
+                    }}
+                    className={`overflow-hidden rounded-2xl border text-left transition-all ${
+                      isSelected ? 'border-orange-500 ring-2 ring-orange-200' : 'border-stone-200 hover:border-orange-300'
+                    }`}
+                  >
+                    <div className="aspect-[4/3] bg-stone-100">
+                      <img
+                        src={src}
+                        alt={`Dashboard option ${index + 1}`}
+                        className="h-full w-full object-cover"
+                        onError={applyRecipeImageFallback}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between px-3 py-2">
+                      <span className="text-sm font-semibold text-stone-800">Image {index + 1}</span>
+                      {isSelected && <span className="text-xs font-bold uppercase tracking-wide text-orange-500">Selected</span>}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showUsernameChangeConfirm} onOpenChange={setShowUsernameChangeConfirm}>
+        <DialogContent className="max-w-sm p-6 rounded-2xl">
+          <div className="flex flex-col gap-4">
+            <DialogTitle className="text-xl font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+              Change username?
+            </DialogTitle>
+            <p className="text-sm text-stone-500">
+              Your recipes will stay attached to the same chef profile and backend account, but you’ll give up your current username and need to save a new available one.
+            </p>
+            <div className="flex gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1 rounded-xl"
+                onClick={() => setShowUsernameChangeConfirm(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                className="flex-1 rounded-xl bg-orange-500 text-white hover:bg-orange-600"
+                onClick={() => {
+                  setUsernameEditUnlocked(true);
+                  setShowUsernameChangeConfirm(false);
+                }}
+              >
+                Edit Username
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

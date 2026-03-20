@@ -190,7 +190,8 @@ export default function Dashboard() {
     cookingStreak, totalMealsCooked, cookedRecipeIds, totalXp,
     earnedBadges, earnBadge, lastCookedDate, chefAvatarUrl, setChefAvatarUrl,
     cachedNutrition,
-    mealPlan, displayName: storeDisplayName
+    mealPlan, displayName: storeDisplayName,
+    dashboardHeroImageMode, dashboardHeroImageSeed,
   } = useStore();
 
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
@@ -427,13 +428,13 @@ export default function Dashboard() {
     loadProfile();
   }, [storeDisplayName]);
 
+  const { isPremium } = usePremiumAccess();
+  const { openPremiumPage } = usePremiumGate();
+
   const selectedMatch = selectedRecipe ? calculateMatch(pantryNames, selectedRecipe.ingredients || []) : null;
 
   const formatCookedAt = (dateString: string) =>
     new Date(dateString).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-
-  const { isPremium } = usePremiumAccess();
-  const { openPremiumPage } = usePremiumGate();
 
   const handleEstimateSavings = async (mealId: string) => {
     if (!isPremium) {
@@ -498,107 +499,201 @@ export default function Dashboard() {
     ...(isMobile ? [{ label: "Settings", to: "/settings", emoji: "⚙️", color: "from-stone-50 to-slate-100" }] : [{ label: "Add to Pantry", to: "/pantry", emoji: "📦", color: "from-emerald-50 to-teal-50" }]),
   ];
 
+  const heroImageOptions = useMemo(
+    () =>
+      [currentPlannedMeal?.recipe_data, ...suggestedRecipes, ...availableSuggestions]
+        .filter((recipe): recipe is Recipe => Boolean(recipe))
+        .map((recipe) => getRecipeImageSrc(recipe.image))
+        .filter(Boolean)
+        .filter((src, index, arr) => arr.indexOf(src) === index),
+    [availableSuggestions, currentPlannedMeal?.recipe_data, suggestedRecipes],
+  );
+  const heroDaySeed = useMemo(() => {
+    const today = new Date();
+    const startOfYear = new Date(today.getFullYear(), 0, 0);
+    const diff = today.getTime() - startOfYear.getTime();
+    return Math.floor(diff / 86400000);
+  }, []);
+  const heroImageIndex =
+    dashboardHeroImageMode === "daily"
+      ? heroDaySeed
+      : dashboardHeroImageSeed;
+  const heroImageSrc =
+    heroImageOptions.length > 0
+      ? heroImageOptions[heroImageIndex % heroImageOptions.length]
+      : null;
+  const dashboardQuestLabel = pantryList[0]?.name
+    ? `Make something with ${pantryList[0].name}`
+    : "Save a recipe that matches your pantry";
+  const dashboardQuestXp = pantryList.length > 0 ? 50 : 25;
+  const topMetricCards = [
+    {
+      key: "meals",
+      label: "Meals Cooked",
+      value: totalMealsCooked,
+      icon: ChefHat,
+      detail: `${new Date().toLocaleDateString("en-US", { month: "long" }).toLowerCase()}`,
+      tone: "bg-emerald-50 text-emerald-600",
+    },
+    {
+      key: "saved",
+      label: "Recipes Saved",
+      value: likedRecipes.length,
+      icon: Heart,
+      detail: "total",
+      tone: "bg-orange-50 text-orange-500",
+    },
+  ];
+  const upNextRecipe = isPremium ? currentPlannedMeal?.recipe_data || null : null;
+  const upNextMatch = upNextRecipe ? calculateMatch(pantryNames, upNextRecipe.ingredients || []) : null;
+  const upNextCoverage = upNextMatch ? Math.max(18, upNextMatch.percentage) : 24;
+  const tipOfDay = pantryList[0]?.name
+    ? `Try building tonight’s dish around ${pantryList[0].name} first. Using one ingredient you already have is the easiest way to turn browsing into an actual cooked meal.`
+    : "Pick one recipe you can cook in under 30 minutes tonight. Momentum beats perfection when you're building a cooking habit.";
+
   return (
     <div className={`min-h-full ${avatarEditorRequested && avatarDialogOpen ? "opacity-0 pointer-events-none" : ""}`} style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", background: "#FFFAF5" }}>
-      {/* Hero header */}
-      <div
-        className="relative overflow-hidden border-b"
-        style={{ background: "linear-gradient(135deg,#FFF7ED 0%,#FFFAF5 60%,#FFF3E4 100%)", borderColor: "rgba(249,115,22,0.12)" }}
-      >
-        <div
-          className="absolute inset-0 opacity-30"
-          style={{ backgroundImage: "radial-gradient(circle, #FDA97440 1px, transparent 1px)", backgroundSize: "24px 24px" }}
-        />
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-5 sm:py-6 flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold text-orange-400 uppercase tracking-widest mb-1">
-              {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
-            </p>
-            <h1
-              data-tutorial="dashboard-greeting"
-              className="text-xl sm:text-3xl font-bold text-stone-900 leading-tight"
-              style={{ fontFamily: "'Fraunces', Georgia, serif" }}
-            >
-              {greeting}, <span className="text-orange-500">Chef {displayName || ""}</span> 👋
-            </h1>
-            <p className="text-xs sm:text-sm text-stone-500 mt-1">Here's what's cooking this week</p>
-          </div>
-          <div className="flex items-center gap-2 sm:gap-4">
-            <button
-              onClick={() => setNotificationsOpen(true)}
-              className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-orange-200 bg-white/85 text-stone-700 shadow-sm transition-colors hover:bg-orange-50"
-              aria-label="Open notifications"
-            >
-              <Bell size={18} />
-              {unreadCount > 0 && (
-                <span className="absolute -right-1 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-orange-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                  {unreadCount > 9 ? "9+" : unreadCount}
-                </span>
-              )}
-            </button>
-            <button
-              onClick={() => navigate("/settings")}
-              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-orange-200 bg-white/85 text-stone-700 shadow-sm transition-colors hover:bg-orange-50 md:hidden"
-              aria-label="Open settings"
-            >
-              <Settings size={18} />
-            </button>
-            <div className="hidden md:block min-w-[220px] rounded-xl border px-3 py-2" style={{ background: "rgba(255,255,255,0.72)", borderColor: "rgba(249,115,22,0.20)" }}>
-              <div className="flex items-center justify-between text-[11px] font-bold text-stone-600 mb-1">
-                <span className="inline-flex items-center gap-1"><Star size={11} className="text-amber-500 fill-amber-500" /> Level {levelInfo.level}</span>
-                <span>{totalXp} XP</span>
+      {/* Body */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-5 space-y-5 sm:space-y-6">
+        <section className="space-y-4">
+          <div
+            className="relative overflow-hidden rounded-[2rem] border border-orange-100 min-h-[220px] p-6 sm:p-8"
+            style={{
+              background: heroImageSrc
+                ? `linear-gradient(110deg, rgba(28,25,23,0.74) 0%, rgba(28,25,23,0.58) 34%, rgba(28,25,23,0.36) 62%, rgba(28,25,23,0.2) 100%), url(${heroImageSrc}) center/cover`
+                : "linear-gradient(135deg,#FED7AA 0%,#FDBA74 32%,#FFF7ED 100%)",
+              boxShadow: "0 16px 40px rgba(28,25,23,0.10)",
+            }}
+          >
+            {heroImageSrc && (
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.14),transparent_24%),radial-gradient(circle_at_bottom_left,rgba(0,0,0,0.22),transparent_30%)] backdrop-blur-[2px]" />
+            )}
+            <div className="relative flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+              <div className="max-w-xl">
+                <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-orange-200">
+                  {greeting}
+                </p>
+                <h2 className="mt-3 text-3xl font-bold text-orange-400 sm:text-5xl" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+                  Chef {displayName || storeDisplayName || "there"}
+                </h2>
+                <p className="mt-3 text-[11px] font-bold uppercase tracking-[0.22em] text-orange-300/95">
+                  {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+                </p>
+                <p className="mt-5 max-w-md text-sm font-semibold text-white sm:text-base">
+                  Your kitchen snapshot is ready, with tailored picks, pantry-aware inspiration, and your next meal at a glance.
+                </p>
               </div>
-              <div className="relative h-1.5 bg-amber-100 rounded-full overflow-hidden">
-                <motion.div
-                  className="absolute inset-y-0 left-0 rounded-full"
-                  style={{ background: "linear-gradient(90deg,#FBBF24,#F59E0B)" }}
-                  initial={{ width: 0 }}
-                  animate={{ width: `${(levelInfo.current / levelInfo.needed) * 100}%` }}
-                  transition={{ type: "spring", stiffness: 60, delay: 0.3 }}
-                />
+              <div className="flex flex-wrap items-center justify-end gap-2 self-start">
+                <button
+                  onClick={() => setNotificationsOpen(true)}
+                  className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-orange-300/60 bg-white/90 text-stone-700 shadow-sm backdrop-blur transition-colors hover:bg-orange-50"
+                  aria-label="Open notifications"
+                >
+                  <Bell size={18} />
+                  {unreadCount > 0 && (
+                    <span className="absolute -right-1 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-orange-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                      {unreadCount > 9 ? "9+" : unreadCount}
+                    </span>
+                  )}
+                </button>
+                <Link
+                  to="/settings"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-orange-300/60 bg-white/90 text-stone-700 shadow-sm backdrop-blur transition-colors hover:bg-orange-50"
+                  aria-label="Open settings"
+                >
+                  <Settings size={18} />
+                </Link>
+                <button
+                  onClick={() => setAvatarDialogOpen(true)}
+                  className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-orange-300/60 bg-white/90 shadow-sm backdrop-blur transition-colors hover:bg-orange-50"
+                  disabled={uploadingAvatar}
+                >
+                  <div className="relative h-8 w-8 overflow-hidden rounded-full ring-2 ring-orange-300/70 group">
+                    <img src={chefAvatarUrl || defaultChefAvatar} alt="Chef" className="h-full w-full object-cover" />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <Camera size={12} className="text-white" />
+                    </div>
+                  </div>
+                  <div className="pointer-events-none absolute inset-0 rounded-full ring-1 ring-white/60" />
+                  <div className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-orange-500 text-white shadow-sm">
+                    <Camera size={14} className="text-white" />
+                  </div>
+                </button>
+                <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
               </div>
             </div>
-            <button
-              onClick={() => setAvatarDialogOpen(true)}
-              className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden ring-2 ring-orange-200 ring-offset-2 group shrink-0"
-              disabled={uploadingAvatar}
-            >
-              <img src={chefAvatarUrl || defaultChefAvatar} alt="Chef" className="w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <Camera size={14} className="text-white" />
-              </div>
-            </button>
-            <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
-            {isPremium ? (
-              <Link
-                to="/swipe"
-                className="hidden sm:flex items-center gap-2 text-white text-sm font-bold px-5 py-2.5 rounded-full transition-all hover:opacity-90 active:scale-95"
-                style={{ background: "linear-gradient(135deg,#FB923C,#F97316,#EA580C)", boxShadow: "0 4px 16px rgba(249,115,22,0.30)" }}
-              >
-                <span>🍳</span> Get Cooking
-              </Link>
-            ) : (
-              <PremiumFeatureButton
-                label="Get Premium"
-                onClick={() => openPremiumPage("Munch Membership")}
-                className="hidden sm:flex h-11 w-auto shrink-0 px-5"
-              />
-            )}
           </div>
-        </div>
-      </div>
 
-      {/* Body */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5 sm:py-7 space-y-5 sm:space-y-7">
+          <div className="grid gap-4 lg:grid-cols-[1.05fr_1fr_1fr]">
+            <section className="relative overflow-hidden rounded-[1.75rem] border border-orange-100 bg-white p-5 shadow-[0_10px_28px_rgba(28,25,23,0.06)]">
+              <div className="absolute -right-6 -top-5 h-24 w-24 rounded-full bg-orange-100/80" />
+              <div className="relative flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-orange-700">Cooking Streak</p>
+                  <div className="mt-4 flex items-end gap-2">
+                    <p className="text-5xl font-bold leading-none text-orange-800" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>{cookingStreak}</p>
+                    <p className="pb-1 text-sm font-semibold text-orange-700">day{cookingStreak === 1 ? "" : "s"}</p>
+                  </div>
+                </div>
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-orange-50 text-orange-500">
+                  <Flame size={22} />
+                </div>
+              </div>
+              <div className="mt-6 h-2.5 rounded-full bg-orange-100 overflow-hidden">
+                <motion.div
+                  className="h-full rounded-full"
+                  style={{ background: "linear-gradient(90deg,#FB923C,#F97316)" }}
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.min(100, (cookingStreak / 14) * 100)}%` }}
+                  transition={{ type: "spring", stiffness: 60, delay: 0.2 }}
+                />
+              </div>
+              <div className="mt-3 flex items-center justify-between text-sm text-stone-500">
+                <span>{Math.max(totalMealsCooked, 1) * 50} XP earned</span>
+                <span>Keep it going</span>
+              </div>
+            </section>
 
-        {/* Stats */}
-        <div className={`grid gap-3 ${isMobile ? "grid-cols-2" : "grid-cols-2 xl:grid-cols-4"}`} data-tutorial="dashboard-stats">
-          {stats.map((s, i) => (
-            <motion.div key={s.label} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06, duration: 0.4, ease: "easeOut" }}>
-              <StatCard {...s} />
-            </motion.div>
-          ))}
-        </div>
+            {topMetricCards.map(({ key, label, value, icon: Icon, tone, detail }) => (
+              <section key={key} className="relative overflow-hidden rounded-[1.75rem] border border-orange-100 bg-white p-5 shadow-[0_10px_24px_rgba(28,25,23,0.05)]">
+                <div className={`absolute -right-6 -top-5 h-24 w-24 rounded-full ${key === "saved" ? "bg-violet-100/80" : "bg-emerald-100/80"}`} />
+                <div className="relative flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-stone-500">{label}</p>
+                    <div className="mt-4 flex items-end gap-2">
+                      <p className={`text-5xl font-bold leading-none ${key === "saved" ? "text-violet-600" : "text-emerald-700"}`} style={{ fontFamily: "'Fraunces', Georgia, serif" }}>{value}</p>
+                      <p className="pb-1 text-sm font-semibold text-stone-600">{detail}</p>
+                    </div>
+                    {key === "meals" ? (
+                      <p className="mt-4 text-sm font-semibold text-emerald-700">↗ +15% from last month</p>
+                    ) : (
+                      <div className="mt-4 flex items-center -space-x-2">
+                        {likedRecipes.slice(0, 3).map((id, index) => (
+                          <img
+                            key={id}
+                            src={getRecipeImageSrc(savedApiRecipes[id]?.image)}
+                            alt=""
+                            className="h-8 w-8 rounded-full border-2 border-white object-cover"
+                            onError={applyRecipeImageFallback}
+                            style={{ zIndex: 4 - index }}
+                          />
+                        ))}
+                        {likedRecipes.length > 3 && (
+                          <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-full border-2 border-white bg-orange-100 px-2 text-xs font-bold text-orange-700">
+                            +{likedRecipes.length - 3}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div className={`flex h-14 w-14 items-center justify-center rounded-full ${tone}`}>
+                    <Icon size={22} />
+                  </div>
+                </div>
+              </section>
+            ))}
+          </div>
+        </section>
 
         {/* 2-col layout */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -642,8 +737,8 @@ export default function Dashboard() {
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  {suggestedRecipes.map((recipe) => {
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {suggestedRecipes.slice(0, 3).map((recipe) => {
                     const match = calculateMatch(pantryNames, recipe.ingredients || []);
                     return (
                       <RecipeSuggestionCard
@@ -661,240 +756,126 @@ export default function Dashboard() {
               )}
             </section>
 
-            {/* This week */}
-            <section className="rounded-2xl border p-4 sm:p-5" style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}>
-              <SectionHeader
-                icon={Calendar}
-                title="This week"
-                action={
-                  <button
-                    type="button"
-                    onClick={() => handleOpenMealPrep()}
-                    className="text-xs text-orange-500 font-semibold hover:text-orange-600 flex items-center gap-0.5"
-                  >
-                    Meal Prep <ChevronRight size={13} />
-                  </button>
-                }
-              />
-              {isPremium ? (
-                <div className="space-y-1.5">
-                  {/* Current meal */}
-                  <div className="flex items-center gap-3 px-4 py-3 rounded-xl border" style={{ background: "linear-gradient(135deg,#FFF7ED,#FFF3E4)", borderColor: "rgba(249,115,22,0.20)" }}>
-                    <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[10px] font-bold text-orange-500 uppercase tracking-wider mb-0.5">Now</p>
-                      <p className="text-sm font-semibold text-stone-800 truncate">
-                        {currentMealLoading ? "Loading…" : currentPlannedMeal ? currentPlannedMeal.recipe_name : "No meal planned"}
-                      </p>
-                    </div>
-                    {currentPlannedMeal && (
-                      <button
-                        onClick={startCurrentPlannedMeal}
-                        className="text-xs font-bold text-orange-600 bg-orange-100 hover:bg-orange-200 px-3 py-1.5 rounded-full transition-colors shrink-0"
-                      >
-                        Cook →
-                      </button>
-                    )}
-                  </div>
-                  {thisWeekMealRows.map(({ day, meal, done, recipeId }, index) => (
-                    <div
-                      key={day}
-                      className="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-colors"
-                      style={{ background: done ? "rgba(34,197,94,0.06)" : "rgba(0,0,0,0.02)" }}
-                    >
-                      <span className="text-xs font-bold w-8 shrink-0" style={{ color: done ? "#15803D" : "#A8A29E" }}>{day}</span>
-                      <span className="flex-1 text-sm truncate" style={{ color: done ? "#A8A29E" : "#292524", fontWeight: done ? 400 : 500, textDecoration: done ? "line-through" : "none" }}>
-                        {meal}
-                      </span>
-                      {done ? (
-                        <span className="flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
-                          <Check size={10} /> Done
-                        </span>
-                      ) : (
-                        <button
-                          onClick={() => recipeId ? navigate(`/cook/${recipeId}`) : handleOpenMealPrep({ selectedDay: index, openAddDialog: true, mealType: "dinner" })}
-                          className="text-xs text-stone-400 hover:text-orange-500 font-semibold flex items-center gap-1 px-2 py-1 rounded-full hover:bg-orange-50 transition-colors"
-                        >
-                          {recipeId ? <Play size={11} /> : <Plus size={11} />} {recipeId ? "Cook" : "Add"}
-                        </button>
-                      )}
-                    </div>
-                  ))}
+            <section className="rounded-[1.9rem] border border-orange-100 bg-gradient-to-br from-orange-50/60 via-white to-orange-100/40 p-5 shadow-[0_10px_24px_rgba(28,25,23,0.05)]">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-2xl font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+                  Chef's Tip of the Day
+                </h3>
+                <button className="rounded-full bg-white px-5 py-2 text-sm font-semibold text-stone-700 shadow-sm hover:bg-orange-50 transition-colors">
+                  Read More
+                </button>
+              </div>
+              <div className="mt-5 flex gap-4">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-orange-100 text-orange-700">
+                  <Sparkles size={20} />
                 </div>
-              ) : (
-                <div className="relative mt-1 overflow-hidden rounded-2xl border border-violet-100 bg-gradient-to-br from-white via-violet-50/45 to-purple-100/45 p-5">
-                  <div className="pointer-events-none absolute inset-0">
-                    <div className="absolute -right-10 -top-10 h-28 w-28 rounded-full bg-violet-200/35 blur-2xl" />
-                    <div className="absolute -left-6 bottom-0 h-24 w-24 rounded-full bg-purple-200/25 blur-2xl" />
-                  </div>
-                  <div className="relative">
-                    <div className="space-y-2 opacity-30 blur-[1.5px]">
-                      <div className="flex items-center gap-3 rounded-xl border border-violet-100 bg-white/80 px-4 py-3">
-                        <div className="h-2 w-2 shrink-0 rounded-full bg-violet-500" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-violet-500">Now</p>
-                          <p className="truncate text-sm font-semibold text-stone-800">Lemon pesto pasta</p>
-                        </div>
-                        <span className="rounded-full bg-violet-100 px-3 py-1.5 text-xs font-bold text-violet-700">Cook →</span>
-                      </div>
-                      {["Mon", "Tue", "Wed", "Thu", "Fri"].map((day, index) => (
-                        <div key={day} className="flex items-center gap-3 rounded-xl bg-black/[0.02] px-4 py-2.5">
-                          <span className="w-8 shrink-0 text-xs font-bold text-stone-400">{day}</span>
-                          <span className="flex-1 truncate text-sm text-stone-700">
-                            {["Chicken tacos", "Baked salmon", "Grain bowl", "Tomato soup", "Veggie stir-fry"][index]}
-                          </span>
-                          <span className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold text-stone-400">
-                            <Plus size={11} /> Add
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center px-5 text-center">
-                      <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-white/94 text-violet-600 shadow-sm">
-                        <Lock size={20} />
-                      </div>
-                      <p className="mt-4 text-sm font-semibold text-stone-800">Meal planning is premium</p>
-                      <p className="mt-1 max-w-xs text-xs text-stone-500">
-                        Unlock your weekly planner, current meal queue, and one-tap meal scheduling.
-                      </p>
-                      <PremiumFeatureButton
-                        label="Get Premium"
-                        onClick={() => openPremiumPage("Meal Prep")}
-                        className="mt-4 mx-auto h-11 w-auto px-5"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
+                <p className="max-w-2xl text-lg leading-8 text-stone-700">
+                  {tipOfDay}
+                </p>
+              </div>
             </section>
           </div>
 
           {/* Right 1/3 */}
           <div className="space-y-5">
-            {/* Quick actions */}
+            <section
+              className="rounded-[1.9rem] border border-orange-100 bg-gradient-to-br from-orange-100/70 via-orange-50 to-white p-5 shadow-[0_12px_28px_rgba(249,115,22,0.10)]"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-2xl font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+                  Up Next
+                </h3>
+                {currentPlannedMeal && (
+                  <span className="rounded-full bg-white px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-orange-700">
+                    Scheduled
+                  </span>
+                )}
+              </div>
+              {upNextRecipe ? (
+                <>
+                  <div className="mt-5 flex items-start gap-4">
+                    <div className="h-24 w-24 overflow-hidden rounded-2xl bg-stone-100">
+                      <img
+                        src={getRecipeImageSrc(upNextRecipe.image)}
+                        alt={upNextRecipe.name}
+                        className="h-full w-full object-cover"
+                        onError={applyRecipeImageFallback}
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-2xl font-bold leading-tight text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+                        {upNextRecipe.name}
+                      </p>
+                      <p className="mt-2 text-sm text-stone-600">
+                        {upNextRecipe.cuisine || "Tonight's pick"}{upNextRecipe.cook_time ? ` • ${upNextRecipe.cook_time}` : ""}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-6">
+                    <div className="flex items-center justify-between text-sm font-semibold text-stone-600">
+                      <span>Prep Progress</span>
+                      <span className="text-emerald-700">{upNextMatch ? `${upNextMatch.percentage}% ready` : "Ready to cook"}</span>
+                    </div>
+                    <div className="mt-2 h-2.5 rounded-full bg-white/90 overflow-hidden">
+                      <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-orange-500" style={{ width: `${upNextCoverage}%` }} />
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      startCurrentPlannedMeal();
+                    }}
+                    className="mt-6 w-full rounded-full bg-stone-900 px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-stone-800"
+                  >
+                    Launch Cooking Mode
+                  </button>
+                </>
+              ) : (
+                <div className="mt-5 space-y-3">
+                  <p className="text-sm text-stone-500">
+                    {isPremium
+                      ? "Plan a meal to see your next scheduled cook here."
+                      : "Up Next follows your meal plan, which is part of Premium."}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenMealPrep()}
+                    className="inline-flex w-full items-center justify-center rounded-full bg-orange-500 px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-orange-600"
+                  >
+                    {isPremium ? "Open Meal Prep" : "Unlock Meal Prep"}
+                  </button>
+                </div>
+              )}
+            </section>
+
             <section
               data-tutorial="dashboard-quick-actions"
-              className="rounded-2xl border p-4 sm:p-5"
-              style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}
+              className="rounded-[1.9rem] border border-orange-100 bg-white p-5 shadow-[0_10px_24px_rgba(28,25,23,0.05)]"
             >
-              <h2 className="text-[15px] font-bold text-stone-800 mb-3">Quick actions</h2>
-              <div className="grid grid-cols-2 gap-2">
-                {QUICK_ACTIONS.map(({ label, to, emoji, color, premium }) => (
+              <h3 className="text-2xl font-bold text-stone-900 mb-4" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+                Quick Actions
+              </h3>
+              <div className="grid grid-cols-2 gap-3">
+                {QUICK_ACTIONS.slice(0, 4).map(({ label, to, emoji, premium }) => (
                   premium ? (
                     <button
                       key={label}
                       type="button"
                       onClick={() => handleOpenMealPrep()}
-                      className={`flex flex-col items-center gap-1.5 p-3 sm:p-4 rounded-xl bg-gradient-to-br ${color} hover:opacity-80 transition-all active:scale-95 text-center group relative`}
+                      className="flex min-h-[132px] flex-col items-center justify-center gap-3 rounded-[1.5rem] bg-orange-50/60 p-4 text-center transition-colors hover:bg-orange-100/70"
                     >
-                      <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-0.5 text-[10px] font-bold text-violet-700 shadow-sm ring-1 ring-violet-200">
-                        <Lock size={10} /> Premium
-                      </span>
-                      <span className="text-xl sm:text-2xl">{emoji}</span>
-                      <span className="text-xs font-semibold text-stone-600 group-hover:text-stone-800 leading-tight">{label}</span>
+                      <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-2xl shadow-sm">{emoji}</span>
+                      <span className="text-sm font-semibold text-stone-700">{label}</span>
                     </button>
                   ) : (
-                    <Link key={label} to={to} className={`flex flex-col items-center gap-1.5 p-3 sm:p-4 rounded-xl bg-gradient-to-br ${color} hover:opacity-80 transition-all active:scale-95 text-center group`}>
-                      <span className="text-xl sm:text-2xl">{emoji}</span>
-                      <span className="text-xs font-semibold text-stone-600 group-hover:text-stone-800 leading-tight">{label}</span>
+                    <Link
+                      key={label}
+                      to={to}
+                      className="flex min-h-[132px] flex-col items-center justify-center gap-3 rounded-[1.5rem] bg-orange-50/60 p-4 text-center transition-colors hover:bg-orange-100/70"
+                    >
+                      <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-2xl shadow-sm">{emoji}</span>
+                      <span className="text-sm font-semibold text-stone-700">{label}</span>
                     </Link>
                   )
-                ))}
-              </div>
-            </section>
-
-            {/* Cooked history */}
-            <section className={`rounded-2xl border p-4 sm:p-5 ${isMobile ? "hidden" : ""}`} style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}>
-              <SectionHeader icon={Sparkles} title="Cooked history" />
-              {isPremium ? (
-                cookedMealsLoading ? (
-                  <p className="text-xs text-stone-400">Loading meals...</p>
-                ) : cookedMeals.length === 0 ? (
-                  <p className="text-xs text-stone-400">Cook your first meal to start your history.</p>
-                ) : (
-                  <div className="space-y-2.5">
-                    {cookedMeals.slice(0, 6).map((meal) => (
-                      <div key={meal.id} className="rounded-xl border border-stone-100 px-3 py-2.5">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="text-xs font-semibold text-stone-800 truncate">{meal.recipe_name}</p>
-                            <p className="text-[10px] text-stone-400 mt-0.5">Cooked {formatCookedAt(meal.cooked_at)}</p>
-                          </div>
-                          {meal.estimated_savings != null ? (
-                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full whitespace-nowrap">
-                              Saved ≈ ${meal.estimated_savings.toFixed(2)}
-                            </span>
-                          ) : (
-                            <button
-                              onClick={() => handleEstimateSavings(meal.id)}
-                              disabled={estimatingMealId === meal.id}
-                              className="text-[10px] font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 px-2 py-1 rounded-full disabled:opacity-60"
-                            >
-                              ✨ AI savings
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )
-              ) : (
-                <div className="relative mt-1 overflow-hidden rounded-2xl border border-orange-100 bg-gradient-to-br from-white via-orange-50/40 to-orange-100/40 p-5">
-                  <div className="pointer-events-none absolute inset-0">
-                    <div className="absolute -right-10 -top-10 h-28 w-28 rounded-full bg-orange-200/30 blur-2xl" />
-                    <div className="absolute -left-6 bottom-0 h-24 w-24 rounded-full bg-amber-200/25 blur-2xl" />
-                  </div>
-                  <div className="relative">
-                    <div className="space-y-2.5 opacity-30 blur-[1.5px]">
-                      {[
-                        { name: "Spicy rigatoni", date: "Cooked Mar 14", savings: "Saved ≈ $8.40" },
-                        { name: "Crispy salmon bowls", date: "Cooked Mar 12", savings: "Saved ≈ $11.20" },
-                        { name: "Lemon chicken soup", date: "Cooked Mar 10", savings: "Saved ≈ $6.90" },
-                      ].map((meal) => (
-                        <div key={meal.name} className="rounded-xl border border-stone-100 bg-stone-50/90 px-3 py-2.5">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <p className="text-xs font-semibold text-stone-800 truncate">{meal.name}</p>
-                              <p className="text-[10px] text-stone-400 mt-0.5">{meal.date}</p>
-                            </div>
-                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full whitespace-nowrap">
-                              {meal.savings}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-5">
-                      <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-white/92 text-orange-500 shadow-sm">
-                        <Lock size={20} />
-                      </div>
-                      <p className="mt-4 text-sm font-semibold text-stone-800">Cooked history is premium</p>
-                      <p className="mt-1 max-w-xs text-xs text-stone-500">
-                        Unlock your meal archive, revisit past cooks, and track your savings over time.
-                      </p>
-                      <PremiumFeatureButton
-                        label="Get Premium"
-                        onClick={() => openPremiumPage("Cooked history")}
-                        className="mt-4 mx-auto h-11 w-auto px-5"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-            </section>
-
-            {/* Recent activity */}
-            <section className={`rounded-2xl border p-4 sm:p-5 ${isMobile ? "hidden" : ""}`} style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}>
-              <h2 className="text-[15px] font-bold text-stone-800 mb-4">Recent activity</h2>
-              <div className="space-y-3">
-                {recentActivity.map((item, i) => (
-                  <div key={i} className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-stone-50 border border-stone-100 flex items-center justify-center text-sm shrink-0">{item.emoji}</div>
-                    <div className="min-w-0 flex-1 pt-0.5">
-                      <p className="text-xs text-stone-700 font-medium leading-snug">{item.text}</p>
-                      <p className="text-[10px] text-stone-400 mt-0.5">{item.time}</p>
-                    </div>
-                  </div>
                 ))}
               </div>
             </section>
@@ -903,7 +884,7 @@ export default function Dashboard() {
 
         {!isMobile && (
           <section
-            className="rounded-2xl border p-4 sm:p-5"
+            className="mx-auto max-w-5xl rounded-2xl border p-4 sm:p-5"
             style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}
           >
             <SectionHeader icon={Sparkles} title="Nutrition consumed" />
@@ -953,13 +934,13 @@ export default function Dashboard() {
                 )}
               </>
             ) : (
-              <div className="relative mt-1 overflow-hidden rounded-2xl border border-orange-100 bg-gradient-to-br from-white via-orange-50/40 to-orange-100/40 p-5">
+              <div className="relative mt-1 overflow-hidden rounded-2xl border border-orange-100 bg-gradient-to-br from-white via-orange-50/40 to-orange-100/40 p-4 sm:p-5">
                 <div className="pointer-events-none absolute inset-0">
                   <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-orange-200/35 blur-2xl" />
                   <div className="absolute -left-6 bottom-0 h-24 w-24 rounded-full bg-amber-200/30 blur-2xl" />
                 </div>
-                <div className="relative">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 opacity-30 blur-[1.5px]">
+                <div className="relative min-h-[300px] sm:min-h-[260px]">
+                  <div className="grid grid-cols-2 gap-3 opacity-25 blur-[1.5px] sm:grid-cols-4">
                     {[
                       { label: "Protein", value: "92g", icon: Beef, tone: "bg-sky-50 text-sky-500" },
                       { label: "Carbs", value: "188g", icon: Wheat, tone: "bg-amber-50 text-amber-500" },
@@ -975,8 +956,8 @@ export default function Dashboard() {
                       </div>
                     ))}
                   </div>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-full max-w-md rounded-2xl border border-orange-200 bg-white/96 p-5 text-center shadow-[0_16px_40px_rgba(249,115,22,0.12)] backdrop-blur">
+                  <div className="absolute inset-x-0 top-1/2 flex -translate-y-1/2 justify-center px-4">
+                    <div className="w-full max-w-sm rounded-2xl border border-orange-200 bg-white/96 p-5 text-center shadow-[0_16px_40px_rgba(249,115,22,0.12)] backdrop-blur">
                       <p className="text-sm font-semibold text-stone-800">Unlock nutrition consumed</p>
                       <p className="mt-2 text-sm text-stone-500">
                         Become a member to track calories, macros, fiber, and overall meal health across everything you cook.

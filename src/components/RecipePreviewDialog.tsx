@@ -671,14 +671,9 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
                                 <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange-500 text-sm font-bold text-white shadow-[0_8px_18px_rgba(249,115,22,0.22)]">
                                   {i + 1}
                                 </span>
-                                <div className="pt-1">
-                                  <p className="text-sm font-semibold text-orange-600">
-                                    {stripInstructionPrefix(step).split('. ')[0] || `Step ${i + 1}`}
-                                  </p>
-                                  <p className="mt-1 text-[13px] leading-6 text-stone-700">
-                                    {stripInstructionPrefix(step)}
-                                  </p>
-                                </div>
+                                <p className="pt-1 text-[13px] leading-6 text-stone-700">
+                                  {stripInstructionPrefix(step)}
+                                </p>
                               </li>
                             ))}
                           </ol>
