@@ -19,6 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { isValidUsername, normalizeUsername } from '@/lib/username';
 import { AvatarStudio } from '@/components/AvatarStudio';
 import { applyRecipeImageFallback, getRecipeImageSrc } from '@/lib/recipeImage';
+import { useIsMobile } from '@/hooks/use-mobile';
 import {
   buildMunchAvatarUrl,
   createMunchAvatarConfig,
@@ -48,16 +49,47 @@ function mapServingPreference(value: unknown): string {
 const Chip = ({ label, selected, onClick }: { label: string; selected: boolean; onClick: () => void }) => (
   <button
     onClick={onClick}
-    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${selected
-      ? 'bg-primary text-primary-foreground border-primary'
-      : 'bg-card text-foreground border-border hover:border-primary/50'
+    className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-all ${selected
+      ? 'border-orange-500 bg-orange-500 text-white shadow-sm'
+      : 'border-orange-200 bg-white/85 text-stone-700 hover:border-orange-300 hover:bg-orange-50'
       }`}
   >
     {label}
   </button>
 );
 
+function SettingsSectionLabel({ icon: Icon, title }: { icon: React.ElementType; title: string }) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-orange-50 text-orange-500">
+        <Icon className="h-4 w-4" />
+      </div>
+      <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-stone-500">{title}</span>
+    </div>
+  );
+}
+
+function SettingsCard({
+  children,
+  className = '',
+  style,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <div
+      className={`rounded-[1.75rem] border p-5 shadow-[0_10px_28px_rgba(28,25,23,0.05)] ${className}`}
+      style={{ background: "linear-gradient(180deg,rgba(255,255,255,0.98) 0%,rgba(255,249,243,0.98) 100%)", borderColor: "rgba(249,115,22,0.10)", ...style }}
+    >
+      {children}
+    </div>
+  );
+}
+
 export default function Settings() {
+  const isMobile = useIsMobile();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { openPremiumPage } = usePremiumGate();
@@ -179,6 +211,14 @@ export default function Settings() {
     [browseRecipes, mealPlan, savedApiRecipes],
   );
   const selectedHeroImageIndex = heroImageOptions.length > 0 ? dashboardHeroImageSeed % heroImageOptions.length : 0;
+  const profileCompletionCount = [
+    Boolean(displayName.trim()),
+    Boolean(normalizeUsername(username)),
+    Boolean(userProfile.skillLevel),
+    userProfile.dietaryRestrictions.length > 0,
+    userProfile.flavorProfiles.length > 0,
+    Boolean(userProfile.groceryLocation.trim()),
+  ].filter(Boolean).length;
 
   const toggleDietary = (item: string) => {
     if (item === 'None') {
@@ -292,116 +332,398 @@ export default function Settings() {
   };
 
   return (
-    <div className="min-h-screen pb-20" style={{ background: "#FFFAF5" }}>
-      <div className="mx-auto w-full max-w-6xl px-4 pb-8 pt-4 sm:px-6 sm:pt-6">
+    <div className="min-h-screen pb-20" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", background: "linear-gradient(180deg,#FFF7F1 0%,#FFFAF5 30%,#FFF4EA 100%)" }}>
+      <div className="mx-auto w-full max-w-7xl px-4 pb-10 pt-4 sm:px-6 sm:pt-6">
         <div
-          className="mb-6 rounded-[1.9rem] border px-4 py-5 sm:px-6"
-          style={{ background: "linear-gradient(135deg,#FFF7ED 0%,#FFFFFF 48%,#FFFAF5 100%)", borderColor: "rgba(249,115,22,0.12)", boxShadow: "0 12px 30px rgba(28,25,23,0.06)" }}
+          className="mb-8 overflow-hidden rounded-[2rem] border"
+          style={{ background: "linear-gradient(135deg,#FFF1E6 0%,#FFFFFF 42%,#FFF7ED 100%)", borderColor: "rgba(249,115,22,0.12)", boxShadow: "0 18px 42px rgba(28,25,23,0.08)" }}
         >
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-orange-400">Your account</p>
-              <h1 className="text-2xl font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>Settings</h1>
-              <p className="mt-1 text-sm text-stone-500">Manage your profile, dashboard look, cooking defaults, and chef identity.</p>
+          <div className="grid gap-6 px-5 py-6 sm:px-7 sm:py-7 lg:grid-cols-[1.35fr_0.65fr] lg:items-center">
+            <div className="relative">
+              <div className="absolute -left-12 -top-12 h-32 w-32 rounded-full bg-orange-100/70 blur-2xl" />
+              <div className="absolute left-40 top-10 h-24 w-24 rounded-full bg-amber-100/70 blur-2xl" />
+              <div className="relative">
+                <div className="flex items-center gap-3">
+                  <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="rounded-full border border-orange-100 bg-white/80 text-stone-700 hover:bg-orange-50">
+                    <ArrowLeft className="h-5 w-5" />
+                  </Button>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-orange-500">Kitchen settings</p>
+                </div>
+                <h1 className="mt-4 text-3xl font-bold text-stone-900 sm:text-4xl" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+                  Shape your Munch home base.
+                </h1>
+                <p className="mt-3 max-w-2xl text-sm font-medium leading-6 text-stone-600 sm:text-[15px]">
+                  Tune your chef identity, personalize the dashboard, and keep your cooking defaults aligned with the rest of your kitchen.
+                </p>
+                <div className="mt-5 flex flex-wrap gap-3">
+                  <div className="rounded-2xl border border-orange-100 bg-white/80 px-4 py-3 shadow-sm">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-orange-400">Chef profile</p>
+                    <p className="mt-1 text-lg font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+                      {displayName || 'Chef'}
+                    </p>
+                    <p className="text-xs text-stone-500">{originalUsername ? `@${originalUsername}` : 'Choose your kitchen handle'}</p>
+                  </div>
+                  <div className="rounded-2xl border border-orange-100 bg-white/80 px-4 py-3 shadow-sm">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-orange-400">Profile completion</p>
+                    <p className="mt-1 text-lg font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+                      {profileCompletionCount}/6 ready
+                    </p>
+                    <p className="text-xs text-stone-500">The more complete this is, the better Munch can tailor your experience.</p>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-            <div className="hidden rounded-2xl border border-orange-100 bg-white/80 px-4 py-3 text-right shadow-sm md:block">
-              <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-orange-400">Current chef</p>
-              <p className="mt-1 text-lg font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
-                {displayName || 'Chef'}
-              </p>
-              <p className="text-xs text-stone-500">{originalUsername ? `@${originalUsername}` : 'Pick a username below'}</p>
-            </div>
+
+            {!isMobile && (
+              <div className="relative hidden lg:block">
+                <div className="absolute inset-0 rounded-[1.8rem] bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.72),transparent_32%),linear-gradient(145deg,rgba(249,115,22,0.14),rgba(255,255,255,0.5))]" />
+                <div className="relative rounded-[1.8rem] border border-white/70 bg-white/75 p-5 shadow-[0_14px_30px_rgba(28,25,23,0.06)] backdrop-blur">
+                  <div className="flex items-center gap-4">
+                    <div className="relative">
+                      <div className="absolute inset-0 rounded-[1.5rem] bg-orange-100 blur-xl" />
+                      <img
+                        src={chefAvatarUrl || '/placeholder.svg'}
+                        alt="Chef avatar"
+                        className="relative h-20 w-20 rounded-[1.5rem] border-2 border-white object-cover shadow-lg"
+                      />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-orange-400">Current kitchen</p>
+                      <p className="mt-1 text-xl font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+                        {displayName || 'Chef'}
+                      </p>
+                      <p className="text-sm text-stone-500">{user?.email || 'Signed in account'}</p>
+                    </div>
+                  </div>
+                  <div className="mt-5 grid grid-cols-2 gap-3">
+                    <div className="rounded-2xl bg-orange-50/80 px-3 py-3">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-orange-500">Plan</p>
+                      <p className="mt-1 text-sm font-semibold text-stone-900">{isPremiumPlan ? 'Munch Member' : 'Munch Free'}</p>
+                    </div>
+                    <div className="rounded-2xl bg-stone-50 px-3 py-3">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-stone-500">Default servings</p>
+                      <p className="mt-1 text-sm font-semibold text-stone-900">{SERVING_OPTIONS.find((option) => option.value === defaultServings)?.label || 'Couple'}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="space-y-8">
-          <div className="grid gap-8 xl:grid-cols-[1.1fr_0.9fr]">
+        <div className="grid gap-8 xl:grid-cols-[minmax(0,1.2fr)_360px] xl:items-start">
+          <div className="space-y-8">
             <section className="space-y-4">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <User className="h-4 w-4" />
-                <span className="text-sm font-semibold uppercase tracking-wide">Profile</span>
-              </div>
-              <div className="space-y-4 rounded-[1.75rem] border p-5" style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 8px 24px rgba(28,25,23,0.05)" }}>
-              <div>
-                <Label>Email</Label>
-                <p className="text-sm text-muted-foreground">{user?.email || '—'}</p>
-              </div>
-              <div>
-                <Label htmlFor="displayName">Display Name</Label>
-                <Input
-                  id="displayName"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="Your name"
-                  maxLength={50}
-                />
-              </div>
-              <div>
-                <div className="flex items-center justify-between gap-3">
-                  <Label htmlFor="username">Username</Label>
-                  {originalUsername && !usernameEditUnlocked && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowUsernameChangeConfirm(true)}
-                      className="h-8 rounded-full px-3 text-xs"
-                    >
-                      <Pencil className="mr-1.5 h-3.5 w-3.5" />
-                      Edit
-                    </Button>
-                  )}
+              <SettingsSectionLabel icon={User} title="Profile" />
+              <SettingsCard style={{ background: "linear-gradient(180deg,#FFFFFF 0%,#FFF6EC 100%)" }}>
+                <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                  <div className="space-y-4">
+                    <div>
+                      <Label>Email</Label>
+                      <p className="mt-2 text-sm font-medium text-stone-600">{user?.email || '—'}</p>
+                    </div>
+                    <div>
+                      <Label htmlFor="displayName">Display Name</Label>
+                      <Input
+                        id="displayName"
+                        value={displayName}
+                        onChange={(e) => setDisplayName(e.target.value)}
+                        placeholder="Your name"
+                        maxLength={50}
+                        className="mt-2 h-11 rounded-xl border-orange-200 bg-white/92 text-stone-800 placeholder:text-stone-400"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between gap-3">
+                      <Label htmlFor="username">Username</Label>
+                      {originalUsername && !usernameEditUnlocked && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowUsernameChangeConfirm(true)}
+                          className="h-8 rounded-full border-orange-200 px-3 text-xs text-orange-700 hover:bg-orange-50"
+                        >
+                          <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                          Edit
+                        </Button>
+                      )}
+                    </div>
+                    <Input
+                      id="username"
+                      value={username}
+                      onChange={(e) => setUsername(normalizeUsername(e.target.value))}
+                      placeholder="chefname"
+                      maxLength={24}
+                      disabled={Boolean(originalUsername) && !usernameEditUnlocked}
+                      className={`mt-2 h-11 rounded-xl border-orange-200 ${Boolean(originalUsername) && !usernameEditUnlocked ? 'bg-stone-50 text-stone-500' : 'bg-white/92 text-stone-800 placeholder:text-stone-400'}`}
+                    />
+                    <p className={`mt-2 text-xs ${usernameStatus === 'taken' || usernameStatus === 'invalid' ? 'text-red-500' : 'text-stone-500'}`}>
+                      {originalUsername && !usernameEditUnlocked && 'Your username is locked until you choose to edit it.'}
+                      {(!originalUsername || usernameEditUnlocked) && usernameStatus === 'checking' && 'Checking username...'}
+                      {(!originalUsername || usernameEditUnlocked) && usernameStatus === 'available' && `@${normalizeUsername(username)} is available`}
+                      {(!originalUsername || usernameEditUnlocked) && usernameStatus === 'taken' && 'That username is already taken'}
+                      {(!originalUsername || usernameEditUnlocked) && usernameStatus === 'invalid' && 'Use 3-24 lowercase letters, numbers, or underscores'}
+                      {(!originalUsername || usernameEditUnlocked) && usernameStatus === 'idle' && 'People can use this to find and invite you'}
+                    </p>
+                  </div>
                 </div>
-                <Input
-                  id="username"
-                  value={username}
-                  onChange={(e) => setUsername(normalizeUsername(e.target.value))}
-                  placeholder="chefname"
-                  maxLength={24}
-                  disabled={Boolean(originalUsername) && !usernameEditUnlocked}
-                  className={Boolean(originalUsername) && !usernameEditUnlocked ? 'bg-stone-50 text-stone-500' : ''}
-                />
-                <p className={`mt-1 text-xs ${usernameStatus === 'taken' || usernameStatus === 'invalid' ? 'text-red-500' : 'text-muted-foreground'}`}>
-                  {originalUsername && !usernameEditUnlocked && 'Your username is locked until you choose to edit it.'}
-                  {(!originalUsername || usernameEditUnlocked) && usernameStatus === 'checking' && 'Checking username...'}
-                  {(!originalUsername || usernameEditUnlocked) && usernameStatus === 'available' && `@${normalizeUsername(username)} is available`}
-                  {(!originalUsername || usernameEditUnlocked) && usernameStatus === 'taken' && 'That username is already taken'}
-                  {(!originalUsername || usernameEditUnlocked) && usernameStatus === 'invalid' && 'Use 3-24 lowercase letters, numbers, or underscores'}
-                  {(!originalUsername || usernameEditUnlocked) && usernameStatus === 'idle' && 'People can use this to find and invite you'}
-                </p>
-              </div>
-              </div>
+              </SettingsCard>
             </section>
 
             <section className="space-y-4">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Crown className="h-4 w-4" />
-                <span className="text-sm font-semibold uppercase tracking-wide">Current Plan</span>
-              </div>
-              <div
-                className="rounded-[1.75rem] border p-5"
-                style={{ background: "linear-gradient(135deg,#FFF7ED 0%,#FFFFFF 55%,#F5F3FF 100%)", borderColor: "rgba(249,115,22,0.12)", boxShadow: "0 8px 24px rgba(28,25,23,0.05)" }}
+              <SettingsSectionLabel icon={Utensils} title="Cooking Preferences" />
+              <SettingsCard style={{ background: "linear-gradient(180deg,#FFFFFF 0%,#FFF8F2 100%)" }}>
+                <div className="space-y-5">
+                  <div className="grid gap-5 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+                    <div>
+                      <Label>Default Servings</Label>
+                      <p className="mb-2 text-xs text-stone-500">How many people are you usually cooking for?</p>
+                      <Select value={defaultServings} onValueChange={setDefaultServings}>
+                        <SelectTrigger className="h-11 w-full rounded-xl border-orange-200 bg-white/92 sm:w-56">
+                          <Users className="mr-2 h-4 w-4" />
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {SERVING_OPTIONS.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label} · {option.description}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label>Skill Level</Label>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {SKILL_OPTIONS.map((opt) => (
+                          <Chip
+                            key={opt}
+                            label={opt}
+                            selected={userProfile.skillLevel === opt}
+                            onClick={() => setUserProfile({ skillLevel: opt })}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label>Dietary Restrictions</Label>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {DIETARY_OPTIONS.map((opt) => (
+                        <Chip
+                          key={opt}
+                          label={opt}
+                          selected={userProfile.dietaryRestrictions.includes(opt)}
+                          onClick={() => toggleDietary(opt)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label>Flavor Preferences</Label>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {FLAVOR_OPTIONS.map((opt) => (
+                        <Chip
+                          key={opt}
+                          label={opt}
+                          selected={userProfile.flavorProfiles.includes(opt)}
+                          onClick={() => toggleFlavor(opt)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="rounded-[1.4rem] border border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50 p-4">
+                    <div className="flex items-center gap-2 text-stone-700">
+                      <MapPin className="h-4 w-4 text-orange-500" />
+                      <span className="text-sm font-semibold">Grocery Price Estimator</span>
+                    </div>
+                    <div className="mt-4 grid gap-4 md:grid-cols-[minmax(0,1fr)_140px]">
+                      <div>
+                        <Label htmlFor="groceryLocation">Location</Label>
+                        <p className="mb-2 text-xs text-stone-500">City or region used to estimate prices at nearby stores.</p>
+                        <Input
+                          id="groceryLocation"
+                          value={userProfile.groceryLocation}
+                          onChange={(e) => setUserProfile({ groceryLocation: e.target.value })}
+                          placeholder="e.g. Austin, TX"
+                          maxLength={80}
+                          className="h-11 rounded-xl border-orange-200 bg-white"
+                        />
+                      </div>
+                      <div>
+                        <Label>Currency</Label>
+                        <Select value={userProfile.groceryCurrency || 'USD'} onValueChange={(value) => setUserProfile({ groceryCurrency: value })}>
+                          <SelectTrigger className="mt-2 h-11 rounded-xl border-orange-200 bg-white">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {CURRENCY_OPTIONS.map((currency) => (
+                              <SelectItem key={currency} value={currency}>
+                                {currency}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </SettingsCard>
+            </section>
+
+            <section className="space-y-4">
+              <SettingsSectionLabel icon={Camera} title="Dashboard Header" />
+              <SettingsCard style={{ background: "linear-gradient(135deg,#FFFDFC 0%,#FFF4E7 100%)", borderColor: "rgba(249,115,22,0.14)" }}>
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="max-w-xl">
+                    <p className="text-lg font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>Hero background image</p>
+                    <p className="mt-1 text-sm text-stone-500">
+                      Choose a specific image for your dashboard header, or let Munch reshuffle it once per day.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant={dashboardHeroImageMode === 'manual' ? 'default' : 'outline'}
+                      onClick={() => setHeroImagePickerOpen(true)}
+                      className={dashboardHeroImageMode === 'manual' ? 'rounded-xl bg-orange-500 text-white hover:bg-orange-600' : 'rounded-xl border-orange-200 text-orange-700 hover:bg-orange-50'}
+                    >
+                      <Camera className="mr-2 h-4 w-4" />
+                      Choose Image
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={dashboardHeroImageMode === 'daily' ? 'default' : 'outline'}
+                      onClick={() => setDashboardHeroImageMode('daily')}
+                      className={dashboardHeroImageMode === 'daily' ? 'rounded-xl bg-orange-500 text-white hover:bg-orange-600' : 'rounded-xl border-orange-200 text-orange-700 hover:bg-orange-50'}
+                    >
+                      <RotateCw className="mr-2 h-4 w-4" />
+                      Shuffle Daily
+                    </Button>
+                  </div>
+                </div>
+                {heroImageOptions.length > 0 && (
+                  <div className="mt-5 overflow-hidden rounded-[1.5rem] border border-orange-100 bg-stone-100 shadow-inner">
+                    <img
+                      src={heroImageOptions[selectedHeroImageIndex]}
+                      alt="Selected dashboard header"
+                      className="aspect-[16/6] w-full object-cover"
+                      onError={applyRecipeImageFallback}
+                    />
+                  </div>
+                )}
+              </SettingsCard>
+            </section>
+
+            <section className="space-y-4">
+              <SettingsSectionLabel icon={ChefHat} title="Cook Mode Avatar" />
+              <SettingsCard style={{ background: "linear-gradient(180deg,#FFFFFF 0%,#FFF7EF 100%)" }}>
+                <div className="flex flex-col gap-5 md:flex-row md:items-center">
+                  <div className="relative">
+                    <div className="absolute inset-0 rounded-[1.6rem] bg-orange-100 blur-xl" />
+                    <img src={chefAvatarUrl || '/placeholder.svg'} alt="Chef avatar" className="relative h-24 w-24 rounded-[1.6rem] border-2 border-white bg-orange-50 object-cover shadow-lg" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-lg font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>Your chef identity</p>
+                    <p className="mt-1 text-sm text-stone-500">Update the avatar that follows you around cook mode and the rest of your kitchen.</p>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <Button type="button" variant="outline" onClick={() => avatarInputRef.current?.click()} disabled={uploadingAvatar} className="rounded-xl border-orange-200 text-orange-700 hover:bg-orange-50">
+                        <Camera className="mr-2 h-4 w-4" /> {uploadingAvatar ? 'Uploading...' : 'Custom Photo'}
+                      </Button>
+                      <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
+                      <Button
+                        variant="secondary"
+                        onClick={() => setAvatarDialogOpen(true)}
+                        className="rounded-xl border border-orange-100 bg-orange-50 text-orange-700 hover:bg-orange-100"
+                      >
+                        <ChefHat className="mr-2 h-4 w-4" /> Redesign Avatar
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </SettingsCard>
+            </section>
+
+            <section className="space-y-4">
+              <SettingsSectionLabel icon={Crown} title="Testing" />
+              <SettingsCard style={{ background: "linear-gradient(180deg,#FFFFFF 0%,#FFF9F4 100%)" }}>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">Enable premium features on this device</p>
+                      <p className="text-xs text-muted-foreground">Developer toggle for testing premium-only experiences.</p>
+                    </div>
+                    <Switch
+                      checked={premiumOverrideEnabled}
+                      onCheckedChange={(checked) => {
+                        setPremiumOverrideEnabled(checked);
+                        setPremiumOverride(checked);
+                        toast({ title: checked ? 'Premium enabled for testing' : 'Premium testing disabled' });
+                      }}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between gap-4 border-t border-border/70 pt-4">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">Disable AI agent API calls</p>
+                      <p className="text-xs text-muted-foreground">Keeps local logic plus recipe feeds like TheMealDB and Spoonacular available for testing.</p>
+                    </div>
+                    <Switch
+                      checked={aiAgentCallsDisabled}
+                      onCheckedChange={(checked) => {
+                        setAiAgentCallsDisabled(checked);
+                        toast({ title: checked ? 'AI agent calls disabled for testing' : 'AI agent calls re-enabled' });
+                      }}
+                    />
+                  </div>
+                </div>
+              </SettingsCard>
+            </section>
+
+            <section className="space-y-4">
+              <SettingsSectionLabel icon={User} title="Recipe Sharing" />
+              <SettingsCard style={{ background: "linear-gradient(180deg,#FFFFFF 0%,#FFF8F1 100%)" }}>
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Share custom recipes by default</p>
+                    <p className="text-xs text-muted-foreground">New manual recipes will start as discoverable to others.</p>
+                  </div>
+                  <Switch checked={shareCustomRecipesByDefault} onCheckedChange={setShareCustomRecipesByDefault} />
+                </div>
+              </SettingsCard>
+            </section>
+
+            <RecipeScraperTester />
+          </div>
+
+          <div className="space-y-6 xl:sticky xl:top-6">
+            <section className="space-y-4">
+              <SettingsSectionLabel icon={Crown} title="Current Plan" />
+              <SettingsCard
+                style={{ background: "linear-gradient(135deg,#FFF7ED 0%,#FFFFFF 55%,#F5F3FF 100%)", borderColor: "rgba(249,115,22,0.12)" }}
               >
                 <div className="flex flex-col gap-4">
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-orange-500">
                       {isPremiumPlan ? 'Premium active' : 'Free plan'}
                     </p>
-                    <p className="mt-1 text-lg font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+                    <p className="mt-1 text-2xl font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
                       {isPremiumPlan ? 'Munch Member' : 'Munch Free'}
                     </p>
-                    <p className="mt-1 text-sm text-stone-500">
+                    <p className="mt-2 text-sm text-stone-500">
                       {isPremiumPlan
                         ? 'You have access to premium AI tools, imports, Kitchens, and meal planning.'
                         : 'Upgrade to unlock meal planning, Kitchens, AI imports, nutritional facts, and premium cooking tools.'}
                     </p>
                     {isPremiumPlan && (
-                      <p className="mt-1 text-xs text-stone-400">
+                      <p className="mt-2 text-xs text-stone-400">
                         {formattedPremiumDate ? `Renews or ends on ${formattedPremiumDate}` : 'Premium membership is active on this account.'}
                       </p>
                     )}
@@ -419,283 +741,53 @@ export default function Settings() {
                     </Button>
                   )}
                 </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Camera className="h-4 w-4" />
-                  <span className="text-sm font-semibold uppercase tracking-wide">Dashboard Header</span>
-                </div>
-                <div className="rounded-[1.75rem] border p-5" style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 8px 24px rgba(28,25,23,0.05)" }}>
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <p className="text-sm font-semibold text-stone-900">Hero background image</p>
-                      <p className="mt-1 text-sm text-stone-500">
-                        Choose a specific image for your dashboard header, or let Munch reshuffle it once per day.
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        variant={dashboardHeroImageMode === 'manual' ? 'default' : 'outline'}
-                        onClick={() => setHeroImagePickerOpen(true)}
-                        className={dashboardHeroImageMode === 'manual' ? 'bg-orange-500 hover:bg-orange-600 text-white' : ''}
-                      >
-                        <Camera className="mr-2 h-4 w-4" />
-                        Choose Image
-                      </Button>
-                      <Button
-                        type="button"
-                        variant={dashboardHeroImageMode === 'daily' ? 'default' : 'outline'}
-                        onClick={() => setDashboardHeroImageMode('daily')}
-                        className={dashboardHeroImageMode === 'daily' ? 'bg-orange-500 hover:bg-orange-600 text-white' : ''}
-                      >
-                        <RotateCw className="mr-2 h-4 w-4" />
-                        Shuffle Daily
-                      </Button>
-                    </div>
-                  </div>
-                  {heroImageOptions.length > 0 && (
-                    <div className="mt-4 overflow-hidden rounded-2xl border border-orange-100 bg-stone-100">
-                      <img
-                        src={heroImageOptions[selectedHeroImageIndex]}
-                        alt="Selected dashboard header"
-                        className="aspect-[16/6] w-full object-cover"
-                        onError={applyRecipeImageFallback}
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
+              </SettingsCard>
             </section>
+
+            <SettingsCard className="space-y-4" style={{ background: "linear-gradient(180deg,#FFFFFF 0%,#FFF5EA 100%)" }}>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-stone-500">Save</p>
+                <p className="mt-1 text-lg font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>Keep your kitchen up to date</p>
+                <p className="mt-1 text-sm text-stone-500">Save profile, preference, and branding changes in one go.</p>
+              </div>
+              <Button onClick={handleSave} disabled={loading} className="w-full rounded-2xl bg-orange-500 text-white hover:bg-orange-600">
+                {loading ? 'Saving...' : 'Save Settings'}
+              </Button>
+            </SettingsCard>
+
+            <SettingsCard className="space-y-3" style={{ background: "linear-gradient(180deg,#FFFFFF 0%,#FFF7F3 100%)", borderColor: "rgba(239,68,68,0.12)" }}>
+              <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-red-400">Danger zone</p>
+              <Button variant="outline" className="w-full justify-start rounded-xl" onClick={() => setShowSignOutConfirm(true)}>
+                <LogOut className="mr-2 h-4 w-4" /> Sign Out
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full justify-start rounded-xl"
+                onClick={() => {
+                  setUserProfile({ dietaryRestrictions: [], skillLevel: '', flavorProfiles: [], groceryLocation: '', groceryCurrency: 'USD' });
+                  useStore.setState({ onboardingComplete: false });
+                  toast({ title: 'Preferences reset!' });
+                  navigate('/onboarding');
+                }}
+              >
+                <Flame className="mr-2 h-4 w-4" /> Redo Onboarding
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full justify-start rounded-xl"
+                onClick={() => setShowResetTutorialConfirm(true)}
+              >
+                <Compass className="mr-2 h-4 w-4" /> Reset Tutorial
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full justify-start rounded-xl text-destructive border-destructive/30 hover:bg-destructive hover:text-destructive-foreground"
+                onClick={() => setShowClearDataConfirm(true)}
+              >
+                <Trash2 className="mr-2 h-4 w-4" /> Clear Local Data
+              </Button>
+            </SettingsCard>
           </div>
-
-          <RecipeScraperTester />
-
-          {/* Cooking Preferences */}
-          <section className="space-y-4">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Utensils className="h-4 w-4" />
-              <span className="text-sm font-semibold uppercase tracking-wide">Cooking Preferences</span>
-            </div>
-            <div className="space-y-4 rounded-2xl border p-4" style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}>
-              <div>
-                <Label>Default Servings</Label>
-                <p className="text-xs text-muted-foreground mb-2">How many people are you usually cooking for?</p>
-                <Select value={defaultServings} onValueChange={setDefaultServings}>
-                  <SelectTrigger className="w-32">
-                    <Users className="h-4 w-4 mr-2" />
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SERVING_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label} · {option.description}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label>Skill Level</Label>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {SKILL_OPTIONS.map((opt) => (
-                    <Chip
-                      key={opt}
-                      label={opt}
-                      selected={userProfile.skillLevel === opt}
-                      onClick={() => setUserProfile({ skillLevel: opt })}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <Label>Dietary Restrictions</Label>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {DIETARY_OPTIONS.map((opt) => (
-                    <Chip
-                      key={opt}
-                      label={opt}
-                      selected={userProfile.dietaryRestrictions.includes(opt)}
-                      onClick={() => toggleDietary(opt)}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <Label>Flavor Preferences</Label>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {FLAVOR_OPTIONS.map((opt) => (
-                    <Chip
-                      key={opt}
-                      label={opt}
-                      selected={userProfile.flavorProfiles.includes(opt)}
-                      onClick={() => toggleFlavor(opt)}
-                    />
-                  ))}
-                </div>
-              </div>
-
-
-              <div className="pt-2 border-t border-border/70 space-y-3">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <MapPin className="h-4 w-4" />
-                  <span className="text-sm font-semibold">Grocery Price Estimator</span>
-                </div>
-                <div>
-                  <Label htmlFor="groceryLocation">Location</Label>
-                  <p className="text-xs text-muted-foreground mb-2">City or region used to estimate prices at nearby stores.</p>
-                  <Input
-                    id="groceryLocation"
-                    value={userProfile.groceryLocation}
-                    onChange={(e) => setUserProfile({ groceryLocation: e.target.value })}
-                    placeholder="e.g. Austin, TX"
-                    maxLength={80}
-                  />
-                </div>
-                <div>
-                  <Label>Currency</Label>
-                  <Select value={userProfile.groceryCurrency || 'USD'} onValueChange={(value) => setUserProfile({ groceryCurrency: value })}>
-                    <SelectTrigger className="w-32">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CURRENCY_OPTIONS.map((currency) => (
-                        <SelectItem key={currency} value={currency}>
-                          {currency}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-            </div>
-          </section>
-
-          <section className="space-y-4">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <ChefHat className="h-4 w-4" />
-              <span className="text-sm font-semibold uppercase tracking-wide">Cook Mode Avatar</span>
-            </div>
-            <div className="space-y-6 rounded-2xl border p-5" style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}>
-              <div className="flex items-center gap-6">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-primary/10 rounded-full blur-xl" />
-                  <img src={chefAvatarUrl || '/placeholder.svg'} alt="Chef avatar" className="h-20 w-20 rounded-2xl object-cover border-2 border-white shadow-lg relative z-10 bg-orange-50" />
-                </div>
-                <div className="flex-1 space-y-2">
-                  <p className="text-sm font-medium text-foreground">Your Chef Identity</p>
-                  <div className="flex flex-wrap gap-2">
-                    <Button type="button" variant="outline" size="sm" onClick={() => avatarInputRef.current?.click()} disabled={uploadingAvatar} className="h-8 text-xs">
-                      <Camera className="h-3 w-3 mr-1.5" /> {uploadingAvatar ? 'Uploading...' : 'Custom Photo'}
-                    </Button>
-                    <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => setAvatarDialogOpen(true)}
-                      className="h-8 text-xs bg-orange-50 text-orange-600 hover:bg-orange-100 border-orange-100"
-                    >
-                      <ChefHat className="h-3 w-3 mr-1.5" /> Redesign Avatar
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-
-          <section className="space-y-4">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Crown className="h-4 w-4" />
-              <span className="text-sm font-semibold uppercase tracking-wide">Testing</span>
-            </div>
-            <div className="space-y-4 rounded-2xl border p-4" style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}>
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm font-medium text-foreground">Enable premium features on this device</p>
-                  <p className="text-xs text-muted-foreground">Developer toggle for testing premium-only experiences.</p>
-                </div>
-                <Switch
-                  checked={premiumOverrideEnabled}
-                  onCheckedChange={(checked) => {
-                    setPremiumOverrideEnabled(checked);
-                    setPremiumOverride(checked);
-                    toast({ title: checked ? 'Premium enabled for testing' : 'Premium testing disabled' });
-                  }}
-                />
-              </div>
-
-              <div className="flex items-center justify-between gap-4 pt-4 border-t border-border/70">
-                <div>
-                  <p className="text-sm font-medium text-foreground">Disable AI agent API calls</p>
-                  <p className="text-xs text-muted-foreground">Keeps local logic plus recipe feeds like TheMealDB and Spoonacular available for testing.</p>
-                </div>
-                <Switch
-                  checked={aiAgentCallsDisabled}
-                  onCheckedChange={(checked) => {
-                    setAiAgentCallsDisabled(checked);
-                    toast({ title: checked ? 'AI agent calls disabled for testing' : 'AI agent calls re-enabled' });
-                  }}
-                />
-              </div>
-            </div>
-          </section>
-
-          <section className="space-y-4">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <User className="h-4 w-4" />
-              <span className="text-sm font-semibold uppercase tracking-wide">Recipe Sharing</span>
-            </div>
-            <div className="flex items-center justify-between gap-4 rounded-2xl border p-4" style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}>
-              <div>
-                <p className="text-sm font-medium text-foreground">Share custom recipes by default</p>
-                <p className="text-xs text-muted-foreground">New manual recipes will start as discoverable to others.</p>
-              </div>
-              <Switch checked={shareCustomRecipesByDefault} onCheckedChange={setShareCustomRecipesByDefault} />
-            </div>
-          </section>
-
-          <Button onClick={handleSave} disabled={loading} className="w-full rounded-2xl bg-orange-500 text-white hover:bg-orange-600">
-            {loading ? 'Saving...' : 'Save Settings'}
-          </Button>
-
-          {/* Danger Zone */}
-          <section className="space-y-3">
-            <Button variant="outline" className="w-full" onClick={() => setShowSignOutConfirm(true)}>
-              <LogOut className="h-4 w-4 mr-2" /> Sign Out
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => {
-                setUserProfile({ dietaryRestrictions: [], skillLevel: '', flavorProfiles: [], groceryLocation: '', groceryCurrency: 'USD' });
-                useStore.setState({ onboardingComplete: false });
-                toast({ title: 'Preferences reset!' });
-                navigate('/onboarding');
-              }}
-            >
-              <Flame className="h-4 w-4 mr-2" /> Redo Onboarding
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => setShowResetTutorialConfirm(true)}
-            >
-              <Compass className="h-4 w-4 mr-2" /> Reset Tutorial
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full text-destructive border-destructive/30 hover:bg-destructive hover:text-destructive-foreground"
-              onClick={() => setShowClearDataConfirm(true)}
-            >
-              <Trash2 className="h-4 w-4 mr-2" /> Clear Local Data
-            </Button>
-          </section>
         </div>
       </div>
 
