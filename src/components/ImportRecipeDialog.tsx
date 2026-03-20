@@ -70,15 +70,6 @@ interface WebsitePreviewData {
   raw_api_payload?: Record<string, unknown>;
 }
 
-interface ScrapeRecipeFallbackResponse {
-  url: string;
-  title: string;
-  listItems: string[];
-  ogImage: string | null;
-  jsonLdImage?: string | null;
-  storedImage?: string | null;
-}
-
 const DIFFICULTY_OPTIONS = ['Beginner', 'Intermediate', 'Advanced'];
 const CUISINE_OPTIONS = ['Italian', 'Asian', 'Mexican', 'Mediterranean', 'American', 'French', 'Indian', 'Other'];
 function normalizeList(value: unknown): string[] {
@@ -124,86 +115,6 @@ function sourceUrlCandidates(url: string): string[] {
 
 function normalizeRecipeNameForMatch(name: string) {
   return String(name || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
-}
-
-function inferRecipeNameFromUrl(url: string) {
-  try {
-    const parsed = new URL(url);
-    const slug = parsed.pathname
-      .split('/')
-      .filter(Boolean)
-      .pop()
-      ?.replace(/[-_]+/g, ' ')
-      ?.trim();
-
-    if (slug) {
-      return slug.replace(/\b\w/g, (char) => char.toUpperCase());
-    }
-
-    return parsed.hostname.replace(/^www\./, '');
-  } catch {
-    return 'Imported Recipe';
-  }
-}
-
-function looksLikeFallbackIngredient(line: string) {
-  const cleaned = String(line || '').trim();
-  if (!cleaned) return false;
-  if (/^(?:step\s*\d+[:.)-]?|\d+[.)])\s+/i.test(cleaned)) return false;
-  if (/^(?:preheat|combine|mix|stir|cook|bake|roast|saute|sauté|whisk|heat|serve|add|place|transfer|drizzle|season|bring)\b/i.test(cleaned)) {
-    return false;
-  }
-  const parsed = parseIngredientLine(cleaned);
-  if (parsed.quantity) return true;
-  return cleaned.split(/\s+/).length <= 6;
-}
-
-function buildAutoImportedRecipeFromScrapeResult(normalizedUrl: string, fallback: ScrapeRecipeFallbackResponse): Record<string, unknown> | null {
-  const listItems = Array.isArray(fallback.listItems)
-    ? fallback.listItems.map((item) => String(item || '').trim()).filter(Boolean)
-    : [];
-
-  const numberedInstructions = listItems.filter((item) => /^(?:step\s*\d+[:.)-]?\s*|\d+[.)]\s+)/i.test(item));
-  const ingredients = listItems.filter((item) => looksLikeFallbackIngredient(item)).slice(0, 40);
-  const remainingItems = listItems.filter((item) => !ingredients.includes(item));
-  const instructions = (numberedInstructions.length > 0 ? numberedInstructions : remainingItems)
-    .map((step) => step.replace(/^(?:step\s*\d+[:.)-]?\s*|\d+[.)]\s+)/i, '').trim())
-    .filter(Boolean)
-    .slice(0, 30);
-
-  const resolvedIngredients = ingredients.length > 0 ? ingredients : listItems.slice(0, Math.min(12, listItems.length));
-  const resolvedInstructions = instructions.length > 0
-    ? instructions
-    : listItems
-        .slice(resolvedIngredients.length)
-        .map((step) => step.replace(/^(?:step\s*\d+[:.)-]?\s*|\d+[.)]\s+)/i, '').trim())
-        .filter(Boolean)
-        .slice(0, 20);
-
-  if (!fallback.title && resolvedIngredients.length === 0 && resolvedInstructions.length === 0) {
-    return null;
-  }
-
-  return {
-    name: String(fallback.title || inferRecipeNameFromUrl(normalizedUrl)).trim() || 'Imported Recipe',
-    ingredients: resolvedIngredients,
-    instructions: resolvedInstructions,
-    cook_time: '30 min',
-    difficulty: 'Intermediate',
-    cuisine: '',
-    tags: [],
-    image: String(fallback.storedImage || fallback.jsonLdImage || fallback.ogImage || '').trim(),
-    source: 'imported',
-    servings: '4',
-    source_url: normalizedUrl,
-    raw_api_payload: {
-      import_type: 'website-fallback',
-      source_url: normalizedUrl,
-      preview_text: listItems.join('\n'),
-      fallback_title: fallback.title || null,
-      fallback_list_items: listItems,
-    },
-  };
 }
 
 function normalizeIngredientForMatch(line: string) {
@@ -575,49 +486,6 @@ export default function ImportRecipeDialog({
     }
   };
 
-  const handleUrlFallbackImport = async (normalizedUrl: string, importErrorMessage?: string) => {
-    const existingRecipe = await findExistingRecipeByUrl(normalizedUrl);
-    if (existingRecipe) {
-      const existingPayload = mapDbRecipeToImportedPayload(existingRecipe);
-      likeRecipe(existingPayload.id, existingPayload);
-      toast.success(`"${existingPayload.name}" is already in your library!`);
-      setOpen(false);
-      resetState();
-      navigate('/saved');
-      return true;
-    }
-
-    const { data, error } = await invokeAppFunction('scrape-recipe', {
-      body: { url: normalizedUrl },
-    });
-
-    if (error || data?.error) {
-      throw new Error(String(data?.error || error?.message || importErrorMessage || 'Could not load recipe from that URL'));
-    }
-
-    const fallbackRecipe = buildAutoImportedRecipeFromScrapeResult(normalizedUrl, data as ScrapeRecipeFallbackResponse);
-    if (!fallbackRecipe) {
-      throw new Error(importErrorMessage || 'Could not extract recipe details from that URL');
-    }
-
-    const id = crypto.randomUUID();
-    const payload = buildImportedPayload(id, fallbackRecipe);
-    const visibility = canPubliclyShareImportedUrlRecipe(payload.source_url);
-    const result = await persistRecipe(payload, { forceDiscoverable: visibility.allowed });
-    setWebsitePreview(null);
-    setReviewMode(false);
-    setShowManualPaste(false);
-    toast.success(
-      result.reusedExisting
-        ? `Loaded existing recipe "${result.payload.name}" from your library.`
-        : `Imported "${payload.name}" from a simplified page capture.`
-    );
-    setOpen(false);
-    resetState();
-    navigate('/saved');
-    return true;
-  };
-
   const resetState = () => {
     setUrl('');
     setLoading(false);
@@ -670,22 +538,14 @@ export default function ImportRecipeDialog({
 
       if (error || !data?.success) {
         const message = data?.error || error?.message || 'Failed to import recipe';
-        if (payload.url && normalizedPayload.url) {
-          try {
-            await handleUrlFallbackImport(normalizedPayload.url, message);
-            setLastImportError('');
-            return;
-          } catch (fallbackError) {
-            const fallbackMessage = fallbackError instanceof Error ? fallbackError.message : message;
-            setLastImportError(fallbackMessage);
-            setShowManualPaste(true);
-            toast.error('Could not fully import from that URL. You can paste recipe text or upload a PDF.');
-            return;
-          }
-        }
-
         setLastImportError(message);
-        toast.error(message);
+
+        if (payload.url) {
+          setShowManualPaste(true);
+          toast.error('Could not import from that URL. You can paste recipe text or upload a PDF.');
+        } else {
+          toast.error(message);
+        }
         return;
       }
 
@@ -771,22 +631,11 @@ export default function ImportRecipeDialog({
 
       console.error('Import error:', err);
       const message = err instanceof Error && err.message ? err.message : 'Something went wrong importing the recipe';
+      setLastImportError(message);
       if (payload.url) {
-        try {
-          const normalizedUrl = /^https?:\/\//i.test(String(payload.url).trim())
-            ? String(payload.url).trim()
-            : `https://${String(payload.url).trim()}`;
-          await handleUrlFallbackImport(normalizedUrl, message);
-          setLastImportError('');
-          return;
-        } catch (fallbackError) {
-          const fallbackMessage = fallbackError instanceof Error ? fallbackError.message : message;
-          setLastImportError(fallbackMessage);
-          setShowManualPaste(true);
-          toast.error('URL import failed. Paste recipe text instead or upload a PDF.');
-        }
+        setShowManualPaste(true);
+        toast.error('URL import failed. Paste recipe text instead or upload a PDF.');
       } else {
-        setLastImportError(message);
         toast.error(message);
       }
     } finally {
