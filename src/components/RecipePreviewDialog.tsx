@@ -6,7 +6,7 @@ import type { MatchResult } from '@/lib/matchLogic';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Clock, BarChart3, Check, ShoppingCart, MapPin, ChefHat, Users, Heart, Play, Sparkles, ExternalLink, FileText, Share2, Maximize2, Minimize2 } from 'lucide-react';
+import { Clock, BarChart3, Check, ShoppingCart, MapPin, ChefHat, Users, Heart, Play, Sparkles, ExternalLink, FileText, Share2, Maximize2, Minimize2, Loader2 } from 'lucide-react';
 import MatchBadge from '@/components/MatchBadge';
 import RecipeTweakDialog from '@/components/RecipeTweakDialog';
 import NutritionCard from '@/components/NutritionCard';
@@ -40,7 +40,11 @@ const SCALE_OPTIONS = [
 ] as const;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-/** Domains that block iframe embedding via frame-ancestors CSP (e.g. Food Network) */
+/**
+ * Domains that block iframe embedding via X-Frame-Options / frame-ancestors CSP.
+ * These are blocked statically so we never attempt to embed them — no broken flash.
+ * Keep in sync with IFRAME_BLOCKED_DOMAINS in importVisibilityPolicy.ts.
+ */
 const EMBED_BLOCKED_DOMAINS = [
   'foodnetwork.com',
   'allrecipes.com',
@@ -55,7 +59,12 @@ const EMBED_BLOCKED_DOMAINS = [
   'simplyrecipes.com',
   'seriouseats.com',
 ];
+
+/** Runtime set: domains that failed to embed this session */
 const runtimeBlockedEmbedHosts = new Set<string>();
+
+/** How long (ms) to wait for an iframe before assuming it's blocked */
+const EMBED_FALLBACK_TIMEOUT_MS = 1200;
 
 function normalizeEmbedHost(host: string): string {
   return String(host || '').trim().toLowerCase().replace(/^www\./, '');
@@ -64,11 +73,9 @@ function normalizeEmbedHost(host: string): string {
 function getSourceUrlObject(url: string): URL | null {
   const trimmed = String(url || '').trim();
   if (!trimmed) return null;
-
   const candidate = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed)
     ? trimmed
     : `https://${trimmed.replace(/^\/+/, '')}`;
-
   try {
     return new URL(candidate);
   } catch {
@@ -83,22 +90,19 @@ function normalizeSourceUrlForNavigation(url: string): string {
 function getBlockedEmbedHost(host: string): string | null {
   const normalizedHost = normalizeEmbedHost(host);
   if (!normalizedHost) return null;
-
-  const staticBlockedHost = EMBED_BLOCKED_DOMAINS.find(
+  const staticMatch = EMBED_BLOCKED_DOMAINS.find(
     (domain) => normalizedHost === domain || normalizedHost.endsWith(`.${domain}`),
   );
-  if (staticBlockedHost) return staticBlockedHost;
-
-  const runtimeBlockedHost = Array.from(runtimeBlockedEmbedHosts).find(
+  if (staticMatch) return staticMatch;
+  const runtimeMatch = Array.from(runtimeBlockedEmbedHosts).find(
     (domain) => normalizedHost === domain || normalizedHost.endsWith(`.${domain}`),
   );
-  return runtimeBlockedHost ?? null;
+  return runtimeMatch ?? null;
 }
 
 function getEmbedBlockReason(url: string): string | null {
   const parsedUrl = getSourceUrlObject(url);
   if (!parsedUrl) return 'invalid-url';
-
   const blockedDomain = getBlockedEmbedHost(parsedUrl.hostname);
   return blockedDomain ? `blocked-domain:${blockedDomain}` : null;
 }
@@ -116,9 +120,7 @@ function getImportedPreviewData(recipe: Recipe) {
   if (!recipe.raw_api_payload || typeof recipe.raw_api_payload !== 'object' || Array.isArray(recipe.raw_api_payload)) {
     return EMPTY_IMPORTED_PREVIEW;
   }
-
   const payload = recipe.raw_api_payload as Record<string, unknown>;
-
   return {
     sourceUrl:
       typeof payload.source_url === 'string' ? payload.source_url
@@ -154,7 +156,6 @@ function buildRecipeShareText(recipe: Recipe, portionFactor: number) {
     .map(stripInstructionPrefix)
     .filter(Boolean)
     .map((step, index) => `${index + 1}. ${step}`);
-
   return [
     recipe.name,
     details,
@@ -193,6 +194,8 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
   const [importedView, setImportedView] = useState<'web' | 'app'>('app');
   const [expanded, setExpanded] = useState(false);
   const [embedUnavailable, setEmbedUnavailable] = useState(false);
+  /** True while we're waiting to find out if the iframe will load successfully */
+  const [iframeLoading, setIframeLoading] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const embedFallbackTimeoutRef = useRef<number | null>(null);
   const { activeKitchenId, activeKitchenName } = useStore();
@@ -219,7 +222,6 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
   const showStructuredFallback = recipe ? importedRecipe && hasStructuredRecipeContent(recipe) : false;
   const sourceHostname = useMemo(() => {
     const parsedUrl = getSourceUrlObject(normalizedSourceUrl);
-
     return parsedUrl?.hostname || '';
   }, [normalizedSourceUrl]);
   const normalizedSourceHost = useMemo(() => normalizeEmbedHost(sourceHostname), [sourceHostname]);
@@ -231,6 +233,8 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
   const sourceBadge = getRecipeSourceBadge(recipe);
   const showSourceLinkOverImage = Boolean(normalizedSourceUrl && sourceHostname && !isMealDbRecipe);
   const showSourceBadge = Boolean(sourceBadge) && !showSourceLinkOverImage;
+  // Only show the embedded web view when we're in web mode AND we haven't confirmed it's unavailable
+  // AND we're not mid-load (iframeLoading hides the iframe behind a spinner overlay instead)
   const showEmbeddedWebView = Boolean(normalizedSourceUrl && importedRecipe && importedView === 'web' && webViewEnabled);
   const normalizedMatchedIngredients = useMemo(
     () => new Set(displayMatch.matched.map((item) => item.toLowerCase().trim())),
@@ -238,18 +242,20 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
   );
   const dialogSizeClass = expanded
     ? 'h-[calc(100dvh-0.75rem)] w-[calc(100vw-0.75rem)] max-w-[calc(100vw-0.75rem)] sm:h-[96vh] sm:w-[96vw] sm:max-w-[96vw]'
-    : `h-[calc(100dvh-0.75rem)] max-h-[calc(100dvh-0.75rem)] w-[calc(100vw-0.75rem)] max-w-[calc(100vw-0.75rem)] sm:h-[92vh] ${showEmbeddedWebView ? 'sm:max-w-5xl' : 'sm:max-w-6xl'
-    }`;
+    : `h-[calc(100dvh-0.75rem)] max-h-[calc(100dvh-0.75rem)] w-[calc(100vw-0.75rem)] max-w-[calc(100vw-0.75rem)] sm:h-[92vh] ${showEmbeddedWebView ? 'sm:max-w-5xl' : 'sm:max-w-6xl'}`;
 
+  // Reset to app view when recipe or open state changes
   useEffect(() => {
     if (!recipe || !open) return;
     setImportedView('app');
+    setIframeLoading(false);
   }, [normalizedSourceUrl, open, recipe?.id]);
 
   useEffect(() => {
     if (!open) {
       setExpanded(false);
       setEmbedUnavailable(false);
+      setIframeLoading(false);
       if (embedFallbackTimeoutRef.current !== null) {
         window.clearTimeout(embedFallbackTimeoutRef.current);
         embedFallbackTimeoutRef.current = null;
@@ -259,6 +265,7 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
 
   useEffect(() => {
     setEmbedUnavailable(false);
+    setIframeLoading(false);
     if (embedFallbackTimeoutRef.current !== null) {
       window.clearTimeout(embedFallbackTimeoutRef.current);
       embedFallbackTimeoutRef.current = null;
@@ -278,16 +285,9 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
     }
   };
 
-  const scheduleEmbedFallback = () => {
-    clearEmbedFallbackTimeout();
-    if (!open || !normalizedSourceUrl || !webViewEnabled) return;
-    embedFallbackTimeoutRef.current = window.setTimeout(() => {
-      handleEmbedUnavailable();
-    }, 2500);
-  };
-
   const handleEmbedUnavailable = () => {
     clearEmbedFallbackTimeout();
+    setIframeLoading(false);
 
     if (normalizedSourceHost) {
       runtimeBlockedEmbedHosts.add(normalizedSourceHost);
@@ -295,10 +295,18 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
 
     setEmbedUnavailable((current) => {
       if (current) return current;
-      toast.info('This source blocks embedded viewing, so Munch switched to the app view.');
+      toast.info('This source blocks embedded viewing — switching to app view.');
       return true;
     });
     setImportedView('app');
+  };
+
+  const scheduleEmbedFallback = () => {
+    clearEmbedFallbackTimeout();
+    if (!open || !normalizedSourceUrl || !webViewEnabled) return;
+    embedFallbackTimeoutRef.current = window.setTimeout(() => {
+      handleEmbedUnavailable();
+    }, EMBED_FALLBACK_TIMEOUT_MS);
   };
 
   const handleIframeLoad = () => {
@@ -307,8 +315,6 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
 
     try {
       const loadedUrl = iframe.contentWindow?.location.href;
-      // If we can read the href, it means it didn't cross origins successfully.
-      // E.g. chrome-error://, about:blank, or empty string.
       if (
         loadedUrl?.startsWith('chrome-error://') ||
         loadedUrl === 'about:blank' ||
@@ -318,16 +324,19 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
         handleEmbedUnavailable();
         return;
       }
-
+      // Successfully loaded — clear spinner and timeout
       clearEmbedFallbackTimeout();
+      setIframeLoading(false);
     } catch {
-      // SecurityError thrown -> cross-origin access blocked, which means it successfully loaded the external page!
+      // SecurityError = cross-origin load succeeded
       clearEmbedFallbackTimeout();
+      setIframeLoading(false);
     }
   };
 
   const handleSelectWebView = () => {
     if (!webViewEnabled) return;
+    setIframeLoading(true);
     setImportedView('web');
     scheduleEmbedFallback();
   };
@@ -340,7 +349,6 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
       text: shareText,
       ...(shareUrl ? { url: shareUrl } : {}),
     };
-
     try {
       if (navigator.share) {
         await navigator.share(sharePayload);
@@ -350,7 +358,7 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
         toast.success('Recipe copied in a text-friendly format.');
       }
     } catch {
-      // Ignore cancelled shares; clipboard fallback only runs when share API is unavailable.
+      // Ignore cancelled shares
     }
   };
 
@@ -365,12 +373,10 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
       toast.info('Pick an active kitchen first.');
       return;
     }
-
     if (!UUID_PATTERN.test(recipe.id)) {
       toast.info('Save or import this recipe into Munch before sharing it to a kitchen.');
       return;
     }
-
     try {
       const { data: existing, error: existingError } = await supabase
         .from('kitchen_recipe_shares')
@@ -378,20 +384,17 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
         .eq('kitchen_id', activeKitchenId)
         .eq('recipe_id', recipe.id)
         .maybeSingle();
-
       if (existingError) throw existingError;
       if (existing) {
         toast.info(`Already shared to ${activeKitchenName || 'this kitchen'}.`);
         return;
       }
-
       const { data: authData } = await supabase.auth.getUser();
       const user = authData.user;
       if (!user) {
         toast.error('Please sign in to share recipes to a kitchen.');
         return;
       }
-
       const { error } = await supabase
         .from('kitchen_recipe_shares')
         .insert({
@@ -399,7 +402,6 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
           recipe_id: recipe.id,
           shared_by_user_id: user.id,
         });
-
       if (error) throw error;
       toast.success(`Shared to ${activeKitchenName || 'your kitchen'}`);
     } catch (error) {
@@ -418,6 +420,7 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
           <DialogHeader className="sr-only">
             <DialogTitle>{recipe.name}</DialogTitle>
           </DialogHeader>
+
           <button
             type="button"
             onClick={() => setExpanded((value) => !value)}
@@ -426,26 +429,27 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
           >
             {expanded ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
           </button>
+
+          {/* Web / App toggle — only shown when embedding is actually available */}
           {importedRecipe && normalizedSourceUrl && webViewEnabled && (
             <div className="absolute top-1 right-9 z-20 inline-flex items-center rounded-full border border-orange-200 bg-white p-1 shadow-sm sm:top-1.5 sm:right-11">
               <button
                 type="button"
-                onClick={() => setImportedView('web')}
-                disabled={!webViewEnabled}
+                onClick={handleSelectWebView}
                 className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors sm:px-3 sm:text-[11px] ${importedView === 'web'
                   ? 'bg-orange-500 text-white shadow-sm'
                   : 'text-stone-600'
-                  } ${!webViewEnabled ? 'cursor-not-allowed opacity-50' : ''}`}
+                }`}
               >
                 Web
               </button>
               <button
                 type="button"
-                onClick={() => setImportedView('app')}
+                onClick={() => { setImportedView('app'); setIframeLoading(false); }}
                 className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors sm:px-3 sm:text-[11px] ${importedView === 'app'
                   ? 'bg-orange-500 text-white shadow-sm'
                   : 'text-stone-600'
-                  }`}
+                }`}
               >
                 App
               </button>
@@ -454,10 +458,16 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
 
           <ScrollArea className="flex-1 min-h-0 px-4 pb-3 sm:px-5 sm:pb-4">
             <div className="space-y-4 pt-4 sm:pt-5">
-              {/* ── Recipe Content ── */}
-              {normalizedSourceUrl && importedRecipe && importedView === 'web' && webViewEnabled ? (
+              {showEmbeddedWebView ? (
                 <div className="space-y-3">
                   <div className={`relative w-full ${expanded ? 'h-[60dvh] sm:h-[72vh] lg:h-[76vh]' : 'h-[52dvh] sm:h-[62vh] lg:h-[74vh]'} rounded-xl overflow-hidden border border-stone-200 bg-muted`}>
+                    {/* Loading overlay — covers the iframe until it confirms a successful load */}
+                    {iframeLoading && (
+                      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-stone-50 rounded-xl">
+                        <Loader2 className="h-7 w-7 animate-spin text-orange-400" />
+                        <p className="text-xs text-stone-400 font-medium">Loading recipe page…</p>
+                      </div>
+                    )}
                     <div className="absolute inset-0 overflow-hidden rounded-xl">
                       <iframe
                         ref={iframeRef}
@@ -479,7 +489,7 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
                       href={normalizedSourceUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="absolute top-2 right-2 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold bg-white/95 backdrop-blur-sm border border-stone-200 text-stone-700 shadow-sm hover:bg-orange-500 hover:text-white hover:border-orange-400 transition-colors"
+                      className="absolute top-2 right-2 z-20 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold bg-white/95 backdrop-blur-sm border border-stone-200 text-stone-700 shadow-sm hover:bg-orange-500 hover:text-white hover:border-orange-400 transition-colors"
                     >
                       <ExternalLink size={12} /> Open in Browser
                     </a>
@@ -494,7 +504,7 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
                       className={`w-full px-3 py-2 rounded-lg border text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-colors ${addedToGrocery
                         ? 'border-emerald-500/60 bg-emerald-500/10 text-emerald-700'
                         : 'border-border'
-                        }`}
+                      }`}
                     >
                       <motion.span
                         animate={addedToGrocery ? { rotate: [0, -12, 12, 0] } : { rotate: 0 }}
@@ -530,7 +540,6 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
                           />
                         </div>
                       </div>
-
                       <div className="px-1">
                         <h2 className="text-xl font-bold leading-tight text-stone-900 sm:text-[1.6rem]" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
                           {recipe.name}
@@ -566,7 +575,6 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
                             </Badge>
                           )}
                         </div>
-
                         {!!recipe.tags?.length && (
                           <div className="mt-2.5 flex flex-wrap gap-1.5">
                             {recipe.tags.slice(0, 4).map((tag) => (
@@ -601,38 +609,28 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
                               ))}
                             </div>
                           </div>
-
                           <div className="space-y-2">
                             {recipe.ingredients.map((ing) => {
                               const scaledIngredient = scaleIngredient(ing, portionFactor);
                               const hasIngredient = normalizedMatchedIngredients.has(ing.toLowerCase().trim());
-
                               return (
                                 <div
                                   key={ing}
                                   className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 ${hasIngredient
                                     ? 'border-emerald-200 bg-emerald-50/55'
                                     : 'border-orange-200 bg-orange-50/45'
-                                    }`}
+                                  }`}
                                 >
-                                  <div
-                                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${hasIngredient
-                                      ? 'bg-emerald-100 text-emerald-600'
-                                      : 'bg-orange-100 text-orange-500'
-                                      }`}
-                                  >
+                                  <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${hasIngredient ? 'bg-emerald-100 text-emerald-600' : 'bg-orange-100 text-orange-500'}`}>
                                     {hasIngredient ? <Check className="h-3 w-3" /> : <ShoppingCart className="h-3 w-3" />}
                                   </div>
                                   <div className="min-w-0">
-                                    <p className="text-[11px] font-semibold leading-4 text-stone-900">
-                                      {scaledIngredient}
-                                    </p>
+                                    <p className="text-[11px] font-semibold leading-4 text-stone-900">{scaledIngredient}</p>
                                   </div>
                                 </div>
                               );
                             })}
                           </div>
-
                           {displayMatch.missing.length > 0 && onAddMissingToGrocery && (
                             <motion.button
                               onClick={handleAddMissingToGrocery}
@@ -643,7 +641,7 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
                               className={`mt-3 w-full rounded-xl border px-3 py-2.5 text-[12px] font-semibold inline-flex items-center justify-center gap-2 transition-colors ${addedToGrocery
                                 ? 'border-emerald-500/60 bg-emerald-500/10 text-emerald-700'
                                 : 'border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100/70'
-                                }`}
+                              }`}
                             >
                               <motion.span
                                 animate={addedToGrocery ? { rotate: [0, -12, 12, 0] } : { rotate: 0 }}
@@ -734,15 +732,12 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
               ) : (
                 <>
                   <button
-                    onClick={() => {
-                      onSave?.(recipe);
-                      onOpenChange(false);
-                    }}
+                    onClick={() => { onSave?.(recipe); onOpenChange(false); }}
                     data-tutorial="like-button"
                     className={`h-9 min-w-0 flex-1 rounded-lg px-3 text-sm font-semibold inline-flex items-center justify-center gap-1.5 basis-[10rem] ${isSaved
                       ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
                       : 'bg-primary text-primary-foreground'
-                      }`}
+                    }`}
                   >
                     <Heart className="h-4 w-4" fill={isSaved ? 'currentColor' : 'none'} /> {isSaved ? 'Saved' : 'Save'}
                   </button>
