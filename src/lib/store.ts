@@ -53,6 +53,8 @@ export interface KitchenSummary {
   role: 'owner' | 'editor' | 'viewer';
 }
 
+export type DashboardHeroImageMode = 'daily' | 'manual';
+
 interface AppState {
   storeOwnerUserId: string | null;
   userProfile: UserProfile;
@@ -72,8 +74,13 @@ interface AppState {
   activeKitchenName: string | null;
   kitchenViewMode: 'solo' | 'kitchen';
   displayName: string;
+  dashboardHeroImageMode: DashboardHeroImageMode;
+  dashboardHeroImageSeed: number;
   setStoreOwnerUserId: (userId: string | null) => void;
   setDisplayName: (name: string) => void;
+  setDashboardHeroImageMode: (mode: DashboardHeroImageMode) => void;
+  setDashboardHeroImageSeed: (seed: number) => void;
+  shuffleDashboardHeroImage: () => void;
   onboardingComplete: boolean;
   isGuest: boolean;
   setIsGuest: (val: boolean) => void;
@@ -174,8 +181,14 @@ export const useStore = create<AppState>()(
       activeKitchenName: null,
       kitchenViewMode: 'solo',
       displayName: '',
+      dashboardHeroImageMode: 'daily',
+      dashboardHeroImageSeed: 0,
       setStoreOwnerUserId: (storeOwnerUserId) => set({ storeOwnerUserId }),
       setDisplayName: (displayName) => set({ displayName }),
+      setDashboardHeroImageMode: (dashboardHeroImageMode) => set({ dashboardHeroImageMode }),
+      setDashboardHeroImageSeed: (dashboardHeroImageSeed) => set({ dashboardHeroImageSeed }),
+      shuffleDashboardHeroImage: () =>
+        set((state) => ({ dashboardHeroImageMode: 'manual', dashboardHeroImageSeed: state.dashboardHeroImageSeed + 1 })),
       onboardingComplete: false,
       isGuest: false,
       setIsGuest: (val) => set({ isGuest: val }),
@@ -654,6 +667,8 @@ export const useStore = create<AppState>()(
           activeKitchenId: null,
           activeKitchenName: null,
           displayName: '',
+          dashboardHeroImageMode: 'daily',
+          dashboardHeroImageSeed: 0,
           storeOwnerUserId: null,
           onboardingComplete: false,
           isGuest: false,
