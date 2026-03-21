@@ -12,13 +12,11 @@ import {
   ChevronRight,
   BookMarked,
   CookingPot,
-  Users,
   Crown,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useStore } from "@/lib/store";
 import { MunchLogo } from "@/components/MunchLogo";
-import { useKitchens } from "@/hooks/useKitchens";
 import BottomNav from "@/components/BottomNav";
 import defaultChefAvatar from "@/assets/chef-avatar.png";
 
@@ -30,7 +28,6 @@ const NAV_ITEMS = [
   { to: "/pantry", icon: Package, label: "Pantry" },
   { to: "/grocery", icon: ShoppingCart, label: "Grocery List" },
   { to: "/meal-prep", icon: CalendarDays, label: "Meal Prep", premium: true },
-  { to: "/kitchens", icon: Users, label: "Kitchens", premium: true },
   { to: "/dictionary", icon: BookMarked, label: "Dictionary" },
 ];
 
@@ -41,8 +38,7 @@ export default function AppLayout() {
   const [headerAvatarUrl, setHeaderAvatarUrl] = useState<string | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const { displayName: storeDisplayName, activeKitchenName, chefAvatarUrl, kitchenViewMode } = useStore();
-  const { kitchens } = useKitchens();
+  const { displayName: storeDisplayName, chefAvatarUrl } = useStore();
   const isChefProfileRoute = location.pathname.startsWith("/chef/");
   const showGlobalAvatar = location.pathname !== "/dashboard";
   const mobileSwipeLayout = location.pathname === "/swipe";
@@ -128,16 +124,6 @@ export default function AppLayout() {
             />
           </div>
         </div>
-
-        {!collapsed && kitchens.length > 0 && kitchenViewMode === "kitchen" && (
-          <div className="mx-3 mt-3 rounded-2xl border border-orange-100 bg-orange-50/70 px-3 py-3">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-orange-500">Kitchen Mode</p>
-            <p className="mt-1 text-sm font-semibold text-stone-800 truncate">{activeKitchenName || "Choose a kitchen"}</p>
-            <NavLink to="/kitchens" className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-orange-600 hover:text-orange-700">
-              <Users size={12} /> Manage kitchens
-            </NavLink>
-          </div>
-        )}
 
         {/* Nav links */}
         <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">

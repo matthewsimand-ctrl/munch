@@ -336,6 +336,33 @@ export default function MealPrepScreen() {
     setPendingAiSurprise(false);
   }, [pendingAiSurprise, browseLoaded, browseRecipes]);
 
+  useEffect(() => {
+    if (!showAddModal && !showMealActionModal && !showSurpriseSourceModal && !showExportModal) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+
+      if (showAddModal) {
+        setShowAddModal(null);
+        return;
+      }
+      if (showMealActionModal) {
+        setShowMealActionModal(null);
+        return;
+      }
+      if (showSurpriseSourceModal) {
+        setShowSurpriseSourceModal(false);
+        return;
+      }
+      if (showExportModal) {
+        setShowExportModal(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showAddModal, showMealActionModal, showSurpriseSourceModal, showExportModal]);
+
   const handleGenerateGroceryList = () => {
     const recipeIds = [...new Set(plannedMeals.map((m) => m.recipeId))];
     let added = 0;
@@ -776,13 +803,6 @@ export default function MealPrepScreen() {
               >
                 <RotateCcw size={14} /> Reset Week
               </button>
-              <button
-                onClick={handleGenerateGroceryList}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90 active:scale-95"
-                style={{ background: "linear-gradient(135deg,#FB923C,#F97316,#EA580C)", boxShadow: "0 4px 16px rgba(249,115,22,0.30)" }}
-              >
-                <ShoppingCart size={14} /> Grocery List
-              </button>
             </div>
           </div>
 
@@ -899,15 +919,16 @@ export default function MealPrepScreen() {
               className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
               onClick={() => setShowAddModal(null)}
             />
-            <motion.div
-              initial={{ opacity: 0, y: 20, scale: 0.97 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 10, scale: 0.97 }}
-              className="fixed bottom-0 left-0 right-0 sm:bottom-auto sm:top-1/2 sm:left-1/2 sm:w-[calc(100%-2rem)] sm:max-w-2xl lg:max-w-3xl sm:-translate-x-1/2 sm:-translate-y-1/2 z-50 rounded-t-3xl sm:rounded-3xl overflow-hidden max-h-[90vh] flex flex-col"
-              style={{ background: "#fff", boxShadow: "0 -8px 40px rgba(0,0,0,0.15)" }}
-            >
-              <div className="flex-1 min-h-0 overflow-y-auto">
-                <div className="p-6 sm:p-7">
+            <div className="fixed inset-0 z-50 flex items-end sm:items-center sm:justify-center sm:p-4 pointer-events-none">
+              <motion.div
+                initial={{ opacity: 0, y: 20, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.97 }}
+                className="pointer-events-auto flex max-h-[90vh] w-full flex-col overflow-hidden rounded-t-3xl bg-white sm:w-[calc(100%-2rem)] sm:max-w-2xl sm:rounded-3xl lg:max-w-3xl"
+                style={{ boxShadow: "0 -8px 40px rgba(0,0,0,0.15)" }}
+              >
+                <div className="flex-1 min-h-0 overflow-y-auto">
+                  <div className="p-6 sm:p-7">
                 <div className="sticky top-0 z-10 mb-4 flex items-center justify-between bg-white pb-3">
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-widest mb-0.5" style={{ color: MEAL_COLORS[showAddModal.mealType].dot }}>
@@ -976,9 +997,10 @@ export default function MealPrepScreen() {
                     ))
                   )}
                 </div>
+                  </div>
                 </div>
-              </div>
-            </motion.div>
+              </motion.div>
+            </div>
           </>
         )}
       </AnimatePresence>
@@ -994,14 +1016,15 @@ export default function MealPrepScreen() {
               className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
               onClick={() => setShowMealActionModal(null)}
             />
-            <motion.div
-              initial={{ opacity: 0, y: 20, scale: 0.97 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 10, scale: 0.97 }}
-              className="fixed bottom-0 left-0 right-0 sm:bottom-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:max-w-sm z-50 rounded-t-3xl sm:rounded-3xl overflow-hidden"
-              style={{ background: "#fff", boxShadow: "0 -8px 40px rgba(0,0,0,0.15)" }}
-            >
-              <div className="p-6">
+            <div className="fixed inset-0 z-50 flex items-end sm:items-center sm:justify-center sm:p-4 pointer-events-none">
+              <motion.div
+                initial={{ opacity: 0, y: 20, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.97 }}
+                className="pointer-events-auto w-full overflow-hidden rounded-t-3xl bg-white sm:w-[calc(100%-1.5rem)] sm:max-w-sm sm:rounded-3xl"
+                style={{ boxShadow: "0 -8px 40px rgba(0,0,0,0.15)" }}
+              >
+                <div className="p-6">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-orange-500 mb-1">Planned Meal</p>
                 <h3 className="text-lg font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>{showMealActionModal.recipeName}</h3>
                 <p className="text-xs text-stone-500 mt-1">What would you like to do?</p>
@@ -1034,8 +1057,9 @@ export default function MealPrepScreen() {
                     Start cooking
                   </button>
                 </div>
-              </div>
-            </motion.div>
+                </div>
+              </motion.div>
+            </div>
           </>
         )}
       </AnimatePresence>
@@ -1051,14 +1075,15 @@ export default function MealPrepScreen() {
               className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
               onClick={() => setShowSurpriseSourceModal(false)}
             />
-            <motion.div
-              initial={{ opacity: 0, y: 20, scale: 0.97 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 10, scale: 0.97 }}
-              className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-1.5rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-3xl overflow-hidden"
-              style={{ background: "#fff", boxShadow: "0 -8px 40px rgba(0,0,0,0.15)" }}
-            >
-              <div className="p-6">
+            <div className="fixed inset-0 z-50 flex items-end sm:items-center sm:justify-center sm:p-4 pointer-events-none">
+              <motion.div
+                initial={{ opacity: 0, y: 20, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.97 }}
+                className="pointer-events-auto w-full overflow-hidden rounded-t-3xl bg-white sm:w-[calc(100%-1.5rem)] sm:max-w-md sm:rounded-3xl"
+                style={{ boxShadow: "0 -8px 40px rgba(0,0,0,0.15)" }}
+              >
+                <div className="p-6">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-orange-500 mb-1">Surprise Me</p>
                 <h3 className="text-lg font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
                   Choose your surprise source
@@ -1079,8 +1104,9 @@ export default function MealPrepScreen() {
                     {isPremium ? "Use AI recommendations" : "Use AI recommendations · Premium"}
                   </button>
                 </div>
-              </div>
-            </motion.div>
+                </div>
+              </motion.div>
+            </div>
           </>
         )}
       </AnimatePresence>
@@ -1095,14 +1121,15 @@ export default function MealPrepScreen() {
               className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
               onClick={() => setShowExportModal(false)}
             />
-            <motion.div
-              initial={{ opacity: 0, y: 20, scale: 0.97 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 10, scale: 0.97 }}
-              className="fixed bottom-0 left-0 right-0 sm:bottom-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:max-w-sm z-50 rounded-t-3xl sm:rounded-3xl max-h-[92vh] sm:max-h-[85vh] overflow-y-auto"
-              style={{ background: "#fff", boxShadow: "0 -8px 40px rgba(0,0,0,0.15)" }}
-            >
-              <div className="p-6">
+            <div className="fixed inset-0 z-50 flex items-end sm:items-center sm:justify-center sm:p-4 pointer-events-none">
+              <motion.div
+                initial={{ opacity: 0, y: 20, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.97 }}
+                className="pointer-events-auto max-h-[92vh] w-full overflow-y-auto rounded-t-3xl bg-white sm:max-h-[85vh] sm:w-[calc(100%-1.5rem)] sm:max-w-sm sm:rounded-3xl"
+                style={{ boxShadow: "0 -8px 40px rgba(0,0,0,0.15)" }}
+              >
+                <div className="p-6">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>Export Settings</h3>
                   <button onClick={() => setShowExportModal(false)} className="w-7 h-7 rounded-lg bg-stone-100 text-stone-500 flex items-center justify-center">
@@ -1182,8 +1209,9 @@ export default function MealPrepScreen() {
                 >
                   Export plan
                 </button>
-              </div>
-            </motion.div>
+                </div>
+              </motion.div>
+            </div>
           </>
         )}
       </AnimatePresence>

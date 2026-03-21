@@ -50,6 +50,7 @@ function RecipeCard({
   rating,
   nutrition,
   onCook,
+  onEdit,
   onUnsave,
   cookCount,
   onChefClick,
@@ -61,6 +62,7 @@ function RecipeCard({
   rating?: number;
   nutrition?: { calories?: number; protein?: number; carbs?: number; fat?: number };
   onCook: () => void;
+  onEdit: () => void;
   onUnsave: () => void;
   cookCount?: number;
   onChefClick: (chefId: string | null, chefName: string | null) => void;
@@ -150,6 +152,13 @@ function RecipeCard({
           <MatchBadge percentage={matchPercentage} />
         </div>
         <button
+          onClick={(e) => { e.stopPropagation(); onEdit(); }}
+          className="w-8 h-8 rounded-xl flex items-center justify-center text-stone-300 hover:text-orange-500 hover:bg-orange-50 transition-colors opacity-0 group-hover:opacity-100"
+          aria-label="Edit local recipe copy"
+        >
+          <PenSquare size={14} />
+        </button>
+        <button
           onClick={(e) => { e.stopPropagation(); onUnsave(); }}
           className="w-8 h-8 rounded-xl flex items-center justify-center text-stone-300 hover:text-red-400 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
         >
@@ -176,6 +185,13 @@ function RecipeCard({
           onError={applyRecipeImageFallback}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+        <button
+          onClick={(e) => { e.stopPropagation(); onEdit(); }}
+          className="absolute top-2 right-11 w-7 h-7 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-orange-500"
+          aria-label="Edit local recipe copy"
+        >
+          <PenSquare size={12} />
+        </button>
         <button
           onClick={(e) => { e.stopPropagation(); onUnsave(); }}
           className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500"
@@ -261,6 +277,7 @@ export default function MyRecipesScreen() {
   const [mobileAddSheetOpen, setMobileAddSheetOpen] = useState(false);
   const [hideImportTabs, setHideImportTabs] = useState(false);
   const [recipeToDelete, setRecipeToDelete] = useState<Recipe | null>(null);
+  const [recipeToEdit, setRecipeToEdit] = useState<Recipe | null>(null);
 
   useEffect(() => {
     const loadName = async () => {
@@ -277,7 +294,7 @@ export default function MyRecipesScreen() {
     () => {
       const dbRecipeMap = new Map(dbRecipes.map((recipe) => [recipe.id, recipe]));
       return likedRecipes
-        .map((id) => dbRecipeMap.get(id) || savedApiRecipes[id])
+        .map((id) => savedApiRecipes[id] || dbRecipeMap.get(id))
         .filter(Boolean);
     },
     [dbRecipes, likedRecipes, savedApiRecipes],
@@ -517,6 +534,7 @@ export default function MyRecipesScreen() {
                     setSelectedChefName(chefName);
                   }}
                   onCook={() => openPreview(recipe)}
+                  onEdit={() => setRecipeToEdit(recipe)}
                   onUnsave={() => setRecipeToDelete(recipe)}
                 />
               ))}
@@ -610,6 +628,21 @@ export default function MyRecipesScreen() {
             <DialogTitle>Add Manual Recipe</DialogTitle>
           </DialogHeader>
           <CreateRecipeForm onClose={() => setShowManualRecipeDialog(false)} />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!recipeToEdit} onOpenChange={(open) => !open && setRecipeToEdit(null)}>
+        <DialogContent className="w-[calc(100vw-1rem)] max-w-2xl max-h-[calc(100dvh-1rem)] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Local Recipe</DialogTitle>
+          </DialogHeader>
+          {recipeToEdit ? (
+            <CreateRecipeForm
+              initialRecipe={recipeToEdit}
+              mode="edit-local"
+              onClose={() => setRecipeToEdit(null)}
+            />
+          ) : null}
         </DialogContent>
       </Dialog>
 

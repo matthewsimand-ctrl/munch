@@ -535,6 +535,7 @@ export default function Dashboard() {
       : null;
   const resolvedChefName = displayName || storeDisplayName || "";
   const heroHeading = resolvedChefName ? `Chef ${resolvedChefName}` : "Chef";
+  const heroImageReady = Boolean(loadedHeroImageSrc);
 
   useEffect(() => {
     if (!heroImageSrc) {
@@ -597,7 +598,7 @@ export default function Dashboard() {
             style={{
               background: loadedHeroImageSrc
                 ? `linear-gradient(110deg, rgba(28,25,23,0.74) 0%, rgba(28,25,23,0.58) 34%, rgba(28,25,23,0.36) 62%, rgba(28,25,23,0.2) 100%), url(${loadedHeroImageSrc}) center/cover`
-                : "linear-gradient(135deg,#FED7AA 0%,#FDBA74 32%,#FFF7ED 100%)",
+                : "linear-gradient(135deg,#1C1917 0%,#292524 42%,#44403C 100%)",
               boxShadow: "0 16px 40px rgba(28,25,23,0.10)",
             }}
           >
@@ -606,10 +607,10 @@ export default function Dashboard() {
             )}
             <div className="relative flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
               <div className="max-w-xl">
-                <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-orange-200">
+                <p className={`text-[11px] font-bold uppercase tracking-[0.22em] ${heroImageReady ? "text-orange-200" : "text-orange-100"}`}>
                   {greeting}
                 </p>
-                <h2 className="mt-3 text-3xl font-bold text-orange-400 sm:text-5xl" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+                <h2 className={`mt-3 text-3xl font-bold sm:text-5xl ${heroImageReady ? "text-orange-400" : "text-white"}`} style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
                   {heroHeading}
                 </h2>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -621,7 +622,7 @@ export default function Dashboard() {
                     {levelInfo.current}/{levelInfo.needed} XP to next level
                   </span>
                 </div>
-                <p className="mt-3 text-[11px] font-bold uppercase tracking-[0.22em] text-orange-300/95">
+                <p className={`mt-3 text-[11px] font-bold uppercase tracking-[0.22em] ${heroImageReady ? "text-orange-300/95" : "text-stone-200"}`}>
                   {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
                 </p>
                 <p className="mt-5 max-w-md text-sm font-semibold text-white sm:text-base">
@@ -801,20 +802,113 @@ export default function Dashboard() {
               )}
             </section>
 
+            {!isMobile && (
+              <section
+                className="rounded-2xl border p-4 sm:p-5"
+                style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}
+              >
+                <SectionHeader icon={Sparkles} title="Nutrition consumed" />
+                {isPremium ? (
+                  <>
+                    <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+                      <div>
+                        <p className="text-sm text-stone-500">
+                          Premium nutrition totals from {nutritionSummary.coveredMeals} of {nutritionSummary.totalMeals} cooked meal{nutritionSummary.totalMeals === 1 ? "" : "s"}.
+                        </p>
+                        {nutritionSummary.coveredMeals > 0 && (
+                          <p className="text-xs text-emerald-700 mt-2 font-semibold">
+                            Average meal health score: {nutritionSummary.averageHealthScore.toFixed(1)}/10
+                          </p>
+                        )}
+                      </div>
+                      {nutritionSummary.coveredMeals > 0 && (
+                        <div className="rounded-xl border border-orange-100 bg-orange-50 px-4 py-3 min-w-[180px]">
+                          <p className="text-[11px] font-semibold uppercase tracking-wide text-orange-600/70">Calories consumed</p>
+                          <p className="text-2xl font-bold text-orange-700 mt-1">{Math.round(nutritionSummary.totals.calories)}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {nutritionSummary.coveredMeals === 0 ? (
+                      <div className="rounded-xl border border-dashed border-stone-200 bg-stone-50 p-4 mt-4">
+                        <p className="text-sm font-semibold text-stone-600">No nutrition totals yet</p>
+                        <p className="text-xs text-stone-400 mt-1">Analyze nutrition on your recipes and your cooked totals will start building here.</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+                        {[
+                          { label: "Protein", value: `${Math.round(nutritionSummary.totals.protein)}g`, icon: Beef, tone: "bg-sky-50 text-sky-500" },
+                          { label: "Carbs", value: `${Math.round(nutritionSummary.totals.carbs)}g`, icon: Wheat, tone: "bg-amber-50 text-amber-500" },
+                          { label: "Fat", value: `${Math.round(nutritionSummary.totals.fat)}g`, icon: Droplets, tone: "bg-rose-50 text-rose-500" },
+                          { label: "Fiber", value: `${Math.round(nutritionSummary.totals.fiber)}g`, icon: Sparkles, tone: "bg-emerald-50 text-emerald-500" },
+                        ].map((stat) => (
+                          <div key={stat.label} className="rounded-xl border border-stone-100 px-3 py-3 bg-stone-50">
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${stat.tone}`}>
+                              <stat.icon size={14} />
+                            </div>
+                            <p className="text-[11px] text-stone-400 font-semibold uppercase tracking-wide mt-3">{stat.label}</p>
+                            <p className="text-lg font-bold text-stone-800 mt-1">{stat.value}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="relative mt-1 overflow-hidden rounded-2xl border border-orange-100 bg-gradient-to-br from-white via-orange-50/40 to-orange-100/40 p-4 sm:p-5">
+                    <div className="pointer-events-none absolute inset-0">
+                      <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-orange-200/35 blur-2xl" />
+                      <div className="absolute -left-6 bottom-0 h-24 w-24 rounded-full bg-amber-200/30 blur-2xl" />
+                    </div>
+                    <div className="relative min-h-[300px] sm:min-h-[260px]">
+                      <div className="grid grid-cols-2 gap-3 opacity-25 blur-[1.5px] sm:grid-cols-4">
+                        {[
+                          { label: "Protein", value: "92g", icon: Beef, tone: "bg-sky-50 text-sky-500" },
+                          { label: "Carbs", value: "188g", icon: Wheat, tone: "bg-amber-50 text-amber-500" },
+                          { label: "Fat", value: "61g", icon: Droplets, tone: "bg-rose-50 text-rose-500" },
+                          { label: "Fiber", value: "24g", icon: Sparkles, tone: "bg-emerald-50 text-emerald-500" },
+                        ].map((stat) => (
+                          <div key={stat.label} className="rounded-xl border border-stone-100 px-3 py-3 bg-stone-50/90">
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${stat.tone}`}>
+                              <stat.icon size={14} />
+                            </div>
+                            <p className="text-[11px] text-stone-400 font-semibold uppercase tracking-wide mt-3">{stat.label}</p>
+                            <p className="text-lg font-bold text-stone-800 mt-1">{stat.value}</p>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="absolute inset-x-0 top-1/2 flex -translate-y-1/2 justify-center px-4">
+                        <div className="w-full max-w-sm rounded-2xl border border-orange-200 bg-white/96 p-5 text-center shadow-[0_16px_40px_rgba(249,115,22,0.12)] backdrop-blur">
+                          <p className="text-sm font-semibold text-stone-800">Unlock nutrition consumed</p>
+                          <p className="mt-2 text-sm text-stone-500">
+                            Become a member to track calories, macros, fiber, and overall meal health across everything you cook.
+                          </p>
+                          <PremiumFeatureButton
+                            label="Get Premium"
+                            onClick={() => openPremiumPage("Nutrition consumed")}
+                            className="mt-4 mx-auto h-11 w-auto px-5"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </section>
+            )}
+
           </div>
 
           {/* Right 1/3 */}
           <div className="space-y-5">
             {isPremium && (
               <section
-                className="rounded-[1.9rem] border border-orange-100 bg-gradient-to-br from-orange-100/70 via-orange-50 to-white p-5 shadow-[0_12px_28px_rgba(249,115,22,0.10)]"
+                className="rounded-[1.9rem] border border-orange-100 bg-white p-5 shadow-[0_10px_24px_rgba(28,25,23,0.05)]"
               >
                 <div className="flex items-center justify-between gap-3">
                   <h3 className="text-2xl font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
                     Up Next
                   </h3>
                   {currentPlannedMeal && (
-                    <span className="rounded-full bg-white px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-orange-700">
+                    <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-orange-700">
                       Scheduled
                     </span>
                   )}
@@ -822,7 +916,7 @@ export default function Dashboard() {
                 {upNextRecipe ? (
                   <>
                     <div className="mt-5 flex items-start gap-4">
-                      <div className="h-24 w-24 overflow-hidden rounded-2xl bg-stone-100">
+                      <div className="h-24 w-24 overflow-hidden rounded-2xl border border-stone-100 bg-stone-100">
                         <img
                           src={getRecipeImageSrc(upNextRecipe.image)}
                           alt={upNextRecipe.name}
@@ -844,7 +938,7 @@ export default function Dashboard() {
                         <span>Prep Progress</span>
                         <span className="text-emerald-700">{upNextMatch ? `${upNextMatch.percentage}% ready` : "Ready to cook"}</span>
                       </div>
-                      <div className="mt-2 h-2.5 rounded-full bg-white/90 overflow-hidden">
+                      <div className="mt-2 h-2.5 rounded-full bg-stone-100 overflow-hidden">
                         <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-orange-500" style={{ width: `${upNextCoverage}%` }} />
                       </div>
                     </div>
@@ -858,7 +952,7 @@ export default function Dashboard() {
                     </button>
                   </>
                 ) : (
-                  <div className="mt-5 space-y-3">
+                  <div className="mt-5 space-y-3 rounded-2xl border border-dashed border-stone-200 bg-stone-50 p-4">
                     <p className="text-sm text-stone-500">
                       Plan a meal to see your next scheduled cook here.
                     </p>
@@ -908,99 +1002,6 @@ export default function Dashboard() {
             </section>
           </div>
         </div>
-
-        {!isMobile && (
-          <section
-            className="mx-auto max-w-5xl rounded-2xl border p-4 sm:p-5"
-            style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}
-          >
-            <SectionHeader icon={Sparkles} title="Nutrition consumed" />
-            {isPremium ? (
-              <>
-                <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
-                  <div>
-                    <p className="text-sm text-stone-500">
-                      Premium nutrition totals from {nutritionSummary.coveredMeals} of {nutritionSummary.totalMeals} cooked meal{nutritionSummary.totalMeals === 1 ? "" : "s"}.
-                    </p>
-                    {nutritionSummary.coveredMeals > 0 && (
-                      <p className="text-xs text-emerald-700 mt-2 font-semibold">
-                        Average meal health score: {nutritionSummary.averageHealthScore.toFixed(1)}/10
-                      </p>
-                    )}
-                  </div>
-                  {nutritionSummary.coveredMeals > 0 && (
-                    <div className="rounded-xl border border-orange-100 bg-orange-50 px-4 py-3 min-w-[180px]">
-                      <p className="text-[11px] font-semibold uppercase tracking-wide text-orange-600/70">Calories consumed</p>
-                      <p className="text-2xl font-bold text-orange-700 mt-1">{Math.round(nutritionSummary.totals.calories)}</p>
-                    </div>
-                  )}
-                </div>
-
-                {nutritionSummary.coveredMeals === 0 ? (
-                  <div className="rounded-xl border border-dashed border-stone-200 bg-stone-50 p-4 mt-4">
-                    <p className="text-sm font-semibold text-stone-600">No nutrition totals yet</p>
-                    <p className="text-xs text-stone-400 mt-1">Analyze nutrition on your recipes and your cooked totals will start building here.</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
-                    {[
-                      { label: "Protein", value: `${Math.round(nutritionSummary.totals.protein)}g`, icon: Beef, tone: "bg-sky-50 text-sky-500" },
-                      { label: "Carbs", value: `${Math.round(nutritionSummary.totals.carbs)}g`, icon: Wheat, tone: "bg-amber-50 text-amber-500" },
-                      { label: "Fat", value: `${Math.round(nutritionSummary.totals.fat)}g`, icon: Droplets, tone: "bg-rose-50 text-rose-500" },
-                      { label: "Fiber", value: `${Math.round(nutritionSummary.totals.fiber)}g`, icon: Sparkles, tone: "bg-emerald-50 text-emerald-500" },
-                    ].map((stat) => (
-                      <div key={stat.label} className="rounded-xl border border-stone-100 px-3 py-3 bg-stone-50">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${stat.tone}`}>
-                          <stat.icon size={14} />
-                        </div>
-                        <p className="text-[11px] text-stone-400 font-semibold uppercase tracking-wide mt-3">{stat.label}</p>
-                        <p className="text-lg font-bold text-stone-800 mt-1">{stat.value}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="relative mt-1 overflow-hidden rounded-2xl border border-orange-100 bg-gradient-to-br from-white via-orange-50/40 to-orange-100/40 p-4 sm:p-5">
-                <div className="pointer-events-none absolute inset-0">
-                  <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-orange-200/35 blur-2xl" />
-                  <div className="absolute -left-6 bottom-0 h-24 w-24 rounded-full bg-amber-200/30 blur-2xl" />
-                </div>
-                <div className="relative min-h-[300px] sm:min-h-[260px]">
-                  <div className="grid grid-cols-2 gap-3 opacity-25 blur-[1.5px] sm:grid-cols-4">
-                    {[
-                      { label: "Protein", value: "92g", icon: Beef, tone: "bg-sky-50 text-sky-500" },
-                      { label: "Carbs", value: "188g", icon: Wheat, tone: "bg-amber-50 text-amber-500" },
-                      { label: "Fat", value: "61g", icon: Droplets, tone: "bg-rose-50 text-rose-500" },
-                      { label: "Fiber", value: "24g", icon: Sparkles, tone: "bg-emerald-50 text-emerald-500" },
-                    ].map((stat) => (
-                      <div key={stat.label} className="rounded-xl border border-stone-100 px-3 py-3 bg-stone-50/90">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${stat.tone}`}>
-                          <stat.icon size={14} />
-                        </div>
-                        <p className="text-[11px] text-stone-400 font-semibold uppercase tracking-wide mt-3">{stat.label}</p>
-                        <p className="text-lg font-bold text-stone-800 mt-1">{stat.value}</p>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="absolute inset-x-0 top-1/2 flex -translate-y-1/2 justify-center px-4">
-                    <div className="w-full max-w-sm rounded-2xl border border-orange-200 bg-white/96 p-5 text-center shadow-[0_16px_40px_rgba(249,115,22,0.12)] backdrop-blur">
-                      <p className="text-sm font-semibold text-stone-800">Unlock nutrition consumed</p>
-                      <p className="mt-2 text-sm text-stone-500">
-                        Become a member to track calories, macros, fiber, and overall meal health across everything you cook.
-                      </p>
-                      <PremiumFeatureButton
-                        label="Get Premium"
-                        onClick={() => openPremiumPage("Nutrition consumed")}
-                        className="mt-4 mx-auto h-11 w-auto px-5"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </section>
-        )}
 
         {/* Badges */}
         <section className={`rounded-2xl border p-4 sm:p-5 ${isMobile ? "hidden" : ""}`} style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}>
@@ -1061,7 +1062,6 @@ export default function Dashboard() {
               previewOverrideUrl={avatarPhotoPreview}
               onUploadClick={() => avatarInputRef.current?.click()}
               uploading={uploadingAvatar}
-              onClearUpload={clearPendingAvatarPhoto}
               action={
                 <button
                   onClick={applyCustomAvatar}
