@@ -7,6 +7,22 @@ const corsHeaders = {
 
 const AI_GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
 const R_JINA_PROXY_PREFIX = 'https://r.jina.ai/';
+const BROWSER_HEADERS: Record<string, string> = {
+  'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+  'Accept-Language': 'en-US,en;q=0.9',
+  'Accept-Encoding': 'gzip, deflate, br',
+  'Cache-Control': 'no-cache',
+  Pragma: 'no-cache',
+  'Sec-Ch-Ua': '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+  'Sec-Ch-Ua-Mobile': '?0',
+  'Sec-Ch-Ua-Platform': '"macOS"',
+  'Sec-Fetch-Dest': 'document',
+  'Sec-Fetch-Mode': 'navigate',
+  'Sec-Fetch-Site': 'none',
+  'Sec-Fetch-User': '?1',
+  'Upgrade-Insecure-Requests': '1',
+};
 
 /** How long to wait for any single fetch before giving up and trying the next proxy */
 const FETCH_TIMEOUT_MS = 8000;
@@ -27,26 +43,27 @@ const PROXY_FETCHERS: Array<{
   buildUrl: (url: string) => string;
   buildHeaders?: () => Record<string, string>;
   parseResponse?: (res: Response) => Promise<string>;
+  mode?: 'html' | 'text';
 }> = [
   {
-    label: 'r.jina.ai',
+    label: 'jina-reader',
     buildUrl: (url) => `${R_JINA_PROXY_PREFIX}${url}`,
     buildHeaders: () => ({
-      // Ask Jina for markdown — cleaner signal-to-noise than raw HTML
-      'Accept': 'text/markdown, text/plain, */*',
-      'X-Return-Format': 'markdown',
+      Accept: 'text/html',
+      'X-Return-Format': 'html',
       'X-Timeout': '6',
     }),
+    mode: 'html',
   },
   {
-    // Alternate Jina form that works on some sites the first form misses
-    label: 'r.jina.ai (encoded)',
-    buildUrl: (url) => `${R_JINA_PROXY_PREFIX}https://${encodeURIComponent(url.replace(/^https?:\/\//, ''))}`,
+    label: 'jina-markdown',
+    buildUrl: (url) => `${R_JINA_PROXY_PREFIX}${url}`,
     buildHeaders: () => ({
-      'Accept': 'text/markdown, text/plain, */*',
+      Accept: 'text/markdown, text/plain, */*',
       'X-Return-Format': 'markdown',
       'X-Timeout': '6',
     }),
+    mode: 'text',
   },
   {
     label: 'allorigins',
@@ -55,14 +72,17 @@ const PROXY_FETCHERS: Array<{
       const json = await res.json();
       return typeof json?.contents === 'string' ? json.contents : '';
     },
+    mode: 'html',
   },
   {
     label: 'corsproxy.io',
     buildUrl: (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+    mode: 'html',
   },
   {
     label: 'htmldriven',
     buildUrl: (url) => `https://htmldriven.com/cors?url=${encodeURIComponent(url)}`,
+    mode: 'html',
   },
 ];
 
@@ -520,13 +540,8 @@ Deno.serve(async (req) => {
       // 1. Try direct fetch first
       try {
         const pageRes = await fetchWithTimeout(normalizedUrl, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-            Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Cache-Control': 'no-cache',
-            'Upgrade-Insecure-Requests': '1',
-          },
+          headers: { ...BROWSER_HEADERS, Referer: new URL(normalizedUrl).origin + '/' },
+          redirect: 'follow',
         });
 
         attemptedStatuses.push(`direct:${pageRes.status}`);
@@ -560,16 +575,24 @@ Deno.serve(async (req) => {
             attemptedStatuses.push(`${proxy.label}:${proxyRes.status}`);
 
             if (proxyRes.ok) {
-              if (proxy.parseResponse) {
-                html = await proxy.parseResponse(proxyRes);
+              const body = proxy.parseResponse
+                ? await proxy.parseResponse(proxyRes)
+                : await proxyRes.text();
+
+              if (proxy.mode === 'text') {
+                if (body && body.length > 100) {
+                  content = extractRecipeWindow(body);
+                  console.log(`Proxy "${proxy.label}" provided text content (${body.length} chars)`);
+                  break;
+                }
               } else {
-                html = await proxyRes.text();
+                html = body;
+                if (html && html.length > 200) {
+                  console.log(`Proxy "${proxy.label}" succeeded (${html.length} chars)`);
+                  break;
+                }
+                html = '';
               }
-              if (html && html.length > 200) {
-                console.log(`Proxy "${proxy.label}" succeeded (${html.length} chars)`);
-                break;
-              }
-              html = '';
             }
           } catch (proxyErr) {
             console.warn(`Proxy ${proxy.label} failed:`, proxyErr);
@@ -578,7 +601,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      if (!recipe && !html) {
+      if (!recipe && !html && !content) {
         return new Response(
           JSON.stringify({
             success: false,
