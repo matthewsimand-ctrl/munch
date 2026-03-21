@@ -696,7 +696,7 @@ export default function ImportRecipeDialog({
             created_by: user.id,
             is_public: true,
             servings: parseInt(reviewData.servings) || 4,
-            raw_api_payload: sharedMetadata,
+            raw_api_payload: sharedMetadata as unknown as import('@/integrations/supabase/types').Json,
           };
 
           const { error } = await supabase.from('recipes').insert([coreInsertData]);
