@@ -699,7 +699,7 @@ export default function ImportRecipeDialog({
             raw_api_payload: sharedMetadata,
           };
 
-          const { error } = await supabase.from('recipes').insert(coreInsertData);
+          const { error } = await supabase.from('recipes').insert([coreInsertData]);
 
           if (error) {
             console.error('[Import] Manual save failed:', error.message);
