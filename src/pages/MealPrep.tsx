@@ -123,6 +123,7 @@ export default function MealPrepScreen() {
   const [showAddModal, setShowAddModal] = useState<{ day: string; mealType: MealType } | null>(null);
   const [showMealActionModal, setShowMealActionModal] = useState<PlannedMeal | null>(null);
   const [showSurpriseSourceModal, setShowSurpriseSourceModal] = useState(false);
+  const [showResetConfirmModal, setShowResetConfirmModal] = useState(false);
   const [previewRecipe, setPreviewRecipe] = useState<Recipe | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [pendingAiSurprise, setPendingAiSurprise] = useState(false);
@@ -233,7 +234,11 @@ export default function MealPrepScreen() {
     navigate(`/cook/${meal.recipeId}`);
   };
 
-  const applySurpriseMe = (sourceRecipes: any[], sourceLabel: string) => {
+  const applyAutoPlan = (
+    sourceRecipes: any[],
+    sourceLabel: string,
+    options?: { mode?: "surprise" | "match"; successVerb?: string },
+  ) => {
     if (sourceRecipes.length === 0) {
       toast.info(`No ${sourceLabel} recipes available right now.`);
       return;
@@ -247,13 +252,23 @@ export default function MealPrepScreen() {
       return bMatch - aMatch;
     });
 
+    const usedRecipeIds = new Set<string>();
     const pickRecipe = () => {
-      if (prioritizedRecipes.length <= 3) {
-        return prioritizedRecipes[Math.floor(Math.random() * prioritizedRecipes.length)];
+      const remainingRecipes = prioritizedRecipes.filter((recipe) => !usedRecipeIds.has(String(recipe.id)));
+      const pool = remainingRecipes.length > 0 ? remainingRecipes : prioritizedRecipes;
+
+      let chosenRecipe = pool[0];
+      if ((options?.mode || "surprise") === "surprise") {
+        if (pool.length <= 3) {
+          chosenRecipe = pool[Math.floor(Math.random() * pool.length)];
+        } else {
+          const topCandidates = pool.slice(0, Math.max(3, Math.ceil(pool.length * 0.35)));
+          chosenRecipe = topCandidates[Math.floor(Math.random() * topCandidates.length)];
+        }
       }
 
-      const topCandidates = prioritizedRecipes.slice(0, Math.max(3, Math.ceil(prioritizedRecipes.length * 0.35)));
-      return topCandidates[Math.floor(Math.random() * topCandidates.length)];
+      usedRecipeIds.add(String(chosenRecipe.id));
+      return chosenRecipe;
     };
 
     const emptySlots = DAYS.flatMap((day) =>
@@ -271,7 +286,7 @@ export default function MealPrepScreen() {
           addMealPlanItem?.({ weekStart, day, mealType, recipeName: recipe.name, recipeId: recipe.id, cookTime: recipe.cook_time, recipeSnapshot: recipe });
         }
       });
-      toast.success(`🎲 Filled ${emptySlots.length} open slots with ${sourceLabel} picks!`);
+      toast.success(`${options?.successVerb || "Filled"} ${emptySlots.length} open slot${emptySlots.length === 1 ? "" : "s"} with ${sourceLabel} picks!`);
       return;
     }
 
@@ -306,12 +321,12 @@ export default function MealPrepScreen() {
       }
     });
 
-    toast.success(`🎲 Swapped ${slotsToReplace.length} meals with ${sourceLabel} surprises!`);
+    toast.success(`${options?.successVerb || "Updated"} ${slotsToReplace.length} meal${slotsToReplace.length === 1 ? "" : "s"} with ${sourceLabel} picks!`);
   };
 
   const handleSurpriseSaved = () => {
     setShowSurpriseSourceModal(false);
-    applySurpriseMe(savedRecipesList, "saved");
+    applyAutoPlan(savedRecipesList, "saved", { mode: "surprise", successVerb: "Filled" });
   };
 
   const handleSurpriseAi = async () => {
@@ -322,22 +337,27 @@ export default function MealPrepScreen() {
     }
 
     if (browseLoaded) {
-      applySurpriseMe(browseRecipes, "AI-recommended");
+      applyAutoPlan(browseRecipes, "AI-recommended", { mode: "surprise", successVerb: "Filled" });
       return;
     }
     setPendingAiSurprise(true);
     await loadFeed();
   };
 
+  const handleAutoPlanMatch = () => {
+    setShowSurpriseSourceModal(false);
+    applyAutoPlan(savedRecipesList, "best-match", { mode: "match", successVerb: "Matched" });
+  };
+
 
   useEffect(() => {
     if (!pendingAiSurprise || !browseLoaded) return;
-    applySurpriseMe(browseRecipes, "AI-recommended");
+    applyAutoPlan(browseRecipes, "AI-recommended", { mode: "surprise", successVerb: "Filled" });
     setPendingAiSurprise(false);
   }, [pendingAiSurprise, browseLoaded, browseRecipes]);
 
   useEffect(() => {
-    if (!showAddModal && !showMealActionModal && !showSurpriseSourceModal && !showExportModal) return;
+      if (!showAddModal && !showMealActionModal && !showSurpriseSourceModal && !showExportModal && !showResetConfirmModal) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
@@ -356,12 +376,16 @@ export default function MealPrepScreen() {
       }
       if (showExportModal) {
         setShowExportModal(false);
+        return;
+      }
+      if (showResetConfirmModal) {
+        setShowResetConfirmModal(false);
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [showAddModal, showMealActionModal, showSurpriseSourceModal, showExportModal]);
+  }, [showAddModal, showMealActionModal, showSurpriseSourceModal, showExportModal, showResetConfirmModal]);
 
   const handleGenerateGroceryList = () => {
     const recipeIds = [...new Set(plannedMeals.map((m) => m.recipeId))];
@@ -395,11 +419,16 @@ export default function MealPrepScreen() {
       toast.info("This week is already empty.");
       return;
     }
+    setShowResetConfirmModal(true);
+  };
+
+  const confirmResetWeek = () => {
     if (isKitchenMode) {
       void kitchenMealPlan.clearWeek();
     } else {
       clearMealPlanWeek?.(weekStart);
     }
+    setShowResetConfirmModal(false);
     toast.success("Cleared all meals for this week.");
   };
 
@@ -733,7 +762,7 @@ export default function MealPrepScreen() {
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-6">
               {[
                 { title: "Plan the week", copy: "Map breakfast, lunch, and dinner across the whole week." },
-                { title: "Surprise Me", copy: "Let AI or your saved recipes fill empty slots in seconds." },
+                { title: "Auto Plan", copy: "Fill your week with AI suggestions, saved recipes, or pantry-match picks in seconds." },
                 { title: "Shop faster", copy: "Turn your meal plan into a grocery list when you're ready." },
                 { title: "Export anywhere", copy: "Download your plan as a PDF, CSV spreadsheet, or calendar file for the week or a single day." },
               ].map((item) => (
@@ -750,7 +779,7 @@ export default function MealPrepScreen() {
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm text-stone-500 max-w-xl">
-                Become a member to use Meal Prep, including AI-powered Surprise Me suggestions and exports for PDF, CSV, and calendar formats.
+                Become a member to use Meal Prep, including AI-powered Auto Plan suggestions and exports for PDF, CSV, and calendar formats.
               </p>
               <PremiumFeatureButton
                 label="Unlock Meal Prep"
@@ -772,7 +801,7 @@ export default function MealPrepScreen() {
         className="border-b"
         style={{ background: "linear-gradient(135deg,#FFF7ED 0%,#FFFAF5 100%)", borderColor: "rgba(249,115,22,0.12)" }}
       >
-        <div className="mx-auto max-w-[1440px] px-4 py-4 sm:px-6 sm:py-6">
+        <div className="mx-auto max-w-[1440px] px-4 py-4 pr-16 sm:px-6 sm:py-6 sm:pr-20 md:pr-24">
           <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1">Planning</p>
@@ -795,7 +824,7 @@ export default function MealPrepScreen() {
                 onClick={() => setShowSurpriseSourceModal(true)}
                 className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-stone-200 text-sm font-semibold text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
               >
-                <Shuffle size={14} /> Surprise Me
+                <Shuffle size={14} /> Auto Plan
               </button>
               <button
                 onClick={handleResetWeek}
@@ -1084,24 +1113,30 @@ export default function MealPrepScreen() {
                 style={{ boxShadow: "0 -8px 40px rgba(0,0,0,0.15)" }}
               >
                 <div className="p-6">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-orange-500 mb-1">Surprise Me</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-orange-500 mb-1">Auto Plan</p>
                 <h3 className="text-lg font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
-                  Choose your surprise source
+                  Choose how to fill the week
                 </h3>
-                <p className="text-xs text-stone-500 mt-1">Use only recipes you saved, or let AI recommendations mix in new ideas with higher ingredient match.</p>
+                <p className="text-xs text-stone-500 mt-1">Use AI for variety, stick to your saved recipes, or auto-plan with the strongest pantry matches.</p>
                 <div className="grid grid-cols-1 gap-2 mt-5">
-                  <button
-                    onClick={handleSurpriseSaved}
-                    className="rounded-xl border border-stone-200 py-2.5 text-sm font-semibold text-stone-700 hover:border-orange-300 hover:text-orange-600"
-                  >
-                    Use saved recipes only
-                  </button>
                   <button
                     onClick={handleSurpriseAi}
                     className="rounded-xl py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-75"
                     style={{ background: "linear-gradient(135deg,#FB923C,#F97316,#EA580C)" }}
                   >
-                    {isPremium ? "Use AI recommendations" : "Use AI recommendations · Premium"}
+                    {isPremium ? "Surprise me" : "Surprise me · Premium"}
+                  </button>
+                  <button
+                    onClick={handleSurpriseSaved}
+                    className="rounded-xl border border-stone-200 py-2.5 text-sm font-semibold text-stone-700 hover:border-orange-300 hover:text-orange-600"
+                  >
+                    Use saved recipes
+                  </button>
+                  <button
+                    onClick={handleAutoPlanMatch}
+                    className="rounded-xl border border-stone-200 py-2.5 text-sm font-semibold text-stone-700 hover:border-orange-300 hover:text-orange-600"
+                  >
+                    Match %
                   </button>
                 </div>
                 </div>
@@ -1209,6 +1244,54 @@ export default function MealPrepScreen() {
                 >
                   Export plan
                 </button>
+                </div>
+              </motion.div>
+            </div>
+          </>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showResetConfirmModal && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
+              onClick={() => setShowResetConfirmModal(false)}
+            />
+            <div className="fixed inset-0 z-50 flex items-end sm:items-center sm:justify-center sm:p-4 pointer-events-none">
+              <motion.div
+                initial={{ opacity: 0, y: 20, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.97 }}
+                className="pointer-events-auto w-full overflow-hidden rounded-t-3xl bg-white sm:w-[calc(100%-1.5rem)] sm:max-w-md sm:rounded-3xl"
+                style={{ boxShadow: "0 -8px 40px rgba(0,0,0,0.15)" }}
+              >
+                <div className="p-6">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-orange-500 mb-1">Reset Week</p>
+                  <h3 className="text-lg font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+                    Clear this week&apos;s meal plan?
+                  </h3>
+                  <p className="mt-2 text-sm text-stone-500">
+                    This will remove all planned meals for the current week{isKitchenMode ? " for everyone in this kitchen" : ""}.
+                  </p>
+                  <div className="mt-5 grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => setShowResetConfirmModal(false)}
+                      className="rounded-xl border border-stone-200 py-2.5 text-sm font-semibold text-stone-700 hover:border-orange-300 hover:text-orange-600"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={confirmResetWeek}
+                      className="rounded-xl py-2.5 text-sm font-semibold text-white"
+                      style={{ background: "linear-gradient(135deg,#FB923C,#F97316,#EA580C)" }}
+                    >
+                      Reset week
+                    </button>
+                  </div>
                 </div>
               </motion.div>
             </div>

@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { normalizeIngredients } from '@/lib/normalizeIngredients';
 import { parseIngredientLine, suggestQuantityForItem } from '@/lib/ingredientText';
+import { detectCategories } from '@/lib/categorizeItem';
+import { getCategory } from '@/lib/ingredientCategories';
 
 export interface UserProfile {
   dietaryRestrictions: string[];
@@ -54,6 +56,38 @@ export interface KitchenSummary {
 }
 
 export type DashboardHeroImageMode = 'daily' | 'manual';
+
+function inferGrocerySection(name: string) {
+  const normalizedName = String(name || '').trim();
+  if (!normalizedName) return 'other';
+
+  const ingredientCategory = getCategory(normalizedName);
+  switch (ingredientCategory) {
+    case 'Produce':
+      return 'produce';
+    case 'Meat & Seafood':
+      return 'meat';
+    case 'Dairy & Eggs':
+      return 'dairy';
+    case 'Grains & Pasta':
+      return normalizedName.toLowerCase().includes('pasta') || normalizedName.toLowerCase().includes('noodle')
+        ? 'pasta / noodles'
+        : 'dry goods';
+    case 'Canned & Jarred':
+      return 'dry goods';
+    case 'Oils & Condiments':
+      return 'condiments';
+    case 'Baking':
+      return 'bakery';
+    case 'Beverages':
+      return 'other';
+    case 'Spices & Seasonings':
+      return 'other';
+    case 'Other':
+    default:
+      return detectCategories(normalizedName).grocerySection;
+  }
+}
 
 interface AppState {
   storeOwnerUserId: string | null;
@@ -383,10 +417,13 @@ export const useStore = create<AppState>()(
         const normalizedName = (parsedIngredient.name || name).toLowerCase().trim();
         const normalized = normalizedName;
         if (!normalized) return;
+        const inferredSection = explicit.section ?? explicit.category ?? inferGrocerySection(parsedIngredient.name || name);
 
         const parsed = {
           ...explicit,
           qty: explicit.qty ?? parsedIngredient.quantity ?? suggestQuantityForItem(normalizedName),
+          section: inferredSection,
+          category: explicit.category ?? inferredSection,
         };
 
         set((state) => {

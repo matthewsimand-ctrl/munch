@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import {
   Flame, Clock, Heart, ShoppingCart, ChevronRight,
   Calendar, Star, Plus, Check, Users, MapPin, X, RotateCw,
-  Trophy, ChefHat, Zap, Award, Camera, Sparkles, TrendingUp, Play, Beef, Wheat, Droplets, Bell, CheckCheck,
+  Trophy, ChefHat, Zap, Award, Camera, Sparkles, TrendingUp, Play, Beef, Wheat, Droplets, Bell, CheckCheck, Clock3,
   Settings, Lock,
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -205,7 +205,8 @@ export default function Dashboard() {
   const [avatarPhotoPreview, setAvatarPhotoPreview] = useState<string | null>(null);
   const [pendingUploadedAvatarUrl, setPendingUploadedAvatarUrl] = useState<string | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
-  const { meal: currentPlannedMeal, loading: currentMealLoading } = useCurrentMealPlan();
+  const { isPremium } = usePremiumAccess();
+  const { meal: currentPlannedMeal, nextMeal: nextPlannedMeal, loading: currentMealLoading } = useCurrentMealPlan();
   const { meals: cookedMeals, loading: cookedMealsLoading, estimateMealSavings } = useCookedMeals();
   const { notifications, unreadCount, loading: notificationsLoading, markAsRead, markAllAsRead } = useNotifications();
   const [estimatingMealId, setEstimatingMealId] = useState<string | null>(null);
@@ -214,17 +215,31 @@ export default function Dashboard() {
     [cookedMeals, cachedNutrition],
   );
 
-  const startCurrentPlannedMeal = () => {
-    if (!currentPlannedMeal) return;
+  const upNextPlannedMeal = isPremium ? (nextPlannedMeal || currentPlannedMeal) : null;
+  const upNextRecipe = upNextPlannedMeal?.recipe_data || (upNextPlannedMeal ? {
+    id: upNextPlannedMeal.recipe_id,
+    name: upNextPlannedMeal.recipe_name,
+    image: upNextPlannedMeal.recipe_image,
+    ingredients: [],
+    instructions: [],
+    cook_time: '',
+    cuisine: '',
+  } : null);
+  const upNextMealLabel = upNextPlannedMeal
+    ? `${upNextPlannedMeal.meal_type.charAt(0).toUpperCase()}${upNextPlannedMeal.meal_type.slice(1)}`
+    : '';
 
-    const recipeId = currentPlannedMeal.recipe_id;
+  const startPlannedMeal = (plannedMeal: typeof upNextPlannedMeal) => {
+    if (!plannedMeal) return;
+
+    const recipeId = plannedMeal.recipe_id;
     const hasRecipeLocally = Boolean(savedApiRecipes[recipeId]);
 
-    if (!hasRecipeLocally && currentPlannedMeal.recipe_data) {
-      likeRecipe(recipeId, currentPlannedMeal.recipe_data);
+    if (!hasRecipeLocally && plannedMeal.recipe_data) {
+      likeRecipe(recipeId, plannedMeal.recipe_data);
     }
 
-    const canStart = hasRecipeLocally || Boolean(currentPlannedMeal.recipe_data);
+    const canStart = hasRecipeLocally || Boolean(plannedMeal.recipe_data);
     if (!canStart) {
       toast.info("We couldn't load this planned recipe yet. Open Meal Prep and re-save it first.");
       return;
@@ -439,7 +454,6 @@ export default function Dashboard() {
     }
   }, [displayName, storeDisplayName]);
 
-  const { isPremium } = usePremiumAccess();
   const { openPremiumPage } = usePremiumGate();
 
   const selectedMatch = selectedRecipe ? calculateMatch(pantryNames, selectedRecipe.ingredients || []) : null;
@@ -512,12 +526,12 @@ export default function Dashboard() {
 
   const heroImageOptions = useMemo(
     () =>
-      [currentPlannedMeal?.recipe_data, ...suggestedRecipes, ...availableSuggestions]
+      [upNextPlannedMeal?.recipe_data, ...suggestedRecipes, ...availableSuggestions]
         .filter((recipe): recipe is Recipe => Boolean(recipe))
         .map((recipe) => getRecipeImageSrc(recipe.image))
         .filter(Boolean)
         .filter((src, index, arr) => arr.indexOf(src) === index),
-    [availableSuggestions, currentPlannedMeal?.recipe_data, suggestedRecipes],
+    [availableSuggestions, suggestedRecipes, upNextPlannedMeal?.recipe_data],
   );
   const heroDaySeed = useMemo(() => {
     const today = new Date();
@@ -584,7 +598,6 @@ export default function Dashboard() {
       tone: "bg-orange-50 text-orange-500",
     },
   ];
-  const upNextRecipe = isPremium ? currentPlannedMeal?.recipe_data || null : null;
   const upNextMatch = upNextRecipe ? calculateMatch(pantryNames, upNextRecipe.ingredients || []) : null;
   const upNextCoverage = upNextMatch ? Math.max(18, upNextMatch.percentage) : 24;
 
@@ -895,6 +908,53 @@ export default function Dashboard() {
               </section>
             )}
 
+            {!isMobile && (
+              <section className="rounded-2xl border p-4 sm:p-5" style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-violet-50 flex items-center justify-center">
+                      <Award size={14} className="text-violet-500" />
+                    </div>
+                    <h2 className="text-[15px] font-bold text-stone-800" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
+                      Badges
+                    </h2>
+                  </div>
+                  <span className="text-[11px] text-stone-400 font-bold bg-stone-100 px-2.5 py-1 rounded-full">
+                    {BADGES.filter((b) => b.unlocked).length} / {BADGES.length}
+                  </span>
+                </div>
+                <TooltipProvider>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+                    {BADGES.map((b) => (
+                      <Tooltip key={b.id}>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            title={`${b.label}: ${b.desc}`}
+                            className={`w-full flex flex-col items-center gap-1 p-2.5 rounded-xl border transition-all cursor-help ${b.unlocked ? "border-amber-100 bg-gradient-to-br from-amber-50 to-orange-50" : "border-stone-100 bg-stone-50 opacity-40 grayscale"
+                              }`}
+                          >
+                            <span className="text-xl leading-none">{b.emoji}</span>
+                            <span className="text-[10px] font-semibold text-stone-600 text-center leading-tight" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
+                              {b.label}
+                            </span>
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-[220px] bg-stone-900 text-stone-100 border-stone-800">
+                          <p className="text-xs font-semibold" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>{b.label}</p>
+                          <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-orange-300">How to earn</p>
+                          <p className="text-[11px] text-stone-300 mt-1">{b.desc}</p>
+                          <p className="text-[11px] text-orange-300 mt-1.5">
+                            {b.unlocked ? "Unlocked" : `Progress: ${Math.min(b.current, b.target)} / ${b.target}`}
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    ))}
+                  </div>
+                </TooltipProvider>
+              </section>
+            )}
+
           </div>
 
           {/* Right 1/3 */}
@@ -904,10 +964,8 @@ export default function Dashboard() {
                 className="rounded-[1.9rem] border border-orange-100 bg-white p-5 shadow-[0_10px_24px_rgba(28,25,23,0.05)]"
               >
                 <div className="flex items-center justify-between gap-3">
-                  <h3 className="text-2xl font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
-                    Up Next
-                  </h3>
-                  {currentPlannedMeal && (
+                  <SectionHeader icon={Clock3} title="Up Next" />
+                  {upNextPlannedMeal && (
                     <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-orange-700">
                       Scheduled
                     </span>
@@ -925,12 +983,21 @@ export default function Dashboard() {
                         />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-2xl font-bold leading-tight text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+                        <p className="text-[1.55rem] font-bold leading-tight text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
                           {upNextRecipe.name}
                         </p>
-                        <p className="mt-2 text-sm text-stone-600">
-                          {upNextRecipe.cuisine || "Tonight's pick"}{upNextRecipe.cook_time ? ` • ${upNextRecipe.cook_time}` : ""}
-                        </p>
+                        <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-stone-600">
+                          {upNextMealLabel && (
+                            <span className="inline-flex items-center rounded-full border border-stone-200 bg-stone-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-600">
+                              {upNextMealLabel}
+                            </span>
+                          )}
+                          {(upNextRecipe.cuisine || upNextRecipe.cook_time) && (
+                            <span>
+                              {upNextRecipe.cuisine || "Planned meal"}{upNextRecipe.cook_time ? ` • ${upNextRecipe.cook_time}` : ""}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <div className="mt-6">
@@ -944,7 +1011,7 @@ export default function Dashboard() {
                     </div>
                     <button
                       onClick={() => {
-                        startCurrentPlannedMeal();
+                        startPlannedMeal(upNextPlannedMeal);
                       }}
                       className="mt-6 w-full rounded-full bg-stone-900 px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-stone-800"
                     >
@@ -1003,51 +1070,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Badges */}
-        <section className={`rounded-2xl border p-4 sm:p-5 ${isMobile ? "hidden" : ""}`} style={{ background: "#FFFFFF", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.05)" }}>
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-violet-50 flex items-center justify-center">
-                <Award size={14} className="text-violet-500" />
-              </div>
-              <h2 className="text-[15px] font-bold text-stone-800" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
-                Badges
-              </h2>
-            </div>
-            <span className="text-[11px] text-stone-400 font-bold bg-stone-100 px-2.5 py-1 rounded-full">
-              {BADGES.filter((b) => b.unlocked).length} / {BADGES.length}
-            </span>
-          </div>
-          <TooltipProvider>
-            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
-              {BADGES.map((b) => (
-                <Tooltip key={b.id}>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      title={`${b.label}: ${b.desc}`}
-                      className={`w-full flex flex-col items-center gap-1 p-2.5 rounded-xl border transition-all cursor-help ${b.unlocked ? "border-amber-100 bg-gradient-to-br from-amber-50 to-orange-50" : "border-stone-100 bg-stone-50 opacity-40 grayscale"
-                        }`}
-                    >
-                      <span className="text-xl leading-none">{b.emoji}</span>
-                      <span className="text-[10px] font-semibold text-stone-600 text-center leading-tight" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
-                        {b.label}
-                      </span>
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-[220px] bg-stone-900 text-stone-100 border-stone-800">
-                    <p className="text-xs font-semibold" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>{b.label}</p>
-                    <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-orange-300">How to earn</p>
-                    <p className="text-[11px] text-stone-300 mt-1">{b.desc}</p>
-                    <p className="text-[11px] text-orange-300 mt-1.5">
-                      {b.unlocked ? "Unlocked" : `Progress: ${Math.min(b.current, b.target)} / ${b.target}`}
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              ))}
-            </div>
-          </TooltipProvider>
-        </section>
       </div>
 
       <Dialog open={avatarDialogOpen} onOpenChange={handleAvatarDialogOpenChange}>

@@ -147,6 +147,13 @@ function stripInstructionPrefix(step: string) {
     .trim();
 }
 
+interface MissingIngredientSelection {
+  id: string;
+  name: string;
+  quantity: string;
+  selected: boolean;
+}
+
 function buildRecipeShareText(recipe: Recipe, portionFactor: number) {
   const details = [recipe.cook_time, recipe.difficulty, recipe.cuisine, recipe.servings ? `Serves ${recipe.servings}` : null]
     .filter(Boolean)
@@ -191,6 +198,8 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
   const [portionFactor, setPortionFactor] = useState(1);
   const [tweakOpen, setTweakOpen] = useState(false);
   const [addedToGrocery, setAddedToGrocery] = useState(false);
+  const [missingIngredientsOpen, setMissingIngredientsOpen] = useState(false);
+  const [missingIngredientSelections, setMissingIngredientSelections] = useState<MissingIngredientSelection[]>([]);
   const [importedView, setImportedView] = useState<'web' | 'app'>('app');
   const [expanded, setExpanded] = useState(false);
   const [embedUnavailable, setEmbedUnavailable] = useState(false);
@@ -275,6 +284,26 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
   useEffect(() => {
     setAddedToGrocery(false);
   }, [recipe?.id, open]);
+
+  useEffect(() => {
+    if (!recipe || !open) {
+      setMissingIngredientsOpen(false);
+      setMissingIngredientSelections([]);
+      return;
+    }
+
+    setMissingIngredientSelections(
+      displayMatch.missing.map((ingredient, index) => {
+        const parsed = parseIngredientLine(ingredient);
+        return {
+          id: `${recipe.id}-missing-${index}`,
+          name: parsed.name || ingredient,
+          quantity: parsed.quantity || '',
+          selected: true,
+        };
+      }),
+    );
+  }, [displayMatch.missing, open, recipe]);
 
   if (!recipe) return null;
 
@@ -364,8 +393,23 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
 
   const handleAddMissingToGrocery = () => {
     if (!onAddMissingToGrocery || displayMatch.missing.length === 0) return;
-    onAddMissingToGrocery(recipe, displayMatch.missing);
+    setMissingIngredientsOpen(true);
+  };
+
+  const handleSaveMissingIngredients = () => {
+    if (!onAddMissingToGrocery) return;
+    const selectedIngredients = missingIngredientSelections
+      .filter((item) => item.selected && item.name.trim())
+      .map((item) => composeIngredientLine({ name: item.name.trim(), quantity: item.quantity.trim() }));
+
+    if (selectedIngredients.length === 0) {
+      toast.info('Select at least one ingredient to add.');
+      return;
+    }
+
+    onAddMissingToGrocery(recipe, selectedIngredients);
     setAddedToGrocery(true);
+    setMissingIngredientsOpen(false);
   };
 
   const handleShareToKitchen = async () => {
@@ -575,6 +619,17 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
                             </Badge>
                           )}
                         </div>
+                        {showSourceLinkOverImage && (
+                          <a
+                            href={normalizedSourceUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-orange-600 transition-colors hover:text-orange-700"
+                          >
+                            <ExternalLink className="h-3.5 w-3.5" />
+                            {sourceHostname.replace(/^www\./, '')}
+                          </a>
+                        )}
                         {!!recipe.tags?.length && (
                           <div className="mt-2.5 flex flex-wrap gap-1.5">
                             {recipe.tags.slice(0, 4).map((tag) => (
@@ -617,11 +672,11 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
                                 <div
                                   key={ing}
                                   className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 ${hasIngredient
-                                    ? 'border-emerald-200 bg-emerald-50/55'
-                                    : 'border-orange-200 bg-orange-50/45'
+                                    ? 'border-emerald-200 bg-white'
+                                    : 'border-stone-200 bg-white'
                                   }`}
                                 >
-                                  <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${hasIngredient ? 'bg-emerald-100 text-emerald-600' : 'bg-orange-100 text-orange-500'}`}>
+                                  <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${hasIngredient ? 'bg-emerald-100 text-emerald-600' : 'bg-stone-100 text-stone-500'}`}>
                                     {hasIngredient ? <Check className="h-3 w-3" /> : <ShoppingCart className="h-3 w-3" />}
                                   </div>
                                   <div className="min-w-0">
@@ -659,9 +714,6 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
                         <section className="rounded-[1.4rem] border border-orange-100 bg-white p-3.5 shadow-[0_14px_34px_rgba(28,25,23,0.05)] sm:p-4">
                           <div className="mb-3">
                             <p className="text-[10px] font-bold uppercase tracking-widest text-orange-400">Instructions</p>
-                            <h3 className="mt-1 text-lg font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
-                              Cook it step by step
-                            </h3>
                           </div>
                           <ol className="space-y-4">
                             {recipe.instructions.map((step, i) => (
@@ -758,6 +810,67 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
                 </>
               )}
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={missingIngredientsOpen} onOpenChange={setMissingIngredientsOpen}>
+        <DialogContent className="w-[calc(100vw-1rem)] max-w-2xl rounded-[1.5rem] bg-white p-0 overflow-hidden">
+          <DialogHeader className="border-b border-stone-100 px-5 py-4">
+            <DialogTitle>Select Grocery Items</DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[70vh] overflow-y-auto bg-white px-5 py-4">
+            <p className="text-sm text-stone-500">
+              Choose which missing ingredients to add, and adjust quantities before saving them to your grocery cart.
+            </p>
+            <div className="mt-4 divide-y divide-stone-100">
+              {missingIngredientSelections.map((item) => (
+                <div key={item.id} className="py-3">
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setMissingIngredientSelections((current) => current.map((entry) => entry.id === item.id ? { ...entry, selected: !entry.selected } : entry))}
+                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors ${item.selected ? 'border-orange-500 bg-orange-500 text-white' : 'border-stone-300 bg-white text-transparent'}`}
+                      aria-label={item.selected ? 'Deselect ingredient' : 'Select ingredient'}
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                    </button>
+                    <div className="w-28 shrink-0 sm:w-32">
+                      <input
+                        value={item.quantity}
+                        onChange={(e) => setMissingIngredientSelections((current) => current.map((entry) => entry.id === item.id ? { ...entry, quantity: e.target.value } : entry))}
+                        placeholder="Qty"
+                        className="h-10 w-full rounded-lg border-0 bg-stone-50 px-3 text-sm text-stone-900 outline-none transition-colors placeholder:text-stone-400 focus:bg-orange-50 focus:ring-2 focus:ring-orange-100"
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <input
+                        value={item.name}
+                        onChange={(e) => setMissingIngredientSelections((current) => current.map((entry) => entry.id === item.id ? { ...entry, name: e.target.value } : entry))}
+                        placeholder="Ingredient"
+                        className="h-10 w-full rounded-lg border-0 bg-stone-50 px-3 text-sm text-stone-900 outline-none transition-colors placeholder:text-stone-400 focus:bg-orange-50 focus:ring-2 focus:ring-orange-100"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="border-t border-stone-100 px-5 py-4 flex gap-2">
+            <button
+              type="button"
+              onClick={() => setMissingIngredientsOpen(false)}
+              className="flex-1 rounded-xl border border-stone-200 px-4 py-2.5 text-sm font-semibold text-stone-700 transition-colors hover:border-orange-300 hover:text-orange-600"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveMissingIngredients}
+              className="flex-1 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orange-600"
+            >
+              Save to Cart
+            </button>
           </div>
         </DialogContent>
       </Dialog>
