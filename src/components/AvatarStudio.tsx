@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Camera, RotateCcw, Sparkles, Wand2 } from 'lucide-react';
+import { Camera, Sparkles, Wand2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   buildMunchAvatarUrl,
@@ -16,7 +16,6 @@ interface AvatarStudioProps {
   previewOverrideUrl?: string | null;
   onUploadClick?: () => void;
   uploading?: boolean;
-  onClearUpload?: () => void;
   action?: React.ReactNode;
   className?: string;
 }
@@ -161,7 +160,6 @@ export function AvatarStudio({
   previewOverrideUrl,
   onUploadClick,
   uploading,
-  onClearUpload,
   action,
   className,
 }: AvatarStudioProps) {
@@ -248,17 +246,6 @@ export function AvatarStudio({
             >
               <Camera className="h-4 w-4" />
               {uploading ? 'Uploading...' : previewOverrideUrl ? 'Replace photo' : 'Upload a photo'}
-            </button>
-          ) : null}
-
-          {previewOverrideUrl && onClearUpload ? (
-            <button
-              type="button"
-              onClick={onClearUpload}
-              className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl border border-stone-200 bg-white px-4 py-2.5 text-sm font-semibold text-stone-600 transition-colors hover:border-orange-300 hover:text-orange-600"
-            >
-              <RotateCcw className="h-4 w-4" />
-              Return to avatar builder
             </button>
           ) : null}
 

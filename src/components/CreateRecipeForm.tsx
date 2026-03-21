@@ -12,9 +12,12 @@ import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { useStore } from '@/lib/store';
 import { getGeneratedRecipeCoverDataUri, isGeneratedRecipeCoverDataUri } from '@/lib/recipeCover';
+import type { Recipe } from '@/data/recipes';
 
 interface Props {
   onClose: () => void;
+  initialRecipe?: Recipe | null;
+  mode?: 'create' | 'edit-local';
 }
 
 const QUANTITY_HINTS: { keywords: string[]; defaultValue: string; options: string[] }[] = [
@@ -164,7 +167,7 @@ function looksLikeInstruction(s: string): boolean {
   return false;
 }
 
-export default function CreateRecipeForm({ onClose }: Props) {
+export default function CreateRecipeForm({ onClose, initialRecipe = null, mode = 'create' }: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
@@ -173,24 +176,25 @@ export default function CreateRecipeForm({ onClose }: Props) {
   const photoInputRef = useRef<HTMLInputElement>(null);
   const [showPaste, setShowPaste] = useState(false);
   const [pasteText, setPasteText] = useState('');
+  const isEditingLocal = mode === 'edit-local' && Boolean(initialRecipe);
 
-  const [name, setName] = useState('');
-  const [image, setImage] = useState('');
-  const [cookTime, setCookTime] = useState('');
-  const [difficulty, setDifficulty] = useState('Beginner');
-  const [cuisine, setCuisine] = useState('');
-  const [chef, setChef] = useState('');
-  const [isOriginalRecipe, setIsOriginalRecipe] = useState(true);
-  const [servings, setServings] = useState('4');
+  const [name, setName] = useState(initialRecipe?.name || '');
+  const [image, setImage] = useState(initialRecipe?.image || '');
+  const [cookTime, setCookTime] = useState(initialRecipe?.cook_time || '');
+  const [difficulty, setDifficulty] = useState(initialRecipe?.difficulty || 'Beginner');
+  const [cuisine, setCuisine] = useState(initialRecipe?.cuisine || '');
+  const [chef, setChef] = useState(initialRecipe?.chef || '');
+  const [isOriginalRecipe, setIsOriginalRecipe] = useState(Boolean(initialRecipe?.chef));
+  const [servings, setServings] = useState(String(initialRecipe?.servings || 4));
   const [ingredientInput, setIngredientInput] = useState('');
   const [ingredientQuantity, setIngredientQuantity] = useState('1 unit');
-  const [ingredients, setIngredients] = useState<string[]>([]);
+  const [ingredients, setIngredients] = useState<string[]>(initialRecipe?.ingredients || []);
   const [instructionInput, setInstructionInput] = useState('');
-  const [instructions, setInstructions] = useState<string[]>([]);
+  const [instructions, setInstructions] = useState<string[]>(initialRecipe?.instructions || []);
   const [tagInput, setTagInput] = useState('');
-  const [tags, setTags] = useState<string[]>([]);
+  const [tags, setTags] = useState<string[]>(initialRecipe?.tags || []);
   const { likeRecipe, shareCustomRecipesByDefault } = useStore();
-  const [isPublic, setIsPublic] = useState(shareCustomRecipesByDefault);
+  const [isPublic, setIsPublic] = useState(initialRecipe?.is_public ?? shareCustomRecipesByDefault);
   const [chefUsername, setChefUsername] = useState<string | null>(null);
   const generatedCover = useMemo(
     () => getGeneratedRecipeCoverDataUri({ name: name.trim() || 'Untitled Recipe', cuisine, tags }),
@@ -341,6 +345,30 @@ export default function CreateRecipeForm({ onClose }: Props) {
       return;
     }
 
+    const stepList = instructions.map((s) => s.trim()).filter(Boolean);
+    const finalImage = image || generatedCover;
+
+    if (isEditingLocal && initialRecipe) {
+      likeRecipe(initialRecipe.id, {
+        ...initialRecipe,
+        name: name.trim(),
+        image: finalImage,
+        cook_time: cookTime.trim() || '30 min',
+        difficulty,
+        cuisine: cuisine.trim() || null,
+        chef: isOriginalRecipe ? (chef.trim() || null) : null,
+        ingredients,
+        tags,
+        instructions: stepList,
+        servings: parseInt(servings) || 4,
+        is_public: initialRecipe.is_public,
+      });
+
+      toast({ title: 'Local recipe updated' });
+      onClose();
+      return;
+    }
+
     let userId = (await supabase.auth.getSession()).data.session?.user?.id;
 
     // If local session isn't ready, attempt a single refresh
@@ -361,9 +389,6 @@ export default function CreateRecipeForm({ onClose }: Props) {
 
     setLoading(true);
     try {
-      const stepList = instructions.map((s) => s.trim()).filter(Boolean);
-      const finalImage = image || generatedCover;
-
       const { data: profile } = await supabase
         .from('profiles')
         .select('display_name, username')
@@ -698,10 +723,10 @@ export default function CreateRecipeForm({ onClose }: Props) {
                   onCheckedChange={(checked) => setIsOriginalRecipe(checked === true)}
                   className="mt-0.5"
                 />
-                <div className="space-y-0.5">
-                  <label htmlFor="is-original-recipe" className="text-sm font-medium text-foreground cursor-pointer">
+            <div className="space-y-0.5">
+              <label htmlFor="is-original-recipe" className="text-sm font-medium text-foreground cursor-pointer">
                     This is my original recipe
-                  </label>
+              </label>
                   <p className="text-xs text-muted-foreground">
                     Show your chef name on the recipe and let people discover other recipes you created.
                   </p>
@@ -745,7 +770,7 @@ export default function CreateRecipeForm({ onClose }: Props) {
       <div className="flex gap-2 pt-2">
         <Button onClick={handleSubmit} disabled={loading} className="flex-1">
           {loading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
-          Create Recipe
+          {isEditingLocal ? 'Save Local Changes' : 'Create Recipe'}
         </Button>
         <Button variant="outline" onClick={onClose}>Cancel</Button>
       </div>
