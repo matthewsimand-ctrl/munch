@@ -50,6 +50,7 @@ const SLOT_BY_LABEL: Record<string, MealPlanSlot> = {
 
 export function useCurrentMealPlan() {
   const localMealPlan = useStore((state) => state.mealPlan);
+  const activeKitchenId = useStore((state) => state.activeKitchenId);
   const [meal, setMeal] = useState<PlannedMeal | null>(null);
   const [nextMeal, setNextMeal] = useState<PlannedMeal | null>(null);
   const [loading, setLoading] = useState(true);
@@ -77,7 +78,36 @@ export function useCurrentMealPlan() {
 
       let allItems = localItems;
 
-      if (allItems.length === 0) {
+      if (activeKitchenId) {
+        const { data: kitchenPlan } = await supabase
+          .from('kitchen_meal_plans')
+          .select('id')
+          .eq('kitchen_id', activeKitchenId)
+          .eq('week_start', weekStart)
+          .maybeSingle();
+
+        if (kitchenPlan?.id) {
+          const { data: kitchenItems } = await supabase
+            .from('kitchen_meal_plan_items')
+            .select('id, day_of_week, meal_type, recipe_id, recipe_data')
+            .eq('meal_plan_id', kitchenPlan.id)
+            .order('day_of_week')
+            .order('sort_order');
+
+          allItems = (kitchenItems || []).map((item: any) => {
+            const snapshot = item.recipe_data || {};
+            return {
+              id: String(item.id),
+              recipe_id: String(snapshot.externalRecipeId || item.recipe_id || snapshot.id || item.id),
+              recipe_name: String(snapshot.recipeName || snapshot.name || 'Planned meal'),
+              recipe_image: String(snapshot.recipeSnapshot?.image || snapshot.image || '/placeholder.svg'),
+              recipe_data: snapshot.recipeSnapshot || snapshot || null,
+              day_of_week: item.day_of_week,
+              meal_type: item.meal_type as MealPlanSlot,
+            };
+          });
+        }
+      } else if (allItems.length === 0) {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
           const { data: plan } = await supabase
@@ -105,19 +135,18 @@ export function useCurrentMealPlan() {
         return slotIndex(a.meal_type) - slotIndex(b.meal_type);
       });
 
-      const current = sortedItems.find((item) => item.day_of_week === dayOfWeek && item.meal_type === mealType) || null;
-      setMeal(current);
-
       const currentKey = dayOfWeek * 10 + slotIndex(mealType);
-      const next =
-        sortedItems.find((item) => item.day_of_week * 10 + slotIndex(item.meal_type) > currentKey) ||
-        null;
+      const current = sortedItems.find((item) => item.day_of_week === dayOfWeek && item.meal_type === mealType) || null;
+      const futureItems = sortedItems.filter((item) => item.day_of_week * 10 + slotIndex(item.meal_type) > currentKey);
+      const next = current || futureItems[0] || sortedItems[0] || null;
+
+      setMeal(current || next);
       setNextMeal(next);
       setLoading(false);
     };
 
     load();
-  }, [localMealPlan]);
+  }, [activeKitchenId, localMealPlan]);
 
   return { meal, nextMeal, loading };
 }
