@@ -476,7 +476,7 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
           className="absolute inset-0 opacity-20"
           style={{ backgroundImage: "radial-gradient(circle, #FDA97440 1px, transparent 1px)", backgroundSize: "20px 20px" }}
         />
-        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 py-5 sm:py-6">
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-5 sm:py-6">
           <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1">Your kitchen</p>
@@ -671,7 +671,7 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
         </DialogContent>
       </Dialog>
 
-      <div className={`max-w-4xl mx-auto px-4 sm:px-6 ${embedded ? "pt-3" : "py-4 sm:py-5"} space-y-5 pb-6 sm:pb-8`}>
+      <div className={`max-w-6xl mx-auto px-4 sm:px-6 ${embedded ? "pt-3" : "py-4 sm:py-5"} space-y-5 pb-6 sm:pb-8`}>
 
         {/* Add form */}
         {!embedded && (
@@ -748,11 +748,11 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
             <select
               value={sortMode}
               onChange={(e) => setSortMode(e.target.value as "recent" | "category")}
-              className="appearance-none w-full pl-3 pr-8 py-3 rounded-xl border text-base font-medium text-stone-600 outline-none cursor-pointer"
+              className="appearance-none w-full pl-3 pr-8 py-2.5 rounded-xl border text-xs font-semibold text-stone-600 outline-none cursor-pointer"
               style={{ background: "#fff", borderColor: "rgba(0,0,0,0.09)" }}
             >
-              <option value="recent">Sort: Recent</option>
-              <option value="category">Sort: Category</option>
+              <option value="recent">Recent</option>
+              <option value="category">Category</option>
             </select>
             <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
           </div>

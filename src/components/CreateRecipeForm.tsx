@@ -11,7 +11,8 @@ import { Plus, X, Loader2, Camera, ClipboardPaste, Globe, Upload, Sparkles } fro
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { useStore } from '@/lib/store';
-import { getGeneratedRecipeCoverDataUri, isGeneratedRecipeCoverDataUri } from '@/lib/recipeCover';
+import { getGeneratedRecipeCoverDataUri } from '@/lib/recipeCover';
+import { composeIngredientLine, parseIngredientLine } from '@/lib/ingredientText';
 import type { Recipe } from '@/data/recipes';
 
 interface Props {
@@ -200,8 +201,6 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
     () => getGeneratedRecipeCoverDataUri({ name: name.trim() || 'Untitled Recipe', cuisine, tags }),
     [cuisine, name, tags],
   );
-  const photoFieldValue = image && !isGeneratedRecipeCoverDataUri(image) ? image : '';
-  const previewImage = image || generatedCover;
 
   useEffect(() => {
     let active = true;
@@ -295,9 +294,10 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
   };
 
   const addIngredient = () => {
-    const val = ingredientInput.trim();
-    if (!val) return;
-    const formatted = `${val} (${ingredientQuantity})`;
+    const name = ingredientInput.trim();
+    const quantity = ingredientQuantity.trim();
+    if (!name) return;
+    const formatted = composeIngredientLine({ name, quantity });
     if (!ingredients.includes(formatted)) {
       setIngredients(prev => [...prev, formatted]);
       setIngredientInput('');
@@ -319,6 +319,19 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
 
   const updateIngredient = (index: number, value: string) => {
     setIngredients((prev) => prev.map((ingredient, i) => (i === index ? value : ingredient)));
+  };
+
+  const updateIngredientPart = (index: number, field: 'name' | 'quantity', value: string) => {
+    setIngredients((prev) =>
+      prev.map((ingredient, i) => {
+        if (i !== index) return ingredient;
+        const parsed = parseIngredientLine(ingredient);
+        return composeIngredientLine({
+          ...parsed,
+          [field]: value,
+        });
+      }),
+    );
   };
 
   const updateInstruction = (index: number, value: string) => {
@@ -511,8 +524,7 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
 
             <div>
               <label className="text-sm font-medium text-foreground">Photo</label>
-              <div className="flex gap-2 mt-1">
-                <Input value={photoFieldValue} onChange={e => setImage(e.target.value)} placeholder="Image URL (optional)" className="flex-1" />
+              <div className="mt-1 flex gap-2">
                 <input
                   ref={photoInputRef}
                   type="file"
@@ -526,9 +538,11 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
                   size="sm"
                   onClick={() => photoInputRef.current?.click()}
                   disabled={uploadingPhoto}
-                  title="Upload photo"
+                  title="Upload file"
+                  className="gap-1.5"
                 >
                   {uploadingPhoto ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                  <span className="hidden sm:inline">Upload File</span>
                 </Button>
                 <Button
                   type="button"
@@ -536,14 +550,16 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
                   size="sm"
                   onClick={generateCover}
                   disabled={fetchingPhoto}
-                  title="Generate cover"
+                  title="Generate random cover"
                   className="gap-1.5"
                 >
                   {fetchingPhoto ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
-                  <span className="hidden sm:inline">Generate Cover</span>
+                  <span className="hidden sm:inline">Generate Random Cover</span>
                 </Button>
               </div>
-              <img src={previewImage} alt="Preview" className="mt-2 h-24 w-full object-cover rounded-lg" />
+              <p className="mt-2 text-xs text-muted-foreground">
+                Generated covers already use keywords from the recipe name, cuisine, and tags to choose a matching visual style.
+              </p>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -623,9 +639,15 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
                 {ingredients.map((ingredient, index) => (
                   <div key={`${ingredient}-${index}`} className="flex items-center gap-2 group">
                     <Input
-                      value={ingredient}
-                      onChange={(e) => updateIngredient(index, e.target.value)}
-                      className="h-9 bg-white border-transparent hover:border-border focus:border-orange-300 focus:bg-white transition-all transition-colors px-3 py-1 text-sm shadow-sm"
+                      value={parseIngredientLine(ingredient).quantity}
+                      onChange={(e) => updateIngredientPart(index, 'quantity', e.target.value)}
+                      placeholder="Qty"
+                      className="h-9 w-28 shrink-0 bg-white border-transparent hover:border-border focus:border-orange-300 focus:bg-white transition-all transition-colors px-3 py-1 text-sm shadow-sm"
+                    />
+                    <Input
+                      value={parseIngredientLine(ingredient).name}
+                      onChange={(e) => updateIngredientPart(index, 'name', e.target.value)}
+                      className="h-9 flex-1 bg-white border-transparent hover:border-border focus:border-orange-300 focus:bg-white transition-all transition-colors px-3 py-1 text-sm shadow-sm"
                     />
                     <button
                       type="button"
@@ -776,7 +798,7 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
       <div className="flex gap-2 pt-2">
         <Button onClick={handleSubmit} disabled={loading} className="flex-1">
           {loading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
-          {isEditingLocal ? 'Save Local Changes' : 'Create Recipe'}
+          {isEditingLocal ? 'Save Changes' : 'Create Recipe'}
         </Button>
         <Button variant="outline" onClick={onClose}>Cancel</Button>
       </div>

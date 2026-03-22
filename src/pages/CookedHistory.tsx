@@ -125,7 +125,7 @@ export default function CookedHistory() {
                   }
                   setShowSavings((prev) => !prev);
                 }}
-                className="shrink-0 inline-flex items-center justify-center gap-1.5 rounded-xl border border-violet-100 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-100"
+                className="shrink-0 inline-flex items-center justify-center gap-1.5 rounded-xl border border-violet-100 bg-violet-50/60 px-3 py-2 text-xs font-semibold text-violet-600 hover:bg-violet-100/70"
               >
                 <Sparkles size={13} /> Estimated savings {!isPremium && <><Lock size={12} /> Premium</>}
               </button>
@@ -253,7 +253,7 @@ export default function CookedHistory() {
                         <button
                           onClick={() => handleEstimateSavings(meal.id)}
                           disabled={estimatingMealId === meal.id || !isPremium}
-                          className="text-[11px] font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 px-2.5 py-1.5 rounded-full disabled:opacity-60 inline-flex items-center gap-1"
+                          className="text-[11px] font-semibold text-violet-600 bg-violet-50/70 hover:bg-violet-100/70 px-2.5 py-1.5 rounded-full disabled:opacity-60 inline-flex items-center gap-1"
                         >
                           {isPremium ? <Sparkles size={12} /> : <Lock size={12} />} {estimatingMealId === meal.id ? "Estimating..." : isPremium ? "Estimate savings" : "Premium"}
                         </button>

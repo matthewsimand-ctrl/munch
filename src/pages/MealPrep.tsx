@@ -748,9 +748,9 @@ export default function MealPrepScreen() {
             <div className="flex flex-wrap items-center gap-3 mb-5">
               <div
                 className="inline-flex h-12 w-12 items-center justify-center rounded-2xl"
-                style={{ background: "linear-gradient(135deg,#7C3AED,#9333EA)", boxShadow: "0 10px 24px rgba(124,58,237,0.28)" }}
+                style={{ background: "linear-gradient(135deg,#FFF7ED,#FFEDD5)", boxShadow: "0 10px 24px rgba(249,115,22,0.12)" }}
               >
-                <Calendar size={22} className="text-white" />
+                <Calendar size={22} className="text-orange-500" />
               </div>
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-orange-500">Members Only</p>
@@ -802,9 +802,9 @@ export default function MealPrepScreen() {
         className="border-b"
         style={{ background: "linear-gradient(135deg,#FFF7ED 0%,#FFFAF5 100%)", borderColor: "rgba(249,115,22,0.12)" }}
       >
-        <div className="mx-auto max-w-[1440px] px-4 py-4 pr-16 sm:px-6 sm:py-6 sm:pr-20 md:pr-24">
+        <div className="mx-auto max-w-6xl px-4 py-4 pr-16 sm:px-6 sm:py-6 sm:pr-20 md:pr-24">
           <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div>
+            <div className="min-w-0">
               <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1">Planning</p>
               <h1 className="text-xl font-bold text-stone-900 sm:text-2xl" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
                 Meal Planner

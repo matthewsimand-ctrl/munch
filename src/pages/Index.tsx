@@ -45,9 +45,9 @@ const FEATURE_CARDS = [
 
 const DETAIL_ITEMS = [
   { icon: Package, label: "Pantry tracking", text: "Keep tabs on what is in stock, import receipts or grocery lists, and match recipes to ingredients you already own." },
-  { icon: ShoppingCart, label: "Smart grocery list", text: "Generate lists from recipes and plans, estimate totals, and export a clean checklist for Notes." },
+  { icon: ShoppingCart, label: "Smart grocery list", text: "Generate lists from recipes and plans, and export a clean checklist for Notes." },
   { icon: BookOpen, label: "Recipe library", text: "Save favorites, organize cookbooks, and bring in recipes from URLs without messy ad-heavy pages." },
-  { icon: Sparkles, label: "Premium intelligence", text: "Unlock savings estimates, nutrition insights, and deeper AI assistance across the cooking experience." },
+  { icon: Sparkles, label: "Premium intelligence", text: "Unlock nutrition insights and deeper AI assistance across the cooking experience." },
 ];
 
 const PRICING = [
@@ -67,7 +67,7 @@ const PRICING = [
     subtitle: "For cooks who want smarter insights",
     points: [
       "Nutrition facts across recipes and meals",
-      "AI savings estimates and premium helpers",
+      "Premium helpers for imports and planning",
       "Enhanced import and planning experiences",
     ],
     featured: true,

@@ -1,12 +1,10 @@
 import { useState, useMemo, useEffect } from "react";
 import {
   ShoppingCart, Plus, X, Check, FileText, Trash2,
-  Search, ChevronDown, Sparkles, MapPin, Minus, Upload, Pencil,
+  Search, ChevronDown, Minus, Upload, Pencil,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { getAiDisabledMessage, isAiAgentCallsDisabledError } from "@/lib/ai";
 import { useStore } from "@/lib/store";
-import { invokeAppFunction } from "@/lib/functionClient";
 import { toast } from "sonner";
 import { detectCategories } from "@/lib/categorizeItem";
 import { adjustQuantityString, canDecreaseQuantity, parseIngredientLine, suggestQuantityForItem } from "@/lib/ingredientText";
@@ -14,9 +12,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { getPantryImage } from "@/lib/pantryImages";
 import { useKitchenGroceryList } from "@/hooks/useKitchenGroceryList";
 import MobileActionButton from "@/components/MobileActionButton";
-import { usePremiumAccess } from "@/hooks/usePremiumAccess";
-import { usePremiumGate } from "@/hooks/usePremiumGate";
-import PremiumFeatureButton from "@/components/PremiumFeatureButton";
 
 const STORE_SECTIONS: Record<string, string> = {
   produce: "🥦 Produce",
@@ -281,20 +276,16 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
   } = useStore();
   const kitchenGrocery = useKitchenGroceryList(activeKitchenId);
   const isKitchenMode = Boolean(activeKitchenId);
-  const { isPremium } = usePremiumAccess();
-  const { openPremiumPage } = usePremiumGate();
 
   const [newItem, setNewItem] = useState("");
   const [newQty, setNewQty] = useState("");
   const [newSection, setNewSection] = useState("other");
   const [search, setSearch] = useState("");
   const [showChecked, setShowChecked] = useState(true);
-  const [estimating, setEstimating] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [clearAllConfirmOpen, setClearAllConfirmOpen] = useState(false);
   const [importText, setImportText] = useState("");
-  const [priceEstimate, setPriceEstimate] = useState<{ total: number; low: number; high: number; nearbyStores: string[]; currency: string; location: string; notes?: string } | null>(null);
 
 
   const localItems: GroceryItem[] = (customGroceryItems ?? []).map((item, idx) => {
@@ -481,46 +472,6 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
     toast.success("Cleared grocery list");
   };
 
-  const handleEstimatePrice = async () => {
-    if (!isPremium) {
-      openPremiumPage("AI grocery price estimates");
-      return;
-    }
-
-    const activeItems = items.filter((item) => !item.checked);
-    if (!activeItems.length) {
-      toast.info("Add a few grocery items first.");
-      return;
-    }
-
-    setEstimating(true);
-    try {
-      const { data, error } = await invokeAppFunction("estimate-grocery-price", {
-        body: {
-          items: activeItems.map((item) => ({ name: item.name, qty: item.qty })),
-          location: userProfile.groceryLocation,
-          currency: userProfile.groceryCurrency,
-        },
-      });
-
-      if (error) throw new Error(error.message || "Could not estimate prices");
-      if (!data?.success || !data?.estimate) throw new Error(data?.error || "Could not estimate prices");
-
-      setPriceEstimate(data.estimate);
-      toast.success("Estimated grocery total ready");
-    } catch (error) {
-      if (isAiAgentCallsDisabledError(error)) {
-        toast.info(getAiDisabledMessage("AI grocery price estimates"));
-        return;
-      }
-
-      const message = error instanceof Error ? error.message : "Could not estimate prices right now";
-      toast.error(message);
-    } finally {
-      setEstimating(false);
-    }
-  };
-
   return (
     <div className="min-h-full overflow-x-hidden" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", background: "#FFFAF5" }}>
 
@@ -529,7 +480,7 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
         className={`${embedded ? "hidden sm:block" : ""} border-b`}
         style={{ background: "linear-gradient(135deg,#FFF7ED 0%,#FFFAF5 100%)", borderColor: "rgba(249,115,22,0.12)" }}
       >
-        <div className="max-w-3xl mx-auto px-4 py-4 sm:px-6 sm:py-6">
+        <div className="max-w-6xl mx-auto px-4 py-4 sm:px-6 sm:py-6">
           <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1">Shopping</p>
@@ -546,23 +497,6 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
               )}
             </div>
             <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-              {totalCount > 0 && (
-                isPremium ? (
-                  <button
-                    onClick={handleEstimatePrice}
-                    className="flex items-center gap-1.5 rounded-xl bg-white border border-stone-200 px-3 py-1.5 text-[10px] font-semibold text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors sm:text-[11px]"
-                    disabled={estimating}
-                  >
-                    <Sparkles size={13} /> {estimating ? "Estimating..." : "AI estimate"}
-                  </button>
-                ) : (
-                  <PremiumFeatureButton
-                    label="Unlock AI Estimate"
-                    onClick={() => openPremiumPage("AI grocery price estimates")}
-                    className="h-8 w-auto px-3 text-[10px] sm:h-9 sm:text-[11px]"
-                  />
-                )
-              )}
               {checkedCount > 0 && (
                 <button
                   onClick={handleClearChecked}
@@ -577,14 +511,6 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
               >
                 <Upload size={13} /> Import note
               </button>
-              {totalCount > 0 && (
-                <button
-                  onClick={() => setClearAllConfirmOpen(true)}
-                  className="flex items-center gap-1.5 rounded-xl bg-white border border-stone-200 px-3 py-1.5 text-[10px] font-semibold text-stone-500 hover:border-red-300 hover:text-red-500 transition-colors sm:text-[11px]"
-                >
-                  <Trash2 size={13} /> Clear all
-                </button>
-              )}
               <button
                 onClick={handleExport}
                 className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-[11px] font-bold text-white transition-all hover:opacity-90 active:scale-95"
@@ -614,7 +540,7 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
         </div>
       </div>
 
-      <div className={`max-w-3xl mx-auto ${embedded ? "px-4 pt-3" : "px-4 py-4 sm:px-6 sm:py-5"} space-y-5 pb-6 sm:pb-8`}>
+      <div className={`max-w-6xl mx-auto ${embedded ? "px-4 pt-3" : "px-4 py-4 sm:px-6 sm:py-5"} space-y-5 pb-6 sm:pb-8`}>
 
         {/* Add item form */}
         {!embedded && (
@@ -672,23 +598,6 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
           </div>
         )}
 
-        {priceEstimate && (
-          <div
-            className="rounded-2xl border p-4 space-y-2"
-            style={{ background: "#fff", borderColor: "rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(28,25,23,0.04)" }}
-          >
-            <p className="text-xs font-bold text-stone-500 uppercase tracking-wider">AI price estimate</p>
-            <p className="text-2xl font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
-              {new Intl.NumberFormat(undefined, { style: "currency", currency: priceEstimate.currency }).format(priceEstimate.total)}
-            </p>
-            <p className="text-xs text-stone-500">
-              Range {new Intl.NumberFormat(undefined, { style: "currency", currency: priceEstimate.currency }).format(priceEstimate.low)} - {new Intl.NumberFormat(undefined, { style: "currency", currency: priceEstimate.currency }).format(priceEstimate.high)}
-            </p>
-            <p className="text-xs text-stone-500 flex items-center gap-1"><MapPin size={12} /> {priceEstimate.location} · {priceEstimate.nearbyStores.join(", ")}</p>
-            {priceEstimate.notes && <p className="text-[11px] text-stone-400">{priceEstimate.notes}</p>}
-          </div>
-        )}
-
         {/* Search */}
         {items.length > 5 && (
           <div className="relative">
@@ -705,6 +614,17 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
                 <X size={13} />
               </button>
             )}
+          </div>
+        )}
+
+        {items.length > 0 && (
+          <div className="flex justify-end">
+            <button
+              onClick={() => setClearAllConfirmOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3.5 py-2 text-xs font-semibold text-stone-500 transition-colors hover:border-red-300 hover:text-red-500"
+            >
+              <Trash2 size={13} /> Clear all
+            </button>
           </div>
         )}
 

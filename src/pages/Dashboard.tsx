@@ -3,7 +3,7 @@ import {
   Flame, Clock, Heart, ShoppingCart, ChevronRight,
   Calendar, Star, Plus, Check, Users, MapPin, X, RotateCw,
   Trophy, ChefHat, Zap, Award, Camera, Sparkles, TrendingUp, Play, Beef, Wheat, Droplets, Bell, CheckCheck, Clock3,
-  Settings, Lock,
+  Settings, Lock, Link2, PenSquare, Crown,
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -30,6 +30,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { AvatarStudio } from "@/components/AvatarStudio";
 import PremiumFeatureButton from "@/components/PremiumFeatureButton";
 import RecipePreviewDialog from "@/components/RecipePreviewDialog";
+import ImportRecipeDialog from "@/components/ImportRecipeDialog";
+import CreateRecipeForm from "@/components/CreateRecipeForm";
 import { applyRecipeImageFallback, getRecipeImageSrc } from "@/lib/recipeImage";
 import {
   buildMunchAvatarUrl,
@@ -201,9 +203,14 @@ export default function Dashboard() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [avatarDialogOpen, setAvatarDialogOpen] = useState(avatarEditorRequested);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [addRecipeDialogOpen, setAddRecipeDialogOpen] = useState(false);
+  const [showManualRecipeDialog, setShowManualRecipeDialog] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [avatarConfig, setAvatarConfig] = useState<MunchAvatarConfig>(() => createMunchAvatarConfig());
   const [avatarPhotoPreview, setAvatarPhotoPreview] = useState<string | null>(null);
   const [pendingUploadedAvatarUrl, setPendingUploadedAvatarUrl] = useState<string | null>(null);
+  const [importDialogTab, setImportDialogTab] = useState<"url" | "pdf" | "photo" | "website">("url");
+  const [hideImportTabs, setHideImportTabs] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const { isPremium } = usePremiumAccess();
   const { meal: currentPlannedMeal, nextMeal: nextPlannedMeal, loading: currentMealLoading } = useCurrentMealPlan();
@@ -519,6 +526,7 @@ export default function Dashboard() {
   const QUICK_ACTIONS = [
     { label: "Find Recipe", to: "/swipe", emoji: "🔍", color: "from-orange-50 to-amber-50" },
     { label: "Saved", to: "/saved", emoji: "❤️", color: "from-rose-50 to-orange-50" },
+    { label: "Add Recipe", action: "add-recipe", emoji: "➕", color: "from-amber-50 to-orange-50" },
     { label: "Groceries", to: "/groceries", emoji: "🛒", color: "from-sky-50 to-blue-50" },
     { label: "Plan Meals", to: "/meal-prep", emoji: "📅", color: "from-violet-50 to-purple-50", premium: true },
     ...(isMobile ? [{ label: "Settings", to: "/settings", emoji: "⚙️", color: "from-stone-50 to-slate-100" }] : [{ label: "Add to Pantry", to: "/pantry", emoji: "📦", color: "from-emerald-50 to-teal-50" }]),
@@ -1037,34 +1045,47 @@ export default function Dashboard() {
 
             <section
               data-tutorial="dashboard-quick-actions"
-              className="rounded-[1.9rem] border border-orange-100 bg-white p-5 shadow-[0_10px_24px_rgba(28,25,23,0.05)]"
+              className="rounded-[1.9rem] border border-orange-100 bg-white p-4 shadow-[0_10px_24px_rgba(28,25,23,0.05)]"
             >
-              <h3 className="text-2xl font-bold text-stone-900 mb-4" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+              <h3 className="mb-3 text-xl font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
                 Quick Actions
               </h3>
               <div className="grid grid-cols-2 gap-3">
-                {QUICK_ACTIONS.slice(0, 4).map(({ label, to, emoji, premium }) => (
-                  premium ? (
+                {QUICK_ACTIONS.slice(0, 5).map(({ label, to, emoji, premium, action }, index, arr) => {
+                  const isLastOddItem = arr.length % 2 === 1 && index === arr.length - 1;
+                  const sharedClassName = `flex min-h-[108px] flex-col items-center justify-center gap-2 rounded-[1.35rem] bg-orange-50/60 p-3 text-center transition-colors hover:bg-orange-100/70 ${isLastOddItem ? "col-span-2" : ""}`;
+
+                  return premium ? (
                     <button
                       key={label}
                       type="button"
                       onClick={() => handleOpenMealPrep()}
-                      className="flex min-h-[132px] flex-col items-center justify-center gap-3 rounded-[1.5rem] bg-orange-50/60 p-4 text-center transition-colors hover:bg-orange-100/70"
+                      className={sharedClassName}
                     >
-                      <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-2xl shadow-sm">{emoji}</span>
-                      <span className="text-sm font-semibold text-stone-700">{label}</span>
+                      <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-xl shadow-sm">{emoji}</span>
+                      <span className="text-xs font-semibold text-stone-700">{label}</span>
+                    </button>
+                  ) : action === "add-recipe" ? (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => setAddRecipeDialogOpen(true)}
+                      className={sharedClassName}
+                    >
+                      <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-xl shadow-sm">{emoji}</span>
+                      <span className="text-xs font-semibold text-stone-700">{label}</span>
                     </button>
                   ) : (
                     <Link
                       key={label}
                       to={to}
-                      className="flex min-h-[132px] flex-col items-center justify-center gap-3 rounded-[1.5rem] bg-orange-50/60 p-4 text-center transition-colors hover:bg-orange-100/70"
+                      className={sharedClassName}
                     >
-                      <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-2xl shadow-sm">{emoji}</span>
-                      <span className="text-sm font-semibold text-stone-700">{label}</span>
+                      <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-xl shadow-sm">{emoji}</span>
+                      <span className="text-xs font-semibold text-stone-700">{label}</span>
                     </Link>
-                  )
-                ))}
+                  );
+                })}
               </div>
             </section>
           </div>
@@ -1147,6 +1168,76 @@ export default function Dashboard() {
               ))
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={addRecipeDialogOpen} onOpenChange={setAddRecipeDialogOpen}>
+        <DialogContent className="w-[calc(100vw-1rem)] max-w-sm overflow-hidden rounded-[1.75rem] border border-orange-100 bg-[#fffaf5] p-0 shadow-[0_24px_60px_rgba(249,115,22,0.16)]">
+          <DialogHeader className="border-b border-orange-100/80 bg-gradient-to-br from-orange-50 via-white to-orange-50/60 px-5 py-4 text-left">
+            <DialogTitle className="text-left">Add a recipe</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 px-4 py-4">
+            <button
+              type="button"
+              onClick={() => {
+                setAddRecipeDialogOpen(false);
+                setShowManualRecipeDialog(true);
+              }}
+              className="flex w-full items-start gap-3 rounded-2xl border border-orange-100 bg-white px-4 py-3 text-left transition-all hover:border-orange-200 hover:bg-orange-50/60"
+            >
+              <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-500">
+                <PenSquare size={18} />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-stone-800">Manual</span>
+                <span className="mt-1 block text-xs leading-5 text-stone-500">Add your own recipe with ingredients and steps.</span>
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setAddRecipeDialogOpen(false);
+                setImportDialogTab("url");
+                setHideImportTabs(false);
+                setImportDialogOpen(true);
+              }}
+              className="flex w-full items-start gap-3 rounded-2xl border border-orange-100 bg-white px-4 py-3 text-left transition-all hover:border-orange-200 hover:bg-orange-50/60"
+            >
+              <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-500">
+                <Link2 size={18} />
+              </span>
+              <span className="min-w-0">
+                <span className="flex items-center gap-2 text-sm font-semibold text-stone-800">
+                  <span>Import</span>
+                  <span className="inline-flex items-center rounded-full bg-orange-50 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-orange-600">
+                    <Crown size={10} className="mr-1" />
+                    Premium
+                  </span>
+                </span>
+                <span className="mt-1 block text-xs leading-5 text-stone-500">Import from URL, file, or photo.</span>
+              </span>
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <ImportRecipeDialog
+        open={importDialogOpen}
+        onOpenChange={(open) => {
+          setImportDialogOpen(open);
+          if (!open) setHideImportTabs(false);
+        }}
+        initialTab={importDialogTab}
+        hideTabSelector={hideImportTabs}
+      />
+
+      <Dialog open={showManualRecipeDialog} onOpenChange={setShowManualRecipeDialog}>
+        <DialogContent className="w-[calc(100vw-1rem)] max-w-2xl max-h-[calc(100dvh-1rem)] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add Manual Recipe</DialogTitle>
+          </DialogHeader>
+          <CreateRecipeForm onClose={() => setShowManualRecipeDialog(false)} />
         </DialogContent>
       </Dialog>
 

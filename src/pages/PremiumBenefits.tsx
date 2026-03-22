@@ -8,7 +8,7 @@ const MEMBER_BENEFITS = [
   "Discovery swiping with richer premium recipe discovery",
   "Nutritional Facts across your recipes",
   "Recipe remixing, Fridge Cleanup, and AI planning tools",
-  "Premium cooking insights and savings estimates",
+  "Premium cooking insights and smarter planning tools",
 ];
 
 const MEMBERSHIP_BASE_PRICE_USD = 7.99;
@@ -34,7 +34,6 @@ const PLAN_FEATURES = [
   { label: "Nutritional Facts", free: false, member: true },
   { label: "Recipe remix and AI tweaks", free: false, member: true },
   { label: "Fridge Cleanup and smart pantry tools", free: false, member: true },
-  { label: "AI savings estimates", free: false, member: true },
   { label: "Surprise Me AI autofill", free: false, member: true },
 ];
 
@@ -95,6 +94,11 @@ export default function PremiumBenefits() {
 
   useEffect(() => {
     window.scrollTo(0, 0);
+    document.querySelector('.app-page')?.scrollIntoView({ block: 'start' });
+    const scrollContainer = document.querySelector('[data-app-scroll]') as HTMLElement | null;
+    if (scrollContainer) {
+      scrollContainer.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+    }
   }, []);
 
   return (
@@ -253,7 +257,7 @@ export default function PremiumBenefits() {
 
             <div className="rounded-[1.5rem] border border-stone-200 bg-white px-5 py-5">
               <div className="flex items-start gap-3">
-                <div className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-100 text-violet-600">
+                <div className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-50 text-violet-500">
                   <Star className="h-4 w-4" />
                 </div>
                 <div>

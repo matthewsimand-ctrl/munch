@@ -253,7 +253,7 @@ export default function KitchensPage() {
             <div className="flex flex-wrap items-center gap-3 mb-5">
               <div
                 className="inline-flex h-12 w-12 items-center justify-center rounded-2xl"
-                style={{ background: "linear-gradient(135deg,#7C3AED,#9333EA)", boxShadow: "0 10px 24px rgba(124,58,237,0.28)" }}
+                style={{ background: "linear-gradient(135deg,#8B7BE8,#A592EF)", boxShadow: "0 10px 24px rgba(139,123,232,0.22)" }}
               >
                 <Users size={22} className="text-white" />
               </div>

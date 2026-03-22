@@ -1204,7 +1204,7 @@ export default function ImportRecipeDialog({
                 />
               </div>
 
-              <div className="rounded-lg border border-violet-200/70 bg-violet-50/60 p-3 text-sm text-violet-900 dark:border-violet-800 dark:bg-violet-950/20 dark:text-violet-200">
+              <div className="rounded-lg border border-violet-100 bg-violet-50/40 p-3 text-sm text-violet-700 dark:border-violet-800 dark:bg-violet-950/20 dark:text-violet-200">
                 Imported recipes can be edited before saving. Use <span className="font-medium">Review &amp; Edit</span> to adjust ingredients, steps, or details.
               </div>
 

@@ -206,7 +206,7 @@ export default function AppLayout() {
             </button>
           </div>
         ) : null}
-        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pt-[max(0.25rem,calc(env(safe-area-inset-top)-1rem))] pb-[calc(var(--mobile-nav-offset)+0.1rem)] md:pt-0 md:pb-0">
+        <div data-app-scroll className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pt-[max(0.25rem,calc(env(safe-area-inset-top)-1rem))] pb-[calc(var(--mobile-nav-offset)+0.1rem)] md:pt-0 md:pb-0">
           <div className="app-page">
             <Outlet />
           </div>
