@@ -25,6 +25,12 @@ const DAY_TO_INDEX: Record<string, number> = {
 const INDEX_TO_DAY = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+function toMealTypeLabel(value: string) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return 'Dinner';
+  return `${normalized.charAt(0).toUpperCase()}${normalized.slice(1)}`;
+}
+
 export function useKitchenMealPlan(activeKitchenId: string | null, weekStart: string) {
   const [mealPlanId, setMealPlanId] = useState<string | null>(null);
   const [items, setItems] = useState<KitchenMealPlanItem[]>([]);
@@ -87,7 +93,7 @@ export function useKitchenMealPlan(activeKitchenId: string | null, weekStart: st
           id: String(item.id),
           weekStart,
           day: INDEX_TO_DAY[item.day_of_week] || 'Mon',
-          mealType: String(item.meal_type || 'Dinner'),
+          mealType: toMealTypeLabel(String(item.meal_type || 'Dinner')),
           recipeName: String(snapshot.recipeName || snapshot.name || 'Planned meal'),
           recipeId: String(snapshot.externalRecipeId || item.recipe_id || snapshot.id || item.id),
           cookTime: snapshot.cookTime || snapshot.cook_time || undefined,

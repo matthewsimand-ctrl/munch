@@ -11,7 +11,6 @@ import {
   ChevronLeft,
   ChevronRight,
   BookMarked,
-  CookingPot,
   Crown,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,7 +23,6 @@ const NAV_ITEMS = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/swipe", icon: BookOpen, label: "Find Recipes" },
   { to: "/saved", icon: Heart, label: "My Recipes" },
-  { to: "/let-me-cook", icon: CookingPot, label: "Let me Cook" },
   { to: "/pantry", icon: Package, label: "Pantry" },
   { to: "/grocery", icon: ShoppingCart, label: "Grocery List" },
   { to: "/meal-prep", icon: CalendarDays, label: "Meal Prep", premium: true },

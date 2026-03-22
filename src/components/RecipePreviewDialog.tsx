@@ -45,26 +45,13 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3
  * These are blocked statically so we never attempt to embed them — no broken flash.
  * Keep in sync with IFRAME_BLOCKED_DOMAINS in importVisibilityPolicy.ts.
  */
-const EMBED_BLOCKED_DOMAINS = [
-  'foodnetwork.com',
-  'allrecipes.com',
-  'epicurious.com',
-  'tastesbetterfromscratch.com',
-  'recipetineats.com',
-  'nytimes.com',
-  'cooking.nytimes.com',
-  'bonappetit.com',
-  'food.com',
-  'delish.com',
-  'simplyrecipes.com',
-  'seriouseats.com',
-];
+const EMBED_BLOCKED_DOMAINS: string[] = [];
 
 /** Runtime set: domains that failed to embed this session */
 const runtimeBlockedEmbedHosts = new Set<string>();
 
 /** How long (ms) to wait for an iframe before assuming it's blocked */
-const EMBED_FALLBACK_TIMEOUT_MS = 1200;
+const EMBED_FALLBACK_TIMEOUT_MS = 3500;
 
 function normalizeEmbedHost(host: string): string {
   return String(host || '').trim().toLowerCase().replace(/^www\./, '');
@@ -205,6 +192,7 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
   const [embedUnavailable, setEmbedUnavailable] = useState(false);
   /** True while we're waiting to find out if the iframe will load successfully */
   const [iframeLoading, setIframeLoading] = useState(false);
+  const [iframeReady, setIframeReady] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const embedFallbackTimeoutRef = useRef<number | null>(null);
   const { activeKitchenId, activeKitchenName } = useStore();
@@ -253,7 +241,6 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
     ? 'h-[calc(100dvh-0.75rem)] w-[calc(100vw-0.75rem)] max-w-[calc(100vw-0.75rem)] sm:h-[96vh] sm:w-[96vw] sm:max-w-[96vw]'
     : `h-[calc(100dvh-0.75rem)] max-h-[calc(100dvh-0.75rem)] w-[calc(100vw-0.75rem)] max-w-[calc(100vw-0.75rem)] sm:h-[92vh] ${showEmbeddedWebView ? 'sm:max-w-5xl' : 'sm:max-w-6xl'}`;
 
-  // Reset to app view when recipe or open state changes
   useEffect(() => {
     if (!recipe || !open) return;
     setImportedView('app');
@@ -265,6 +252,7 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
       setExpanded(false);
       setEmbedUnavailable(false);
       setIframeLoading(false);
+      setIframeReady(false);
       if (embedFallbackTimeoutRef.current !== null) {
         window.clearTimeout(embedFallbackTimeoutRef.current);
         embedFallbackTimeoutRef.current = null;
@@ -275,6 +263,7 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
   useEffect(() => {
     setEmbedUnavailable(false);
     setIframeLoading(false);
+    setIframeReady(false);
     if (embedFallbackTimeoutRef.current !== null) {
       window.clearTimeout(embedFallbackTimeoutRef.current);
       embedFallbackTimeoutRef.current = null;
@@ -307,16 +296,17 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
 
   if (!recipe) return null;
 
-  const clearEmbedFallbackTimeout = () => {
+  function clearEmbedFallbackTimeout() {
     if (embedFallbackTimeoutRef.current !== null) {
       window.clearTimeout(embedFallbackTimeoutRef.current);
       embedFallbackTimeoutRef.current = null;
     }
-  };
+  }
 
   const handleEmbedUnavailable = () => {
     clearEmbedFallbackTimeout();
     setIframeLoading(false);
+    setIframeReady(false);
 
     if (normalizedSourceHost) {
       runtimeBlockedEmbedHosts.add(normalizedSourceHost);
@@ -330,13 +320,13 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
     setImportedView('app');
   };
 
-  const scheduleEmbedFallback = () => {
+  function scheduleEmbedFallback() {
     clearEmbedFallbackTimeout();
     if (!open || !normalizedSourceUrl || !webViewEnabled) return;
     embedFallbackTimeoutRef.current = window.setTimeout(() => {
       handleEmbedUnavailable();
     }, EMBED_FALLBACK_TIMEOUT_MS);
-  };
+  }
 
   const handleIframeLoad = () => {
     const iframe = iframeRef.current;
@@ -356,16 +346,19 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
       // Successfully loaded — clear spinner and timeout
       clearEmbedFallbackTimeout();
       setIframeLoading(false);
+      setIframeReady(true);
     } catch {
       // SecurityError = cross-origin load succeeded
       clearEmbedFallbackTimeout();
       setIframeLoading(false);
+      setIframeReady(true);
     }
   };
 
   const handleSelectWebView = () => {
     if (!webViewEnabled) return;
     setIframeLoading(true);
+    setIframeReady(false);
     setImportedView('web');
     scheduleEmbedFallback();
   };
@@ -516,7 +509,7 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
                       <iframe
                         ref={iframeRef}
                         src={normalizedSourceUrl}
-                        className="border-0 rounded-xl"
+                        className={`border-0 rounded-xl transition-opacity ${iframeReady ? 'opacity-100' : 'opacity-0'}`}
                         title={recipe.name}
                         sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
                         onError={handleEmbedUnavailable}
@@ -835,7 +828,7 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
                     >
                       <Check className="h-3.5 w-3.5" />
                     </button>
-                    <div className="w-28 shrink-0 sm:w-32">
+                    <div className="w-20 shrink-0 sm:w-24">
                       <input
                         value={item.quantity}
                         onChange={(e) => setMissingIngredientSelections((current) => current.map((entry) => entry.id === item.id ? { ...entry, quantity: e.target.value } : entry))}

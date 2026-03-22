@@ -687,16 +687,22 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
-              <div className="space-y-1.5 mt-2">
+              <div className="mt-3 space-y-2">
                 {instructions.map((step, index) => (
-                  <div key={`${step}-${index}`} className="flex items-start gap-2 rounded-md border border-border bg-muted/40 px-2 py-1.5 text-sm">
-                    <span className="text-xs font-semibold text-muted-foreground pt-0.5">{index + 1}.</span>
+                  <div key={`${step}-${index}`} className="flex items-center gap-2">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-orange-50 text-xs font-semibold text-orange-600">
+                      {index + 1}
+                    </span>
                     <Input
                       value={step}
                       onChange={(e) => updateInstruction(index, e.target.value)}
-                      className="h-8 flex-1"
+                      className="h-10 flex-1 bg-white border-stone-200"
                     />
-                    <button type="button" onClick={() => removeInstruction(index)} className="text-muted-foreground hover:text-destructive">
+                    <button
+                      type="button"
+                      onClick={() => removeInstruction(index)}
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-stone-400 transition-colors hover:bg-red-50 hover:text-red-500"
+                    >
                       <X className="h-3.5 w-3.5" />
                     </button>
                   </div>

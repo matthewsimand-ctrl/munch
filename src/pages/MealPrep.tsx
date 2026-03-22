@@ -201,6 +201,7 @@ export default function MealPrepScreen() {
         recipeName: recipe.name,
         recipeId: recipe.id,
         cookTime: recipe.cook_time,
+        recipeSnapshot: recipe,
       });
     }
     toast.success(`Added ${recipe.name}`);

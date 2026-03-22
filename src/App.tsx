@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useStore } from "@/lib/store";
 import AppLayout from "@/components/AppLayout";
@@ -20,7 +20,6 @@ import Groceries from "./pages/Groceries";
 import MealPrep from "./pages/MealPrep";
 import Settings from "./pages/Settings";
 import Dashboard from "./pages/Dashboard";
-import LetMeCook from "./pages/LetMeCook";
 import Auth from "./pages/Auth";
 import ChefProfile from "./pages/ChefProfile";
 import Dictionary from "./pages/Dictionary";
@@ -87,7 +86,7 @@ function AppRoutes() {
           <Route path="/saved" element={<SavedRecipes />} />
           <Route path="/cookbooks" element={<Cookbooks />} />
           <Route path="/cookbooks/:id" element={<CookbookDetails />} />
-          <Route path="/let-me-cook" element={<LetMeCook />} />
+          <Route path="/let-me-cook" element={<Navigate to="/saved" replace />} />
           <Route path="/pantry" element={<Pantry />} />
           <Route path="/grocery" element={<GroceryList />} />
           <Route path="/groceries" element={<Groceries />} />
