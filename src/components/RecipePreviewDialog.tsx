@@ -599,6 +599,20 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
                             </span>
                           )}
                         </div>
+                        {displayChefName && displayChefId && (
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/chef/${displayChefId}`)}
+                            className="mt-3 inline-flex items-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-3 py-1.5 text-xs font-semibold text-orange-700 transition-colors hover:bg-orange-100"
+                          >
+                            <RecipeAttributionIcon
+                              recipe={{ ...recipe, chef: displayChefName, created_by: displayChefId }}
+                              sizeClassName="h-4 w-4"
+                              className={isMunchRecipe ? 'rounded-full bg-white p-0.5' : ''}
+                            />
+                            {displayChefName}
+                          </button>
+                        )}
                         <div className="mt-4 flex flex-wrap items-center gap-2">
                           <MatchBadge percentage={displayMatch.percentage} />
                           {recipe.cuisine && (
