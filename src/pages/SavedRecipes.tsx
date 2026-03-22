@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import {
   Search, Folder, Clock,
-  ArrowUpDown, Grid3X3, List, Star, BookOpen, X, Trash2, Plus, Link2, FileUp, PenSquare,
+  ArrowUpDown, Grid3X3, List, Star, BookOpen, X, Trash2, Plus, Link2, PenSquare, Crown,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "@/lib/store";
@@ -397,6 +397,13 @@ export default function MyRecipesScreen() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
                   <DropdownMenuItem
+                    onClick={() => setShowManualRecipeDialog(true)}
+                    className="cursor-pointer gap-2"
+                  >
+                    <PenSquare size={14} />
+                    Manual
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
                     onClick={() => {
                       setImportDialogTab("url");
                       setHideImportTabs(false);
@@ -405,25 +412,13 @@ export default function MyRecipesScreen() {
                     className="cursor-pointer gap-2"
                   >
                     <Link2 size={14} />
-                    URL Import
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => {
-                      setImportDialogTab("pdf");
-                      setHideImportTabs(false);
-                      setImportDialogOpen(true);
-                    }}
-                    className="cursor-pointer gap-2"
-                  >
-                    <FileUp size={14} />
-                    File Upload
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => setShowManualRecipeDialog(true)}
-                    className="cursor-pointer gap-2"
-                  >
-                    <PenSquare size={14} />
-                    Manual
+                    <span className="inline-flex items-center gap-1">
+                      Import
+                      <span className="inline-flex items-center rounded-full bg-orange-50 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-orange-600">
+                        <Crown size={10} className="mr-1" />
+                        Premium
+                      </span>
+                    </span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -572,29 +567,7 @@ export default function MyRecipesScreen() {
           <div className="space-y-3 px-4 py-4">
             {[
               {
-                title: "Import from URL",
-                description: "Paste a recipe link and bring it into Munch.",
-                icon: Link2,
-                onClick: () => {
-                  setMobileAddSheetOpen(false);
-                  setImportDialogTab("url");
-                  setHideImportTabs(true);
-                  setImportDialogOpen(true);
-                },
-              },
-              {
-                title: "Upload a file",
-                description: "Use a PDF or image and let Munch extract the recipe.",
-                icon: FileUp,
-                onClick: () => {
-                  setMobileAddSheetOpen(false);
-                  setImportDialogTab("pdf");
-                  setHideImportTabs(true);
-                  setImportDialogOpen(true);
-                },
-              },
-              {
-                title: "Write it manually",
+                title: "Manual",
                 description: "Add your own recipe with ingredients and steps.",
                 icon: PenSquare,
                 onClick: () => {
@@ -602,7 +575,19 @@ export default function MyRecipesScreen() {
                   setShowManualRecipeDialog(true);
                 },
               },
-            ].map(({ title, description, icon: Icon, onClick }) => (
+              {
+                title: "Import",
+                description: "Import from URL, file, or photo.",
+                icon: Link2,
+                premium: true,
+                onClick: () => {
+                  setMobileAddSheetOpen(false);
+                  setImportDialogTab("url");
+                  setHideImportTabs(false);
+                  setImportDialogOpen(true);
+                },
+              },
+            ].map(({ title, description, icon: Icon, onClick, premium }) => (
               <button
                 key={title}
                 type="button"
@@ -613,7 +598,15 @@ export default function MyRecipesScreen() {
                   <Icon size={18} />
                 </span>
                 <span className="min-w-0">
-                  <span className="block text-sm font-semibold text-stone-800">{title}</span>
+                  <span className="flex items-center gap-2 text-sm font-semibold text-stone-800">
+                    <span>{title}</span>
+                    {premium ? (
+                      <span className="inline-flex items-center rounded-full bg-orange-50 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-orange-600">
+                        <Crown size={10} className="mr-1" />
+                        Premium
+                      </span>
+                    ) : null}
+                  </span>
                   <span className="mt-1 block text-xs leading-5 text-stone-500">{description}</span>
                 </span>
               </button>

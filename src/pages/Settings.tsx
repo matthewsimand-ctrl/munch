@@ -732,7 +732,7 @@ export default function Settings() {
                     <Button
                       type="button"
                       onClick={() => openPremiumPage('Munch Membership')}
-                      className="inline-flex items-center gap-2 rounded-xl bg-violet-600 text-white hover:bg-violet-700"
+                      className="inline-flex items-center gap-2 rounded-xl border border-violet-200 bg-[linear-gradient(135deg,#8B7BE8,#A592EF)] text-white hover:brightness-[1.02]"
                     >
                       <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-orange-100/95 text-orange-500">
                         <Crown className="h-3.5 w-3.5" />

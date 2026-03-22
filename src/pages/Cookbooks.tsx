@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { BookOpen, FolderPlus, Grid3X3, ImagePlus, List, Trash2 } from "lucide-react";
+import { BookOpen, FolderPlus, Grid3X3, ImagePlus, List, Search, Trash2, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "@/lib/store";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -18,11 +18,25 @@ export default function Cookbooks() {
   const [newCookbookRecipeIds, setNewCookbookRecipeIds] = useState<string[]>([]);
   const [newCookbookCover, setNewCookbookCover] = useState<string | undefined>();
   const [view, setView] = useState<"grid" | "list">("grid");
+  const [search, setSearch] = useState("");
 
   const savedRecipes = useMemo(
     () => likedRecipes.map((id) => savedApiRecipes[id]).filter(Boolean),
     [likedRecipes, savedApiRecipes],
   );
+
+  const filteredCookbooks = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return recipeFolders;
+
+    return recipeFolders.filter((folder) => {
+      const nameMatch = folder.name.toLowerCase().includes(term);
+      const recipeMatch = folder.recipeIds.some((id) =>
+        String(savedApiRecipes[id]?.name || "").toLowerCase().includes(term)
+      );
+      return nameMatch || recipeMatch;
+    });
+  }, [recipeFolders, savedApiRecipes, search]);
 
   useEffect(() => {
     const loadName = async () => {
@@ -64,9 +78,13 @@ export default function Cookbooks() {
   };
 
   return (
-    <div className="min-h-full px-4 py-4 sm:px-6 sm:py-6" style={{ background: "#FFFAF5" }}>
-      <div className="max-w-6xl mx-auto">
-          <div className="mb-5 flex flex-col gap-4 sm:mb-6 lg:flex-row lg:items-center lg:justify-between">
+    <div className="min-h-full" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", background: "#FFFAF5" }}>
+      <div
+        className="border-b px-4 pt-4 pb-0 sm:px-6 sm:pt-6"
+        style={{ background: "linear-gradient(135deg,#FFF7ED 0%,#FFFAF5 100%)", borderColor: "rgba(249,115,22,0.12)" }}
+      >
+        <div className="max-w-6xl mx-auto">
+          <div className="mb-4 flex flex-col gap-4 sm:mb-5 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1">Your collection</p>
               <h1 className="text-xl font-bold text-stone-900 sm:text-2xl" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
@@ -75,13 +93,20 @@ export default function Cookbooks() {
               <p className="text-xs text-stone-400 mt-1">
                 {recipeFolders.length} cookbook{recipeFolders.length !== 1 ? "s" : ""}
               </p>
-          </div>
-          <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:justify-end">
-            <button onClick={() => navigate('/saved')} className="min-w-0 flex-1 rounded-xl border border-stone-200 bg-white px-3 py-2 text-[11px] font-semibold text-stone-600 sm:flex-none sm:text-xs">Recipes</button>
-            <button className="min-w-0 flex-1 rounded-xl bg-orange-500 px-3 py-2 text-[11px] font-semibold text-white sm:flex-none sm:text-xs">Cookbooks</button>
+            </div>
+            <div className="flex flex-wrap items-center gap-2" data-tutorial="recipes-nav">
+              <button
+                onClick={() => navigate('/saved')}
+                className="min-w-0 flex-1 rounded-xl border border-stone-200 bg-white px-3 py-2 text-[11px] font-semibold text-stone-600 sm:flex-none sm:text-xs"
+              >
+                Recipes
+              </button>
+              <button className="min-w-0 flex-1 rounded-xl bg-orange-500 px-3 py-2 text-[11px] font-semibold text-white sm:flex-none sm:text-xs">
+                Cookbooks
+              </button>
             <button
               onClick={() => setShowNewCookbook((prev) => !prev)}
-              className={`min-w-0 flex-1 rounded-xl border border-stone-200 bg-white px-3 py-2 text-[11px] font-semibold text-stone-600 inline-flex items-center justify-center gap-1 sm:flex-none sm:justify-start sm:text-xs ${isMobile ? "hidden" : ""}`}
+              className={`min-w-0 flex-1 rounded-xl border border-stone-200 bg-white px-3 py-2 text-[11px] font-semibold text-stone-600 inline-flex items-center justify-center gap-1.5 sm:flex-none sm:justify-start sm:text-xs ${isMobile ? "hidden" : ""}`}
             >
               <FolderPlus size={12} /> Add Cookbook
             </button>
@@ -92,8 +117,12 @@ export default function Cookbooks() {
             >
               {view === "grid" ? <List size={16} /> : <Grid3X3 size={16} />}
             </button>
+            </div>
           </div>
         </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto px-4 py-4 sm:px-6">
 
         {recipeFolders.length === 0 ? (
           <div className="rounded-2xl bg-white border border-dashed border-orange-200 p-6 text-center sm:p-8">
@@ -109,9 +138,34 @@ export default function Cookbooks() {
               <FolderPlus size={14} /> Add Cookbook
             </button>
           </div>
-        ) : view === "grid" ? (
+        ) : (
+          <>
+            <div className="mb-4 relative">
+              <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-300" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search your cookbooks..."
+                className="w-full rounded-2xl border border-stone-200 bg-white py-3 pl-10 pr-10 text-sm text-stone-700 outline-none transition-colors placeholder:text-stone-400 focus:border-orange-300"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-300 transition-colors hover:text-stone-500"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            {filteredCookbooks.length === 0 ? (
+              <div className="rounded-2xl bg-white border border-dashed border-orange-200 p-6 text-center sm:p-8">
+                <p className="text-stone-700 font-semibold">No cookbooks match your search</p>
+              </div>
+            ) : view === "grid" ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {recipeFolders.map((folder) => (
+            {filteredCookbooks.map((folder) => (
               <div key={folder.id} className="rounded-2xl bg-white border border-stone-200 overflow-hidden">
                 <button className="w-full text-left" onClick={() => navigate(`/cookbooks/${folder.id}`)}>
                   <div className="h-36 bg-stone-100 flex items-center justify-center">
@@ -140,7 +194,7 @@ export default function Cookbooks() {
           </div>
         ) : (
           <div className="space-y-3">
-            {recipeFolders.map((folder) => (
+            {filteredCookbooks.map((folder) => (
               <div key={folder.id} className="rounded-2xl bg-white border border-stone-200 p-3 flex items-center gap-3">
                 <button className="w-20 h-16 rounded-xl overflow-hidden bg-stone-100 shrink-0" onClick={() => navigate(`/cookbooks/${folder.id}`)}>
                   {folder.coverImage ? (
@@ -165,6 +219,8 @@ export default function Cookbooks() {
               </div>
             ))}
           </div>
+        )}
+          </>
         )}
       </div>
 
