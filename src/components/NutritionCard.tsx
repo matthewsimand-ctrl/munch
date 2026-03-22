@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sparkles, Loader2, Flame, Beef, Wheat, Droplets, Heart, Lock } from 'lucide-react';
 import { getAiDisabledMessage, isAiAgentCallsDisabledError } from '@/lib/ai';
@@ -40,7 +40,6 @@ export default function NutritionCard({ recipeId, recipeName, ingredients, servi
   const { openPremiumPage } = usePremiumGate();
   const [nutrition, setNutrition] = useState<NutritionData | null>(cachedNutrition[recipeId] || null);
   const [loading, setLoading] = useState(false);
-  const autoRequestedRef = useRef(false);
 
   useEffect(() => {
     setNutrition(cachedNutrition[recipeId] || null);
@@ -115,12 +114,6 @@ export default function NutritionCard({ recipeId, recipeName, ingredients, servi
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    if (!isPremium || nutrition || loading || autoRequestedRef.current || !recipeId || ingredients.length === 0) return;
-    autoRequestedRef.current = true;
-    void analyze({ silent: true });
-  }, [ingredients.length, isPremium, loading, nutrition, recipeId, recipeName, servings]);
 
   if (!nutrition) {
     const showOuterHeader = true;
@@ -205,7 +198,7 @@ export default function NutritionCard({ recipeId, recipeName, ingredients, servi
               className="gap-1.5"
             >
               {isPremium ? <Sparkles className="h-3.5 w-3.5 text-amber-500" /> : <Lock className="h-3.5 w-3.5" />}
-              Refresh Nutritional Facts
+              Generate Nutritional Facts
             </Button>
           )}
         </div>

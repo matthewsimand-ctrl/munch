@@ -371,27 +371,31 @@ export default function ImportRecipeDialog({
   });
 
   const persistRecipe = async (payload: Record<string, any>, options?: { forceDiscoverable?: boolean }) => {
-    const existingRecipe = await findExistingRecipeByUrl(payload.source_url);
-    if (existingRecipe) {
-      const existingPayload = mapDbRecipeToImportedPayload(existingRecipe);
-      likeRecipe(existingPayload.id, existingPayload);
-      return { reusedExisting: true, payload: existingPayload };
-    }
-
-    const existingByFingerprint = await findExistingRecipeByFingerprint(
-      String(payload.name || ''),
-      Array.isArray(payload.ingredients) ? payload.ingredients : [],
-    );
-    if (existingByFingerprint) {
-      const existingPayload = mapDbRecipeToImportedPayload(existingByFingerprint);
-      likeRecipe(existingPayload.id, existingPayload);
-      return { reusedExisting: true, payload: existingPayload };
-    }
-
     const requestedDiscoverability = options?.forceDiscoverable ?? isDiscoverable;
     const importedUrlVisibility = isImportedUrlRecipe(payload.source, payload.source_url)
       ? canPubliclyShareImportedUrlRecipe(payload.source_url)
       : { allowed: true, reason: null as string | null };
+    const localOnlyImport = isImportedUrlRecipe(payload.source, payload.source_url) && !importedUrlVisibility.allowed;
+
+    if (!localOnlyImport) {
+      const existingRecipe = await findExistingRecipeByUrl(payload.source_url);
+      if (existingRecipe) {
+        const existingPayload = mapDbRecipeToImportedPayload(existingRecipe);
+        likeRecipe(existingPayload.id, existingPayload);
+        return { reusedExisting: true, payload: existingPayload };
+      }
+
+      const existingByFingerprint = await findExistingRecipeByFingerprint(
+        String(payload.name || ''),
+        Array.isArray(payload.ingredients) ? payload.ingredients : [],
+      );
+      if (existingByFingerprint) {
+        const existingPayload = mapDbRecipeToImportedPayload(existingByFingerprint);
+        likeRecipe(existingPayload.id, existingPayload);
+        return { reusedExisting: true, payload: existingPayload };
+      }
+    }
+
     const shouldDiscover = requestedDiscoverability && importedUrlVisibility.allowed;
     const { user, sharedByName } = await getCurrentSharer();
     const payloadWithShareMetadata = user && shouldDiscover
@@ -603,6 +607,8 @@ export default function ImportRecipeDialog({
         cuisine: recipe.cuisine ? String(recipe.cuisine) : null,
         tags: Array.isArray(recipe.tags) ? recipe.tags.map((tag: unknown) => String(tag).trim()).filter(Boolean) : [],
       });
+      const reviewVisibility = canPubliclyShareImportedUrlRecipe(recipe.source_url ? String(recipe.source_url) : undefined);
+      setIsDiscoverable(reviewVisibility.allowed);
       setReviewData({
         name: String(recipe.name || ''),
         ingredients: normalizeIngredients(recipe.ingredients),

@@ -1013,7 +1013,7 @@ export default function Dashboard() {
                       onClick={() => {
                         startPlannedMeal(upNextPlannedMeal);
                       }}
-                      className="mt-6 w-full rounded-full bg-stone-900 px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-stone-800"
+                      className="mt-6 w-full rounded-full bg-orange-500 px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-orange-600"
                     >
                       Launch Cooking Mode
                     </button>
@@ -1081,7 +1081,7 @@ export default function Dashboard() {
             <AvatarStudio
               config={avatarConfig}
               onChange={updateAvatarConfig}
-              previewOverrideUrl={avatarPhotoPreview}
+              previewOverrideUrl={avatarPhotoPreview || pendingUploadedAvatarUrl || chefAvatarUrl || undefined}
               onUploadClick={() => avatarInputRef.current?.click()}
               uploading={uploadingAvatar}
               action={
