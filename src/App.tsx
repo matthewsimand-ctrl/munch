@@ -1,7 +1,4 @@
 import React, { Suspense, lazy, useEffect, useRef, useState } from "react";
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -37,6 +34,7 @@ const queryClient = new QueryClient();
 const ENABLE_SPOTLIGHT_TUTORIAL = false;
 const ENABLE_CLOUD_STORE_SYNC = false;
 const ENABLE_ROUTE_PRELOAD = false;
+const ENABLE_GLOBAL_FEEDBACK_PROVIDERS = false;
 const ENABLE_STARTUP_DEBUG =
   new URLSearchParams(window.location.search).has("debug-startup") ||
   window.localStorage.getItem("munch:debug-startup") === "1";
@@ -349,9 +347,9 @@ function AppRoutes() {
         <Route path="/onboarding" element={<AppRouteElement><Onboarding /></AppRouteElement>} />
         <Route path="/invite/kitchen/:token" element={<AppRouteElement><KitchenInviteAccept /></AppRouteElement>} />
         <Route path="/cook/:id" element={<AppRouteElement><CookMode /></AppRouteElement>} />
+        <Route path="/dashboard" element={<AppRouteElement><Dashboard /></AppRouteElement>} />
 
         <Route element={<AppLayout />}>
-          <Route path="/dashboard" element={<AppRouteElement><Dashboard /></AppRouteElement>} />
           <Route path="/swipe" element={<AppRouteElement><Swipe /></AppRouteElement>} />
           <Route path="/saved" element={<AppRouteElement><SavedRecipes /></AppRouteElement>} />
           <Route path="/cookbooks" element={<AppRouteElement><Cookbooks /></AppRouteElement>} />
@@ -392,13 +390,16 @@ const App = () => {
   return (
     <AppErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
+        <>
+          {ENABLE_GLOBAL_FEEDBACK_PROVIDERS ? (
+            <>
+              {null}
+            </>
+          ) : null}
           <BrowserRouter>
             <AppRoutes />
           </BrowserRouter>
-        </TooltipProvider>
+        </>
       </QueryClientProvider>
     </AppErrorBoundary>
   );
