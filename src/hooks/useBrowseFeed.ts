@@ -329,8 +329,9 @@ function normalizeRecipe(raw: any): BrowseRecipe | null {
   };
 }
 
-export function useBrowseFeed(options?: { includeMealDbFallback?: boolean }) {
+export function useBrowseFeed(options?: { includeMealDbFallback?: boolean; enabled?: boolean }) {
   const includeMealDbFallback = options?.includeMealDbFallback ?? true;
+  const enabled = options?.enabled ?? true;
   const [cachedInitialRecipes] = useState<BrowseRecipe[]>(() => readCachedBrowseFeed());
   const [recipes, setRecipes] = useState<BrowseRecipe[]>(cachedInitialRecipes);
   const [loading, setLoading] = useState(false);
@@ -349,6 +350,11 @@ export function useBrowseFeed(options?: { includeMealDbFallback?: boolean }) {
   } = useStore();
 
   useEffect(() => {
+    if (!enabled) {
+      setKitchenPantryNames([]);
+      return;
+    }
+
     let cancelled = false;
 
     const loadKitchenPantry = async () => {
@@ -382,7 +388,7 @@ export function useBrowseFeed(options?: { includeMealDbFallback?: boolean }) {
     return () => {
       cancelled = true;
     };
-  }, [activeKitchenId, kitchenViewMode]);
+  }, [activeKitchenId, enabled, kitchenViewMode]);
 
   const effectivePantryNames = useMemo(() => {
     if (activeKitchenId && kitchenViewMode === 'kitchen') {
@@ -422,6 +428,11 @@ export function useBrowseFeed(options?: { includeMealDbFallback?: boolean }) {
   }, []);
 
   const loadFeed = useCallback(async () => {
+    if (!enabled) {
+      setLoading(false);
+      return;
+    }
+
     if (loaded || loading) return;
     setLoading(true);
     try {
@@ -517,7 +528,7 @@ export function useBrowseFeed(options?: { includeMealDbFallback?: boolean }) {
     } finally {
       setLoading(false);
     }
-  }, [loaded, loading, likedRecipes, savedApiRecipes, userProfile, effectivePantryNames, diversifyBrowseOrder, includeMealDbFallback]);
+  }, [enabled, loaded, loading, likedRecipes, savedApiRecipes, userProfile, effectivePantryNames, diversifyBrowseOrder, includeMealDbFallback]);
 
   const searchFeed = useCallback(async (query: string) => {
     const trimmedQuery = query.trim();

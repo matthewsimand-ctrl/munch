@@ -230,8 +230,9 @@ export default function Dashboard() {
     if (h < 17) return "Good afternoon";
     return "Good evening";
   });
+  const [dashboardReady, setDashboardReady] = useState(false);
 
-  const { recipes: browseRecipes, loading: browseLoading, loadFeed } = useBrowseFeed({ includeMealDbFallback: false });
+  const { recipes: browseRecipes, loading: browseLoading, loadFeed } = useBrowseFeed({ includeMealDbFallback: false, enabled: dashboardReady });
   const {
     likedRecipes, likeRecipe, savedApiRecipes, pantryList,
     addCustomGroceryItem, customGroceryItems, recipeFolders,
@@ -258,9 +259,9 @@ export default function Dashboard() {
   const [hideImportTabs, setHideImportTabs] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const { isPremium } = usePremiumAccess();
-  const { meal: currentPlannedMeal, nextMeal: nextPlannedMeal, loading: currentMealLoading } = useCurrentMealPlan();
-  const { meals: cookedMeals, loading: cookedMealsLoading, estimateMealSavings } = useCookedMeals();
-  const { notifications, unreadCount, loading: notificationsLoading, markAsRead, markAllAsRead } = useNotifications();
+  const { meal: currentPlannedMeal, nextMeal: nextPlannedMeal, loading: currentMealLoading } = useCurrentMealPlan(dashboardReady);
+  const { meals: cookedMeals, loading: cookedMealsLoading, estimateMealSavings } = useCookedMeals(12, dashboardReady);
+  const { notifications, unreadCount, loading: notificationsLoading, markAsRead, markAllAsRead } = useNotifications(dashboardReady);
   const [estimatingMealId, setEstimatingMealId] = useState<string | null>(null);
   const nutritionSummary = useMemo(
     () => getConsumedNutritionSummary(cookedMeals, cachedNutrition),
@@ -302,6 +303,16 @@ export default function Dashboard() {
 
   const avatarBuilderPreview = useMemo(() => buildMunchAvatarUrl(avatarConfig), [avatarConfig]);
   const avatarReturnTo = (location.state as { returnTo?: string } | null)?.returnTo;
+
+  useEffect(() => {
+    if ("requestIdleCallback" in window) {
+      const handle = window.requestIdleCallback(() => setDashboardReady(true), { timeout: 1500 });
+      return () => window.cancelIdleCallback(handle);
+    }
+
+    const timeout = window.setTimeout(() => setDashboardReady(true), 1200);
+    return () => window.clearTimeout(timeout);
+  }, []);
 
   useEffect(() => {
     const shouldOpenAvatarEditor = Boolean((location.state as { openAvatarEditor?: boolean } | null)?.openAvatarEditor);
@@ -436,6 +447,8 @@ export default function Dashboard() {
       );
     };
 
+    if (!dashboardReady) return;
+
     if (quickSuggestionRecipes.length === 0) {
       void loadQuickSuggestions();
     }
@@ -443,7 +456,7 @@ export default function Dashboard() {
     return () => {
       cancelled = true;
     };
-  }, [likedSet, quickSuggestionRecipes.length]);
+  }, [dashboardReady, likedSet, quickSuggestionRecipes.length]);
 
   const availableSuggestions = useMemo(
     () => {
@@ -493,8 +506,9 @@ export default function Dashboard() {
   ], [likedRecipes.length, cookingStreak, totalMealsCooked, cookedRecipeIds.length]);
 
   useEffect(() => {
+    if (!dashboardReady) return;
     void loadFeed();
-  }, [loadFeed]);
+  }, [dashboardReady, loadFeed]);
   useEffect(() => {
     if (availableSuggestions.length === 0) { if (suggestionOffset !== 0) setSuggestionOffset(0); return; }
     if (suggestionOffset >= availableSuggestions.length) setSuggestionOffset(Math.max(0, availableSuggestions.length - 3));

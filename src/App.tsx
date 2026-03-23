@@ -35,6 +35,8 @@ const SpotlightTutorial = lazy(() => import("./components/SpotlightTutorial"));
 
 const queryClient = new QueryClient();
 const ENABLE_SPOTLIGHT_TUTORIAL = false;
+const ENABLE_CLOUD_STORE_SYNC = false;
+const ENABLE_ROUTE_PRELOAD = false;
 const ENABLE_STARTUP_DEBUG =
   new URLSearchParams(window.location.search).has("debug-startup") ||
   window.localStorage.getItem("munch:debug-startup") === "1";
@@ -147,7 +149,9 @@ function AppRoutes() {
     completeTutorial();
   };
 
-  useCloudStoreSync();
+  if (ENABLE_CLOUD_STORE_SYNC) {
+    useCloudStoreSync();
+  }
 
   useEffect(() => {
     recordStartupStage("app-routes-mounted");
@@ -181,6 +185,7 @@ function AppRoutes() {
   }, [resetStore, setStoreOwnerUserId, storeOwnerUserId]);
 
   useEffect(() => {
+    if (!ENABLE_ROUTE_PRELOAD) return;
     recordStartupStage("route-preload-scheduled");
 
     const preload = () => {

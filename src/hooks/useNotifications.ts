@@ -12,7 +12,7 @@ export interface AppNotification {
   read_at: string | null;
 }
 
-export function useNotifications() {
+export function useNotifications(enabled = true) {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -41,8 +41,13 @@ export function useNotifications() {
   }, []);
 
   useEffect(() => {
+    if (!enabled) {
+      setLoading(false);
+      return;
+    }
+
     void loadNotifications();
-  }, [loadNotifications]);
+  }, [enabled, loadNotifications]);
 
   const unreadCount = useMemo(
     () => notifications.filter((notification) => !notification.read_at).length,
