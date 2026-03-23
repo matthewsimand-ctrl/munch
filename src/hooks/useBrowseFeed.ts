@@ -8,7 +8,24 @@ import { classifyMealType } from '@/lib/mealTimeUtils';
 import { supabase } from '@/integrations/supabase/client';
 import { canPubliclyShareImportedUrlRecipe, isImportedUrlRecipe } from '@/lib/importVisibilityPolicy';
 
-const BROWSE_FEED_CACHE_KEY = 'munch:browse-feed-cache:v2';
+const BROWSE_FEED_CACHE_KEY = 'munch:browse-feed-cache:v3';
+
+function sanitizeCachedImage(image: unknown) {
+  const value = typeof image === 'string' ? image.trim() : '';
+  if (!value) return '';
+  if (value.startsWith('data:image/') && value.length > 2000) {
+    return '';
+  }
+  return value;
+}
+
+function sanitizeRecipeForCache(recipe: BrowseRecipe): BrowseRecipe {
+  return {
+    ...recipe,
+    image: sanitizeCachedImage(recipe.image),
+    raw_api_payload: undefined,
+  };
+}
 
 function readCachedBrowseFeed() {
   if (typeof window === 'undefined') return [];
@@ -37,7 +54,7 @@ function readCachedBrowseFeed() {
 function writeCachedBrowseFeed(recipes: BrowseRecipe[]) {
   if (typeof window === 'undefined') return;
 
-  const serialized = JSON.stringify(recipes);
+  const serialized = JSON.stringify(recipes.map(sanitizeRecipeForCache));
   window.sessionStorage.setItem(BROWSE_FEED_CACHE_KEY, serialized);
   window.localStorage.setItem(BROWSE_FEED_CACHE_KEY, serialized);
 }
