@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -251,21 +251,16 @@ const App = () => {
     recordStartupStage("app-mounted");
   }, []);
 
-  const router = useMemo(
-    () => (
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
-    ),
-    [],
-  );
-
+  // ✅ Removed useMemo wrapper — memoizing JSX/component trees is an anti-pattern
+  // and can cause reconciliation issues in production builds.
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        {router}
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
   );
