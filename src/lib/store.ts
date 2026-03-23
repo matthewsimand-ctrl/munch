@@ -108,7 +108,7 @@ function inferGrocerySection(name: string) {
   }
 }
 
-interface AppState {
+export interface AppState {
   storeOwnerUserId: string | null;
   userProfile: UserProfile;
   pantryList: PantryItem[];

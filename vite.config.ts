@@ -29,4 +29,25 @@ export default defineConfig(({ mode }) => ({
       "@dicebear/personas",
     ],
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "react-vendor": ["react", "react-dom"],
+          "router-vendor": ["react-router-dom"],
+          "supabase-vendor": ["@supabase/supabase-js"],
+          "motion-vendor": ["framer-motion"],
+          "query-vendor": ["@tanstack/react-query"],
+          "avatar-vendor": [
+            "@dicebear/core",
+            "@dicebear/adventurer-neutral",
+            "@dicebear/big-ears-neutral",
+            "@dicebear/bottts",
+            "@dicebear/croodles-neutral",
+            "@dicebear/personas",
+          ],
+        },
+      },
+    },
+  },
 }));

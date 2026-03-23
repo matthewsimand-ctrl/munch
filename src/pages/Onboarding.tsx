@@ -282,6 +282,8 @@ export default function Onboarding() {
           ? 'Use 3-24 lowercase letters, numbers, or underscores'
           : 'This will be how people find you in Munch';
 
+  const isAvatarStep = step === stepIndex.avatar;
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <div className="px-6 pt-8 pb-4 max-w-md mx-auto w-full">
@@ -290,8 +292,8 @@ export default function Onboarding() {
         <p className="text-xs text-muted-foreground mt-2">Step {step + 1} of {totalSteps}</p>
       </div>
 
-      <div className="flex-1 flex items-center justify-center px-6 overflow-hidden">
-        <div className="max-w-md w-full">
+      <div className={`flex-1 px-6 overflow-y-auto overflow-x-hidden ${isAvatarStep ? 'flex items-start justify-center py-4' : 'flex items-center justify-center'}`}>
+        <div className={`w-full ${isAvatarStep ? 'max-w-6xl pb-8' : 'max-w-md'}`}>
           <AnimatePresence mode="wait" custom={direction}>
             <motion.div
               key={step}
@@ -421,6 +423,7 @@ export default function Onboarding() {
                   </div>
 
                   <AvatarStudio
+                    className="items-start"
                     config={avatarConfig}
                     onChange={(updates) =>
                       setAvatarConfig((current) =>
