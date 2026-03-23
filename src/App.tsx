@@ -34,7 +34,7 @@ const queryClient = new QueryClient();
 const ENABLE_SPOTLIGHT_TUTORIAL = false;
 const ENABLE_CLOUD_STORE_SYNC = false;
 const ENABLE_ROUTE_PRELOAD = false;
-const ENABLE_GLOBAL_FEEDBACK_PROVIDERS = false;
+const ENABLE_GLOBAL_FEEDBACK_PROVIDERS = true;
 const ENABLE_STARTUP_DEBUG =
   new URLSearchParams(window.location.search).has("debug-startup") ||
   window.localStorage.getItem("munch:debug-startup") === "1";
@@ -390,16 +390,17 @@ const App = () => {
   return (
     <AppErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <>
+        <TooltipProvider>
           {ENABLE_GLOBAL_FEEDBACK_PROVIDERS ? (
             <>
-              {null}
+              <Toaster />
+              <Sonner />
             </>
           ) : null}
           <BrowserRouter>
             <AppRoutes />
           </BrowserRouter>
-        </>
+        </TooltipProvider>
       </QueryClientProvider>
     </AppErrorBoundary>
   );
