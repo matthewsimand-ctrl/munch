@@ -187,7 +187,7 @@ export default function Dashboard() {
     return "Good evening";
   });
 
-  const { recipes: browseRecipes, loading: browseLoading, loadFeed } = useBrowseFeed();
+  const { recipes: browseRecipes, loading: browseLoading, loadFeed } = useBrowseFeed({ includeMealDbFallback: false });
   const {
     likedRecipes, likeRecipe, savedApiRecipes, pantryList,
     addCustomGroceryItem, customGroceryItems, recipeFolders,

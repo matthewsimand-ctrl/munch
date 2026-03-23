@@ -321,7 +321,8 @@ function normalizeRecipe(raw: any): BrowseRecipe | null {
   };
 }
 
-export function useBrowseFeed() {
+export function useBrowseFeed(options?: { includeMealDbFallback?: boolean }) {
+  const includeMealDbFallback = options?.includeMealDbFallback ?? true;
   const [cachedInitialRecipes] = useState<BrowseRecipe[]>(() => readCachedBrowseFeed());
   const [recipes, setRecipes] = useState<BrowseRecipe[]>(cachedInitialRecipes);
   const [loading, setLoading] = useState(false);
@@ -468,7 +469,7 @@ export function useBrowseFeed() {
         return source !== 'imported' && source !== 'community' && source !== 'community-seed';
       }).length;
 
-      if (fetched.length < 220 || externalCount < 120) {
+      if (includeMealDbFallback && (fetched.length < 220 || externalCount < 120)) {
         const mealDbFallback = await fetchMealDbBrowseFallback();
         fetched = dedupeRecipes([
           ...fetched,
@@ -508,7 +509,7 @@ export function useBrowseFeed() {
     } finally {
       setLoading(false);
     }
-  }, [loaded, loading, likedRecipes, savedApiRecipes, userProfile, effectivePantryNames, diversifyBrowseOrder]);
+  }, [loaded, loading, likedRecipes, savedApiRecipes, userProfile, effectivePantryNames, diversifyBrowseOrder, includeMealDbFallback]);
 
   const searchFeed = useCallback(async (query: string) => {
     const trimmedQuery = query.trim();
