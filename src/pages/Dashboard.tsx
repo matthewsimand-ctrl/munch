@@ -209,7 +209,7 @@ export default function Dashboard() {
   const [avatarConfig, setAvatarConfig] = useState<MunchAvatarConfig>(() => createMunchAvatarConfig());
   const [avatarPhotoPreview, setAvatarPhotoPreview] = useState<string | null>(null);
   const [pendingUploadedAvatarUrl, setPendingUploadedAvatarUrl] = useState<string | null>(null);
-  const [importDialogTab, setImportDialogTab] = useState<"url" | "pdf" | "photo" | "website">("url");
+  const [importDialogTab, setImportDialogTab] = useState<"url" | "pdf" | "photo">("url");
   const [hideImportTabs, setHideImportTabs] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const { isPremium } = usePremiumAccess();
