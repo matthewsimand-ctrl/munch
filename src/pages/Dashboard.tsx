@@ -436,11 +436,11 @@ export default function Dashboard() {
       };
     }
 
-    timeoutId = w.setTimeout(startLoad, 250);
+    timeoutId = globalThis.setTimeout(startLoad, 250) as unknown as number;
     return () => {
       cancelled = true;
       if (timeoutId !== null) {
-        w.clearTimeout(timeoutId);
+        globalThis.clearTimeout(timeoutId);
       }
     };
   }, [loadFeed]);
