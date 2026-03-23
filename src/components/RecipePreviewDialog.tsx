@@ -31,6 +31,7 @@ interface Props {
   isSaved?: boolean;
   onAddMissingToGrocery?: (recipe: Recipe, missingIngredients: string[]) => void;
   onRegenerate?: () => void;
+  onChefClick?: (chefId: string | null, chefName: string | null) => void;
 }
 
 const SCALE_OPTIONS = [
@@ -180,6 +181,7 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
   isSaved = false,
   onAddMissingToGrocery,
   onRegenerate,
+  onChefClick,
 }: Props, _ref) {
   const navigate = useNavigate();
   const [portionFactor, setPortionFactor] = useState(1);
@@ -224,12 +226,13 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
   const normalizedSourceHost = useMemo(() => normalizeEmbedHost(sourceHostname), [sourceHostname]);
   const isMunchRecipe = isMunchAuthoredRecipe(recipe);
   const recipeChefName = getRecipeChefName(recipe);
-  const showChefAttribution = Boolean(chefName) || shouldShowChefAttribution(recipe);
-  const displayChefName = (recipeChefName && recipeChefName !== MUNCH_CHEF_NAME) ? recipeChefName : (chefName || (isMunchRecipe ? MUNCH_CHEF_NAME : null));
+  const canUsePassedChefAttribution = !normalizedSourceUrl;
+  const showChefAttribution = shouldShowChefAttribution(recipe) || (canUsePassedChefAttribution && Boolean(chefName));
+  const displayChefName = recipeChefName || (canUsePassedChefAttribution ? (chefName || (isMunchRecipe ? MUNCH_CHEF_NAME : null)) : null);
   const displayChefId = showChefAttribution ? (chefId || recipe?.created_by || (isMunchRecipe ? MUNCH_OFFICIAL_USER_ID : null)) : null;
   const sourceBadge = getRecipeSourceBadge(recipe);
   const showSourceLinkOverImage = Boolean(normalizedSourceUrl && sourceHostname && !isMealDbRecipe);
-  const showSourceBadge = Boolean(sourceBadge) && !showSourceLinkOverImage;
+  const showSourceBadge = Boolean(sourceBadge) && !showSourceLinkOverImage && !(showChefAttribution && sourceBadge?.trim().toLowerCase() === MUNCH_CHEF_NAME);
   // Only show the embedded web view when we're in web mode AND we haven't confirmed it's unavailable
   // AND we're not mid-load (iframeLoading hides the iframe behind a spinner overlay instead)
   const showEmbeddedWebView = Boolean(normalizedSourceUrl && importedRecipe && importedView === 'web' && webViewEnabled);
@@ -387,6 +390,18 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
   const handleAddMissingToGrocery = () => {
     if (!onAddMissingToGrocery || displayMatch.missing.length === 0) return;
     setMissingIngredientsOpen(true);
+  };
+
+  const handleOpenChefProfile = () => {
+    if (!displayChefId) return;
+    onOpenChange(false);
+    if (onChefClick) {
+      onChefClick(displayChefId, displayChefName);
+      return;
+    }
+    window.setTimeout(() => {
+      navigate(`/chef/${displayChefId}`);
+    }, 0);
   };
 
   const handleSaveMissingIngredients = () => {
@@ -602,8 +617,8 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
                         {displayChefName && displayChefId && (
                           <button
                             type="button"
-                            onClick={() => navigate(`/chef/${displayChefId}`)}
-                            className="mt-3 inline-flex items-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-3 py-1.5 text-xs font-semibold text-orange-700 transition-colors hover:bg-orange-100"
+                            onClick={handleOpenChefProfile}
+                            className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-orange-700 transition-colors hover:text-orange-800"
                           >
                             <RecipeAttributionIcon
                               recipe={{ ...recipe, chef: displayChefName, created_by: displayChefId }}

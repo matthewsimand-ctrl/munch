@@ -4,11 +4,11 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Recipe } from '@/data/recipes';
 import { normalizeRecipe } from '@/lib/normalizeRecipe';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ChefHat, Loader2, Link as LinkIcon, Search } from 'lucide-react';
+import { ChefHat, Clock, Grid3X3, Link as LinkIcon, List, Loader2, Search } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import RecipePreviewDialog from '@/components/RecipePreviewDialog';
-import { applyRecipeImageFallback } from '@/lib/recipeImage';
+import { applyRecipeImageFallback, getRecipeImageSrc } from '@/lib/recipeImage';
 import { useStore } from '@/lib/store';
 import { toast } from 'sonner';
 import munchLogo from '@/assets/munch-logo.png';
@@ -28,6 +28,7 @@ export function ChefProfileModal({ chefId, chefName, open, onOpenChange }: ChefP
     const { likeRecipe, likedRecipes } = useStore();
     const [previewRecipe, setPreviewRecipe] = useState<Recipe | null>(null);
     const [search, setSearch] = useState('');
+    const [view, setView] = useState<'grid' | 'list'>('grid');
     const isKnownMunchChef = (chefName || '').trim().toLowerCase() === MUNCH_CHEF_NAME || chefId === MUNCH_OFFICIAL_USER_ID;
 
     const { data: profile, isLoading: loadingProfile } = useQuery({
@@ -170,6 +171,14 @@ export function ChefProfileModal({ chefId, chefName, open, onOpenChange }: ChefP
                                 </h3>
                                 <p className="text-xs text-stone-500">{displayName}</p>
                             </div>
+                            <button
+                                type="button"
+                                onClick={() => setView((current) => current === 'grid' ? 'list' : 'grid')}
+                                className="ml-auto inline-flex h-9 w-9 items-center justify-center rounded-xl border border-stone-200 bg-white text-stone-500 transition-colors hover:border-orange-300 hover:text-orange-500"
+                                aria-label="Toggle chef recipe layout"
+                            >
+                                {view === 'grid' ? <List className="h-4 w-4" /> : <Grid3X3 className="h-4 w-4" />}
+                            </button>
                         </div>
 
                         <div className="relative mb-4">
@@ -198,34 +207,69 @@ export function ChefProfileModal({ chefId, chefName, open, onOpenChange }: ChefP
                                     <p className="text-xs text-stone-400">Try a recipe name, cuisine, or ingredient.</p>
                                 </div>
                             ) : (
-                                <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
+                                <div className={view === 'grid' ? 'grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4' : 'space-y-1'}>
                                     {filteredRecipes.map((recipe, i) => (
-                                        <motion.button
-                                            key={recipe.id}
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            transition={{ delay: i * 0.05 }}
-                                            onClick={() => setPreviewRecipe(recipe)}
-                                            className="rounded-xl overflow-hidden bg-white border border-stone-100 text-left hover:border-orange-300 hover:shadow-sm transition-all group"
-                                        >
-                                            <div className="aspect-square overflow-hidden relative">
-                                                <img
-                                                    src={recipe.image || '/placeholder.svg'}
-                                                    alt={recipe.name}
-                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                                    onError={applyRecipeImageFallback}
-                                                />
-                                                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-2.5 pt-8">
-                                                    <h4 className="font-display font-bold text-xs text-white leading-tight line-clamp-2" style={{ textShadow: "0 1px 4px rgba(0,0,0,0.5)" }}>
+                                        view === 'grid' ? (
+                                            <motion.button
+                                                key={recipe.id}
+                                                initial={{ opacity: 0, y: 10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ delay: i * 0.05 }}
+                                                onClick={() => setPreviewRecipe(recipe)}
+                                                className="rounded-xl overflow-hidden bg-white border border-stone-100 text-left hover:border-orange-300 hover:shadow-sm transition-all group"
+                                            >
+                                                <div className="aspect-square overflow-hidden relative">
+                                                    <img
+                                                        src={getRecipeImageSrc(recipe.image)}
+                                                        alt={recipe.name}
+                                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                                        onError={applyRecipeImageFallback}
+                                                    />
+                                                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-2.5 pt-8">
+                                                        <h4 className="font-display font-bold text-xs text-white leading-tight line-clamp-2" style={{ textShadow: "0 1px 4px rgba(0,0,0,0.5)" }}>
+                                                            {recipe.name}
+                                                        </h4>
+                                                    </div>
+                                                </div>
+                                                <div className="p-2.5 flex items-center gap-2 text-[10px] font-semibold text-stone-500">
+                                                    {recipe.cook_time && <span className="bg-stone-50 px-1.5 py-0.5 rounded">{recipe.cook_time}</span>}
+                                                    {recipe.difficulty && <span className={`px-1.5 py-0.5 rounded uppercase ${recipe.difficulty === 'easy' ? 'text-emerald-600 bg-emerald-50' : recipe.difficulty === 'medium' ? 'text-orange-600 bg-orange-50' : 'text-red-600 bg-red-50'}`}>{recipe.difficulty}</span>}
+                                                </div>
+                                            </motion.button>
+                                        ) : (
+                                            <motion.button
+                                                key={recipe.id}
+                                                initial={{ opacity: 0, x: -8 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                transition={{ delay: i * 0.03 }}
+                                                onClick={() => setPreviewRecipe(recipe)}
+                                                className="flex w-full items-center gap-4 rounded-2xl border border-transparent bg-white px-4 py-3 text-left transition-colors hover:border-orange-100 hover:bg-orange-50/40"
+                                            >
+                                                <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-stone-100">
+                                                    <img
+                                                        src={getRecipeImageSrc(recipe.image)}
+                                                        alt={recipe.name}
+                                                        className="h-full w-full object-cover"
+                                                        onError={applyRecipeImageFallback}
+                                                    />
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <h4 className="truncate text-sm font-semibold text-stone-900" style={{ fontFamily: "'Fraunces', serif" }}>
                                                         {recipe.name}
                                                     </h4>
+                                                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-stone-500">
+                                                        {recipe.cook_time && (
+                                                            <span className="inline-flex items-center gap-1">
+                                                                <Clock className="h-3.5 w-3.5 text-orange-500" />
+                                                                {recipe.cook_time}
+                                                            </span>
+                                                        )}
+                                                        {recipe.difficulty && <span>{recipe.difficulty}</span>}
+                                                        {recipe.cuisine && <span>{recipe.cuisine}</span>}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                            <div className="p-2.5 flex items-center gap-2 text-[10px] font-semibold text-stone-500">
-                                                {recipe.cook_time && <span className="bg-stone-50 px-1.5 py-0.5 rounded">{recipe.cook_time}</span>}
-                                                {recipe.difficulty && <span className={`px-1.5 py-0.5 rounded uppercase ${recipe.difficulty === 'easy' ? 'text-emerald-600 bg-emerald-50' : recipe.difficulty === 'medium' ? 'text-orange-600 bg-orange-50' : 'text-red-600 bg-red-50'}`}>{recipe.difficulty}</span>}
-                                            </div>
-                                        </motion.button>
+                                            </motion.button>
+                                        )
                                     ))}
                                 </div>
                             )}

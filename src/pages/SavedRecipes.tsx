@@ -645,7 +645,7 @@ export default function MyRecipesScreen() {
             <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center text-red-500 mb-2">
               <Trash2 size={24} />
             </div>
-            <DialogTitle className="text-xl font-bold font-display">Delete Recipe?</DialogTitle>
+            <DialogTitle className="text-xl font-bold font-display">Remove Recipe?</DialogTitle>
             <p className="text-sm text-stone-500 pb-2">
               Are you sure you want to remove <span className="font-semibold text-stone-800">{recipeToDelete?.name}</span> from your cookbook?
             </p>
@@ -660,7 +660,7 @@ export default function MyRecipesScreen() {
                 className="flex-1 rounded-xl px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-semibold text-sm transition-colors"
                 onClick={() => recipeToDelete && handleUnsave(recipeToDelete.id)}
               >
-                Delete
+                Remove
               </button>
             </div>
           </div>
