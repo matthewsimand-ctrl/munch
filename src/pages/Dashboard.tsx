@@ -412,7 +412,37 @@ export default function Dashboard() {
     },
   ], [likedRecipes.length, cookingStreak, totalMealsCooked, cookedRecipeIds.length]);
 
-  useEffect(() => { loadFeed(); }, [loadFeed]);
+  useEffect(() => {
+    let cancelled = false;
+    let timeoutId: number | null = null;
+
+    const startLoad = () => {
+      if (!cancelled) {
+        void loadFeed();
+      }
+    };
+
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      const idleId = (window as Window & { requestIdleCallback: (callback: IdleRequestCallback) => number }).requestIdleCallback(() => {
+        startLoad();
+      });
+
+      return () => {
+        cancelled = true;
+        if ("cancelIdleCallback" in window) {
+          (window as Window & { cancelIdleCallback: (handle: number) => void }).cancelIdleCallback(idleId);
+        }
+      };
+    }
+
+    timeoutId = window.setTimeout(startLoad, 250);
+    return () => {
+      cancelled = true;
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [loadFeed]);
   useEffect(() => {
     if (availableSuggestions.length === 0) { if (suggestionOffset !== 0) setSuggestionOffset(0); return; }
     if (suggestionOffset >= availableSuggestions.length) setSuggestionOffset(Math.max(0, availableSuggestions.length - 3));

@@ -9,6 +9,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { canPubliclyShareImportedUrlRecipe, isImportedUrlRecipe } from '@/lib/importVisibilityPolicy';
 
 const BROWSE_FEED_CACHE_KEY = 'munch:browse-feed-cache:v3';
+const MAX_RECOMMENDATION_CANDIDATES = 180;
+const MAX_TASTE_PROFILE_LIKES = 24;
 
 function sanitizeCachedImage(image: unknown) {
   const value = typeof image === 'string' ? image.trim() : '';
@@ -320,12 +322,10 @@ function normalizeRecipe(raw: any): BrowseRecipe | null {
 }
 
 export function useBrowseFeed() {
-  const [recipes, setRecipes] = useState<BrowseRecipe[]>(() => readCachedBrowseFeed());
+  const [cachedInitialRecipes] = useState<BrowseRecipe[]>(() => readCachedBrowseFeed());
+  const [recipes, setRecipes] = useState<BrowseRecipe[]>(cachedInitialRecipes);
   const [loading, setLoading] = useState(false);
-  const [loaded, setLoaded] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return readCachedBrowseFeed().length > 0;
-  });
+  const [loaded, setLoaded] = useState(cachedInitialRecipes.length > 0);
   const [searchResults, setSearchResults] = useState<BrowseRecipe[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [activeSearchQuery, setActiveSearchQuery] = useState('');
@@ -481,12 +481,18 @@ export function useBrowseFeed() {
       fetched = curateBrowseCatalog(fetched);
 
       const likedRecipesList: Recipe[] = likedRecipes
+        .slice(-MAX_TASTE_PROFILE_LIKES)
         .map((id) => savedApiRecipes[id])
         .filter(Boolean);
 
       if (likedRecipesList.length > 0 || userProfile.cuisinePreferences.length > 0 || userProfile.skillLevel || effectivePantryNames.length > 0) {
-        const ranked = rankByRecommendation(fetched, likedRecipesList, likedIds, userProfile, effectivePantryNames);
-        const nextRecipes = diversifyBrowseOrder(ranked.map((item) => item.recipe as BrowseRecipe));
+        const priorityPool = fetched.slice(0, MAX_RECOMMENDATION_CANDIDATES);
+        const overflowPool = fetched.slice(MAX_RECOMMENDATION_CANDIDATES);
+        const ranked = rankByRecommendation(priorityPool, likedRecipesList, likedIds, userProfile, effectivePantryNames);
+        const nextRecipes = diversifyBrowseOrder([
+          ...ranked.map((item) => item.recipe as BrowseRecipe),
+          ...overflowPool,
+        ]);
         setRecipes(nextRecipes);
         writeCachedBrowseFeed(nextRecipes);
       } else {
@@ -537,10 +543,16 @@ export function useBrowseFeed() {
 
       if (likedRecipes.length > 0 || userProfile.cuisinePreferences.length > 0 || userProfile.skillLevel || effectivePantryNames.length > 0) {
         const likedRecipesList: Recipe[] = likedRecipes
+          .slice(-MAX_TASTE_PROFILE_LIKES)
           .map((id) => savedApiRecipes[id])
           .filter(Boolean);
-        const ranked = rankByRecommendation(ordered, likedRecipesList, likedIds, userProfile, effectivePantryNames);
-        setSearchResults(ranked.map((item) => item.recipe as BrowseRecipe));
+        const priorityPool = ordered.slice(0, MAX_RECOMMENDATION_CANDIDATES);
+        const overflowPool = ordered.slice(MAX_RECOMMENDATION_CANDIDATES);
+        const ranked = rankByRecommendation(priorityPool, likedRecipesList, likedIds, userProfile, effectivePantryNames);
+        setSearchResults([
+          ...ranked.map((item) => item.recipe as BrowseRecipe),
+          ...overflowPool,
+        ]);
       } else {
         setSearchResults(ordered);
       }
