@@ -422,7 +422,7 @@ export default function Dashboard() {
       }
     };
 
-    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+    if ("requestIdleCallback" in window) {
       const idleId = (window as Window & { requestIdleCallback: (callback: IdleRequestCallback) => number }).requestIdleCallback(() => {
         startLoad();
       });
@@ -435,9 +435,7 @@ export default function Dashboard() {
       };
     }
 
-    if (typeof window !== "undefined") {
-      timeoutId = window.setTimeout(startLoad, 250);
-    }
+    timeoutId = window.setTimeout(startLoad, 250);
     return () => {
       cancelled = true;
       if (timeoutId !== null) {
