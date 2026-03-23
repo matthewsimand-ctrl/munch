@@ -1,14 +1,14 @@
-import { Suspense, lazy, useEffect } from "react";
+import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useStore } from "@/lib/store";
 import { useCloudStoreSync } from "@/hooks/useCloudStoreSync";
 
-const AppLayout = lazy(() => import("@/components/AppLayout"));
+import AppLayout from "@/components/AppLayout";
 const Index = lazy(() => import("./pages/Index"));
 const Onboarding = lazy(() => import("./pages/Onboarding"));
 const Pantry = lazy(() => import("./pages/Pantry"));
@@ -35,24 +35,101 @@ const SpotlightTutorial = lazy(() => import("./components/SpotlightTutorial"));
 
 const queryClient = new QueryClient();
 const ENABLE_SPOTLIGHT_TUTORIAL = false;
+const ENABLE_STARTUP_DEBUG =
+  new URLSearchParams(window.location.search).has("debug-startup") ||
+  window.localStorage.getItem("munch:debug-startup") === "1";
+
+const ROUTE_PRELOADERS = [
+  () => import("./pages/Dashboard"),
+  () => import("./pages/Swipe"),
+  () => import("./pages/SavedRecipes"),
+  () => import("./pages/Pantry"),
+  () => import("./pages/GroceryList"),
+  () => import("./pages/Settings"),
+  () => import("./pages/MealPrep"),
+];
+
+function recordStartupStage(stage: string, extra?: Record<string, string | number | boolean | null>) {
+  const payload = {
+    stage,
+    at: new Date().toISOString(),
+    path: window.location.pathname,
+    ...(extra || {}),
+  };
+
+  const target = window as Window & {
+    __munchStartupLog?: Array<Record<string, string | number | boolean | null>>;
+    __munchLastStartupStage?: typeof payload;
+  };
+
+  target.__munchStartupLog = [...(target.__munchStartupLog || []).slice(-19), payload];
+  target.__munchLastStartupStage = payload;
+
+  try {
+    window.sessionStorage.setItem("munch:last-startup-stage", JSON.stringify(payload));
+    window.sessionStorage.setItem("munch:startup-log", JSON.stringify(target.__munchStartupLog));
+  } catch {
+    // Ignore storage issues in private or restricted environments.
+  }
+}
 
 function RouteFallback() {
   return (
-    <div
-      className="min-h-screen flex items-center justify-center bg-[#FFFAF5] px-4"
-      style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}
-    >
-      <div className="text-center">
+    <div className="flex min-h-[40vh] items-center justify-center px-4 py-12">
+      <div className="rounded-2xl border border-orange-100 bg-white/90 px-5 py-4 shadow-[0_12px_40px_rgba(28,25,23,0.06)]">
         <p
-          className="text-2xl font-semibold text-stone-900"
+          className="text-lg font-semibold text-stone-900"
           style={{ fontFamily: "'Fraunces', Georgia, serif" }}
         >
-          Loading Munch
+          Loading
         </p>
-        <p className="mt-2 text-sm text-stone-500">Just a moment while we open your kitchen.</p>
+        <p className="mt-1 text-sm text-stone-500">Opening this page…</p>
       </div>
     </div>
   );
+}
+
+function StartupDebugOverlay() {
+  const location = useLocation();
+  const [entries, setEntries] = useState<Array<Record<string, string | number | boolean | null>>>([]);
+
+  useEffect(() => {
+    if (!ENABLE_STARTUP_DEBUG) return;
+    const target = window as Window & {
+      __munchStartupLog?: Array<Record<string, string | number | boolean | null>>;
+    };
+    setEntries([...(target.__munchStartupLog || [])]);
+    const interval = window.setInterval(() => {
+      setEntries([...(target.__munchStartupLog || [])]);
+    }, 400);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (!ENABLE_STARTUP_DEBUG) return;
+    recordStartupStage("route-visible", { path: location.pathname });
+  }, [location.pathname]);
+
+  if (!ENABLE_STARTUP_DEBUG) return null;
+
+  return (
+    <div className="pointer-events-none fixed left-3 top-3 z-[9999] w-[min(26rem,calc(100vw-1.5rem))] rounded-xl bg-stone-950/90 p-3 text-[11px] text-stone-100 shadow-2xl">
+      <p className="font-semibold text-orange-300">Munch startup debug</p>
+      <div className="mt-2 space-y-1">
+        {entries.slice(-8).reverse().map((entry, index) => (
+          <div key={`${entry.at}-${index}`} className="rounded-md bg-white/5 px-2 py-1">
+            <div className="font-medium text-white">{String(entry.stage)}</div>
+            <div className="text-stone-300">{String(entry.path || "")}</div>
+            <div className="text-stone-400">{String(entry.at || "")}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AppRouteElement({ children }: { children: React.ReactNode }) {
+  return <Suspense fallback={<RouteFallback />}>{children}</Suspense>;
 }
 
 function AppRoutes() {
@@ -71,6 +148,10 @@ function AppRoutes() {
   };
 
   useCloudStoreSync();
+
+  useEffect(() => {
+    recordStartupStage("app-routes-mounted");
+  }, []);
 
   useEffect(() => {
     if (!ENABLE_SPOTLIGHT_TUTORIAL && showTutorial) {
@@ -99,58 +180,90 @@ function AppRoutes() {
     };
   }, [resetStore, setStoreOwnerUserId, storeOwnerUserId]);
 
+  useEffect(() => {
+    recordStartupStage("route-preload-scheduled");
+
+    const preload = () => {
+      recordStartupStage("route-preload-start");
+      for (const load of ROUTE_PRELOADERS) {
+        void load();
+      }
+      recordStartupStage("route-preload-complete");
+    };
+
+    if ("requestIdleCallback" in window) {
+      const handle = window.requestIdleCallback(() => preload(), { timeout: 1200 });
+      return () => window.cancelIdleCallback(handle);
+    }
+
+    const timeout = window.setTimeout(preload, 900);
+    return () => window.clearTimeout(timeout);
+  }, []);
+
   return (
     <>
-      <Suspense fallback={<RouteFallback />}>
-        <Routes>
-          {/* Full-screen flows — no sidebar */}
-          <Route path="/" element={<Index />} />
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/onboarding" element={<Onboarding />} />
-          <Route path="/invite/kitchen/:token" element={<KitchenInviteAccept />} />
-          <Route path="/cook/:id" element={<CookMode />} />
+      <Routes>
+        <Route path="/" element={<AppRouteElement><Index /></AppRouteElement>} />
+        <Route path="/auth" element={<AppRouteElement><Auth /></AppRouteElement>} />
+        <Route path="/onboarding" element={<AppRouteElement><Onboarding /></AppRouteElement>} />
+        <Route path="/invite/kitchen/:token" element={<AppRouteElement><KitchenInviteAccept /></AppRouteElement>} />
+        <Route path="/cook/:id" element={<AppRouteElement><CookMode /></AppRouteElement>} />
 
-          {/* Main app — sidebar on desktop, bottom nav on mobile */}
-          <Route element={<AppLayout />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/swipe" element={<Swipe />} />
-            <Route path="/saved" element={<SavedRecipes />} />
-            <Route path="/cookbooks" element={<Cookbooks />} />
-            <Route path="/cookbooks/:id" element={<CookbookDetails />} />
-            <Route path="/let-me-cook" element={<Navigate to="/saved" replace />} />
-            <Route path="/pantry" element={<Pantry />} />
-            <Route path="/grocery" element={<GroceryList />} />
-            <Route path="/groceries" element={<Groceries />} />
-            <Route path="/meal-prep" element={<MealPrep />} />
-            <Route path="/kitchens" element={<Kitchens />} />
-            <Route path="/notifications" element={<Notifications />} />
-            <Route path="/cooked-history" element={<CookedHistory />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/premium" element={<PremiumBenefits />} />
-            <Route path="/dictionary" element={<Dictionary />} />
-            <Route path="/chef/:userId" element={<ChefProfile />} />
-          </Route>
+        <Route element={<AppLayout />}>
+          <Route path="/dashboard" element={<AppRouteElement><Dashboard /></AppRouteElement>} />
+          <Route path="/swipe" element={<AppRouteElement><Swipe /></AppRouteElement>} />
+          <Route path="/saved" element={<AppRouteElement><SavedRecipes /></AppRouteElement>} />
+          <Route path="/cookbooks" element={<AppRouteElement><Cookbooks /></AppRouteElement>} />
+          <Route path="/cookbooks/:id" element={<AppRouteElement><CookbookDetails /></AppRouteElement>} />
+          <Route path="/let-me-cook" element={<Navigate to="/saved" replace />} />
+          <Route path="/pantry" element={<AppRouteElement><Pantry /></AppRouteElement>} />
+          <Route path="/grocery" element={<AppRouteElement><GroceryList /></AppRouteElement>} />
+          <Route path="/groceries" element={<AppRouteElement><Groceries /></AppRouteElement>} />
+          <Route path="/meal-prep" element={<AppRouteElement><MealPrep /></AppRouteElement>} />
+          <Route path="/kitchens" element={<AppRouteElement><Kitchens /></AppRouteElement>} />
+          <Route path="/notifications" element={<AppRouteElement><Notifications /></AppRouteElement>} />
+          <Route path="/cooked-history" element={<AppRouteElement><CookedHistory /></AppRouteElement>} />
+          <Route path="/settings" element={<AppRouteElement><Settings /></AppRouteElement>} />
+          <Route path="/premium" element={<AppRouteElement><PremiumBenefits /></AppRouteElement>} />
+          <Route path="/dictionary" element={<AppRouteElement><Dictionary /></AppRouteElement>} />
+          <Route path="/chef/:userId" element={<AppRouteElement><ChefProfile /></AppRouteElement>} />
+        </Route>
 
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-        {ENABLE_SPOTLIGHT_TUTORIAL && showTutorial && (
+        <Route path="*" element={<AppRouteElement><NotFound /></AppRouteElement>} />
+      </Routes>
+      {ENABLE_SPOTLIGHT_TUTORIAL && showTutorial && (
+        <Suspense fallback={null}>
           <SpotlightTutorial onComplete={handleTutorialComplete} />
-        )}
-      </Suspense>
+        </Suspense>
+      )}
+      <StartupDebugOverlay />
     </>
   );
 }
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
+const App = () => {
+  useEffect(() => {
+    recordStartupStage("app-mounted");
+  }, []);
+
+  const router = useMemo(
+    () => (
       <BrowserRouter>
         <AppRoutes />
       </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+    ),
+    [],
+  );
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        {router}
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
