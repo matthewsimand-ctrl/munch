@@ -725,18 +725,22 @@ export default function MealPrepScreen() {
           className="border-b"
           style={{ background: "linear-gradient(135deg,#FFF7ED 0%,#FFFAF5 100%)", borderColor: "rgba(249,115,22,0.12)" }}
         >
-          <div className="max-w-4xl mx-auto px-4 py-5 sm:px-6 sm:py-8">
-            <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1">Planning</p>
-            <h1 className="text-xl font-bold text-stone-900 sm:text-3xl" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
-              Meal Planner
-            </h1>
-            <p className="text-sm text-stone-500 mt-2 max-w-2xl">
-              Build your week, auto-fill meals with Surprise Me, and turn your plan into a grocery list with one tap.
-            </p>
+          <div className="mx-auto max-w-6xl px-4 py-4 pr-16 sm:px-6 sm:py-6 sm:pr-20 md:pr-24">
+            <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="min-w-0">
+                <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-orange-400">Planning</p>
+                <h1 className="text-xl font-bold text-stone-900 sm:text-2xl" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+                  Meal Planner
+                </h1>
+                <p className="mt-1 max-w-2xl text-xs text-stone-400">
+                  Build your week, auto-fill meals with Auto Plan, and turn your plan into a grocery list with one tap.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="max-w-4xl mx-auto px-4 py-6 sm:px-6 sm:py-10">
+        <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
           <div
             className="rounded-[28px] border p-5 sm:p-8"
             style={{

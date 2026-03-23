@@ -43,6 +43,7 @@ function SwipeCard({
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const didMoveRef = useRef(false);
+  const ignoreCardTapRef = useRef(false);
   const rotate = useTransform(x, [-200, 200], [-18, 18]);
   const likeOpacity = useTransform(x, [20, 100], [0, 1]);
   const nopeOpacity = useTransform(x, [-100, -20], [1, 0]);
@@ -89,6 +90,10 @@ function SwipeCard({
       className="absolute inset-0 cursor-grab active:cursor-grabbing select-none"
       whileDrag={{ scale: 1.03 }}
       onTap={() => {
+        if (ignoreCardTapRef.current) {
+          ignoreCardTapRef.current = false;
+          return;
+        }
         if (isTop && !didMoveRef.current) onOpenDetails();
       }}
       data-tutorial={isTop ? "recipe-card" : undefined}
@@ -198,7 +203,12 @@ function SwipeCard({
             </span>
             {resolvedChefName && resolvedChefId && (
               <button
-                onClick={(e) => { e.stopPropagation(); onChefClick(resolvedChefId, resolvedChefName); }}
+                onPointerDown={() => { ignoreCardTapRef.current = true; }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  ignoreCardTapRef.current = true;
+                  onChefClick(resolvedChefId, resolvedChefName);
+                }}
                 className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-2 py-1 text-orange-100 hover:text-white hover:bg-white/15"
               >
                 <RecipeAttributionIcon recipe={{ ...recipe, chef: resolvedChefName, created_by: resolvedChefId }} sizeClassName="h-3.5 w-3.5" className={isMunchRecipe ? "rounded-full bg-white/95 p-0.5" : ""} />
@@ -307,6 +317,7 @@ export default function SwipeScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedChefId, setSelectedChefId] = useState<string | null>(null);
   const [selectedChefName, setSelectedChefName] = useState<string | null>(null);
+  const [pendingChefProfile, setPendingChefProfile] = useState<{ chefId: string | null; chefName: string | null } | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [selectedMealTypes, setSelectedMealTypes] = useState<string[]>([]);
   const [selectedCuisine, setSelectedCuisine] = useState("");
@@ -523,6 +534,13 @@ export default function SwipeScreen() {
     const timeout = window.setTimeout(() => setLikedBurst(null), 700);
     return () => window.clearTimeout(timeout);
   }, [likedBurst]);
+
+  useEffect(() => {
+    if (!pendingChefProfile || previewOpen || previewRecipe) return;
+    setSelectedChefId(pendingChefProfile.chefId);
+    setSelectedChefName(pendingChefProfile.chefName);
+    setPendingChefProfile(null);
+  }, [pendingChefProfile, previewOpen, previewRecipe]);
 
   const saveAndContinue = useCallback((recipe: Recipe, options?: { closePreview?: boolean }) => {
     setPreviousRecipe(recipe);
@@ -954,6 +972,11 @@ export default function SwipeScreen() {
           missingIngredients.forEach((ing) => addCustomGroceryItem(ing));
           addToGrocery(recipe.id); // Track that this recipe is in the grocery list
           toast.success(`Added ${missingIngredients.length} items from "${recipe.name}" to grocery list`);
+        }}
+        onChefClick={(chefId, chefName) => {
+          setPendingChefProfile({ chefId, chefName });
+          setPreviewOpen(false);
+          setPreviewRecipe(null);
         }}
         onSave={(recipe) => {
           previewDismissActionRef.current = "save";
