@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Outlet } from "react-router-dom";
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   BookOpen,
@@ -13,11 +13,9 @@ import {
   BookMarked,
   Crown,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useStore } from "@/lib/store";
 import { MunchLogo } from "@/components/MunchLogo";
 import BottomNav from "@/components/BottomNav";
-import defaultChefAvatar from "@/assets/chef-avatar.png";
 
 const NAV_ITEMS = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -31,66 +29,11 @@ const NAV_ITEMS = [
 
 export default function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
-  const [displayName, setDisplayName] = useState("");
-  const [planType, setPlanType] = useState("Free Plan");
-  const [headerAvatarUrl, setHeaderAvatarUrl] = useState<string | null>(null);
-  const navigate = useNavigate();
   const location = useLocation();
-  const { displayName: storeDisplayName, chefAvatarUrl } = useStore();
+  const { displayName: storeDisplayName } = useStore();
   const isChefProfileRoute = location.pathname.startsWith("/chef/");
-  const showGlobalAvatar = location.pathname !== "/dashboard";
-  const mobileSwipeLayout = location.pathname === "/swipe";
-
-  useEffect(() => {
-    const hydrateFooterProfile = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const user = session?.user;
-
-      if (user) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("display_name, avatar_url")
-          .eq("user_id", user.id)
-          .maybeSingle();
-
-        const persistedName = profile?.display_name?.trim();
-        const fallbackName = user.user_metadata?.display_name?.trim();
-        const persistedAvatar = typeof profile?.avatar_url === "string" ? profile.avatar_url : null;
-        const fallbackAvatar = typeof user.user_metadata?.avatar_url === "string" ? user.user_metadata.avatar_url : null;
-        setHeaderAvatarUrl(persistedAvatar || fallbackAvatar || null);
-        if (persistedName || fallbackName) {
-          setDisplayName((persistedName || fallbackName) as string);
-        } else if (storeDisplayName) {
-          setDisplayName(storeDisplayName);
-        } else {
-          setDisplayName("");
-        }
-      } else {
-        // Fallback to store name for Guests or users without a profile record
-        if (storeDisplayName) {
-          setDisplayName(storeDisplayName);
-        } else {
-          setDisplayName("");
-        }
-        setHeaderAvatarUrl(null);
-      }
-
-      if (user) {
-        const metadataPlan = user.user_metadata?.plan_type || user.user_metadata?.plan || user.user_metadata?.subscription;
-        if (typeof metadataPlan === "string" && metadataPlan.trim()) {
-          setPlanType(metadataPlan.trim());
-        }
-      }
-    };
-
-    hydrateFooterProfile();
-  }, [storeDisplayName]);
-
-  useEffect(() => {
-    if (chefAvatarUrl) {
-      setHeaderAvatarUrl(chefAvatarUrl);
-    }
-  }, [chefAvatarUrl]);
+  const displayName = storeDisplayName || "";
+  const planType = "Free Plan";
 
   return (
     <div className="flex min-h-screen h-[100dvh] bg-gradient-to-br from-orange-50/50 via-background to-background overflow-hidden">
@@ -190,22 +133,6 @@ export default function AppLayout() {
 
       {/* ── Main content ── */}
       <main className="relative flex-1 flex flex-col min-w-0 overflow-hidden">
-        {showGlobalAvatar ? (
-          <div className={`pointer-events-none absolute z-30 md:right-6 md:top-4 ${mobileSwipeLayout ? "right-3 top-[max(0.4rem,env(safe-area-inset-top))] md:right-6" : "right-4 top-[max(0.5rem,env(safe-area-inset-top))]"}`}>
-            <button
-              type="button"
-              onClick={() => navigate("/settings")}
-              className={`pointer-events-auto relative overflow-hidden rounded-full border-2 border-white bg-white shadow-[0_8px_24px_rgba(28,25,23,0.12)] ring-2 ring-orange-200 transition-transform hover:scale-[1.02] ${mobileSwipeLayout ? "h-9 w-9 md:h-10 md:w-10" : "h-10 w-10"}`}
-              aria-label="Open account settings"
-            >
-              <img
-                src={headerAvatarUrl || chefAvatarUrl || defaultChefAvatar}
-                alt="Your avatar"
-                className="h-full w-full object-cover"
-              />
-            </button>
-          </div>
-        ) : null}
         <div data-app-scroll className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pt-[max(0.25rem,calc(env(safe-area-inset-top)-1rem))] pb-[calc(var(--mobile-nav-offset)+0.1rem)] md:pt-0 md:pb-0">
           <div className="app-page">
             <Outlet />
