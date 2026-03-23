@@ -617,12 +617,22 @@ export default function Dashboard() {
           <div
             className="relative overflow-hidden rounded-[2rem] border border-orange-100 min-h-[190px] p-5 sm:min-h-[200px] sm:px-8 sm:py-6"
             style={{
-              background: loadedHeroImageSrc
-                ? `linear-gradient(110deg, rgba(28,25,23,0.74) 0%, rgba(28,25,23,0.58) 34%, rgba(28,25,23,0.36) 62%, rgba(28,25,23,0.2) 100%), url(${loadedHeroImageSrc}) center/cover`
-                : "linear-gradient(135deg,#1C1917 0%,#292524 42%,#44403C 100%)",
+              background: "linear-gradient(135deg,#1C1917 0%,#292524 42%,#44403C 100%)",
               boxShadow: "0 16px 40px rgba(28,25,23,0.10)",
             }}
           >
+            {loadedHeroImageSrc && (
+              <img
+                src={loadedHeroImageSrc}
+                alt=""
+                aria-hidden="true"
+                className="absolute inset-0 h-full w-full object-cover"
+                onError={() => setLoadedHeroImageSrc(null)}
+              />
+            )}
+            {loadedHeroImageSrc && (
+              <div className="absolute inset-0 bg-[linear-gradient(110deg,rgba(28,25,23,0.74)_0%,rgba(28,25,23,0.58)_34%,rgba(28,25,23,0.36)_62%,rgba(28,25,23,0.2)_100%)]" />
+            )}
             {loadedHeroImageSrc && (
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.14),transparent_24%),radial-gradient(circle_at_bottom_left,rgba(0,0,0,0.22),transparent_30%)] backdrop-blur-[2px]" />
             )}

@@ -57,6 +57,25 @@ export interface KitchenSummary {
 
 export type DashboardHeroImageMode = 'daily' | 'manual';
 
+function sanitizeStoredImage(image: unknown) {
+  const value = typeof image === 'string' ? image.trim() : '';
+  if (!value) return '';
+  if (value.startsWith('data:image/') && value.length > 2000) {
+    return '';
+  }
+  return value;
+}
+
+function sanitizeStoredRecipe(recipe: any) {
+  if (!recipe || typeof recipe !== 'object') return recipe;
+
+  return {
+    ...recipe,
+    image: sanitizeStoredImage(recipe.image),
+    raw_api_payload: undefined,
+  };
+}
+
 function inferGrocerySection(name: string) {
   const normalizedName = String(name || '').trim();
   if (!normalizedName) return 'other';
@@ -725,6 +744,18 @@ export const useStore = create<AppState>()(
           cookModeTtsEnabled: true,
         }),
     }),
-    { name: 'chefstack-storage' }
+    {
+      name: 'chefstack-storage-v2',
+      partialize: (state) => ({
+        ...state,
+        savedApiRecipes: Object.fromEntries(
+          Object.entries(state.savedApiRecipes).map(([id, recipe]) => [id, sanitizeStoredRecipe(recipe)]),
+        ),
+        mealPlan: state.mealPlan.map((item) => ({
+          ...item,
+          recipeSnapshot: item.recipeSnapshot ? sanitizeStoredRecipe(item.recipeSnapshot) : undefined,
+        })),
+      }),
+    }
   )
 );
