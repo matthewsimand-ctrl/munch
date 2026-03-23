@@ -793,7 +793,9 @@ serve(async (req) => {
       };
       console.log(`Browse: prepared ${allRecipes.length} total unique recipes, returning ${unique.length}`);
 
-      return new Response(JSON.stringify({ recipes: unique, debug }), {
+      // Strip raw_api_payload to reduce response size (~90% smaller)
+      const lightweight = unique.map(({ raw_api_payload, ...rest }) => rest);
+      return new Response(JSON.stringify({ recipes: lightweight, debug }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -852,7 +854,9 @@ serve(async (req) => {
       returnedCounts: countBySource(recipes),
     };
 
-    return new Response(JSON.stringify({ recipes, debug }), {
+    // Strip raw_api_payload to reduce response size
+    const lightweight = recipes.map(({ raw_api_payload, ...rest }: any) => rest);
+    return new Response(JSON.stringify({ recipes: lightweight, debug }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
