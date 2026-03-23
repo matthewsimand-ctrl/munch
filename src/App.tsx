@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useStore } from "@/lib/store";
+import { useCloudStoreSync } from "@/hooks/useCloudStoreSync";
 
 const AppLayout = lazy(() => import("@/components/AppLayout"));
 const Index = lazy(() => import("./pages/Index"));
@@ -68,6 +69,8 @@ function AppRoutes() {
     setShowTutorial(false);
     completeTutorial();
   };
+
+  useCloudStoreSync();
 
   useEffect(() => {
     if (!ENABLE_SPOTLIGHT_TUTORIAL && showTutorial) {
