@@ -350,9 +350,9 @@ function AppRoutes() {
         <Route path="/onboarding" element={<AppRouteElement><Onboarding /></AppRouteElement>} />
         <Route path="/invite/kitchen/:token" element={<AppRouteElement><KitchenInviteAccept /></AppRouteElement>} />
         <Route path="/cook/:id" element={<AppRouteElement><CookMode /></AppRouteElement>} />
-        <Route path="/dashboard" element={<AppRouteElement><Dashboard /></AppRouteElement>} />
 
         <Route element={<AppLayout />}>
+          <Route path="/dashboard" element={<AppRouteElement><Dashboard /></AppRouteElement>} />
           <Route path="/swipe" element={<AppRouteElement><Swipe /></AppRouteElement>} />
           <Route path="/saved" element={<AppRouteElement><SavedRecipes /></AppRouteElement>} />
           <Route path="/cookbooks" element={<AppRouteElement><Cookbooks /></AppRouteElement>} />
