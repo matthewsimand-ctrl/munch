@@ -11,7 +11,6 @@ import { useBrowseFeed } from "@/hooks/useBrowseFeed";
 import RecipePreviewDialog from "@/components/RecipePreviewDialog";
 import PremiumFeatureButton from "@/components/PremiumFeatureButton";
 import { toast } from "sonner";
-import { jsPDF } from "jspdf";
 import { format, startOfWeek } from "date-fns";
 import { usePremiumAccess } from "@/hooks/usePremiumAccess";
 import { usePremiumGate } from "@/hooks/usePremiumGate";
@@ -506,7 +505,8 @@ export default function MealPrepScreen() {
     return { ingredients, instructions };
   };
 
-  const exportPdf = (orderedMeals: PlannedMeal[]) => {
+  const exportPdf = async (orderedMeals: PlannedMeal[]) => {
+    const [{ jsPDF }] = await Promise.all([import("jspdf")]);
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
@@ -646,7 +646,7 @@ export default function MealPrepScreen() {
     doc.save(`meal-plan-${fileSuffix}.pdf`);
   };
 
-  const exportMealPlan = () => {
+  const exportMealPlan = async () => {
     if (plannedMeals.length === 0) {
       toast.info("Add meals to your plan before exporting.");
       return;
@@ -668,7 +668,7 @@ export default function MealPrepScreen() {
     });
 
     if (exportSettings.pdf) {
-      exportPdf(orderedMeals);
+      await exportPdf(orderedMeals);
     }
 
     if (exportSettings.excel) {
