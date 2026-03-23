@@ -32,15 +32,59 @@ import PremiumFeatureButton from "@/components/PremiumFeatureButton";
 import RecipePreviewDialog from "@/components/RecipePreviewDialog";
 import ImportRecipeDialog from "@/components/ImportRecipeDialog";
 import CreateRecipeForm from "@/components/CreateRecipeForm";
-import { applyRecipeImageFallback, getRecipeImageSrc } from "@/lib/recipeImage";
+import { RECIPE_IMAGE_FALLBACK_DATA_URI, applyRecipeImageFallback, getRecipeImageSrc } from "@/lib/recipeImage";
+import { normalizeRecipe } from "@/lib/normalizeRecipe";
 import {
   buildMunchAvatarUrl,
   createMunchAvatarConfig,
   type MunchAvatarConfig,
 } from "@/lib/munchAvatar";
+import munchLogo from "@/assets/munch-logo.png";
 
 const WEEK_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MEAL_PREP_TYPES = new Set(["Breakfast", "Lunch", "Dinner"]);
+const DASHBOARD_HERO_FALLBACK_IMAGE = munchLogo;
+const DASHBOARD_STARTER_RECIPES: Recipe[] = [
+  {
+    id: "starter-sheet-pan-chicken",
+    name: "Sheet Pan Chicken & Veggies",
+    image: RECIPE_IMAGE_FALLBACK_DATA_URI,
+    cook_time: "30 min",
+    difficulty: "Easy",
+    ingredients: ["2 chicken breasts", "1 bell pepper", "1 zucchini", "2 tbsp olive oil"],
+    tags: ["weeknight", "high protein", "easy"],
+    instructions: ["Preheat the oven.", "Season the chicken and vegetables.", "Roast until cooked through."],
+    cuisine: "American",
+    source: "starter",
+    servings: 2,
+  },
+  {
+    id: "starter-garlic-pasta",
+    name: "Garlic Butter Pasta",
+    image: RECIPE_IMAGE_FALLBACK_DATA_URI,
+    cook_time: "20 min",
+    difficulty: "Easy",
+    ingredients: ["200 g pasta", "2 tbsp butter", "3 cloves garlic", "1/4 cup parmesan"],
+    tags: ["quick", "comfort", "vegetarian"],
+    instructions: ["Cook the pasta.", "Make the garlic butter.", "Toss and serve with parmesan."],
+    cuisine: "Italian",
+    source: "starter",
+    servings: 2,
+  },
+  {
+    id: "starter-salmon-bowl",
+    name: "Salmon Rice Bowl",
+    image: RECIPE_IMAGE_FALLBACK_DATA_URI,
+    cook_time: "25 min",
+    difficulty: "Intermediate",
+    ingredients: ["2 salmon fillets", "2 cups cooked rice", "1 cucumber", "1 tbsp soy sauce"],
+    tags: ["healthy", "high protein", "dinner"],
+    instructions: ["Cook the salmon.", "Warm the rice.", "Assemble the bowls and serve."],
+    cuisine: "Asian",
+    source: "starter",
+    servings: 2,
+  },
+];
 
 function formatRelative(timestamp: string) {
   const diffMs = Date.now() - new Date(timestamp).getTime();
@@ -206,6 +250,7 @@ export default function Dashboard() {
   const [addRecipeDialogOpen, setAddRecipeDialogOpen] = useState(false);
   const [showManualRecipeDialog, setShowManualRecipeDialog] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [quickSuggestionRecipes, setQuickSuggestionRecipes] = useState<Recipe[]>([]);
   const [avatarConfig, setAvatarConfig] = useState<MunchAvatarConfig>(() => createMunchAvatarConfig());
   const [avatarPhotoPreview, setAvatarPhotoPreview] = useState<string | null>(null);
   const [pendingUploadedAvatarUrl, setPendingUploadedAvatarUrl] = useState<string | null>(null);
@@ -371,14 +416,49 @@ export default function Dashboard() {
   }, [mealPlan, cookedRecipeIds]);
   const likedSet = useMemo(() => new Set(likedRecipes), [likedRecipes]);
   const pantryNames = useMemo(() => pantryList.map((p) => p.name), [pantryList]);
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadQuickSuggestions = async () => {
+      const { data, error } = await supabase
+        .from("recipes")
+        .select("*")
+        .eq("is_public", true)
+        .order("created_at", { ascending: false })
+        .limit(18);
+
+      if (cancelled || error) return;
+
+      setQuickSuggestionRecipes(
+        (data || [])
+          .map((recipe) => normalizeRecipe(recipe))
+          .filter((recipe) => !likedSet.has(recipe.id)),
+      );
+    };
+
+    if (quickSuggestionRecipes.length === 0) {
+      void loadQuickSuggestions();
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [likedSet, quickSuggestionRecipes.length]);
+
   const availableSuggestions = useMemo(
-    () => browseRecipes.filter((r) => !likedSet.has(r.id)),
-    [browseRecipes, likedSet],
+    () => {
+      const primary = browseRecipes.filter((r) => !likedSet.has(r.id));
+      if (primary.length > 0) return primary;
+      return quickSuggestionRecipes.filter((r) => !likedSet.has(r.id));
+    },
+    [browseRecipes, likedSet, quickSuggestionRecipes],
   );
   const suggestedRecipes = useMemo(
     () => availableSuggestions.slice(suggestionOffset, suggestionOffset + 3),
     [availableSuggestions, suggestionOffset],
   );
+  const dashboardDisplaySuggestions = suggestedRecipes.length > 0 ? suggestedRecipes : DASHBOARD_STARTER_RECIPES;
+  const suggestionsLoading = browseLoading && availableSuggestions.length === 0;
 
   const recentActivity = useMemo(() => {
     const items: Array<{ text: string; time: string; emoji: string }> = [];
@@ -540,6 +620,7 @@ export default function Dashboard() {
         upNextPlannedMeal?.recipe_data,
         currentPlannedMeal?.recipe_data,
         ...Object.values(savedApiRecipes).slice(-8),
+        ...DASHBOARD_STARTER_RECIPES,
         ...suggestedRecipes,
         ...availableSuggestions,
       ]
@@ -562,7 +643,7 @@ export default function Dashboard() {
   const heroImageSrc =
     heroImageOptions.length > 0
       ? heroImageOptions[heroImageIndex % heroImageOptions.length]
-      : null;
+      : DASHBOARD_HERO_FALLBACK_IMAGE;
   const resolvedChefName = displayName || storeDisplayName || "";
   const heroHeading = resolvedChefName ? `Chef ${resolvedChefName}` : "Chef";
   const heroImageReady = Boolean(loadedHeroImageSrc);
@@ -805,7 +886,7 @@ export default function Dashboard() {
                   </div>
                 }
               />
-              {browseLoading ? (
+              {suggestionsLoading && dashboardDisplaySuggestions.length === 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                   {[0, 1, 2].map((i) => (
                     <div key={i} className="animate-pulse">
@@ -815,15 +896,9 @@ export default function Dashboard() {
                     </div>
                   ))}
                 </div>
-              ) : suggestedRecipes.length === 0 ? (
-                <div className="py-10 text-center">
-                  <p className="text-sm text-stone-400">
-                    <Link to="/swipe" className="text-orange-500 hover:underline">Browse recipes</Link> to get personalized suggestions
-                  </p>
-                </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {suggestedRecipes.slice(0, 3).map((recipe) => {
+                  {dashboardDisplaySuggestions.slice(0, 3).map((recipe) => {
                     const match = calculateMatch(pantryNames, recipe.ingredients || []);
                     return (
                       <RecipeSuggestionCard
