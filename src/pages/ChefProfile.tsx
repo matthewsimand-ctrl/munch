@@ -11,7 +11,7 @@ import { applyRecipeImageFallback, getRecipeImageSrc } from '@/lib/recipeImage';
 import RecipePreviewDialog from '@/components/RecipePreviewDialog';
 import { useStore } from '@/lib/store';
 import { toast } from 'sonner';
-import munchLogo from '@/assets/munch-logo.png';
+import munchLogo from '@/assets/munch-logo.webp';
 import { MUNCH_CHEF_NAME, MUNCH_OFFICIAL_USER_ID } from '@/lib/munchIdentity';
 import { Input } from '@/components/ui/input';
 import { getRecipeChefName, getResolvedRecipeSourceUrl, isMunchAuthoredRecipe, isMunchChefLabel, shouldShowChefAttribution } from '@/lib/recipeAttribution';

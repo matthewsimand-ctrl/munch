@@ -1,7 +1,7 @@
 import { ChefHat } from 'lucide-react';
 import type { Recipe } from '@/data/recipes';
 import { getRecipeSourceHostname, getResolvedRecipeSourceUrl, isImportedCommunityRecipe, isImportedUrlRecipe, isMunchAuthoredRecipe } from '@/lib/recipeAttribution';
-import munchLogo from '@/assets/munch-logo.png';
+import munchLogo from '@/assets/munch-logo.webp';
 
 interface RecipeAttributionIconProps {
   recipe: Recipe;
