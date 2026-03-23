@@ -251,17 +251,25 @@ async function fetchPublicRecipesFallback(): Promise<BrowseRecipe[]> {
 
 async function fetchMealDbBrowseFallback(): Promise<BrowseRecipe[]> {
   const letters = 'abcdefghijklmnopqrstuvwxyz'.split('');
-  const results = await Promise.allSettled(
-    letters.map(async (letter) => {
-      const response = await fetch(`https://www.themealdb.com/api/json/v1/1/search.php?f=${letter}`);
-      const data = await response.json();
-      return Array.isArray(data?.meals) ? data.meals : [];
-    }),
-  );
+  const allMeals: any[] = [];
 
-  return results
-    .filter((result): result is PromiseFulfilledResult<any[]> => result.status === 'fulfilled')
-    .flatMap((result) => result.value)
+  // Fetch in batches of 6 to avoid freezing the browser
+  for (let i = 0; i < letters.length; i += 6) {
+    const batch = letters.slice(i, i + 6);
+    const results = await Promise.allSettled(
+      batch.map(async (letter) => {
+        const response = await fetch(`https://www.themealdb.com/api/json/v1/1/search.php?f=${letter}`);
+        const data = await response.json();
+        return Array.isArray(data?.meals) ? data.meals : [];
+      }),
+    );
+    results
+      .filter((result): result is PromiseFulfilledResult<any[]> => result.status === 'fulfilled')
+      .flatMap((result) => result.value)
+      .forEach((meal) => allMeals.push(meal));
+  }
+
+  return allMeals
     .map((meal: any) => normalizeRecipe({
       id: `mealdb-${meal.idMeal}`,
       name: meal.strMeal,

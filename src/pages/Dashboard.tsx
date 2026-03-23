@@ -209,7 +209,7 @@ export default function Dashboard() {
   const [avatarConfig, setAvatarConfig] = useState<MunchAvatarConfig>(() => createMunchAvatarConfig());
   const [avatarPhotoPreview, setAvatarPhotoPreview] = useState<string | null>(null);
   const [pendingUploadedAvatarUrl, setPendingUploadedAvatarUrl] = useState<string | null>(null);
-  const [importDialogTab, setImportDialogTab] = useState<"url" | "pdf" | "photo" | "website">("url");
+  const [importDialogTab, setImportDialogTab] = useState<"url" | "pdf" | "photo">("url");
   const [hideImportTabs, setHideImportTabs] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const { isPremium } = usePremiumAccess();
@@ -422,24 +422,25 @@ export default function Dashboard() {
       }
     };
 
-    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
-      const idleId = (window as Window & { requestIdleCallback: (callback: IdleRequestCallback) => number }).requestIdleCallback(() => {
+    const w = window as typeof globalThis & Window;
+    if ("requestIdleCallback" in w) {
+      const idleId = (w as Window & { requestIdleCallback: (callback: IdleRequestCallback) => number }).requestIdleCallback(() => {
         startLoad();
       });
 
       return () => {
         cancelled = true;
-        if ("cancelIdleCallback" in window) {
-          (window as Window & { cancelIdleCallback: (handle: number) => void }).cancelIdleCallback(idleId);
+        if ("cancelIdleCallback" in w) {
+          (w as Window & { cancelIdleCallback: (handle: number) => void }).cancelIdleCallback(idleId);
         }
       };
     }
 
-    timeoutId = window.setTimeout(startLoad, 250);
+    timeoutId = globalThis.setTimeout(startLoad, 250) as unknown as number;
     return () => {
       cancelled = true;
       if (timeoutId !== null) {
-        window.clearTimeout(timeoutId);
+        globalThis.clearTimeout(timeoutId);
       }
     };
   }, [loadFeed]);
