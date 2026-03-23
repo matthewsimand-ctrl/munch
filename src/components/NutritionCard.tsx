@@ -184,6 +184,7 @@ export default function NutritionCard({ recipeId, recipeName, ingredients, servi
                     <PremiumFeatureButton
                       label="See Member Benefits"
                       onClick={() => openPremiumPage("Nutritional Facts")}
+                      variant="soft"
                       className="mt-3 h-10 rounded-xl px-3 text-sm"
                     />
                   </div>
@@ -303,6 +304,7 @@ export default function NutritionCard({ recipeId, recipeName, ingredients, servi
             <PremiumFeatureButton
               label="See Member Benefits"
               onClick={() => openPremiumPage("Nutritional Facts")}
+              variant="soft"
               className="mt-3 h-10 rounded-xl px-3 text-sm"
             />
           </div>

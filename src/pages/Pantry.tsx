@@ -501,13 +501,14 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
                     {renderActionHelp("Upload lets you take a picture of a receipt or fridge, or upload a saved file.", { align: "start" })}
                   </button>
                 ) : (
-                  <PremiumFeatureButton
-                    label="Upload"
-                    onClick={() => openPremiumPage("Pantry Upload")}
-                    disabled={importingReceipt}
-                    className="h-8 w-auto rounded-xl px-2.5 text-[11px] shadow-[0_10px_22px_rgba(91,33,182,0.22)]"
-                    trailing={renderActionHelp("Upload lets you take a picture of a receipt or fridge, or upload a saved file.", { align: "start" })}
-                  />
+                <PremiumFeatureButton
+                  label="Upload"
+                  onClick={() => openPremiumPage("Pantry Upload")}
+                  disabled={importingReceipt}
+                  variant="soft"
+                  className="h-9 w-auto rounded-xl px-3 text-[11px]"
+                  trailing={renderActionHelp("Upload lets you take a picture of a receipt or fridge, or upload a saved file.", { align: "start" })}
+                />
                 )}
               </div>
 
@@ -525,7 +526,8 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
                 <PremiumFeatureButton
                   label="Fridge Cleanup"
                   onClick={() => openPremiumPage("Fridge Cleanup")}
-                  className="h-8 w-auto rounded-xl px-2.5 text-[11px] shadow-[0_10px_22px_rgba(91,33,182,0.22)]"
+                  variant="soft"
+                  className="h-9 w-auto rounded-xl px-3 text-[11px]"
                   disabled={generatingRecipe}
                   trailing={renderActionHelp("Fridge Cleanup uses AI to suggest a recipe based on what is already in your pantry.", { align: "end" })}
                 />

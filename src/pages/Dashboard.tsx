@@ -1013,6 +1013,7 @@ export default function Dashboard() {
                           <PremiumFeatureButton
                             label="Get Premium"
                             onClick={() => openPremiumPage("Nutrition consumed")}
+                            variant="soft"
                             className="mt-4 mx-auto h-11 w-auto px-5"
                           />
                         </div>
