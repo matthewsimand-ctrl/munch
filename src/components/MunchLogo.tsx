@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import munchLogo from "@/assets/munch-logo.png";
+import munchLogo from "@/assets/munch-logo.webp";
 
 interface MunchLogoProps {
   className?: string;

@@ -9,7 +9,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useStore } from "@/lib/store";
 import { useBrowseFeed } from "@/hooks/useBrowseFeed";
-import defaultChefAvatar from "@/assets/chef-avatar.png";
+import defaultChefAvatar from "@/assets/chef-avatar.webp";
 import { calculateMatch } from "@/lib/matchLogic";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
@@ -39,7 +39,7 @@ import {
   createMunchAvatarConfig,
   type MunchAvatarConfig,
 } from "@/lib/munchAvatar";
-import munchLogo from "@/assets/munch-logo.png";
+import munchLogo from "@/assets/munch-logo.webp";
 
 const WEEK_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MEAL_PREP_TYPES = new Set(["Breakfast", "Lunch", "Dinner"]);
