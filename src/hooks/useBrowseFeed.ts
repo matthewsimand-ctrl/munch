@@ -12,10 +12,24 @@ const BROWSE_FEED_CACHE_KEY = 'munch:browse-feed-cache:v3';
 const MAX_RECOMMENDATION_CANDIDATES = 180;
 const MAX_TASTE_PROFILE_LIKES = 24;
 
-// Fetch only a subset of letters to avoid blocking the main thread in production.
-// Full A–Z (26 batched requests + massive JSON parsing) caused browser freeze on cold starts.
-const MEALDB_LETTERS = 'abcdefghijklm'.split(''); // 13 letters instead of 26
-const MEALDB_MAX_RESULTS = 60; // hard cap on processed results
+// ✅ MealDB fetch constants — kept small to prevent main-thread saturation.
+// Reduced from 26 letters to avoid freezing production on cold-start edge function timeouts.
+const MEALDB_LETTERS = 'abcdefghijklm'.split('');
+const MEALDB_MAX_RESULTS = 60;
+
+/**
+ * Yields control back to the browser between heavy processing steps.
+ * Uses the Scheduler API when available (Chrome 115+), falls back to setTimeout(0).
+ * This prevents long synchronous tasks from blocking user input and causing the
+ * browser's "page unresponsive" dialog.
+ */
+function yieldToMain(): Promise<void> {
+  const w = window as Window & { scheduler?: { yield?: () => Promise<void> } };
+  if (w.scheduler?.yield) {
+    return w.scheduler.yield();
+  }
+  return new Promise<void>((resolve) => setTimeout(resolve, 0));
+}
 
 function sanitizeCachedImage(image: unknown) {
   const value = typeof image === 'string' ? image.trim() : '';
@@ -61,9 +75,22 @@ function readCachedBrowseFeed() {
 function writeCachedBrowseFeed(recipes: BrowseRecipe[]) {
   if (typeof window === 'undefined') return;
 
-  const serialized = JSON.stringify(recipes.map(sanitizeRecipeForCache));
-  window.sessionStorage.setItem(BROWSE_FEED_CACHE_KEY, serialized);
-  window.localStorage.setItem(BROWSE_FEED_CACHE_KEY, serialized);
+  // Sanitize before writing to avoid accumulating large base64 images in localStorage,
+  // which would cause a multi-second synchronous JSON.parse freeze on the next page load.
+  const sanitized = recipes.map(sanitizeRecipeForCache);
+  try {
+    const serialized = JSON.stringify(sanitized);
+    window.sessionStorage.setItem(BROWSE_FEED_CACHE_KEY, serialized);
+    window.localStorage.setItem(BROWSE_FEED_CACHE_KEY, serialized);
+  } catch (e) {
+    // If localStorage is full, try to clear old cache and retry once
+    try {
+      window.localStorage.removeItem(BROWSE_FEED_CACHE_KEY);
+      window.sessionStorage.removeItem(BROWSE_FEED_CACHE_KEY);
+    } catch {
+      // Ignore — storage unavailable
+    }
+  }
 }
 
 interface BrowseRecipe extends Recipe {
@@ -255,14 +282,10 @@ async function fetchPublicRecipesFallback(): Promise<BrowseRecipe[]> {
 }
 
 async function fetchMealDbBrowseFallback(): Promise<BrowseRecipe[]> {
-  // ⚠️ PRODUCTION GUARD: Previously fetched all 26 letters in batches, which caused
-  // the browser to freeze (26 network requests + parsing hundreds of meals on the main
-  // thread). We now cap at MEALDB_LETTERS (13) and MEALDB_MAX_RESULTS (60) to keep
-  // the main thread free. This fallback only runs when primary sources return < 80
-  // recipes, so this is already a degraded path — speed matters more than volume here.
+  // Capped at MEALDB_LETTERS (13) and MEALDB_MAX_RESULTS (60) to prevent
+  // main-thread saturation. Fetching all 26 letters caused production freezes.
   const allMeals: any[] = [];
 
-  // Fetch in batches of 6 to spread network load
   for (let i = 0; i < MEALDB_LETTERS.length; i += 6) {
     const batch = MEALDB_LETTERS.slice(i, i + 6);
     const results = await Promise.allSettled(
@@ -277,12 +300,14 @@ async function fetchMealDbBrowseFallback(): Promise<BrowseRecipe[]> {
       .flatMap((result) => result.value)
       .forEach((meal) => allMeals.push(meal));
 
-    // Stop early if we've already collected enough raw meals
     if (allMeals.length >= MEALDB_MAX_RESULTS * 2) break;
+
+    // Yield between batches so the browser can process user input
+    await yieldToMain();
   }
 
   return allMeals
-    .slice(0, MEALDB_MAX_RESULTS * 2) // cap before expensive map
+    .slice(0, MEALDB_MAX_RESULTS * 2)
     .map((meal: any) => normalizeRecipe({
       id: `mealdb-${meal.idMeal}`,
       name: meal.strMeal,
@@ -304,7 +329,7 @@ async function fetchMealDbBrowseFallback(): Promise<BrowseRecipe[]> {
       cuisine: meal.strArea || undefined,
     }))
     .filter((recipe): recipe is BrowseRecipe => Boolean(recipe))
-    .slice(0, MEALDB_MAX_RESULTS); // final hard cap
+    .slice(0, MEALDB_MAX_RESULTS);
 }
 
 function normalizeStringArray(value: unknown): string[] {
@@ -344,7 +369,10 @@ function normalizeRecipe(raw: any): BrowseRecipe | null {
 }
 
 export function useBrowseFeed(options?: { includeMealDbFallback?: boolean; enabled?: boolean }) {
-  const includeMealDbFallback = options?.includeMealDbFallback ?? true;
+  // ✅ Default MealDB fallback to FALSE. It's expensive even when capped, and the
+  // dashboard already passes false explicitly. The Swipe page should also pass false
+  // unless MealDB content is specifically desired and the app is stable.
+  const includeMealDbFallback = options?.includeMealDbFallback ?? false;
   const enabled = options?.enabled ?? true;
   const [cachedInitialRecipes] = useState<BrowseRecipe[]>(() => readCachedBrowseFeed());
   const [recipes, setRecipes] = useState<BrowseRecipe[]>(cachedInitialRecipes);
@@ -449,6 +477,7 @@ export function useBrowseFeed(options?: { includeMealDbFallback?: boolean; enabl
 
     if (loaded || loading) return;
     setLoading(true);
+
     try {
       const likedIds = new Set(likedRecipes);
       let fetched: BrowseRecipe[] = [];
@@ -497,14 +526,14 @@ export function useBrowseFeed(options?: { includeMealDbFallback?: boolean; enabl
         fetched = await quickFallbackPromise;
       }
 
+      // Yield before heavy processing so the browser can handle any pending input
+      await yieldToMain();
+
       const externalCount = fetched.filter((recipe) => {
         const source = String(recipe.source || '').toLowerCase();
         return source !== 'imported' && source !== 'community' && source !== 'community-seed';
       }).length;
 
-      // ⚠️ MealDB fallback: capped at MEALDB_MAX_RESULTS to avoid main-thread freeze.
-      // The old `.slice(0, 120)` was still processing too many meals in production
-      // cold-start scenarios where the edge function returns fewer results than expected.
       if (includeMealDbFallback && (fetched.length < 80 || externalCount < 30)) {
         const mealDbFallback = await fetchMealDbBrowseFallback();
         fetched = dedupeRecipes([
@@ -515,6 +544,9 @@ export function useBrowseFeed(options?: { includeMealDbFallback?: boolean; enabl
         fetched = dedupeRecipes(fetched);
       }
 
+      // Yield again before ranking (most expensive step)
+      await yieldToMain();
+
       fetched = curateBrowseCatalog(fetched);
 
       const likedRecipesList: Recipe[] = likedRecipes
@@ -522,22 +554,29 @@ export function useBrowseFeed(options?: { includeMealDbFallback?: boolean; enabl
         .map((id) => savedApiRecipes[id])
         .filter(Boolean);
 
+      let nextRecipes: BrowseRecipe[];
+
       if (likedRecipesList.length > 0 || userProfile.cuisinePreferences.length > 0 || userProfile.skillLevel || effectivePantryNames.length > 0) {
         const priorityPool = fetched.slice(0, MAX_RECOMMENDATION_CANDIDATES);
         const overflowPool = fetched.slice(MAX_RECOMMENDATION_CANDIDATES);
+
+        // Yield before the ranking computation — this is the most CPU-intensive step
+        await yieldToMain();
+
         const ranked = rankByRecommendation(priorityPool, likedRecipesList, likedIds, userProfile, effectivePantryNames);
-        const nextRecipes = diversifyBrowseOrder([
+        nextRecipes = diversifyBrowseOrder([
           ...ranked.map((item) => item.recipe as BrowseRecipe),
           ...overflowPool,
         ]);
-        setRecipes(nextRecipes);
-        writeCachedBrowseFeed(nextRecipes);
       } else {
         const shuffled = [...fetched].sort(() => Math.random() - 0.5);
-        const nextRecipes = diversifyBrowseOrder(shuffled);
-        setRecipes(nextRecipes);
-        writeCachedBrowseFeed(nextRecipes);
+        nextRecipes = diversifyBrowseOrder(shuffled);
       }
+
+      setRecipes(nextRecipes);
+
+      // Write cache in a deferred task so it doesn't block the render
+      window.setTimeout(() => writeCachedBrowseFeed(nextRecipes), 0);
 
       setLoaded(true);
     } catch (e) {
@@ -570,6 +609,8 @@ export function useBrowseFeed(options?: { includeMealDbFallback?: boolean; enabl
         .map(normalizeRecipe)
         .filter((recipe): recipe is BrowseRecipe => Boolean(recipe) && !likedIds.has(String(recipe.id)));
 
+      await yieldToMain();
+
       const localMatches = dedupeRecipes([
         ...recipes.filter((recipe) => !likedIds.has(String(recipe.id)) && recipeMatchesSearch(recipe, trimmedQuery)),
         ...readCachedBrowseFeed().filter((recipe) => !likedIds.has(String(recipe.id)) && recipeMatchesSearch(recipe, trimmedQuery)),
@@ -577,6 +618,8 @@ export function useBrowseFeed(options?: { includeMealDbFallback?: boolean; enabl
 
       const deduped = dedupeRecipes([...fetched, ...localMatches]);
       const ordered = orderSearchResults(deduped, trimmedQuery);
+
+      await yieldToMain();
 
       if (likedRecipes.length > 0 || userProfile.cuisinePreferences.length > 0 || userProfile.skillLevel || effectivePantryNames.length > 0) {
         const likedRecipesList: Recipe[] = likedRecipes
