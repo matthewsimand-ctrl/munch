@@ -422,24 +422,25 @@ export default function Dashboard() {
       }
     };
 
-    if ("requestIdleCallback" in window) {
-      const idleId = (window as Window & { requestIdleCallback: (callback: IdleRequestCallback) => number }).requestIdleCallback(() => {
+    const w = window as typeof globalThis & Window;
+    if ("requestIdleCallback" in w) {
+      const idleId = (w as Window & { requestIdleCallback: (callback: IdleRequestCallback) => number }).requestIdleCallback(() => {
         startLoad();
       });
 
       return () => {
         cancelled = true;
-        if ("cancelIdleCallback" in window) {
-          (window as Window & { cancelIdleCallback: (handle: number) => void }).cancelIdleCallback(idleId);
+        if ("cancelIdleCallback" in w) {
+          (w as Window & { cancelIdleCallback: (handle: number) => void }).cancelIdleCallback(idleId);
         }
       };
     }
 
-    timeoutId = window.setTimeout(startLoad, 250);
+    timeoutId = w.setTimeout(startLoad, 250);
     return () => {
       cancelled = true;
       if (timeoutId !== null) {
-        window.clearTimeout(timeoutId);
+        w.clearTimeout(timeoutId);
       }
     };
   }, [loadFeed]);
