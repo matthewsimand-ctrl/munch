@@ -12,6 +12,11 @@ const BROWSE_FEED_CACHE_KEY = 'munch:browse-feed-cache:v3';
 const MAX_RECOMMENDATION_CANDIDATES = 180;
 const MAX_TASTE_PROFILE_LIKES = 24;
 
+// Fetch only a subset of letters to avoid blocking the main thread in production.
+// Full A–Z (26 batched requests + massive JSON parsing) caused browser freeze on cold starts.
+const MEALDB_LETTERS = 'abcdefghijklm'.split(''); // 13 letters instead of 26
+const MEALDB_MAX_RESULTS = 60; // hard cap on processed results
+
 function sanitizeCachedImage(image: unknown) {
   const value = typeof image === 'string' ? image.trim() : '';
   if (!value) return '';
@@ -250,12 +255,16 @@ async function fetchPublicRecipesFallback(): Promise<BrowseRecipe[]> {
 }
 
 async function fetchMealDbBrowseFallback(): Promise<BrowseRecipe[]> {
-  const letters = 'abcdefghijklmnopqrstuvwxyz'.split('');
+  // ⚠️ PRODUCTION GUARD: Previously fetched all 26 letters in batches, which caused
+  // the browser to freeze (26 network requests + parsing hundreds of meals on the main
+  // thread). We now cap at MEALDB_LETTERS (13) and MEALDB_MAX_RESULTS (60) to keep
+  // the main thread free. This fallback only runs when primary sources return < 80
+  // recipes, so this is already a degraded path — speed matters more than volume here.
   const allMeals: any[] = [];
 
-  // Fetch in batches of 6 to avoid freezing the browser
-  for (let i = 0; i < letters.length; i += 6) {
-    const batch = letters.slice(i, i + 6);
+  // Fetch in batches of 6 to spread network load
+  for (let i = 0; i < MEALDB_LETTERS.length; i += 6) {
+    const batch = MEALDB_LETTERS.slice(i, i + 6);
     const results = await Promise.allSettled(
       batch.map(async (letter) => {
         const response = await fetch(`https://www.themealdb.com/api/json/v1/1/search.php?f=${letter}`);
@@ -267,9 +276,13 @@ async function fetchMealDbBrowseFallback(): Promise<BrowseRecipe[]> {
       .filter((result): result is PromiseFulfilledResult<any[]> => result.status === 'fulfilled')
       .flatMap((result) => result.value)
       .forEach((meal) => allMeals.push(meal));
+
+    // Stop early if we've already collected enough raw meals
+    if (allMeals.length >= MEALDB_MAX_RESULTS * 2) break;
   }
 
   return allMeals
+    .slice(0, MEALDB_MAX_RESULTS * 2) // cap before expensive map
     .map((meal: any) => normalizeRecipe({
       id: `mealdb-${meal.idMeal}`,
       name: meal.strMeal,
@@ -281,7 +294,7 @@ async function fetchMealDbBrowseFallback(): Promise<BrowseRecipe[]> {
         const measure = String(meal[`strMeasure${index + 1}`] || '').trim();
         return ingredient ? `${measure ? `${measure} ` : ''}${ingredient}`.trim() : '';
       }).filter(Boolean),
-      tags: meal.strTags ? String(meal.strTags).split(',').map((tag) => tag.trim()) : [],
+      tags: meal.strTags ? String(meal.strTags).split(',').map((tag: string) => tag.trim()) : [],
       instructions: typeof meal.strInstructions === 'string'
         ? meal.strInstructions.split(/\r?\n/).map((line: string) => line.trim()).filter(Boolean)
         : [],
@@ -290,7 +303,8 @@ async function fetchMealDbBrowseFallback(): Promise<BrowseRecipe[]> {
       raw_api_payload: meal,
       cuisine: meal.strArea || undefined,
     }))
-    .filter((recipe): recipe is BrowseRecipe => Boolean(recipe));
+    .filter((recipe): recipe is BrowseRecipe => Boolean(recipe))
+    .slice(0, MEALDB_MAX_RESULTS); // final hard cap
 }
 
 function normalizeStringArray(value: unknown): string[] {
@@ -488,8 +502,11 @@ export function useBrowseFeed(options?: { includeMealDbFallback?: boolean; enabl
         return source !== 'imported' && source !== 'community' && source !== 'community-seed';
       }).length;
 
-  if (includeMealDbFallback && (fetched.length < 80 || externalCount < 30)) {
-        const mealDbFallback = await fetchMealDbBrowseFallback().then(r => r.slice(0, 120));
+      // ⚠️ MealDB fallback: capped at MEALDB_MAX_RESULTS to avoid main-thread freeze.
+      // The old `.slice(0, 120)` was still processing too many meals in production
+      // cold-start scenarios where the edge function returns fewer results than expected.
+      if (includeMealDbFallback && (fetched.length < 80 || externalCount < 30)) {
+        const mealDbFallback = await fetchMealDbBrowseFallback();
         fetched = dedupeRecipes([
           ...fetched,
           ...mealDbFallback.filter((recipe) => !likedIds.has(String(recipe.id))),
