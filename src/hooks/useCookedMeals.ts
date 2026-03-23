@@ -60,7 +60,7 @@ function writeLocalMeals(meals: CookedMeal[]) {
   }
 }
 
-export function useCookedMeals(limit = 12) {
+export function useCookedMeals(limit = 12, enabled = true) {
   const [meals, setMeals] = useState<CookedMeal[]>([]);
   const [loading, setLoading] = useState(true);
   const cookedMealsTableUnavailableRef = useRef(false);
@@ -111,6 +111,11 @@ export function useCookedMeals(limit = 12) {
   }, [limit]);
 
   useEffect(() => {
+    if (!enabled) {
+      setLoading(false);
+      return;
+    }
+
     loadMeals();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(() => {
@@ -120,7 +125,7 @@ export function useCookedMeals(limit = 12) {
     return () => {
       authListener.subscription.unsubscribe();
     };
-  }, [loadMeals]);
+  }, [enabled, loadMeals]);
 
   const trackCookedMeal = useCallback(async (input: {
     recipeId: string;

@@ -48,7 +48,7 @@ const SLOT_BY_LABEL: Record<string, MealPlanSlot> = {
   Snack: 'snack',
 };
 
-export function useCurrentMealPlan() {
+export function useCurrentMealPlan(enabled = true) {
   const localMealPlan = useStore((state) => state.mealPlan);
   const activeKitchenId = useStore((state) => state.activeKitchenId);
   const [meal, setMeal] = useState<PlannedMeal | null>(null);
@@ -56,6 +56,11 @@ export function useCurrentMealPlan() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!enabled) {
+      setLoading(false);
+      return;
+    }
+
     const load = async () => {
       setLoading(true);
       const now = new Date();
@@ -146,7 +151,7 @@ export function useCurrentMealPlan() {
     };
 
     load();
-  }, [activeKitchenId, localMealPlan]);
+  }, [activeKitchenId, enabled, localMealPlan]);
 
   return { meal, nextMeal, loading };
 }
