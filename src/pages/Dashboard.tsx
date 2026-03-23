@@ -413,36 +413,7 @@ export default function Dashboard() {
   ], [likedRecipes.length, cookingStreak, totalMealsCooked, cookedRecipeIds.length]);
 
   useEffect(() => {
-    let cancelled = false;
-    let timeoutId: number | null = null;
-
-    const startLoad = () => {
-      if (!cancelled) {
-        void loadFeed();
-      }
-    };
-
-    const w = window as typeof globalThis & Window;
-    if ("requestIdleCallback" in w) {
-      const idleId = (w as Window & { requestIdleCallback: (callback: IdleRequestCallback) => number }).requestIdleCallback(() => {
-        startLoad();
-      });
-
-      return () => {
-        cancelled = true;
-        if ("cancelIdleCallback" in w) {
-          (w as Window & { cancelIdleCallback: (handle: number) => void }).cancelIdleCallback(idleId);
-        }
-      };
-    }
-
-    timeoutId = globalThis.setTimeout(startLoad, 250) as unknown as number;
-    return () => {
-      cancelled = true;
-      if (timeoutId !== null) {
-        globalThis.clearTimeout(timeoutId);
-      }
-    };
+    void loadFeed();
   }, [loadFeed]);
   useEffect(() => {
     if (availableSuggestions.length === 0) { if (suggestionOffset !== 0) setSuggestionOffset(0); return; }
@@ -565,12 +536,18 @@ export default function Dashboard() {
 
   const heroImageOptions = useMemo(
     () =>
-      [upNextPlannedMeal?.recipe_data, ...suggestedRecipes, ...availableSuggestions]
+      [
+        upNextPlannedMeal?.recipe_data,
+        currentPlannedMeal?.recipe_data,
+        ...Object.values(savedApiRecipes).slice(-8),
+        ...suggestedRecipes,
+        ...availableSuggestions,
+      ]
         .filter((recipe): recipe is Recipe => Boolean(recipe))
         .map((recipe) => getRecipeImageSrc(recipe.image))
         .filter(Boolean)
         .filter((src, index, arr) => arr.indexOf(src) === index),
-    [availableSuggestions, suggestedRecipes, upNextPlannedMeal?.recipe_data],
+    [availableSuggestions, currentPlannedMeal?.recipe_data, savedApiRecipes, suggestedRecipes, upNextPlannedMeal?.recipe_data],
   );
   const heroDaySeed = useMemo(() => {
     const today = new Date();
