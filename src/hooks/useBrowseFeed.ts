@@ -237,7 +237,7 @@ function recipeMatchesSearch(recipe: BrowseRecipe, query: string) {
 async function fetchPublicRecipesFallback(): Promise<BrowseRecipe[]> {
   const { data, error } = await supabase
     .from('recipes')
-    .select('*')
+    .select('id, name, image, cook_time, difficulty, ingredients, instructions, tags, source, source_url, cuisine, chef, created_by, servings')
     .eq('is_public', true)
     .order('created_at', { ascending: false })
     .limit(450);
@@ -477,8 +477,8 @@ export function useBrowseFeed(options?: { includeMealDbFallback?: boolean }) {
         return source !== 'imported' && source !== 'community' && source !== 'community-seed';
       }).length;
 
-      if (includeMealDbFallback && (fetched.length < 220 || externalCount < 120)) {
-        const mealDbFallback = await fetchMealDbBrowseFallback();
+  if (includeMealDbFallback && (fetched.length < 80 || externalCount < 30)) {
+        const mealDbFallback = await fetchMealDbBrowseFallback().then(r => r.slice(0, 120));
         fetched = dedupeRecipes([
           ...fetched,
           ...mealDbFallback.filter((recipe) => !likedIds.has(String(recipe.id))),
