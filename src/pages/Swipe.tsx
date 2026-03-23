@@ -70,6 +70,13 @@ function SwipeCard({
   const resolvedChefId = shouldShowChefAttribution(recipe)
     ? (recipe.created_by || (isMunchRecipe ? MUNCH_OFFICIAL_USER_ID : null))
     : null;
+  const handleCardActivate = () => {
+    if (ignoreCardTapRef.current) {
+      ignoreCardTapRef.current = false;
+      return;
+    }
+    if (isTop && !didMoveRef.current) onOpenDetails();
+  };
 
   return (
     <motion.div
@@ -89,13 +96,7 @@ function SwipeCard({
       style={{ x, y, rotate, touchAction: "none" }}
       className="absolute inset-0 cursor-grab active:cursor-grabbing select-none"
       whileDrag={{ scale: 1.03 }}
-      onTap={() => {
-        if (ignoreCardTapRef.current) {
-          ignoreCardTapRef.current = false;
-          return;
-        }
-        if (isTop && !didMoveRef.current) onOpenDetails();
-      }}
+      onClick={handleCardActivate}
       data-tutorial={isTop ? "recipe-card" : undefined}
     >
       {/* Card */}
