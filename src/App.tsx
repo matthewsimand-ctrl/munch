@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useRef, useState } from "react";
+import React, { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -75,6 +75,62 @@ function recordStartupStage(stage: string, extra?: Record<string, string | numbe
   }
 }
 
+function describeElement(element: Element | null) {
+  if (!element) return "none";
+
+  const htmlElement = element as HTMLElement;
+  const tag = element.tagName.toLowerCase();
+  const id = htmlElement.id ? `#${htmlElement.id}` : "";
+  const className =
+    typeof htmlElement.className === "string" && htmlElement.className.trim()
+      ? `.${htmlElement.className.trim().split(/\s+/).slice(0, 3).join(".")}`
+      : "";
+  const pointerEvents = window.getComputedStyle(htmlElement).pointerEvents;
+  return `${tag}${id}${className} [pointer-events:${pointerEvents}]`;
+}
+
+class AppErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { errorMessage: string | null }
+> {
+  state = { errorMessage: null };
+
+  static getDerivedStateFromError(error: unknown) {
+    return {
+      errorMessage: error instanceof Error ? error.stack || error.message : String(error),
+    };
+  }
+
+  componentDidCatch(error: unknown) {
+    recordStartupStage("react-error-boundary", {
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  render() {
+    if (this.state.errorMessage) {
+      return (
+        <div className="min-h-screen bg-[#fffaf5] p-6 text-stone-900">
+          <div className="mx-auto max-w-3xl rounded-3xl border border-red-200 bg-white p-6 shadow-lg">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-red-500">App Crash Detected</p>
+            <h1
+              className="mt-3 text-3xl font-bold"
+              style={{ fontFamily: "'Fraunces', Georgia, serif" }}
+            >
+              Munch hit a runtime error
+            </h1>
+            <pre className="mt-4 overflow-auto rounded-2xl bg-stone-950 p-4 text-xs text-stone-100">
+              {this.state.errorMessage}
+            </pre>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 function RouteFallback() {
   return (
     <div className="flex min-h-[40vh] items-center justify-center px-4 py-12">
@@ -94,6 +150,9 @@ function RouteFallback() {
 function StartupDebugOverlay() {
   const location = useLocation();
   const [entries, setEntries] = useState<Array<Record<string, string | number | boolean | null>>>([]);
+  const [lastPointerTarget, setLastPointerTarget] = useState("none");
+  const [centerTarget, setCenterTarget] = useState("none");
+  const [lastError, setLastError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!ENABLE_STARTUP_DEBUG) return;
@@ -112,11 +171,64 @@ function StartupDebugOverlay() {
     recordStartupStage("route-visible", { path: location.pathname });
   }, [location.pathname]);
 
+  useEffect(() => {
+    if (!ENABLE_STARTUP_DEBUG) return;
+
+    const handleError = (event: ErrorEvent) => {
+      const message = event.error?.stack || event.message || "Unknown runtime error";
+      setLastError(message);
+      recordStartupStage("window-error", { message: event.message || "Unknown runtime error" });
+    };
+
+    const handleRejection = (event: PromiseRejectionEvent) => {
+      const reason =
+        event.reason instanceof Error
+          ? event.reason.stack || event.reason.message
+          : String(event.reason);
+      setLastError(reason);
+      recordStartupStage("unhandled-rejection", { message: String(event.reason) });
+    };
+
+    const handlePointerDown = (event: PointerEvent) => {
+      setLastPointerTarget(describeElement(event.target as Element | null));
+    };
+
+    const interval = window.setInterval(() => {
+      const centerElement = document.elementFromPoint(window.innerWidth / 2, window.innerHeight / 2);
+      setCenterTarget(describeElement(centerElement));
+    }, 500);
+
+    window.addEventListener("error", handleError);
+    window.addEventListener("unhandledrejection", handleRejection);
+    document.addEventListener("pointerdown", handlePointerDown, true);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("error", handleError);
+      window.removeEventListener("unhandledrejection", handleRejection);
+      document.removeEventListener("pointerdown", handlePointerDown, true);
+    };
+  }, []);
+
   if (!ENABLE_STARTUP_DEBUG) return null;
 
   return (
-    <div className="pointer-events-none fixed left-3 top-3 z-[9999] w-[min(26rem,calc(100vw-1.5rem))] rounded-xl bg-stone-950/90 p-3 text-[11px] text-stone-100 shadow-2xl">
+    <div className="pointer-events-none fixed left-3 top-3 z-[9999] w-[min(28rem,calc(100vw-1.5rem))] rounded-xl bg-stone-950/90 p-3 text-[11px] text-stone-100 shadow-2xl">
       <p className="font-semibold text-orange-300">Munch startup debug</p>
+      <div className="mt-2 rounded-md bg-white/5 px-2 py-1">
+        <div className="font-medium text-white">Center element</div>
+        <div className="text-stone-300">{centerTarget}</div>
+      </div>
+      <div className="mt-2 rounded-md bg-white/5 px-2 py-1">
+        <div className="font-medium text-white">Last pointer target</div>
+        <div className="text-stone-300">{lastPointerTarget}</div>
+      </div>
+      {lastError ? (
+        <div className="mt-2 rounded-md bg-red-500/15 px-2 py-1">
+          <div className="font-medium text-red-200">Last error</div>
+          <div className="whitespace-pre-wrap text-red-100">{lastError}</div>
+        </div>
+      ) : null}
       <div className="mt-2 space-y-1">
         {entries.slice(-8).reverse().map((entry, index) => (
           <div key={`${entry.at}-${index}`} className="rounded-md bg-white/5 px-2 py-1">
@@ -278,15 +390,17 @@ const App = () => {
   // ✅ Removed useMemo — memoizing JSX trees is an anti-pattern and
   // can cause reconciliation failures in production builds.
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
-      </TooltipProvider>
-    </QueryClientProvider>
+    <AppErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <AppRoutes />
+          </BrowserRouter>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </AppErrorBoundary>
   );
 };
 
