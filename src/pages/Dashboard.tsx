@@ -435,7 +435,7 @@ export default function Dashboard() {
       };
     }
 
-    timeoutId = (typeof window !== "undefined" ? window : globalThis).setTimeout(startLoad, 250);
+    timeoutId = window?.setTimeout(startLoad, 250) ?? null;
     return () => {
       cancelled = true;
       if (timeoutId !== null) {
