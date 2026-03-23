@@ -32,6 +32,7 @@ import NotFound from "./pages/NotFound";
 import SpotlightTutorial from "./components/SpotlightTutorial";
 
 const queryClient = new QueryClient();
+const ENABLE_SPOTLIGHT_TUTORIAL = false;
 
 function AppRoutes() {
   const {
@@ -47,6 +48,12 @@ function AppRoutes() {
     setShowTutorial(false);
     completeTutorial();
   };
+
+  useEffect(() => {
+    if (!ENABLE_SPOTLIGHT_TUTORIAL && showTutorial) {
+      setShowTutorial(false);
+    }
+  }, [setShowTutorial, showTutorial]);
 
   useEffect(() => {
     const syncStoreOwner = (nextUserId: string | null) => {
@@ -102,7 +109,7 @@ function AppRoutes() {
 
         <Route path="*" element={<NotFound />} />
       </Routes>
-      {showTutorial && (
+      {ENABLE_SPOTLIGHT_TUTORIAL && showTutorial && (
         <SpotlightTutorial onComplete={handleTutorialComplete} />
       )}
     </>

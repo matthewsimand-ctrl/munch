@@ -158,7 +158,6 @@ export default function SpotlightTutorial({ onComplete }: { onComplete: () => vo
   const [currentStep, setCurrentStep] = useState(0);
   const [spotlightRect, setSpotlightRect] = useState<DOMRect | null>(null);
   const [tooltipHeight, setTooltipHeight] = useState(240);
-  const [_tick, setTick] = useState(0);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
@@ -193,7 +192,7 @@ export default function SpotlightTutorial({ onComplete }: { onComplete: () => vo
     }
 
     return step.target;
-  }, [isOnExpectedRoute, step, routeTab, _tick]);
+  }, [isOnExpectedRoute, step, routeTab]);
 
   const activePosition = useMemo(() => {
     if (!isOnExpectedRoute && routeTab) {
@@ -206,14 +205,7 @@ export default function SpotlightTutorial({ onComplete }: { onComplete: () => vo
   const isConditionMet = useMemo(() => {
     if (!step.requireCondition) return true;
     return step.requireCondition(store);
-  }, [step, store, _tick]); // Added _tick to force re-evaluation when DOM changes
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setTick(t => t + 1);
-    }, 200); // Very fast for smooth state transitions
-    return () => clearInterval(interval);
-  }, []);
+  }, [step, store]);
 
   useEffect(() => {
     if (isOnExpectedRoute && isConditionMet && step.requireCondition && !isLast) {
@@ -250,7 +242,7 @@ export default function SpotlightTutorial({ onComplete }: { onComplete: () => vo
       return step.interactionHint;
     }
     return step.description;
-  }, [isOnExpectedRoute, isConditionMet, step, routeTab, _tick, activeTarget]);
+  }, [isOnExpectedRoute, isConditionMet, step, routeTab, activeTarget]);
 
   useEffect(() => {
     if (!tooltipRef.current) return;
@@ -275,15 +267,37 @@ export default function SpotlightTutorial({ onComplete }: { onComplete: () => vo
   }, [activeTarget]);
 
   useEffect(() => {
-    const interval = setInterval(updateSpotlight, 100); // Rapid polling for animations
-    window.addEventListener('resize', updateSpotlight);
-    window.addEventListener('scroll', updateSpotlight, true);
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('resize', updateSpotlight);
-      window.removeEventListener('scroll', updateSpotlight, true);
+    const scheduleUpdate = () => {
+      window.requestAnimationFrame(() => {
+        updateSpotlight();
+      });
     };
-  }, [updateSpotlight]);
+
+    scheduleUpdate();
+    const timeoutA = window.setTimeout(scheduleUpdate, 120);
+    const timeoutB = window.setTimeout(scheduleUpdate, 320);
+    const mutationObserver = new MutationObserver(() => {
+      scheduleUpdate();
+    });
+
+    mutationObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['data-tutorial', 'style', 'class'],
+    });
+
+    window.addEventListener('resize', scheduleUpdate);
+    window.addEventListener('scroll', scheduleUpdate, true);
+
+    return () => {
+      window.clearTimeout(timeoutA);
+      window.clearTimeout(timeoutB);
+      mutationObserver.disconnect();
+      window.removeEventListener('resize', scheduleUpdate);
+      window.removeEventListener('scroll', scheduleUpdate, true);
+    };
+  }, [updateSpotlight, currentStep, location.pathname]);
 
   const next = useCallback(() => {
     if (!isOnExpectedRoute) {
