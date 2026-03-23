@@ -268,6 +268,7 @@ export default function MyRecipesScreen() {
   const [activeFolder, setActiveFolder] = useState<string | null>(null);
   const [selectedChefId, setSelectedChefId] = useState<string | null>(null);
   const [selectedChefName, setSelectedChefName] = useState<string | null>(null);
+  const [recipeToRestoreAfterChefClose, setRecipeToRestoreAfterChefClose] = useState<Recipe | null>(null);
   const [displayName, setDisplayName] = useState<string | null>(storeDisplayName || null);
   const [previewRecipe, setPreviewRecipe] = useState<Recipe | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -542,10 +543,24 @@ export default function MyRecipesScreen() {
         recipe={previewRecipe}
         match={previewMatch}
         open={previewOpen}
-        onOpenChange={setPreviewOpen}
+        onOpenChange={(open) => {
+          setPreviewOpen(open);
+          if (!open) {
+            setPreviewRecipe(null);
+          }
+        }}
         onAddMissingToGrocery={(recipe, missingIngredients) => {
           missingIngredients.forEach((ing) => addCustomGroceryItem(ing));
           toast.success(`Added ${missingIngredients.length} items from "${recipe.name}" to grocery list`);
+        }}
+        onChefClick={(chefId, chefName) => {
+          if (previewRecipe) {
+            setRecipeToRestoreAfterChefClose(previewRecipe);
+          }
+          setSelectedChefId(chefId);
+          setSelectedChefName(chefName);
+          setPreviewOpen(false);
+          setPreviewRecipe(null);
         }}
       />
 
@@ -671,10 +686,21 @@ export default function MyRecipesScreen() {
         chefId={selectedChefId}
         chefName={selectedChefName}
         open={!!selectedChefId}
+        onNavigateToProfile={() => {
+          setRecipeToRestoreAfterChefClose(null);
+        }}
         onOpenChange={(open) => {
           if (!open) {
             setSelectedChefId(null);
             setSelectedChefName(null);
+            if (recipeToRestoreAfterChefClose) {
+              const recipeToRestore = recipeToRestoreAfterChefClose;
+              setRecipeToRestoreAfterChefClose(null);
+              window.requestAnimationFrame(() => {
+                setPreviewRecipe(recipeToRestore);
+                setPreviewOpen(true);
+              });
+            }
           }
         }}
       />
