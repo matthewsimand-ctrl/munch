@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -163,12 +163,36 @@ function AppRoutes() {
     }
   }, [setShowTutorial, showTutorial]);
 
+  // ✅ FIX: Use refs for resetStore and storeOwnerUserId so this effect only runs
+  // ONCE on mount. The original code had storeOwnerUserId in the dep array, which
+  // caused the effect to tear down + re-run every time auth resolved (getSession →
+  // setStoreOwnerUserId → storeOwnerUserId changes → effect re-runs → new listener
+  // registered → listener fires → setStoreOwnerUserId → loop). In production this
+  // manifested as rapid re-renders that froze the browser.
+  const resetStoreRef = useRef(resetStore);
+  const setStoreOwnerUserIdRef = useRef(setStoreOwnerUserId);
+  const storeOwnerUserIdRef = useRef(storeOwnerUserId);
+
   useEffect(() => {
+    resetStoreRef.current = resetStore;
+  }, [resetStore]);
+
+  useEffect(() => {
+    setStoreOwnerUserIdRef.current = setStoreOwnerUserId;
+  }, [setStoreOwnerUserId]);
+
+  useEffect(() => {
+    storeOwnerUserIdRef.current = storeOwnerUserId;
+  }, [storeOwnerUserId]);
+
+  useEffect(() => {
+    // Runs only once on mount — reads current values via refs, not stale closure deps.
     const syncStoreOwner = (nextUserId: string | null) => {
-      if (storeOwnerUserId && storeOwnerUserId !== nextUserId) {
-        resetStore();
+      if (storeOwnerUserIdRef.current && storeOwnerUserIdRef.current !== nextUserId) {
+        resetStoreRef.current();
       }
-      setStoreOwnerUserId(nextUserId);
+      storeOwnerUserIdRef.current = nextUserId;
+      setStoreOwnerUserIdRef.current(nextUserId);
     };
 
     void supabase.auth.getSession().then(({ data: { session } }) => {
@@ -182,7 +206,7 @@ function AppRoutes() {
     return () => {
       authListener.subscription.unsubscribe();
     };
-  }, [resetStore, setStoreOwnerUserId, storeOwnerUserId]);
+  }, []); // ← empty deps: mount/unmount only
 
   useEffect(() => {
     if (!ENABLE_ROUTE_PRELOAD) return;
@@ -251,8 +275,8 @@ const App = () => {
     recordStartupStage("app-mounted");
   }, []);
 
-  // ✅ Removed useMemo wrapper — memoizing JSX/component trees is an anti-pattern
-  // and can cause reconciliation issues in production builds.
+  // ✅ Removed useMemo — memoizing JSX trees is an anti-pattern and
+  // can cause reconciliation failures in production builds.
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
