@@ -52,7 +52,7 @@ export function ChefProfileModal({ chefId, chefName, open, onOpenChange }: ChefP
             if (!chefId) return [];
             const { data, error } = await supabase
                 .from('recipes')
-                .select('*')
+                .select('id, name, image, cook_time, difficulty, ingredients, instructions, tags, source, source_url, cuisine, chef, created_by, servings')
                 .eq('created_by', chefId)
                 .eq('is_public', true)
                 .order('created_at', { ascending: false });

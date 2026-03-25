@@ -6,9 +6,10 @@ import { normalizeIngredients } from '@/lib/normalizeIngredients';
 async function fetchRecipes(): Promise<Recipe[]> {
   const { data, error } = await supabase
     .from('recipes')
-    .select('*')
+    .select('id, name, image, cook_time, difficulty, ingredients, instructions, tags, source, source_url, cuisine, chef, created_by, servings')
     .eq('is_public', true)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(200);
 
   if (error) throw error;
 
@@ -24,7 +25,6 @@ async function fetchRecipes(): Promise<Recipe[]> {
     cuisine: r.cuisine || null,
     source: r.source || 'community',
     source_url: r.source_url || undefined,
-    raw_api_payload: r.raw_api_payload ?? undefined,
     created_by: r.created_by,
     chef: r.chef || null,
     is_public: r.is_public,

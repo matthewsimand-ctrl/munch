@@ -1,6 +1,12 @@
 import { useEffect, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase as typedSupabase } from '@/integrations/supabase/client';
 import { useStore, type AppState } from '@/lib/store';
+
+// Cast to `any` — the `user_app_state` table is not in the generated types yet
+// but exists at runtime. ENABLE_CLOUD_STORE_SYNC is false so this code is dormant.
+const supabase = typedSupabase as any;
+
+type UserProfile = AppState['userProfile'];
 
 type CloudStoreSnapshot = {
   userProfile: AppState['userProfile'];
@@ -99,7 +105,7 @@ function applyCloudSnapshot(snapshot: unknown) {
 
   const nextState: Partial<AppState> = {};
 
-  if (isObject(snapshot.userProfile)) nextState.userProfile = snapshot.userProfile as AppState['userProfile'];
+  if (isObject(snapshot.userProfile)) nextState.userProfile = snapshot.userProfile as unknown as UserProfile;
   if (Array.isArray(snapshot.pantryList)) nextState.pantryList = snapshot.pantryList as AppState['pantryList'];
   if (Array.isArray(snapshot.mealPlan)) nextState.mealPlan = snapshot.mealPlan as AppState['mealPlan'];
   if (Array.isArray(snapshot.likedRecipes)) nextState.likedRecipes = snapshot.likedRecipes as AppState['likedRecipes'];

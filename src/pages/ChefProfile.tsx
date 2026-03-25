@@ -44,7 +44,7 @@ export default function ChefProfile() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('recipes')
-        .select('*')
+        .select('id, name, image, cook_time, difficulty, ingredients, instructions, tags, source, source_url, cuisine, chef, created_by, servings')
         .eq('created_by', userId!)
         .eq('is_public', true)
         .order('created_at', { ascending: false });
