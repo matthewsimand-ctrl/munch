@@ -333,13 +333,13 @@ function AppRoutes() {
       recordStartupStage("route-preload-complete");
     };
 
-    if ("requestIdleCallback" in window) {
-      const handle = window.requestIdleCallback(() => preload(), { timeout: 1200 });
-      return () => window.cancelIdleCallback(handle);
+    if ("requestIdleCallback" in globalThis) {
+      const handle = (globalThis as any).requestIdleCallback(() => preload(), { timeout: 1200 });
+      return () => (globalThis as any).cancelIdleCallback(handle);
     }
 
-    const timeout = window.setTimeout(preload, 900);
-    return () => window.clearTimeout(timeout);
+    const timeout = globalThis.setTimeout(preload, 900);
+    return () => globalThis.clearTimeout(timeout);
   }, []);
 
   return (

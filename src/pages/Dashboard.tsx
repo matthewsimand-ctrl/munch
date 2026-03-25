@@ -305,13 +305,13 @@ export default function Dashboard() {
   const avatarReturnTo = (location.state as { returnTo?: string } | null)?.returnTo;
 
   useEffect(() => {
-    if ("requestIdleCallback" in window) {
-      const handle = window.requestIdleCallback(() => setDashboardReady(true), { timeout: 1500 });
-      return () => window.cancelIdleCallback(handle);
+    if ("requestIdleCallback" in globalThis) {
+      const handle = (globalThis as any).requestIdleCallback(() => setDashboardReady(true), { timeout: 1500 });
+      return () => (globalThis as any).cancelIdleCallback(handle);
     }
 
-    const timeout = window.setTimeout(() => setDashboardReady(true), 1200);
-    return () => window.clearTimeout(timeout);
+    const timeout = globalThis.setTimeout(() => setDashboardReady(true), 1200);
+    return () => globalThis.clearTimeout(timeout);
   }, []);
 
   useEffect(() => {
@@ -433,7 +433,7 @@ export default function Dashboard() {
     const loadQuickSuggestions = async () => {
       const { data, error } = await supabase
         .from("recipes")
-        .select("*")
+        .select("id, name, image, cook_time, difficulty, ingredients, instructions, tags, source, source_url, cuisine, chef, created_by, servings")
         .eq("is_public", true)
         .order("created_at", { ascending: false })
         .limit(18);
