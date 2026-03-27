@@ -461,7 +461,7 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
   };
 
   return (
-    <div className="space-y-4 px-1 pb-1">
+    <div className="space-y-4 pb-1">
       <Accordion
         type="multiple"
         defaultValue={["quick-start", "basics", "ingredients", "instructions"]}
@@ -795,12 +795,12 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
         </AccordionItem>
       </Accordion>
 
-      <div className="flex gap-2 pt-2">
+      <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row">
         <Button onClick={handleSubmit} disabled={loading} className="flex-1">
           {loading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
           {isEditingLocal ? 'Save Changes' : 'Create Recipe'}
         </Button>
-        <Button variant="outline" onClick={onClose}>Cancel</Button>
+        <Button variant="outline" onClick={onClose} className="sm:w-auto">Cancel</Button>
       </div>
     </div>
   );
