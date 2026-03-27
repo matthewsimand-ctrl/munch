@@ -27,10 +27,15 @@ const BottomNav = forwardRef<HTMLElement, ComponentPropsWithoutRef<'nav'>>((prop
     <nav
       ref={ref}
       {...props}
-      className="fixed inset-x-0 bottom-0 z-50"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      className="fixed inset-x-0 bottom-0 z-50 bg-[#fff8f2]/96 backdrop-blur-xl"
     >
-      <div className="mx-auto flex h-[var(--mobile-nav-height)] w-full max-w-[34rem] items-center justify-around border-t border-orange-100/80 bg-[#fff8f2]/96 px-2 shadow-[0_-10px_28px_rgba(28,25,23,0.08)] backdrop-blur-xl safe-area-x">
+      <div
+        className="mx-auto flex w-full max-w-[34rem] items-start justify-around border-t border-orange-100/80 px-2 pt-1 shadow-[0_-10px_28px_rgba(28,25,23,0.08)] safe-area-x"
+        style={{
+          minHeight: 'calc(var(--mobile-nav-height) + env(safe-area-inset-bottom))',
+          paddingBottom: 'env(safe-area-inset-bottom)',
+        }}
+      >
         {NAV_ITEMS.map(({ path, label, icon: Icon }) => {
           const active = path === '/settings'
             ? location.pathname.startsWith('/settings')

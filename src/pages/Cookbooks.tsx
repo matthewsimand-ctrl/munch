@@ -225,7 +225,7 @@ export default function Cookbooks() {
       </div>
 
       <Dialog open={showNewCookbook} onOpenChange={setShowNewCookbook}>
-        <DialogContent className="w-[calc(100vw-1rem)] max-w-2xl max-h-[calc(100dvh-1rem)] p-0 overflow-hidden">
+        <DialogContent className="w-[calc(100vw-1rem)] max-w-2xl max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem)] p-0 overflow-hidden">
           <DialogHeader className="px-4 pt-4 sm:px-6 sm:pt-6">
             <DialogTitle>Create a Cookbook</DialogTitle>
           </DialogHeader>

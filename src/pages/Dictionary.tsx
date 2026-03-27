@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Search, BookOpen, ChevronDown, ChevronRight, Star, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -311,7 +311,17 @@ const DIFF_STYLE: Record<string, { label: string; color: string; bg: string }> =
   advanced:     { label: "Advanced",     color: "#DC2626", bg: "#FEF2F2" },
 };
 
-function TermCard({ term, isOpen, onToggle }: { term: Term; isOpen: boolean; onToggle: () => void }) {
+function TermCard({
+  term,
+  isOpen,
+  onToggle,
+  onRelatedTermClick,
+}: {
+  term: Term;
+  isOpen: boolean;
+  onToggle: () => void;
+  onRelatedTermClick: (relatedTerm: string) => void;
+}) {
   const diff = DIFF_STYLE[term.difficulty];
   return (
     <motion.div
@@ -398,13 +408,15 @@ function TermCard({ term, isOpen, onToggle }: { term: Term; isOpen: boolean; onT
                   <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-2">Related terms</p>
                   <div className="flex flex-wrap gap-1.5">
                     {term.relatedTerms.map((t) => (
-                      <span
+                      <button
+                        type="button"
                         key={t}
+                        onClick={() => onRelatedTermClick(t)}
                         className="px-2.5 py-1 rounded-full text-xs font-semibold"
                         style={{ background: "rgba(249,115,22,0.08)", color: "#C2410C", border: "1px solid rgba(249,115,22,0.15)" }}
                       >
                         {t}
-                      </span>
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -417,12 +429,22 @@ function TermCard({ term, isOpen, onToggle }: { term: Term; isOpen: boolean; onT
   );
 }
 
+function normalizeTerm(value: string) {
+  return value.trim().toLowerCase();
+}
+
 /* ── Main ───────────────────────────────────────────────────── */
 export default function DictionaryScreen() {
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
   const [activeDifficulty, setActiveDifficulty] = useState("All");
   const [openTermId, setOpenTermId] = useState<string | null>(null);
+  const [pendingScrollTerm, setPendingScrollTerm] = useState<string | null>(null);
+  const termRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const termByName = useMemo(() => {
+    const entries = TERMS.map((term) => [normalizeTerm(term.term), term] as const);
+    return new Map(entries);
+  }, []);
 
   const filtered = useMemo(() => {
     return TERMS.filter((t) => {
@@ -442,6 +464,34 @@ export default function DictionaryScreen() {
     });
     return groups;
   }, [filtered]);
+
+  useEffect(() => {
+    if (!pendingScrollTerm) return;
+
+    const targetTerm = termByName.get(normalizeTerm(pendingScrollTerm));
+    if (!targetTerm) {
+      setPendingScrollTerm(null);
+      return;
+    }
+
+    const targetNode = termRefs.current[targetTerm.id];
+    if (!targetNode) return;
+
+    targetNode.scrollIntoView({ behavior: "smooth", block: "start" });
+    setOpenTermId(targetTerm.id);
+    setPendingScrollTerm(null);
+  }, [filtered, pendingScrollTerm, termByName]);
+
+  const handleRelatedTermClick = (relatedTerm: string) => {
+    const targetTerm = termByName.get(normalizeTerm(relatedTerm));
+    if (!targetTerm) return;
+
+    setSearch("");
+    setActiveCategory("All");
+    setActiveDifficulty("All");
+    setOpenTermId(targetTerm.id);
+    setPendingScrollTerm(relatedTerm);
+  };
 
   return (
     <div className="min-h-full" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", background: "#FFFAF5" }}>
@@ -552,12 +602,19 @@ export default function DictionaryScreen() {
                 </div>
                 <div className="space-y-2">
                   {terms.map((term) => (
-                    <TermCard
+                    <div
                       key={term.id}
-                      term={term}
-                      isOpen={openTermId === term.id}
-                      onToggle={() => setOpenTermId(openTermId === term.id ? null : term.id)}
-                    />
+                      ref={(node) => {
+                        termRefs.current[term.id] = node;
+                      }}
+                    >
+                      <TermCard
+                        term={term}
+                        isOpen={openTermId === term.id}
+                        onToggle={() => setOpenTermId(openTermId === term.id ? null : term.id)}
+                        onRelatedTermClick={handleRelatedTermClick}
+                      />
+                    </div>
                   ))}
                 </div>
               </div>

@@ -808,7 +808,7 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
       </div>
 
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
-        <DialogContent className="w-[calc(100vw-1rem)] max-w-lg max-h-[calc(100dvh-1rem)] overflow-y-auto">
+        <DialogContent className="w-[calc(100vw-1rem)] max-w-lg max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem)] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Import grocery note</DialogTitle>
           </DialogHeader>
@@ -844,7 +844,7 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
       </Dialog>
 
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-        <DialogContent className="w-[calc(100vw-1rem)] max-w-sm max-h-[calc(100dvh-1rem)] overflow-y-auto">
+        <DialogContent className="w-[calc(100vw-1rem)] max-w-sm max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem)] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add grocery item</DialogTitle>
           </DialogHeader>

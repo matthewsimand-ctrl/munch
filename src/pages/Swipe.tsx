@@ -990,7 +990,7 @@ export default function SwipeScreen() {
       />
 
       <Dialog open={filtersOpen} onOpenChange={setFiltersOpen}>
-        <DialogContent className="w-[calc(100vw-1rem)] max-w-lg max-h-[calc(100dvh-1rem)] overflow-hidden p-0">
+        <DialogContent className="w-[calc(100vw-1rem)] max-w-lg max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem)] overflow-hidden p-0">
           <DialogHeader>
             <DialogTitle className="px-4 pt-4 sm:px-6 sm:pt-6">Discover Filters</DialogTitle>
           </DialogHeader>

@@ -578,7 +578,7 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
       />
 
       <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
-        <DialogContent className="w-[calc(100vw-1rem)] max-w-sm max-h-[calc(100dvh-1rem)] overflow-y-auto">
+        <DialogContent className="w-[calc(100vw-1rem)] max-w-sm max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem)] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Upload to Pantry</DialogTitle>
           </DialogHeader>
@@ -629,7 +629,7 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
       />
 
       <Dialog open={cleanupPromptOpen} onOpenChange={setCleanupPromptOpen}>
-        <DialogContent className="w-[calc(100vw-1rem)] max-w-sm max-h-[calc(100dvh-1rem)] overflow-y-auto">
+        <DialogContent className="w-[calc(100vw-1rem)] max-w-sm max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem)] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Fridge Cleanup</DialogTitle>
           </DialogHeader>
@@ -897,7 +897,7 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
       </div>
 
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-        <DialogContent className="w-[calc(100vw-1rem)] max-w-sm max-h-[calc(100dvh-1rem)] overflow-y-auto">
+        <DialogContent className="w-[calc(100vw-1rem)] max-w-sm max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem)] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add pantry item</DialogTitle>
           </DialogHeader>

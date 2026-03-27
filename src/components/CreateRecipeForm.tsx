@@ -21,6 +21,23 @@ interface Props {
   mode?: 'create' | 'edit-local';
 }
 
+function RecipeFormSectionHeader({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <div>
+      <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-stone-500">
+        {title}
+      </p>
+      <p className="mt-1 text-sm font-semibold text-stone-900">{description}</p>
+    </div>
+  );
+}
+
 const QUANTITY_HINTS: { keywords: string[]; defaultValue: string; options: string[] }[] = [
   { keywords: ["milk", "stock", "broth", "water", "oil", "soy sauce", "vinegar", "juice"], defaultValue: "1 cup", options: ["1 tbsp", "1 tsp", "1/4 cup", "1/2 cup", "1 cup", "1 liter"] },
   { keywords: ["flour", "sugar", "salt", "rice", "pasta", "oats"], defaultValue: "100 g", options: ["1 tsp", "1 tbsp", "1/2 cup", "1 cup", "100 g", "1 kg", "1 lb"] },
@@ -184,7 +201,6 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
   const [cookTime, setCookTime] = useState(initialRecipe?.cook_time || '');
   const [difficulty, setDifficulty] = useState(initialRecipe?.difficulty || 'Beginner');
   const [cuisine, setCuisine] = useState(initialRecipe?.cuisine || '');
-  const [chef, setChef] = useState(initialRecipe?.chef || '');
   const [isOriginalRecipe, setIsOriginalRecipe] = useState(Boolean(initialRecipe?.chef));
   const [servings, setServings] = useState(String(initialRecipe?.servings || 4));
   const [ingredientInput, setIngredientInput] = useState('');
@@ -197,6 +213,7 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
   const { likeRecipe, shareCustomRecipesByDefault } = useStore();
   const [isPublic, setIsPublic] = useState(initialRecipe?.is_public ?? shareCustomRecipesByDefault);
   const [chefUsername, setChefUsername] = useState<string | null>(null);
+  const [chefDisplayName, setChefDisplayName] = useState<string | null>(null);
   const generatedCover = useMemo(
     () => getGeneratedRecipeCoverDataUri({ name: name.trim() || 'Untitled Recipe', cuisine, tags }),
     [cuisine, name, tags],
@@ -217,10 +234,7 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
 
       if (!active || !profile) return;
 
-      if (profile.display_name && !chef.trim()) {
-        setChef(profile.display_name);
-      }
-
+      setChefDisplayName((profile as any).display_name || null);
       setChefUsername((profile as any).username || null);
     });
 
@@ -412,10 +426,16 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
         .eq('user_id', userId)
         .maybeSingle();
 
-      const typedDisplayName = chef.trim();
-      const displayChefName = isOriginalRecipe
-        ? (typedDisplayName || profile?.display_name?.trim() || null)
-        : null;
+      const resolvedChefName = chefUsername
+        ? `@${chefUsername}`
+        : profile?.username
+          ? `@${String(profile.username).trim()}`
+          : profile?.display_name?.trim()
+            || chefDisplayName?.trim()
+            || initialRecipe?.chef?.trim()
+            || null;
+
+      const displayChefName = isOriginalRecipe ? resolvedChefName : null;
 
       const recipeId = crypto.randomUUID();
       const { error } = await supabase.from('recipes').insert({
@@ -476,10 +496,10 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
       >
         <AccordionItem value="quick-start" className="border-b border-border/70">
           <AccordionTrigger className="px-5 py-4 text-left hover:no-underline sm:px-6">
-            <div>
-              <p className="text-sm font-semibold text-stone-900">Quick Start</p>
-              <p className="text-xs text-stone-500">Paste recipe text to auto-fill the form</p>
-            </div>
+            <RecipeFormSectionHeader
+              title="Quick Start"
+              description="Paste recipe text to auto-fill the form"
+            />
           </AccordionTrigger>
           <AccordionContent className="space-y-3 px-5 pb-5 sm:px-6">
             {showPaste ? (
@@ -519,10 +539,10 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
 
         <AccordionItem value="basics" className="border-b border-border/70">
           <AccordionTrigger className="px-5 py-4 text-left hover:no-underline sm:px-6">
-            <div>
-              <p className="text-sm font-semibold text-stone-900">Basics</p>
-              <p className="text-xs text-stone-500">{basicsReady ? "Name and recipe details are filled in" : "Start with the recipe name, image, and timing"}</p>
-            </div>
+            <RecipeFormSectionHeader
+              title="Basics"
+              description={basicsReady ? "Name and recipe details are filled in" : "Start with the recipe name, image, and timing"}
+            />
           </AccordionTrigger>
           <AccordionContent className="space-y-4 px-5 pb-5 sm:px-6">
             <div>
@@ -607,10 +627,10 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
 
         <AccordionItem value="ingredients" className="border-b border-border/70">
           <AccordionTrigger className="px-5 py-4 text-left hover:no-underline sm:px-6">
-            <div>
-              <p className="text-sm font-semibold text-stone-900">Ingredients</p>
-              <p className="text-xs text-stone-500">{ingredientCount} ingredient{ingredientCount === 1 ? '' : 's'} added</p>
-            </div>
+            <RecipeFormSectionHeader
+              title="Ingredients"
+              description={`${ingredientCount} ingredient${ingredientCount === 1 ? '' : 's'} added`}
+            />
           </AccordionTrigger>
           <AccordionContent className="space-y-3 px-5 pb-5 sm:px-6">
             <div className="space-y-3 rounded-2xl border border-orange-100 bg-orange-50/45 p-4">
@@ -674,10 +694,10 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
 
         <AccordionItem value="instructions" className="border-b border-border/70">
           <AccordionTrigger className="px-5 py-4 text-left hover:no-underline sm:px-6">
-            <div>
-              <p className="text-sm font-semibold text-stone-900">Instructions & Tags</p>
-              <p className="text-xs text-stone-500">{instructionCount} step{instructionCount === 1 ? '' : 's'} and {tags.length} tag{tags.length === 1 ? '' : 's'}</p>
-            </div>
+            <RecipeFormSectionHeader
+              title="Instructions & Tags"
+              description={`${instructionCount} step${instructionCount === 1 ? '' : 's'} and ${tags.length} tag${tags.length === 1 ? '' : 's'}`}
+            />
           </AccordionTrigger>
           <AccordionContent className="space-y-4 px-5 pb-5 sm:px-6">
             <div>
@@ -748,10 +768,10 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
 
         <AccordionItem value="sharing">
           <AccordionTrigger className="px-5 py-4 text-left hover:no-underline sm:px-6">
-            <div>
-              <p className="text-sm font-semibold text-stone-900">Author & Sharing</p>
-              <p className="text-xs text-stone-500">{metadataCount} sharing or author option{metadataCount === 1 ? '' : 's'} set</p>
-            </div>
+            <RecipeFormSectionHeader
+              title="Author & Sharing"
+              description={`${metadataCount} sharing or author option${metadataCount === 1 ? '' : 's'} set`}
+            />
           </AccordionTrigger>
           <AccordionContent className="space-y-4 px-5 pb-5 sm:px-6">
             <div className="space-y-3 rounded-2xl border border-orange-100 bg-orange-50/45 p-4">
@@ -767,20 +787,20 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
                     This is my original recipe
               </label>
                   <p className="text-xs text-stone-500">
-                    Show your chef name on the recipe and let people discover other recipes you created.
+                    Show your unique creator profile on the recipe so people can find the rest of your dishes.
                   </p>
                 </div>
               </div>
 
               {isOriginalRecipe && (
-                <div>
-                  <label className="text-sm font-medium text-stone-800">Chef Name</label>
-                  <Input value={chef} onChange={e => setChef(e.target.value)} placeholder="Shown as recipe author name" className={fieldClassName} />
-                  {chefUsername && (
-                    <p className="mt-1 text-xs text-stone-500">
-                      Linked to @{chefUsername} so people land on your profile.
-                    </p>
-                  )}
+                <div className="rounded-2xl border border-orange-100 bg-white px-4 py-3">
+                  <p className="text-sm font-medium text-stone-800">Recipe attribution</p>
+                  <p className="mt-1 text-sm font-semibold text-orange-600">
+                    {chefUsername ? `@${chefUsername}` : (chefDisplayName || initialRecipe?.chef || 'Your profile')}
+                  </p>
+                  <p className="mt-1 text-xs text-stone-500">
+                    We use your username by default so attribution stays unique and links back to your recipe profile.
+                  </p>
                 </div>
               )}
             </div>

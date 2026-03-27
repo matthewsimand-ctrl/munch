@@ -671,7 +671,7 @@ export default function MyRecipesScreen() {
       </Dialog>
 
       <Dialog open={!!recipeToEdit} onOpenChange={(open) => !open && setRecipeToEdit(null)}>
-        <DialogContent className="w-[calc(100vw-1rem)] max-w-2xl max-h-[calc(100dvh-1rem)] overflow-y-auto">
+        <DialogContent className="w-[calc(100vw-1rem)] max-w-2xl max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem)] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Local Recipe</DialogTitle>
           </DialogHeader>
