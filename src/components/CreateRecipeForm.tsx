@@ -351,6 +351,10 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
   const ingredientCount = ingredients.length;
   const instructionCount = instructions.length;
   const metadataCount = tags.length + (isOriginalRecipe ? 1 : 0) + (isPublic ? 1 : 0);
+  const fieldClassName =
+    'mt-1 rounded-xl border-stone-200 bg-white text-stone-800 placeholder:text-stone-400 focus-visible:ring-orange-300 focus-visible:ring-offset-0';
+  const sectionFieldClassName =
+    'rounded-xl border-stone-200 bg-white text-stone-800 placeholder:text-stone-400 shadow-sm focus-visible:ring-orange-300 focus-visible:ring-offset-0';
 
   const handleSubmit = async () => {
     if (!name.trim() || ingredients.length === 0) {
@@ -461,24 +465,27 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
   };
 
   return (
-    <div className="space-y-4 pb-1">
+    <div
+      className="space-y-5 pb-1 text-stone-800"
+      style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}
+    >
       <Accordion
         type="multiple"
         defaultValue={["quick-start", "basics", "ingredients", "instructions"]}
-        className="rounded-2xl border border-border bg-background/80 px-4"
+        className="overflow-visible rounded-[1.5rem] border border-orange-100 bg-white/95 shadow-[0_18px_40px_rgba(249,115,22,0.06)]"
       >
         <AccordionItem value="quick-start" className="border-b border-border/70">
-          <AccordionTrigger className="py-4 text-left hover:no-underline">
+          <AccordionTrigger className="px-5 py-4 text-left hover:no-underline sm:px-6">
             <div>
-              <p className="text-sm font-semibold text-foreground">Quick Start</p>
-              <p className="text-xs text-muted-foreground">Paste recipe text to auto-fill the form</p>
+              <p className="text-sm font-semibold text-stone-900">Quick Start</p>
+              <p className="text-xs text-stone-500">Paste recipe text to auto-fill the form</p>
             </div>
           </AccordionTrigger>
-          <AccordionContent className="space-y-3">
+          <AccordionContent className="space-y-3 px-5 pb-5 sm:px-6">
             {showPaste ? (
-              <div className="space-y-3 p-4 rounded-xl bg-muted/50 border border-border">
-                <label className="text-sm font-medium text-foreground">Paste recipe text</label>
-                <p className="text-xs text-muted-foreground">
+              <div className="space-y-3 rounded-2xl border border-orange-100 bg-orange-50/50 p-4">
+                <label className="text-sm font-medium text-stone-800">Paste recipe text</label>
+                <p className="text-xs text-stone-500">
                   Paste the full recipe text and we'll auto-detect the name, ingredients, and steps.
                 </p>
                 <Textarea
@@ -487,6 +494,7 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
                   placeholder={"Grandma's Famous Pasta\n\nIngredients:\n2 cups flour\n3 eggs\n...\n\nInstructions:\n1. Mix flour and eggs...\n2. Knead the dough..."}
                   rows={8}
                   autoFocus
+                  className={fieldClassName}
                 />
                 <div className="flex gap-2">
                   <Button onClick={handleParsePaste} disabled={!pasteText.trim()} className="flex-1">
@@ -500,7 +508,7 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
             ) : (
               <Button
                 variant="outline"
-                className="w-full border-dashed"
+                className="w-full rounded-xl border-dashed border-orange-200 text-stone-700 hover:border-orange-300 hover:bg-orange-50"
                 onClick={() => setShowPaste(true)}
               >
                 <ClipboardPaste className="h-4 w-4 mr-2" /> Paste & Auto-Parse Recipe Text
@@ -510,20 +518,20 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
         </AccordionItem>
 
         <AccordionItem value="basics" className="border-b border-border/70">
-          <AccordionTrigger className="py-4 text-left hover:no-underline">
+          <AccordionTrigger className="px-5 py-4 text-left hover:no-underline sm:px-6">
             <div>
-              <p className="text-sm font-semibold text-foreground">Basics</p>
-              <p className="text-xs text-muted-foreground">{basicsReady ? "Name and recipe details are filled in" : "Start with the recipe name, image, and timing"}</p>
+              <p className="text-sm font-semibold text-stone-900">Basics</p>
+              <p className="text-xs text-stone-500">{basicsReady ? "Name and recipe details are filled in" : "Start with the recipe name, image, and timing"}</p>
             </div>
           </AccordionTrigger>
-          <AccordionContent className="space-y-4">
+          <AccordionContent className="space-y-4 px-5 pb-5 sm:px-6">
             <div>
-              <label className="text-sm font-medium text-foreground">Recipe Name *</label>
-              <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Grandma's Pasta" />
+              <label className="text-sm font-medium text-stone-800">Recipe Name *</label>
+              <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Grandma's Pasta" className={fieldClassName} />
             </div>
 
             <div>
-              <label className="text-sm font-medium text-foreground">Photo</label>
+              <label className="text-sm font-medium text-stone-800">Photo</label>
               <div className="mt-1 flex gap-2">
                 <input
                   ref={photoInputRef}
@@ -539,7 +547,7 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
                   onClick={() => photoInputRef.current?.click()}
                   disabled={uploadingPhoto}
                   title="Upload file"
-                  className="gap-1.5"
+                  className="gap-1.5 rounded-xl border-orange-200 text-stone-700 hover:border-orange-300 hover:bg-orange-50"
                 >
                   {uploadingPhoto ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
                   <span className="hidden sm:inline">Upload File</span>
@@ -551,26 +559,26 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
                   onClick={generateCover}
                   disabled={fetchingPhoto}
                   title="Generate random cover"
-                  className="gap-1.5"
+                  className="gap-1.5 rounded-xl border-orange-200 text-stone-700 hover:border-orange-300 hover:bg-orange-50"
                 >
                   {fetchingPhoto ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
                   <span className="hidden sm:inline">Generate Random Cover</span>
                 </Button>
               </div>
-              <p className="mt-2 text-xs text-muted-foreground">
+              <p className="mt-2 text-xs text-stone-500">
                 Generated covers already use keywords from the recipe name, cuisine, and tags to choose a matching visual style.
               </p>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-sm font-medium text-foreground">Cook Time</label>
-                <Input value={cookTime} onChange={e => setCookTime(e.target.value)} placeholder="25 min" />
+                <label className="text-sm font-medium text-stone-800">Cook Time</label>
+                <Input value={cookTime} onChange={e => setCookTime(e.target.value)} placeholder="25 min" className={fieldClassName} />
               </div>
               <div>
-                <label className="text-sm font-medium text-foreground">Servings</label>
+                <label className="text-sm font-medium text-stone-800">Servings</label>
                 <Select value={servings} onValueChange={setServings}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className={fieldClassName}><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {[1, 2, 3, 4, 5, 6, 8, 10, 12].map(n => (
                       <SelectItem key={n} value={String(n)}>{n} {n === 1 ? 'serving' : 'servings'}</SelectItem>
@@ -579,9 +587,9 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
                 </Select>
               </div>
               <div>
-                <label className="text-sm font-medium text-foreground">Difficulty</label>
+                <label className="text-sm font-medium text-stone-800">Difficulty</label>
                 <Select value={difficulty} onValueChange={setDifficulty}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className={fieldClassName}><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Beginner">Beginner</SelectItem>
                     <SelectItem value="Intermediate">Intermediate</SelectItem>
@@ -590,25 +598,25 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
                 </Select>
               </div>
               <div>
-                <label className="text-sm font-medium text-foreground">Cuisine</label>
-                <Input value={cuisine} onChange={e => setCuisine(e.target.value)} placeholder="Italian" />
+                <label className="text-sm font-medium text-stone-800">Cuisine</label>
+                <Input value={cuisine} onChange={e => setCuisine(e.target.value)} placeholder="Italian" className={fieldClassName} />
               </div>
             </div>
           </AccordionContent>
         </AccordionItem>
 
         <AccordionItem value="ingredients" className="border-b border-border/70">
-          <AccordionTrigger className="py-4 text-left hover:no-underline">
+          <AccordionTrigger className="px-5 py-4 text-left hover:no-underline sm:px-6">
             <div>
-              <p className="text-sm font-semibold text-foreground">Ingredients</p>
-              <p className="text-xs text-muted-foreground">{ingredientCount} ingredient{ingredientCount === 1 ? '' : 's'} added</p>
+              <p className="text-sm font-semibold text-stone-900">Ingredients</p>
+              <p className="text-xs text-stone-500">{ingredientCount} ingredient{ingredientCount === 1 ? '' : 's'} added</p>
             </div>
           </AccordionTrigger>
-          <AccordionContent className="space-y-3">
-            <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-3">
+          <AccordionContent className="space-y-3 px-5 pb-5 sm:px-6">
+            <div className="space-y-3 rounded-2xl border border-orange-100 bg-orange-50/45 p-4">
               <div className="flex items-center justify-between">
-                <label className="text-sm font-medium text-foreground">Ingredients *</label>
-                <span className="text-[11px] text-muted-foreground inline-flex items-center gap-1"><Sparkles className="h-3 w-3" /> smart quantity suggestions</span>
+                <label className="text-sm font-medium text-stone-800">Ingredients *</label>
+                <span className="inline-flex items-center gap-1 text-[11px] text-stone-500"><Sparkles className="h-3 w-3" /> smart quantity suggestions</span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-[1fr_160px_auto] gap-2">
                 <Input
@@ -622,16 +630,17 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
                   }}
                   placeholder="Ingredient name"
                   onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addIngredient())}
+                  className={fieldClassName}
                 />
                 <Select value={ingredientQuantity} onValueChange={setIngredientQuantity}>
-                  <SelectTrigger><SelectValue placeholder="Quantity" /></SelectTrigger>
+                  <SelectTrigger className={fieldClassName}><SelectValue placeholder="Quantity" /></SelectTrigger>
                   <SelectContent>
                     {quantityConfig.options.map((option) => (
                       <SelectItem key={option} value={option}>{option}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                <Button type="button" variant="outline" onClick={addIngredient}>
+                <Button type="button" variant="outline" onClick={addIngredient} className="rounded-xl border-orange-200 text-stone-700 hover:border-orange-300 hover:bg-orange-50">
                   <Plus className="h-4 w-4 mr-1" /> Add
                 </Button>
               </div>
@@ -642,12 +651,12 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
                       value={parseIngredientLine(ingredient).quantity}
                       onChange={(e) => updateIngredientPart(index, 'quantity', e.target.value)}
                       placeholder="Qty"
-                      className="h-9 w-28 shrink-0 bg-white border-transparent hover:border-border focus:border-orange-300 focus:bg-white transition-all transition-colors px-3 py-1 text-sm shadow-sm"
+                      className={sectionFieldClassName + " h-9 w-28 shrink-0 px-3 py-1 text-sm"}
                     />
                     <Input
                       value={parseIngredientLine(ingredient).name}
                       onChange={(e) => updateIngredientPart(index, 'name', e.target.value)}
-                      className="h-9 flex-1 bg-white border-transparent hover:border-border focus:border-orange-300 focus:bg-white transition-all transition-colors px-3 py-1 text-sm shadow-sm"
+                      className={sectionFieldClassName + " h-9 flex-1 px-3 py-1 text-sm"}
                     />
                     <button
                       type="button"
@@ -664,23 +673,24 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
         </AccordionItem>
 
         <AccordionItem value="instructions" className="border-b border-border/70">
-          <AccordionTrigger className="py-4 text-left hover:no-underline">
+          <AccordionTrigger className="px-5 py-4 text-left hover:no-underline sm:px-6">
             <div>
-              <p className="text-sm font-semibold text-foreground">Instructions & Tags</p>
-              <p className="text-xs text-muted-foreground">{instructionCount} step{instructionCount === 1 ? '' : 's'} and {tags.length} tag{tags.length === 1 ? '' : 's'}</p>
+              <p className="text-sm font-semibold text-stone-900">Instructions & Tags</p>
+              <p className="text-xs text-stone-500">{instructionCount} step{instructionCount === 1 ? '' : 's'} and {tags.length} tag{tags.length === 1 ? '' : 's'}</p>
             </div>
           </AccordionTrigger>
-          <AccordionContent className="space-y-4">
+          <AccordionContent className="space-y-4 px-5 pb-5 sm:px-6">
             <div>
-              <label className="text-sm font-medium text-foreground">Tags</label>
+              <label className="text-sm font-medium text-stone-800">Tags</label>
               <div className="flex gap-2 mt-1">
                 <Input
                   value={tagInput}
                   onChange={e => setTagInput(e.target.value)}
                   placeholder="e.g. spicy, vegan"
                   onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addTag())}
+                  className={fieldClassName}
                 />
-                <Button type="button" variant="outline" size="icon" onClick={addTag}>
+                <Button type="button" variant="outline" size="icon" onClick={addTag} className="rounded-xl border-orange-200 text-stone-700 hover:border-orange-300 hover:bg-orange-50">
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
@@ -697,15 +707,16 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
             </div>
 
             <div>
-              <label className="text-sm font-medium text-foreground">Steps / Instructions</label>
+              <label className="text-sm font-medium text-stone-800">Steps / Instructions</label>
               <div className="flex gap-2 mt-1">
                 <Input
                   value={instructionInput}
                   onChange={(e) => setInstructionInput(e.target.value)}
                   placeholder="Add a cooking step"
                   onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addInstruction())}
+                  className={fieldClassName}
                 />
-                <Button type="button" variant="outline" size="icon" onClick={addInstruction}>
+                <Button type="button" variant="outline" size="icon" onClick={addInstruction} className="rounded-xl border-orange-200 text-stone-700 hover:border-orange-300 hover:bg-orange-50">
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
@@ -718,7 +729,7 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
                     <Input
                       value={step}
                       onChange={(e) => updateInstruction(index, e.target.value)}
-                      className="h-10 flex-1 bg-white border-stone-200"
+                      className={fieldClassName + " h-10 flex-1"}
                     />
                     <button
                       type="button"
@@ -730,20 +741,20 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
                   </div>
                 ))}
               </div>
-              <p className="text-xs text-muted-foreground mt-1">Add one step at a time.</p>
+              <p className="mt-1 text-xs text-stone-500">Add one step at a time.</p>
             </div>
           </AccordionContent>
         </AccordionItem>
 
         <AccordionItem value="sharing">
-          <AccordionTrigger className="py-4 text-left hover:no-underline">
+          <AccordionTrigger className="px-5 py-4 text-left hover:no-underline sm:px-6">
             <div>
-              <p className="text-sm font-semibold text-foreground">Author & Sharing</p>
-              <p className="text-xs text-muted-foreground">{metadataCount} sharing or author option{metadataCount === 1 ? '' : 's'} set</p>
+              <p className="text-sm font-semibold text-stone-900">Author & Sharing</p>
+              <p className="text-xs text-stone-500">{metadataCount} sharing or author option{metadataCount === 1 ? '' : 's'} set</p>
             </div>
           </AccordionTrigger>
-          <AccordionContent className="space-y-4">
-            <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-3">
+          <AccordionContent className="space-y-4 px-5 pb-5 sm:px-6">
+            <div className="space-y-3 rounded-2xl border border-orange-100 bg-orange-50/45 p-4">
               <div className="flex items-start space-x-3">
                 <Checkbox
                   id="is-original-recipe"
@@ -752,10 +763,10 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
                   className="mt-0.5"
                 />
             <div className="space-y-0.5">
-              <label htmlFor="is-original-recipe" className="text-sm font-medium text-foreground cursor-pointer">
+              <label htmlFor="is-original-recipe" className="cursor-pointer text-sm font-medium text-stone-800">
                     This is my original recipe
               </label>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-stone-500">
                     Show your chef name on the recipe and let people discover other recipes you created.
                   </p>
                 </div>
@@ -763,10 +774,10 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
 
               {isOriginalRecipe && (
                 <div>
-                  <label className="text-sm font-medium text-foreground">Chef Name</label>
-                  <Input value={chef} onChange={e => setChef(e.target.value)} placeholder="Shown as recipe author name" />
+                  <label className="text-sm font-medium text-stone-800">Chef Name</label>
+                  <Input value={chef} onChange={e => setChef(e.target.value)} placeholder="Shown as recipe author name" className={fieldClassName} />
                   {chefUsername && (
-                    <p className="mt-1 text-xs text-muted-foreground">
+                    <p className="mt-1 text-xs text-stone-500">
                       Linked to @{chefUsername} so people land on your profile.
                     </p>
                   )}
@@ -774,7 +785,7 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
               )}
             </div>
 
-            <div className="flex items-start space-x-3 rounded-lg border border-border p-3 bg-muted/30">
+            <div className="flex items-start space-x-3 rounded-2xl border border-orange-100 bg-orange-50/45 p-4">
               <Checkbox
                 id="is-public"
                 checked={isPublic}
@@ -782,11 +793,11 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
                 className="mt-0.5"
               />
               <div className="space-y-0.5">
-                <label htmlFor="is-public" className="text-sm font-medium text-foreground flex items-center gap-1.5 cursor-pointer">
-                  <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+                <label htmlFor="is-public" className="flex cursor-pointer items-center gap-1.5 text-sm font-medium text-stone-800">
+                  <Globe className="h-3.5 w-3.5 text-stone-500" />
                   Make discoverable by other users
                 </label>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-stone-500">
                   Your recipe will appear in the Browse section for everyone to find.
                 </p>
               </div>
@@ -796,11 +807,11 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
       </Accordion>
 
       <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row">
-        <Button onClick={handleSubmit} disabled={loading} className="flex-1">
+        <Button onClick={handleSubmit} disabled={loading} className="h-11 flex-1 rounded-xl">
           {loading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
           {isEditingLocal ? 'Save Changes' : 'Create Recipe'}
         </Button>
-        <Button variant="outline" onClick={onClose} className="sm:w-auto">Cancel</Button>
+        <Button variant="outline" onClick={onClose} className="h-11 rounded-xl border-orange-200 text-stone-700 hover:border-orange-300 hover:bg-orange-50 sm:w-auto">Cancel</Button>
       </div>
     </div>
   );
