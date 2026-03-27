@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect, useRef, useState } from "react";
+import React, { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -9,29 +9,29 @@ import { useStore } from "@/lib/store";
 import { useCloudStoreSync } from "@/hooks/useCloudStoreSync";
 
 import AppLayout from "@/components/AppLayout";
-import Index from "./pages/Index";
-import Onboarding from "./pages/Onboarding";
-import Pantry from "./pages/Pantry";
-import Swipe from "./pages/Swipe";
-import SavedRecipes from "./pages/SavedRecipes";
-import Cookbooks from "./pages/Cookbooks";
-import CookbookDetails from "./pages/CookbookDetails";
-import CookMode from "./pages/CookMode";
-import GroceryList from "./pages/GroceryList";
-import Groceries from "./pages/Groceries";
-import MealPrep from "./pages/MealPrep";
-import Settings from "./pages/Settings";
-import Dashboard from "./pages/Dashboard";
-import Auth from "./pages/Auth";
-import ChefProfile from "./pages/ChefProfile";
-import Dictionary from "./pages/Dictionary";
-import CookedHistory from "./pages/CookedHistory";
-import Kitchens from "./pages/Kitchens";
-import Notifications from "./pages/Notifications";
-import KitchenInviteAccept from "./pages/KitchenInviteAccept";
-import PremiumBenefits from "./pages/PremiumBenefits";
-import NotFound from "./pages/NotFound";
-import SpotlightTutorial from "./components/SpotlightTutorial";
+const Index = lazy(() => import("./pages/Index"));
+const Onboarding = lazy(() => import("./pages/Onboarding"));
+const Pantry = lazy(() => import("./pages/Pantry"));
+const Swipe = lazy(() => import("./pages/Swipe"));
+const SavedRecipes = lazy(() => import("./pages/SavedRecipes"));
+const Cookbooks = lazy(() => import("./pages/Cookbooks"));
+const CookbookDetails = lazy(() => import("./pages/CookbookDetails"));
+const CookMode = lazy(() => import("./pages/CookMode"));
+const GroceryList = lazy(() => import("./pages/GroceryList"));
+const Groceries = lazy(() => import("./pages/Groceries"));
+const MealPrep = lazy(() => import("./pages/MealPrep"));
+const Settings = lazy(() => import("./pages/Settings"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Auth = lazy(() => import("./pages/Auth"));
+const ChefProfile = lazy(() => import("./pages/ChefProfile"));
+const Dictionary = lazy(() => import("./pages/Dictionary"));
+const CookedHistory = lazy(() => import("./pages/CookedHistory"));
+const Kitchens = lazy(() => import("./pages/Kitchens"));
+const Notifications = lazy(() => import("./pages/Notifications"));
+const KitchenInviteAccept = lazy(() => import("./pages/KitchenInviteAccept"));
+const PremiumBenefits = lazy(() => import("./pages/PremiumBenefits"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const SpotlightTutorial = lazy(() => import("./components/SpotlightTutorial"));
 
 const queryClient = new QueryClient();
 const ENABLE_SPOTLIGHT_TUTORIAL = false;
@@ -216,6 +216,10 @@ function StartupDebugOverlay() {
   );
 }
 
+function AppRouteElement({ children }: { children: React.ReactNode }) {
+  return <Suspense fallback={null}>{children}</Suspense>;
+}
+
 function AppRoutes() {
   const {
     completeTutorial,
@@ -293,33 +297,33 @@ function AppRoutes() {
   return (
     <>
       <Routes>
-        <Route path="/" element={<Index />} />
-        <Route path="/auth" element={<Auth />} />
-        <Route path="/onboarding" element={<Onboarding />} />
-        <Route path="/invite/kitchen/:token" element={<KitchenInviteAccept />} />
-        <Route path="/cook/:id" element={<CookMode />} />
+        <Route path="/" element={<AppRouteElement><Index /></AppRouteElement>} />
+        <Route path="/auth" element={<AppRouteElement><Auth /></AppRouteElement>} />
+        <Route path="/onboarding" element={<AppRouteElement><Onboarding /></AppRouteElement>} />
+        <Route path="/invite/kitchen/:token" element={<AppRouteElement><KitchenInviteAccept /></AppRouteElement>} />
+        <Route path="/cook/:id" element={<AppRouteElement><CookMode /></AppRouteElement>} />
 
         <Route element={<AppLayout />}>
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/swipe" element={<Swipe />} />
-          <Route path="/saved" element={<SavedRecipes />} />
-          <Route path="/cookbooks" element={<Cookbooks />} />
-          <Route path="/cookbooks/:id" element={<CookbookDetails />} />
+          <Route path="/dashboard" element={<AppRouteElement><Dashboard /></AppRouteElement>} />
+          <Route path="/swipe" element={<AppRouteElement><Swipe /></AppRouteElement>} />
+          <Route path="/saved" element={<AppRouteElement><SavedRecipes /></AppRouteElement>} />
+          <Route path="/cookbooks" element={<AppRouteElement><Cookbooks /></AppRouteElement>} />
+          <Route path="/cookbooks/:id" element={<AppRouteElement><CookbookDetails /></AppRouteElement>} />
           <Route path="/let-me-cook" element={<Navigate to="/saved" replace />} />
-          <Route path="/pantry" element={<Pantry />} />
-          <Route path="/grocery" element={<GroceryList />} />
-          <Route path="/groceries" element={<Groceries />} />
-          <Route path="/meal-prep" element={<MealPrep />} />
-          <Route path="/kitchens" element={<Kitchens />} />
-          <Route path="/notifications" element={<Notifications />} />
-          <Route path="/cooked-history" element={<CookedHistory />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/premium" element={<PremiumBenefits />} />
-          <Route path="/dictionary" element={<Dictionary />} />
-          <Route path="/chef/:userId" element={<ChefProfile />} />
+          <Route path="/pantry" element={<AppRouteElement><Pantry /></AppRouteElement>} />
+          <Route path="/grocery" element={<AppRouteElement><GroceryList /></AppRouteElement>} />
+          <Route path="/groceries" element={<AppRouteElement><Groceries /></AppRouteElement>} />
+          <Route path="/meal-prep" element={<AppRouteElement><MealPrep /></AppRouteElement>} />
+          <Route path="/kitchens" element={<AppRouteElement><Kitchens /></AppRouteElement>} />
+          <Route path="/notifications" element={<AppRouteElement><Notifications /></AppRouteElement>} />
+          <Route path="/cooked-history" element={<AppRouteElement><CookedHistory /></AppRouteElement>} />
+          <Route path="/settings" element={<AppRouteElement><Settings /></AppRouteElement>} />
+          <Route path="/premium" element={<AppRouteElement><PremiumBenefits /></AppRouteElement>} />
+          <Route path="/dictionary" element={<AppRouteElement><Dictionary /></AppRouteElement>} />
+          <Route path="/chef/:userId" element={<AppRouteElement><ChefProfile /></AppRouteElement>} />
         </Route>
 
-        <Route path="*" element={<NotFound />} />
+        <Route path="*" element={<AppRouteElement><NotFound /></AppRouteElement>} />
       </Routes>
       {ENABLE_SPOTLIGHT_TUTORIAL && showTutorial && (
         <Suspense fallback={null}>
