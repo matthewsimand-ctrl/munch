@@ -1312,9 +1312,9 @@ export default function Dashboard() {
       </Dialog>
 
       <Dialog open={notificationsOpen} onOpenChange={setNotificationsOpen}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center justify-between gap-3 pr-8">
+        <DialogContent className="w-[calc(100vw-1rem)] max-w-xl overflow-hidden rounded-[1.75rem] border border-orange-100 bg-[#fffaf7] p-0 shadow-[0_24px_60px_rgba(249,115,22,0.14)]">
+          <DialogHeader className="border-b border-orange-100/80 bg-gradient-to-br from-orange-50 via-white to-orange-50/60 px-5 py-4">
+            <DialogTitle className="flex flex-col items-start gap-3 pr-8 sm:flex-row sm:items-center sm:justify-between">
               <span>Notifications</span>
               <button
                 type="button"
@@ -1327,7 +1327,7 @@ export default function Dashboard() {
               </button>
             </DialogTitle>
           </DialogHeader>
-          <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
+          <div className="max-h-[min(68dvh,36rem)] space-y-3 overflow-y-auto px-4 py-4">
             {notificationsLoading ? (
               <div className="rounded-2xl border border-dashed border-stone-200 px-4 py-8 text-center text-sm text-stone-400">
                 Loading notifications...
@@ -1426,11 +1426,13 @@ export default function Dashboard() {
       />
 
       <Dialog open={showManualRecipeDialog} onOpenChange={setShowManualRecipeDialog}>
-        <DialogContent className="w-[calc(100vw-1rem)] max-w-2xl max-h-[calc(100dvh-1rem)] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="w-[calc(100vw-1rem)] max-w-2xl overflow-hidden rounded-[1.75rem] border border-orange-100 bg-[#fffaf7] p-0 shadow-[0_24px_60px_rgba(249,115,22,0.14)]">
+          <DialogHeader className="border-b border-orange-100/80 bg-gradient-to-br from-orange-50 via-white to-orange-50/60 px-5 py-4 text-left">
             <DialogTitle>Add Manual Recipe</DialogTitle>
           </DialogHeader>
-          <CreateRecipeForm onClose={() => setShowManualRecipeDialog(false)} />
+          <div className="max-h-[calc(100dvh-6rem)] overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
+            <CreateRecipeForm onClose={() => setShowManualRecipeDialog(false)} />
+          </div>
         </DialogContent>
       </Dialog>
 

@@ -1,13 +1,15 @@
 import { useState, useMemo, useEffect } from "react";
 import {
   ShoppingCart, Plus, X, Check, FileText, Trash2,
-  Search, ChevronDown, Minus, Upload, Pencil,
+  Search, ChevronDown, Minus, Upload, Pencil, Loader2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "@/lib/store";
 import { toast } from "sonner";
 import { detectCategories } from "@/lib/categorizeItem";
 import { adjustQuantityString, canDecreaseQuantity, parseIngredientLine, suggestQuantityForItem } from "@/lib/ingredientText";
+import { buildInstacartLineItems } from "@/lib/instacart";
+import { invokeAppFunction } from "@/lib/functionClient";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { getPantryImage } from "@/lib/pantryImages";
 import { useKitchenGroceryList } from "@/hooks/useKitchenGroceryList";
@@ -286,6 +288,7 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [clearAllConfirmOpen, setClearAllConfirmOpen] = useState(false);
   const [importText, setImportText] = useState("");
+  const [instacartExporting, setInstacartExporting] = useState(false);
 
 
   const localItems: GroceryItem[] = (customGroceryItems ?? []).map((item, idx) => {
@@ -454,6 +457,60 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
     }
   };
 
+  const handleExportToInstacart = async () => {
+    const exportableItems = items
+      .filter((item) => !item.checked)
+      .map((item) => ({
+        name: item.name,
+        qty: item.quantity || item.qty || suggestQuantityForItem(item.name),
+      }));
+
+    if (exportableItems.length === 0) {
+      toast.info("Nothing left to send to Instacart.");
+      return;
+    }
+
+    const lineItems = buildInstacartLineItems(exportableItems);
+    if (lineItems.length === 0) {
+      toast.error("Could not format your grocery list for Instacart.");
+      return;
+    }
+
+    setInstacartExporting(true);
+    try {
+      const { data, error } = await invokeAppFunction<{ success: boolean; productsLinkUrl?: string }>(
+        'create-instacart-shopping-list',
+        {
+          body: {
+            title: isKitchenMode
+              ? `${activeKitchenName || 'Kitchen'} Grocery List`
+              : 'Munch Grocery List',
+            lineItems,
+            partnerLinkbackUrl: `${window.location.origin}/groceries?view=grocery`,
+          },
+        }
+      );
+
+      if (error) throw error;
+
+      const productsLinkUrl = typeof data?.productsLinkUrl === 'string' ? data.productsLinkUrl : '';
+      if (!productsLinkUrl) {
+        throw new Error('Instacart did not return a shopping link.');
+      }
+
+      const popup = window.open(productsLinkUrl, '_blank', 'noopener,noreferrer');
+      if (!popup) {
+        window.location.assign(productsLinkUrl);
+      }
+      toast.success("Opening your Instacart shopping list.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not open Instacart.';
+      toast.error(message);
+    } finally {
+      setInstacartExporting(false);
+    }
+  };
+
   const handleClearChecked = () => {
     if (isKitchenMode) {
       void kitchenGrocery.clearChecked();
@@ -510,6 +567,14 @@ export default function GroceryScreen({ embedded = false }: { embedded?: boolean
                 className="flex items-center gap-1.5 rounded-xl bg-white border border-stone-200 px-3 py-1.5 text-[10px] font-semibold text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors sm:text-[11px]"
               >
                 <Upload size={13} /> Import note
+              </button>
+              <button
+                onClick={() => void handleExportToInstacart()}
+                disabled={instacartExporting}
+                className="flex items-center gap-1.5 rounded-xl border border-orange-200 bg-white px-3 py-1.5 text-[10px] font-semibold text-orange-600 transition-colors hover:border-orange-300 hover:text-orange-700 disabled:opacity-60 sm:text-[11px]"
+              >
+                {instacartExporting ? <Loader2 size={13} className="animate-spin" /> : <ShoppingCart size={13} />}
+                Instacart
               </button>
               <button
                 onClick={handleExport}
