@@ -142,6 +142,29 @@ export default function Settings() {
     ? new Date(premiumDateValue).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
     : null;
 
+  const persistAvatarUrl = async (avatarUrl: string | null) => {
+    const userId = user?.id ?? (await supabase.auth.getSession()).data.session?.user?.id;
+    if (!userId) return false;
+
+    const { error } = await supabase
+      .from('profiles')
+      .upsert(
+        {
+          user_id: userId,
+          avatar_url: avatarUrl,
+        } as any,
+        { onConflict: 'user_id' },
+      );
+
+    if (error) {
+      console.error('Avatar save error:', error);
+      toast({ title: 'Failed to save avatar', description: error.message, variant: 'destructive' });
+      return false;
+    }
+
+    return true;
+  };
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
@@ -151,7 +174,7 @@ export default function Settings() {
       setUser(session.user);
       supabase
         .from('profiles')
-        .select('display_name, username, default_servings')
+        .select('display_name, username, default_servings, avatar_url')
         .eq('user_id', session.user.id)
         .single()
         .then(({ data }) => {
@@ -161,10 +184,13 @@ export default function Settings() {
             setUsername(persistedUsername);
             setOriginalUsername(persistedUsername);
             setDefaultServings(mapServingPreference((data as any).default_servings));
+            if ((data as any).avatar_url) {
+              setChefAvatarUrl((data as any).avatar_url);
+            }
           }
         });
     });
-  }, [navigate]);
+  }, [navigate, setChefAvatarUrl]);
 
   useEffect(() => {
     if (originalUsername && !usernameEditUnlocked) {
@@ -259,16 +285,21 @@ export default function Settings() {
       if (error) throw error;
       const { data: { publicUrl } } = supabase.storage.from('recipe-photos').getPublicUrl(fileName);
       setChefAvatarUrl(publicUrl);
-      toast({ title: 'Cook mode avatar updated' });
+      const saved = await persistAvatarUrl(publicUrl);
+      if (saved) {
+        toast({ title: 'Cook mode avatar updated' });
+      }
     } catch {
       toast({ title: 'Failed to upload avatar', variant: 'destructive' });
     } finally {
       setUploadingAvatar(false);
+      e.target.value = '';
     }
   };
 
-  const handleSaveAvatarDesign = () => {
+  const handleSaveAvatarDesign = async () => {
     setChefAvatarUrl(avatarBuilderPreview);
+    await persistAvatarUrl(avatarBuilderPreview);
     setAvatarDialogOpen(false);
     toast({ title: 'Avatar updated' });
   };
@@ -335,10 +366,10 @@ export default function Settings() {
     <div className="min-h-screen pb-20" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", background: "linear-gradient(180deg,#FFF7F1 0%,#FFFAF5 30%,#FFF4EA 100%)" }}>
       <div className="mx-auto w-full max-w-7xl px-4 pb-10 pt-4 sm:px-6 sm:pt-6">
         <div
-          className="mb-8 overflow-hidden rounded-[2rem] border"
+          className="mb-6 overflow-hidden rounded-[2rem] border"
           style={{ background: "linear-gradient(135deg,#FFF1E6 0%,#FFFFFF 42%,#FFF7ED 100%)", borderColor: "rgba(249,115,22,0.12)", boxShadow: "0 18px 42px rgba(28,25,23,0.08)" }}
         >
-          <div className="grid gap-6 px-5 py-6 sm:px-7 sm:py-7 lg:grid-cols-[1.35fr_0.65fr] lg:items-center">
+          <div className="grid gap-4 px-5 py-5 sm:px-6 sm:py-6 lg:grid-cols-[1.35fr_0.65fr] lg:items-center">
             <div className="relative">
               <div className="absolute -left-12 -top-12 h-32 w-32 rounded-full bg-orange-100/70 blur-2xl" />
               <div className="absolute left-40 top-10 h-24 w-24 rounded-full bg-amber-100/70 blur-2xl" />
@@ -349,13 +380,13 @@ export default function Settings() {
                   </Button>
                   <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-orange-500">Kitchen settings</p>
                 </div>
-                <h1 className="mt-4 text-3xl font-bold text-stone-900 sm:text-4xl" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+                <h1 className="mt-3 text-2xl font-bold text-stone-900 sm:text-3xl" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
                   Shape your Munch home base.
                 </h1>
-                <p className="mt-3 max-w-2xl text-sm font-medium leading-6 text-stone-600 sm:text-[15px]">
+                <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-stone-600">
                   Tune your chef identity, personalize the dashboard, and keep your cooking defaults aligned with the rest of your kitchen.
                 </p>
-                <div className="mt-5 flex flex-wrap gap-3">
+                <div className="mt-4 flex flex-wrap gap-3">
                   <div className="rounded-2xl border border-orange-100 bg-white/80 px-4 py-3 shadow-sm">
                     <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-orange-400">Chef profile</p>
                     <p className="mt-1 text-lg font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
@@ -614,7 +645,7 @@ export default function Settings() {
                     <img
                       src={heroImageOptions[selectedHeroImageIndex]}
                       alt="Selected dashboard header"
-                      className="aspect-[16/6] w-full object-cover"
+                      className="aspect-[16/4] w-full object-cover"
                       onError={applyRecipeImageFallback}
                     />
                   </div>

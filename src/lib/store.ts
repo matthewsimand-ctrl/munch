@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
 import { normalizeIngredients } from '@/lib/normalizeIngredients';
 import { parseIngredientLine, suggestQuantityForItem } from '@/lib/ingredientText';
 import { detectCategories } from '@/lib/categorizeItem';
@@ -56,6 +56,39 @@ export interface KitchenSummary {
 }
 
 export type DashboardHeroImageMode = 'daily' | 'manual';
+
+const STORE_PERSIST_KEY = 'chefstack-storage-v2';
+const MAX_PERSISTED_STORE_CHARS = 750000;
+
+const guardedLocalStorage = {
+  getItem: (name: string) => {
+    const raw = window.localStorage.getItem(name);
+    if (!raw) return null;
+
+    if (raw.length > MAX_PERSISTED_STORE_CHARS) {
+      try {
+        window.localStorage.removeItem(name);
+      } catch {
+        // Ignore storage cleanup failures.
+      }
+      console.warn(`[store] Skipped oversized persisted state for ${name} (${raw.length} chars).`);
+      return null;
+    }
+
+    return raw;
+  },
+  setItem: (name: string, value: string) => {
+    if (value.length > MAX_PERSISTED_STORE_CHARS) {
+      console.warn(`[store] Skipped writing oversized persisted state for ${name} (${value.length} chars).`);
+      return;
+    }
+
+    window.localStorage.setItem(name, value);
+  },
+  removeItem: (name: string) => {
+    window.localStorage.removeItem(name);
+  },
+};
 
 function sanitizeStoredImage(image: unknown) {
   const value = typeof image === 'string' ? image.trim() : '';
@@ -745,7 +778,8 @@ export const useStore = create<AppState>()(
         }),
     }),
     {
-      name: 'chefstack-storage-v2',
+      name: STORE_PERSIST_KEY,
+      storage: createJSONStorage(() => guardedLocalStorage),
       partialize: (state) => ({
         ...state,
         savedApiRecipes: Object.fromEntries(
