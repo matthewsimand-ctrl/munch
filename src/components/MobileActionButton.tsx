@@ -19,8 +19,8 @@ export default function MobileActionButton({
       type="button"
       onClick={onClick}
       className={`fixed right-4 z-40 inline-flex items-center justify-center rounded-full border text-sm font-bold shadow-lg transition-transform active:scale-[0.98] ${compact
-        ? "bottom-[calc(var(--mobile-nav-offset)+0.65rem)] h-14 w-14 border-orange-200/90 bg-white text-orange-600 shadow-orange-200/50"
-        : "bottom-[calc(var(--mobile-nav-offset)+0.75rem)] h-14 items-center gap-2 px-5 border-orange-200/60 text-white shadow-orange-500/30"
+        ? "bottom-[calc(var(--mobile-nav-offset)+1.15rem)] h-14 w-14 border-orange-200/90 bg-white text-orange-600 shadow-orange-200/50"
+        : "bottom-[calc(var(--mobile-nav-offset)+1.25rem)] h-14 items-center gap-2 px-5 border-orange-200/60 text-white shadow-orange-500/30"
         }`}
       style={compact
         ? { boxShadow: "0 12px 30px rgba(251,146,60,0.18), inset 0 0 0 3px rgba(255,237,213,0.9)" }

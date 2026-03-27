@@ -104,7 +104,7 @@ const Index = () => {
 
   useEffect(() => {
     if (!sessionResolved) return;
-    if (!isNativeApp && !hasSession && !isGuest) return;
+    if (isDesktopViewport && !isNativeApp && !hasSession && !isGuest) return;
 
     const redirectToApp = async () => {
       const target = await resolveAppStartRoute({
@@ -196,6 +196,10 @@ const Index = () => {
   }
 
   if (isNativeApp) return null;
+
+  if (!isDesktopViewport && sessionResolved) {
+    return null;
+  }
 
   return (
     <div

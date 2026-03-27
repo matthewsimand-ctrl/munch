@@ -47,6 +47,7 @@ function getSourceHostname(url: string | undefined): string | null {
 function RecipeCard({
   recipe,
   view,
+  isMobile,
   rating,
   nutrition,
   onCook,
@@ -59,6 +60,7 @@ function RecipeCard({
 }: {
   recipe: Recipe;
   view: "grid" | "list";
+  isMobile: boolean;
   rating?: number;
   nutrition?: { calories?: number; protein?: number; carbs?: number; fat?: number };
   onCook: () => void;
@@ -82,6 +84,16 @@ function RecipeCard({
     ? (recipe.created_by || (isMunchRecipe ? MUNCH_OFFICIAL_USER_ID : null))
     : null;
   const sourceBadge = getRecipeSourceBadge(recipe);
+  const showSourceBadge = Boolean(sourceBadge) && !(resolvedChefName && resolvedChefId);
+  const metaPills = [
+    recipe.cook_time ? (
+      <span key="cook-time" className="inline-flex items-center gap-1">
+        <Clock size={11} /> {recipe.cook_time}
+      </span>
+    ) : null,
+    typeof cookCount === "number" && cookCount > 0 ? <span key="cook-count">{cookCount}x cooked</span> : null,
+    recipe.cuisine ? <span key="cuisine">{recipe.cuisine}</span> : null,
+  ].filter(Boolean);
 
   if (view === "list") {
     return (
@@ -90,7 +102,7 @@ function RecipeCard({
         initial={{ opacity: 0, x: -8 }}
         animate={{ opacity: 1, x: 0 }}
         data-tutorial={dataTutorial}
-        className="flex items-center gap-4 p-4 rounded-2xl group hover:bg-orange-50/60 transition-colors cursor-pointer border border-transparent hover:border-orange-100"
+        className="flex items-start gap-3 rounded-2xl border border-transparent p-4 transition-colors group cursor-pointer hover:border-orange-100 hover:bg-orange-50/60"
         onClick={onCook}
       >
         <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 bg-stone-100">
@@ -102,44 +114,47 @@ function RecipeCard({
           />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-stone-800 truncate text-sm group-hover:text-orange-700 transition-colors">
+          <p className={`font-semibold text-stone-800 transition-colors group-hover:text-orange-700 ${isMobile ? "line-clamp-2 text-[15px] leading-5" : "truncate text-sm"}`}>
             {recipe.name}
           </p>
-          <div className="flex items-center gap-3 mt-1 text-xs text-stone-400">
-            {sourceHostname && (
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-stone-400">
+            {sourceHostname ? (
               <img
                 src={`https://www.google.com/s2/favicons?domain=${sourceHostname}&sz=32`}
                 alt=""
                 className="h-3.5 w-3.5 shrink-0"
                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
               />
-            )}
-            <span className="flex items-center gap-1"><Clock size={11} /> {recipe.cook_time}</span>
-            <span className={`px-2 py-0.5 rounded-full font-semibold ${diffColor}`}>{diff}</span>
-            {typeof rating === "number" && (
-              <span className="flex items-center gap-1 text-amber-500">
+            ) : null}
+            {metaPills.map((pill, index) => (
+              <span key={index} className="inline-flex items-center gap-2">
+                {index > 0 ? <span className="h-1 w-1 rounded-full bg-stone-300" /> : null}
+                {pill}
+              </span>
+            ))}
+            <span className={`rounded-full px-2 py-0.5 font-semibold ${diffColor}`}>{diff}</span>
+            {typeof rating === "number" ? (
+              <span className="inline-flex items-center gap-1 text-amber-500">
                 <Star size={11} fill="currentColor" /> {rating.toFixed(1)}
               </span>
-            )}
-            {typeof cookCount === "number" && cookCount > 0 && <span>{cookCount}x cooked</span>}
-            {resolvedChefName && resolvedChefId && (
-              <button
-                onClick={(e) => { e.stopPropagation(); onChefClick(resolvedChefId, resolvedChefName); }}
-                className="inline-flex items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 text-orange-700 hover:bg-orange-100"
-              >
-                <RecipeAttributionIcon recipe={{ ...recipe, chef: resolvedChefName, created_by: resolvedChefId }} sizeClassName="h-3.5 w-3.5" className={isMunchRecipe ? "rounded-full bg-white p-0.5" : ""} />
-                {resolvedChefName}
-              </button>
-            )}
-            {!resolvedChefName && sourceBadge && (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 text-orange-700">
-                <RecipeAttributionIcon recipe={recipe} sizeClassName="h-3.5 w-3.5" className={isMunchRecipe ? "rounded-full bg-white p-0.5" : ""} />
-                {sourceBadge}
-              </span>
-            )}
+            ) : null}
           </div>
+          {resolvedChefName && resolvedChefId ? (
+            <button
+              onClick={(e) => { e.stopPropagation(); onChefClick(resolvedChefId, resolvedChefName); }}
+              className="mt-1 inline-flex max-w-full items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 text-[11px] text-orange-700 hover:bg-orange-100"
+            >
+              <RecipeAttributionIcon recipe={{ ...recipe, chef: resolvedChefName, created_by: resolvedChefId }} sizeClassName="h-3.5 w-3.5" className={isMunchRecipe ? "rounded-full bg-white p-0.5" : ""} />
+              <span className="truncate">{resolvedChefName}</span>
+            </button>
+          ) : !resolvedChefName && sourceBadge ? (
+            <span className="mt-1 inline-flex max-w-full items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 text-[11px] text-orange-700">
+              <RecipeAttributionIcon recipe={recipe} sizeClassName="h-3.5 w-3.5" className={isMunchRecipe ? "rounded-full bg-white p-0.5" : ""} />
+              <span className="truncate">{sourceBadge}</span>
+            </span>
+          ) : null}
           {(nutrition?.calories || nutrition?.protein || nutrition?.carbs || nutrition?.fat) && (
-            <p className="mt-1 text-[11px] text-stone-500 line-clamp-1">
+            <p className={`mt-1 text-[11px] text-stone-500 ${isMobile ? "line-clamp-2" : "line-clamp-1"}`}>
               {nutrition?.calories ? `${Math.round(nutrition.calories)} cal` : null}
               {nutrition?.protein ? ` • ${Math.round(nutrition.protein)}g protein` : null}
               {nutrition?.carbs ? ` • ${Math.round(nutrition.carbs)}g carbs` : null}
@@ -148,22 +163,26 @@ function RecipeCard({
           )}
           {!!recipe.tags?.length && <p className="mt-1 text-xs text-stone-500 line-clamp-1">{recipe.tags.slice(0, 3).join(" • ")}</p>}
         </div>
-        <div className="shrink-0">
+        <div className="flex shrink-0 flex-col items-end gap-2">
           <MatchBadge percentage={matchPercentage} />
+          {!isMobile ? (
+            <>
+              <button
+                onClick={(e) => { e.stopPropagation(); onEdit(); }}
+                className="w-8 h-8 rounded-xl flex items-center justify-center text-stone-300 hover:text-orange-500 hover:bg-orange-50 transition-colors opacity-0 group-hover:opacity-100"
+                aria-label="Edit local recipe copy"
+              >
+                <PenSquare size={14} />
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); onUnsave(); }}
+                className="w-8 h-8 rounded-xl flex items-center justify-center text-stone-300 hover:text-red-400 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+              >
+                <Trash2 size={14} />
+              </button>
+            </>
+          ) : null}
         </div>
-        <button
-          onClick={(e) => { e.stopPropagation(); onEdit(); }}
-          className="w-8 h-8 rounded-xl flex items-center justify-center text-stone-300 hover:text-orange-500 hover:bg-orange-50 transition-colors opacity-0 group-hover:opacity-100"
-          aria-label="Edit local recipe copy"
-        >
-          <PenSquare size={14} />
-        </button>
-        <button
-          onClick={(e) => { e.stopPropagation(); onUnsave(); }}
-          className="w-8 h-8 rounded-xl flex items-center justify-center text-stone-300 hover:text-red-400 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
-        >
-          <Trash2 size={14} />
-        </button>
       </motion.div>
     );
   }
@@ -220,22 +239,34 @@ function RecipeCard({
       <p className="text-sm font-semibold text-stone-800 line-clamp-2 leading-snug mb-1 group-hover:text-orange-600 transition-colors">
         {recipe.name}
       </p>
-      <div className="flex items-center gap-2 text-xs text-stone-400">
-        <Clock size={11} /> {recipe.cook_time}
-        {typeof cookCount === "number" && cookCount > 0 && <><span className="w-1 h-1 rounded-full bg-stone-300" /><span>{cookCount}x cooked</span></>}
-        {recipe.cuisine && <><span className="w-1 h-1 rounded-full bg-stone-300" /><span>{recipe.cuisine}</span></>}
-        {resolvedChefName && resolvedChefId && (
-          <>
-            <span className="w-1 h-1 rounded-full bg-stone-300" />
+      <div className="mt-1 flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-stone-400">
+            {metaPills.map((pill, index) => (
+              <span key={index} className="inline-flex items-center gap-2">
+                {index > 0 ? <span className="h-1 w-1 rounded-full bg-stone-300" /> : null}
+                {pill}
+              </span>
+            ))}
+          </div>
+          {resolvedChefName && resolvedChefId ? (
             <button
               onClick={(e) => { e.stopPropagation(); onChefClick(resolvedChefId, resolvedChefName); }}
-              className="inline-flex items-center gap-1 text-orange-600 hover:text-orange-700 underline underline-offset-2"
+              className="mt-1 inline-flex max-w-full items-center gap-1 text-xs text-orange-600 hover:text-orange-700 underline underline-offset-2"
             >
               <RecipeAttributionIcon recipe={{ ...recipe, chef: resolvedChefName, created_by: resolvedChefId }} sizeClassName="h-3.5 w-3.5" className={isMunchRecipe ? "rounded-full bg-white p-0.5" : ""} />
-              {resolvedChefName}
+              <span className="truncate">{resolvedChefName}</span>
             </button>
-          </>
-        )}
+          ) : showSourceBadge ? (
+            <span className="mt-1 inline-flex max-w-full items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 text-[11px] text-orange-700">
+              <RecipeAttributionIcon recipe={recipe} sizeClassName="h-3.5 w-3.5" className={isMunchRecipe ? "rounded-full bg-white p-0.5" : ""} />
+              <span className="truncate">{sourceBadge}</span>
+            </span>
+          ) : null}
+        </div>
+        <div className="shrink-0 pt-0.5">
+          <MatchBadge percentage={matchPercentage} />
+        </div>
       </div>
       {(nutrition?.calories || nutrition?.protein || nutrition?.carbs || nutrition?.fat) && (
         <p className="text-[11px] text-stone-500 mt-1 line-clamp-1">
@@ -281,9 +312,12 @@ export default function MyRecipesScreen() {
   const [recipeToEdit, setRecipeToEdit] = useState<Recipe | null>(null);
 
   useEffect(() => {
-    if (isMobile) {
-      setView("list");
-    }
+    setView((current) => {
+      if (isMobile) {
+        return current;
+      }
+      return current === "list" || current === "grid" ? current : "grid";
+    });
   }, [isMobile]);
 
   useEffect(() => {
@@ -429,7 +463,6 @@ export default function MyRecipesScreen() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              {!isMobile && (
               <button
                 onClick={() => setView(view === "grid" ? "list" : "grid")}
                 className="h-9 w-9 rounded-xl bg-white border border-stone-200 flex items-center justify-center text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
@@ -437,7 +470,6 @@ export default function MyRecipesScreen() {
               >
                 {view === "grid" ? <List size={16} /> : <Grid3X3 size={16} />}
               </button>
-              )}
             </div>
           </div>
 
@@ -476,12 +508,7 @@ export default function MyRecipesScreen() {
                 >
                   {SORT_OPTIONS.map((o) => <option key={o}>{o}</option>)}
                 </select>
-                <button
-                  onClick={() => setMobileAddSheetOpen(true)}
-                  className="rounded-xl border border-orange-200 bg-white px-3 py-2.5 text-sm font-semibold text-orange-700"
-                >
-                  Add recipe
-                </button>
+                <div />
               </>
             ) : (
             <div className="relative sm:w-auto">
@@ -550,6 +577,7 @@ export default function MyRecipesScreen() {
                   recipe={recipe}
                   dataTutorial={index === 0 ? "saved-recipe-card" : undefined}
                   view={view}
+                  isMobile={isMobile}
                   matchPercentage={calculateMatch(pantryNames, recipe.ingredients || []).percentage}
                   rating={recipeRatings?.[recipe.id]}
                   nutrition={cachedNutrition?.[recipe.id]}
@@ -660,18 +688,18 @@ export default function MyRecipesScreen() {
       </Dialog>
 
       <Dialog open={showManualRecipeDialog} onOpenChange={setShowManualRecipeDialog}>
-        <DialogContent className="w-[calc(100vw-1rem)] max-w-2xl overflow-hidden rounded-[1.75rem] border border-orange-100 bg-[#fffaf7] p-0 shadow-[0_24px_60px_rgba(249,115,22,0.14)]">
+        <DialogContent className="w-[calc(100vw-1rem)] max-w-2xl overflow-hidden rounded-[1.5rem] border border-orange-100 bg-[#fffaf7] p-0 shadow-[0_24px_60px_rgba(249,115,22,0.14)] sm:rounded-[1.75rem]">
           <DialogHeader className="border-b border-orange-100/80 bg-gradient-to-br from-orange-50 via-white to-orange-50/60 px-5 py-4 text-left">
             <DialogTitle>Add Manual Recipe</DialogTitle>
           </DialogHeader>
-          <div className="max-h-[calc(100dvh-6rem)] overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
+          <div className="max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-7.5rem)] overflow-y-auto px-4 py-4 sm:max-h-[calc(100dvh-6rem)] sm:px-6 sm:py-5">
             <CreateRecipeForm onClose={() => setShowManualRecipeDialog(false)} />
           </div>
         </DialogContent>
       </Dialog>
 
       <Dialog open={!!recipeToEdit} onOpenChange={(open) => !open && setRecipeToEdit(null)}>
-        <DialogContent className="w-[calc(100vw-1rem)] max-w-2xl max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem)] overflow-y-auto">
+        <DialogContent className="w-[calc(100vw-1rem)] max-w-2xl max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem)] overflow-y-auto rounded-[1.5rem] sm:rounded-[1.75rem]">
           <DialogHeader>
             <DialogTitle>Edit Local Recipe</DialogTitle>
           </DialogHeader>
