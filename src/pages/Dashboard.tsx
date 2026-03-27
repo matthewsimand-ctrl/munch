@@ -536,9 +536,14 @@ export default function Dashboard() {
       const userId = sessionData.session?.user?.id;
 
       if (userId) {
-        const { data } = await supabase.from("profiles").select("display_name").eq("user_id", userId).maybeSingle();
-        if (data?.display_name) {
-          setDisplayName(data.display_name);
+        const { data } = await supabase.from("profiles").select("display_name, avatar_url").eq("user_id", userId).maybeSingle();
+        if (data) {
+          if (data.display_name) {
+            setDisplayName(data.display_name);
+          }
+          if ((data as any).avatar_url) {
+            setChefAvatarUrl((data as any).avatar_url);
+          }
           setProfileLoaded(true);
           return;
         }
@@ -549,7 +554,7 @@ export default function Dashboard() {
       setProfileLoaded(true);
     };
     loadProfile();
-  }, [storeDisplayName]);
+  }, [setChefAvatarUrl, storeDisplayName]);
 
   useEffect(() => {
     if (!displayName && storeDisplayName) {
@@ -709,6 +714,35 @@ export default function Dashboard() {
       tone: "bg-orange-50 text-orange-500",
     },
   ];
+  const mobileDashboardStats = [
+    {
+      key: "streak",
+      label: "Streak",
+      value: `${cookingStreak}`,
+      suffix: "days",
+      icon: Flame,
+      cardClassName: "border-orange-200/80 bg-[linear-gradient(135deg,#FFF1E6,#FFE3C7)] text-orange-900",
+      iconClassName: "bg-white/80 text-orange-500",
+    },
+    {
+      key: "meals",
+      label: "Meals",
+      value: `${totalMealsCooked}`,
+      suffix: "cooked",
+      icon: ChefHat,
+      cardClassName: "border-emerald-200/80 bg-[linear-gradient(135deg,#ECFDF5,#D7FBE8)] text-emerald-950",
+      iconClassName: "bg-white/80 text-emerald-600",
+    },
+    {
+      key: "saved",
+      label: "Saved",
+      value: `${likedRecipes.length}`,
+      suffix: "recipes",
+      icon: Heart,
+      cardClassName: "border-violet-200/80 bg-[linear-gradient(135deg,#F6F0FF,#EDE2FF)] text-violet-950",
+      iconClassName: "bg-white/80 text-violet-600",
+    },
+  ];
   const upNextMatch = upNextRecipe ? calculateMatch(pantryNames, upNextRecipe.ingredients || []) : null;
   const upNextCoverage = upNextMatch ? Math.max(18, upNextMatch.percentage) : 24;
 
@@ -718,7 +752,7 @@ export default function Dashboard() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-5 space-y-5 sm:space-y-6">
         <section className="space-y-4">
           <div
-            className="relative overflow-hidden rounded-[2rem] border border-orange-100 min-h-[190px] p-5 sm:min-h-[200px] sm:px-8 sm:py-6"
+            className="relative overflow-hidden rounded-[1.8rem] border border-orange-100 min-h-[176px] px-4 py-4 sm:min-h-[200px] sm:rounded-[2rem] sm:p-5 sm:px-8 sm:py-6"
             style={{
               background: "linear-gradient(135deg,#1C1917 0%,#292524 42%,#44403C 100%)",
               boxShadow: "0 16px 40px rgba(28,25,23,0.10)",
@@ -739,15 +773,15 @@ export default function Dashboard() {
             {loadedHeroImageSrc && (
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.14),transparent_24%),radial-gradient(circle_at_bottom_left,rgba(0,0,0,0.22),transparent_30%)] backdrop-blur-[2px]" />
             )}
-            <div className="relative flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+            <div className="relative flex flex-col gap-4 sm:gap-6 sm:flex-row sm:items-start sm:justify-between">
               <div className="max-w-xl">
                 <p className={`text-[11px] font-bold uppercase tracking-[0.22em] ${heroImageReady ? "text-orange-200" : "text-orange-100"}`}>
                   {greeting}
                 </p>
-                <h2 className={`mt-3 text-3xl font-bold sm:text-5xl ${heroImageReady ? "text-orange-400" : "text-white"}`} style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+                <h2 className={`mt-2 text-[2rem] font-bold leading-none sm:mt-3 sm:text-5xl ${heroImageReady ? "text-orange-400" : "text-white"}`} style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
                   {heroHeading}
                 </h2>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
+                <div className="mt-2.5 flex flex-wrap items-center gap-2">
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-white/14 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-white backdrop-blur-sm">
                     <Award className="h-3.5 w-3.5 text-amber-200" />
                     Level {levelInfo.level}
@@ -756,14 +790,14 @@ export default function Dashboard() {
                     {levelInfo.current}/{levelInfo.needed} XP to next level
                   </span>
                 </div>
-                <p className={`mt-3 text-[11px] font-bold uppercase tracking-[0.22em] ${heroImageReady ? "text-orange-300/95" : "text-stone-200"}`}>
+                <p className={`mt-3 text-[10px] font-bold uppercase tracking-[0.22em] sm:text-[11px] ${heroImageReady ? "text-orange-300/95" : "text-stone-200"}`}>
                   {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
                 </p>
-                <p className="mt-5 max-w-md text-sm font-semibold text-white sm:text-base">
+                <p className="mt-3 max-w-md text-sm font-semibold leading-6 text-white/92 sm:mt-5 sm:text-base">
                   Your kitchen snapshot is ready, with tailored picks, pantry-aware inspiration, and your next meal at a glance.
                 </p>
               </div>
-              <div className="flex flex-wrap items-center justify-end gap-2 self-start">
+              <div className="flex flex-wrap items-center gap-2 self-start sm:justify-end">
                 <button
                   onClick={() => setNotificationsOpen(true)}
                   className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-orange-300/60 bg-white/90 text-stone-700 shadow-sm backdrop-blur transition-colors hover:bg-orange-50"
@@ -804,6 +838,27 @@ export default function Dashboard() {
             </div>
           </div>
 
+          {isMobile ? (
+            <div className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-1 scrollbar-hide">
+              {mobileDashboardStats.map(({ key, label, value, suffix, icon: Icon, cardClassName, iconClassName }) => (
+                <section
+                  key={key}
+                  className={`min-w-[148px] snap-start rounded-[1.5rem] border p-4 shadow-[0_10px_24px_rgba(28,25,23,0.06)] ${cardClassName}`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] opacity-70">{label}</p>
+                      <p className="mt-3 text-3xl font-bold leading-none" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>{value}</p>
+                      <p className="mt-2 text-xs font-semibold opacity-75">{suffix}</p>
+                    </div>
+                    <div className={`flex h-10 w-10 items-center justify-center rounded-2xl ${iconClassName}`}>
+                      <Icon size={18} />
+                    </div>
+                  </div>
+                </section>
+              ))}
+            </div>
+          ) : (
           <div className="grid gap-4 lg:grid-cols-[1.05fr_1fr_1fr]">
             <section className="relative overflow-hidden rounded-[1.75rem] border border-orange-100 bg-white p-5 shadow-[0_10px_28px_rgba(28,25,23,0.06)]">
               <div className="absolute -right-6 -top-5 h-24 w-24 rounded-full bg-orange-100/80" />
@@ -873,6 +928,7 @@ export default function Dashboard() {
               </section>
             ))}
           </div>
+          )}
         </section>
 
         {/* 2-col layout */}
@@ -911,19 +967,20 @@ export default function Dashboard() {
                   ))}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                <div className={isMobile ? "-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-1 scrollbar-hide" : "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"}>
                   {dashboardDisplaySuggestions.slice(0, 3).map((recipe) => {
                     const match = calculateMatch(pantryNames, recipe.ingredients || []);
                     return (
-                      <RecipeSuggestionCard
-                        key={recipe.id}
-                        recipe={recipe}
-                        match={match}
-                        isSaved={likedSet.has(recipe.id)}
-                        onSave={() => handleSave(recipe)}
-                        onDismiss={() => handleDismissSuggestion(recipe.id)}
-                        onClick={() => setSelectedRecipe(recipe)}
-                      />
+                      <div key={recipe.id} className={isMobile ? "min-w-[82%] snap-start" : ""}>
+                        <RecipeSuggestionCard
+                          recipe={recipe}
+                          match={match}
+                          isSaved={likedSet.has(recipe.id)}
+                          onSave={() => handleSave(recipe)}
+                          onDismiss={() => handleDismissSuggestion(recipe.id)}
+                          onClick={() => setSelectedRecipe(recipe)}
+                        />
+                      </div>
                     );
                   })}
                 </div>

@@ -9,6 +9,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { canPubliclyShareImportedUrlRecipe, isImportedUrlRecipe } from '@/lib/importVisibilityPolicy';
 
 const BROWSE_FEED_CACHE_KEY = 'munch:browse-feed-cache:v3';
+const MAX_CACHED_BROWSE_RECIPES = 80;
+const MAX_BROWSE_CACHE_CHARS = 250000;
 const MAX_RECOMMENDATION_CANDIDATES = 180;
 const MAX_TASTE_PROFILE_LIKES = 24;
 
@@ -55,6 +57,10 @@ function readCachedBrowseFeed() {
     try {
       const cached = storage.getItem(BROWSE_FEED_CACHE_KEY);
       if (!cached) continue;
+      if (cached.length > MAX_BROWSE_CACHE_CHARS) {
+        storage.removeItem(BROWSE_FEED_CACHE_KEY);
+        continue;
+      }
 
       const parsed = JSON.parse(cached);
       if (!Array.isArray(parsed)) continue;
@@ -77,9 +83,16 @@ function writeCachedBrowseFeed(recipes: BrowseRecipe[]) {
 
   // Sanitize before writing to avoid accumulating large base64 images in localStorage,
   // which would cause a multi-second synchronous JSON.parse freeze on the next page load.
-  const sanitized = recipes.map(sanitizeRecipeForCache);
+  const sanitized = recipes
+    .slice(0, MAX_CACHED_BROWSE_RECIPES)
+    .map(sanitizeRecipeForCache);
   try {
     const serialized = JSON.stringify(sanitized);
+    if (serialized.length > MAX_BROWSE_CACHE_CHARS) {
+      window.localStorage.removeItem(BROWSE_FEED_CACHE_KEY);
+      window.sessionStorage.removeItem(BROWSE_FEED_CACHE_KEY);
+      return;
+    }
     window.sessionStorage.setItem(BROWSE_FEED_CACHE_KEY, serialized);
     window.localStorage.setItem(BROWSE_FEED_CACHE_KEY, serialized);
   } catch (e) {

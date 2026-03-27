@@ -16,23 +16,24 @@ const doc = new jsPDF({
 
 const pageWidth = doc.internal.pageSize.getWidth();
 const pageHeight = doc.internal.pageSize.getHeight();
-const margin = 42;
+const margin = 40;
 const gutter = 20;
 const colWidth = (pageWidth - margin * 2 - gutter) / 2;
 const leftX = margin;
 const rightX = margin + colWidth + gutter;
-const contentBottom = pageHeight - 42;
+const footerY = pageHeight - 20;
+const footerRuleY = pageHeight - 34;
 
 const palette = {
   ink: [38, 38, 38],
-  sub: [92, 92, 92],
+  sub: [96, 96, 96],
   accent: [222, 122, 30],
   accentSoft: [252, 243, 232],
   line: [226, 226, 226],
 };
 
-let leftY = margin + 58;
-let rightY = margin + 58;
+let leftY = margin + 56;
+let rightY = margin + 56;
 
 function setFill(rgb) {
   doc.setFillColor(rgb[0], rgb[1], rgb[2]);
@@ -57,25 +58,28 @@ function drawSection(x, y, width, title, bodyLines) {
   doc.setFontSize(10);
   doc.text(title.toUpperCase(), x, y);
   y += 14;
+
   setText(palette.ink);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
+  doc.setFontSize(8.5);
+
   for (const line of bodyLines) {
     if (line.type === "paragraph") {
-      const lines = wrap(line.text, width, 9);
+      const lines = wrap(line.text, width, 8.5);
       doc.text(lines, x, y);
-      y += lines.length * 11 + 4;
+      y += lines.length * 10 + 4;
       continue;
     }
+
     if (line.type === "bullet") {
-      const bulletWidth = width - 12;
-      const lines = wrap(line.text, bulletWidth, 9);
-      doc.circle(x + 3, y - 3, 1.5, "F");
+      const lines = wrap(line.text, width - 12, 8.5);
+      doc.circle(x + 3, y - 3, 1.4, "F");
       doc.text(lines, x + 10, y);
-      y += lines.length * 11 + 2;
+      y += lines.length * 10 + 2;
     }
   }
-  return y + 2;
+
+  return y + 4;
 }
 
 function addSection(column, title, lines) {
@@ -87,117 +91,82 @@ function addSection(column, title, lines) {
 }
 
 setFill(palette.accentSoft);
-doc.roundedRect(margin, margin, pageWidth - margin * 2, 46, 10, 10, "F");
+doc.roundedRect(margin, margin, pageWidth - margin * 2, 44, 10, 10, "F");
+
 setText(palette.accent);
 doc.setFont("helvetica", "bold");
-doc.setFontSize(22);
-doc.text("Munch", margin + 16, margin + 29);
+doc.setFontSize(21);
+doc.text("Munch", margin + 16, margin + 28);
+
 setText(palette.sub);
 doc.setFont("helvetica", "normal");
 doc.setFontSize(9);
-doc.text("One-page repo summary", margin + 16, margin + 41);
+doc.text("One-page app summary from repo evidence", margin + 16, margin + 40);
 
 setText(palette.sub);
 doc.setFont("helvetica", "italic");
-doc.setFontSize(8);
-doc.text("Architecture overview is based only on repository evidence.", pageWidth - margin - 220, margin + 41);
+doc.setFontSize(7.5);
+doc.text("Architecture and setup notes below are based only on files in this repository.", pageWidth - margin - 230, margin + 40);
 
 addSection("left", "What It Is", [
   {
     type: "paragraph",
-    text: "Munch is a cooking app that combines pantry tracking, recipe discovery, meal planning, grocery prep, and guided cook mode in one React + Supabase product.",
+    text: "Munch is a cooking app that brings pantry tracking, recipe discovery, meal planning, grocery prep, and guided cooking into a single React application.",
   },
   {
     type: "paragraph",
-    text: "It uses AI-backed edge functions for recipe import, fridge scanning, nutrition estimates, recipe tweaks, and meal-plan generation.",
+    text: "Repo evidence also shows AI-backed Supabase edge functions for recipe import, pantry photo scanning, meal-plan generation, recipe tweaks, and nutrition analysis.",
   },
 ]);
 
 addSection("left", "Who It's For", [
   {
     type: "paragraph",
-    text: "Primary persona: a home cook who wants to decide what to make from available ingredients, save/import recipes, and move from planning to cooking without switching apps.",
+    text: "Primary persona: a home cook who wants fast meal ideas from available ingredients, a place to save recipes, and a smoother path from planning to cooking.",
   },
 ]);
 
 addSection("left", "What It Does", [
-  { type: "bullet", text: "Tracks pantry items with category and quantity hints; includes a fridge-scan entry point." },
-  { type: "bullet", text: "Browses recipes in a swipe feed with pantry-match scoring, filters, and save/pass actions." },
-  { type: "bullet", text: "Imports recipes from URL, PDF, or photo; users can review/edit before saving." },
-  { type: "bullet", text: "Saves recipes into folders/cookbooks, adds tags, edits ingredients, and caches nutrition results." },
+  { type: "bullet", text: "Tracks pantry items with quantities and categories; pantry page includes camera and receipt upload flows." },
+  { type: "bullet", text: "Shows a swipe-style browse feed with pantry-match logic, saved/disliked states, and recipe search." },
+  { type: "bullet", text: "Imports recipes from URLs, PDFs, or images, then normalizes ingredients and instructions before saving." },
+  { type: "bullet", text: "Stores recipes, folders/cookbooks, tags, ingredient overrides, ratings, and cached nutrition data." },
   { type: "bullet", text: "Builds weekly meal plans, supports drag-and-drop scheduling, and can generate plans from saved recipes." },
-  { type: "bullet", text: "Creates grocery lists manually or from meal plans, grouped by store category." },
-  { type: "bullet", text: "Runs step-by-step cook mode with timers, text-to-speech, voice commands, glossary popovers, and XP/progress." },
+  { type: "bullet", text: "Creates grocery lists for solo use or shared kitchens, grouped into store-style sections." },
+  { type: "bullet", text: "Runs cook mode with timers, text-to-speech, voice commands, glossary help, and cooked-meal progress tracking." },
 ]);
 
 addSection("right", "How It Works", [
-  {
-    type: "bullet",
-    text: "Client: Vite + React + TypeScript app with `react-router-dom`, `@tanstack/react-query`, Tailwind/shadcn UI, and Zustand persisted local state.",
-  },
-  {
-    type: "bullet",
-    text: "Auth/data: Supabase client handles auth and browser session persistence; Postgres tables include `profiles`, `recipes`, `meal_plans`, and `meal_plan_items` with RLS.",
-  },
-  {
-    type: "bullet",
-    text: "Recipe flow: browse feed calls the `search-recipes` edge function, which merges public DB recipes with external MealDB results before ranking in the client.",
-  },
-  {
-    type: "bullet",
-    text: "AI services: edge functions call Lovable AI Gateway for import parsing, fridge image detection, meal-plan generation, nutrition analysis, and recipe tweaks.",
-  },
-  {
-    type: "bullet",
-    text: "Data flow: user signs in -> onboarding writes profile defaults -> client reads/writes Supabase + local store -> edge functions enrich recipe/meal data -> UI pages consume normalized recipe objects.",
-  },
+  { type: "bullet", text: "Client: Vite + React + TypeScript app with route-based pages in `src/pages`, UI components in `src/components`, React Query for async data, and Zustand persisted local state in `src/lib/store.ts`." },
+  { type: "bullet", text: "Auth and app data: `src/integrations/supabase/client.ts` creates the browser Supabase client with session persistence. Migrations define tables including `profiles`, `recipes`, `recipe_api_cache`, `cooked_meals`, `app_notifications`, and kitchen collaboration tables." },
+  { type: "bullet", text: "Recipe flow: the client reads public recipes from Supabase, and `useBrowseFeed` invokes the `search-recipes` edge function, which fetches public DB recipes plus cached/external recipe sources before the client ranks results." },
+  { type: "bullet", text: "AI services: Supabase edge functions call the Lovable AI Gateway for recipe import, fridge scanning, meal-plan generation, recipe tweaks, grocery price estimation, and nutrition analysis." },
+  { type: "bullet", text: "Data flow: user authenticates or enters guest mode -> onboarding writes profile fields -> pages read/write local store and Supabase tables -> edge functions enrich recipe and planning data -> UI renders normalized recipe objects." },
 ]);
 
 addSection("right", "How To Run", [
-  { type: "bullet", text: "Install Node.js, then run `npm i`." },
-  { type: "bullet", text: "Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` for the web app." },
-  { type: "bullet", text: "Start locally with `npm run dev`." },
-  { type: "bullet", text: "For AI edge features, `LOVABLE_API_KEY` is required in Supabase functions." },
+  { type: "bullet", text: "Install dependencies: `npm i`." },
+  { type: "bullet", text: "Set web env vars: `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`." },
+  { type: "bullet", text: "Start the app: `npm run dev`." },
+  { type: "bullet", text: "If you want AI-backed Supabase functions, repo code shows they expect `LOVABLE_API_KEY`; some functions also reference `SUPABASE_URL`, `SUPABASE_ANON_KEY`, or `SUPABASE_SERVICE_ROLE_KEY`." },
+  { type: "bullet", text: "Complete local Supabase bootstrap/deploy instructions: Not found in repo." },
 ]);
 
-addSection("right", "Differentiator", [
-  {
-    type: "paragraph",
-    text: "Compared with standalone pantry trackers, recipe savers, or meal planners, Munch is differentiated by chaining pantry-aware discovery, AI recipe ingestion, meal planning, grocery prep, and guided cook mode inside one workflow.",
-  },
-]);
-
-const footerTop = contentBottom - 88;
 setDraw(palette.line);
 doc.setLineWidth(1);
-doc.line(margin, footerTop, pageWidth - margin, footerTop);
-
-setText(palette.accent);
-doc.setFont("helvetica", "bold");
-doc.setFontSize(10);
-doc.text("Improve Next", margin, footerTop + 18);
-
-setText(palette.ink);
-doc.setFont("helvetica", "normal");
-doc.setFontSize(9);
-const improve1 = wrap("Persist grocery items in Supabase: the current grocery page initializes from local store state and does not show a dedicated DB table in the repo.", pageWidth - margin * 2 - 18, 9);
-doc.circle(margin + 3, footerTop + 29, 1.5, "F");
-doc.text(improve1, margin + 10, footerTop + 32);
-const improve2 = wrap("Add clearer setup docs (`.env` example, Supabase function deployment, local DB/bootstrap). The repo shows required env variables in code, but a complete local setup guide is not found in the repo.", pageWidth - margin * 2 - 18, 9);
-doc.circle(margin + 3, footerTop + 53, 1.5, "F");
-doc.text(improve2, margin + 10, footerTop + 56);
+doc.line(margin, footerRuleY, pageWidth - margin, footerRuleY);
 
 setText(palette.sub);
 doc.setFont("helvetica", "normal");
-doc.setFontSize(7.5);
+doc.setFontSize(7.2);
 doc.text(
-  "Evidence: README.md, package.json, src/App.tsx, src/lib/store.ts, src/hooks/useBrowseFeed.ts, src/hooks/useDbRecipes.ts, src/pages/*, supabase/functions/*, supabase/migrations/*",
+  "Evidence: README.md, package.json, src/App.tsx, src/lib/store.ts, src/hooks/useBrowseFeed.ts, src/hooks/useDbRecipes.ts, src/hooks/useKitchen*.ts, src/pages/*.tsx, src/integrations/supabase/client.ts, supabase/functions/*, supabase/migrations/*",
   margin,
-  pageHeight - 18
+  footerY
 );
 
-if (leftY > footerTop - 8 || rightY > footerTop - 8) {
-  throw new Error(`Content overflowed the one-page layout (leftY=${leftY}, rightY=${rightY}, footerTop=${footerTop})`);
+if (leftY > footerRuleY - 8 || rightY > footerRuleY - 8) {
+  throw new Error(`Content overflowed the one-page layout (leftY=${leftY}, rightY=${rightY}, footerRuleY=${footerRuleY})`);
 }
 
 doc.save(outputPath);

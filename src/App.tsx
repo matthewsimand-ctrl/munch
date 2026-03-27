@@ -35,7 +35,7 @@ const SpotlightTutorial = lazy(() => import("./components/SpotlightTutorial"));
 
 const queryClient = new QueryClient();
 const ENABLE_SPOTLIGHT_TUTORIAL = false;
-const ENABLE_CLOUD_STORE_SYNC = false;
+const ENABLE_CLOUD_STORE_SYNC = true;
 const ENABLE_ROUTE_PRELOAD = false;
 const ENABLE_GLOBAL_FEEDBACK_PROVIDERS = true;
 const ENABLE_STARTUP_DEBUG =

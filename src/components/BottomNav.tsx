@@ -25,10 +25,10 @@ const BottomNav = forwardRef<HTMLElement, ComponentPropsWithoutRef<'nav'>>((prop
     <nav
       ref={ref}
       {...props}
-      className="fixed bottom-0 left-0 right-0 z-50 border-t border-orange-100/80 bg-[#fff8f2] shadow-[0_-10px_28px_rgba(28,25,23,0.08)] backdrop-blur-xl safe-area-x"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      className="fixed bottom-0 left-0 right-0 z-50 px-3 pb-2 safe-area-x"
+      style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 0.5rem)' }}
     >
-      <div className="mx-auto flex h-[var(--mobile-nav-height)] max-w-md items-center justify-around px-1.5">
+      <div className="mx-auto flex h-[calc(var(--mobile-nav-height)+0.4rem)] max-w-md items-center justify-around rounded-[1.65rem] border border-orange-100/80 bg-[#fff8f2]/96 px-2 shadow-[0_16px_40px_rgba(28,25,23,0.12)] backdrop-blur-xl">
         {NAV_ITEMS.map(({ path, label, icon: Icon }) => {
           const active = location.pathname === path;
           return (
@@ -37,14 +37,14 @@ const BottomNav = forwardRef<HTMLElement, ComponentPropsWithoutRef<'nav'>>((prop
               onClick={() => navigate(path)}
               data-tutorial={TUTORIAL_MAP[label]}
               className={cn(
-                'flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-lg px-2 py-1.5 transition-colors',
+                'flex min-w-0 flex-1 flex-col items-center gap-1 rounded-2xl px-2 py-2 transition-all',
                 active
-                  ? 'text-primary'
+                  ? 'bg-white text-primary shadow-[0_8px_18px_rgba(249,115,22,0.18)]'
                   : 'text-muted-foreground hover:text-foreground'
               )}
             >
-              <Icon className={cn('h-5 w-5 shrink-0', active && 'fill-primary/20')} />
-              <span className="truncate text-[10px] font-medium">{label}</span>
+              <Icon className={cn('h-5 w-5 shrink-0 transition-transform', active && 'fill-primary/20 scale-105')} />
+              <span className={cn('truncate text-[10px] font-semibold', active ? 'text-primary' : 'text-stone-500')}>{label}</span>
             </button>
           );
         })}
