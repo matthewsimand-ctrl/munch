@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import { supabase } from "@/integrations/supabase/client";
 import { useStore } from "@/lib/store";
 import { useCloudStoreSync } from "@/hooks/useCloudStoreSync";
+import { Analytics } from "@vercel/analytics/react";
 
 import AppLayout from "@/components/AppLayout";
 const Index = lazy(() => import("./pages/Index"));
@@ -358,6 +359,7 @@ const App = () => {
           <BrowserRouter>
             <AppRoutes />
           </BrowserRouter>
+          <Analytics />
         </TooltipProvider>
       </QueryClientProvider>
     </AppErrorBoundary>
