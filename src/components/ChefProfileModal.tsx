@@ -21,9 +21,10 @@ interface ChefProfileModalProps {
     chefName: string | null;
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    onNavigateToProfile?: () => void;
 }
 
-export function ChefProfileModal({ chefId, chefName, open, onOpenChange }: ChefProfileModalProps) {
+export function ChefProfileModal({ chefId, chefName, open, onOpenChange, onNavigateToProfile }: ChefProfileModalProps) {
     const navigate = useNavigate();
     const { likeRecipe, likedRecipes } = useStore();
     const [previewRecipe, setPreviewRecipe] = useState<Recipe | null>(null);
@@ -134,6 +135,7 @@ export function ChefProfileModal({ chefId, chefName, open, onOpenChange }: ChefP
                         {!isLoading && recipes.length > 0 && (
                             <button
                                 onClick={() => {
+                                    onNavigateToProfile?.();
                                     onOpenChange(false);
                                     navigate(`/chef/${chefId}`);
                                 }}

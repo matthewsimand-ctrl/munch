@@ -318,6 +318,7 @@ export default function SwipeScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedChefId, setSelectedChefId] = useState<string | null>(null);
   const [selectedChefName, setSelectedChefName] = useState<string | null>(null);
+  const [recipeToRestoreAfterChefClose, setRecipeToRestoreAfterChefClose] = useState<Recipe | null>(null);
   const [pendingChefProfile, setPendingChefProfile] = useState<{ chefId: string | null; chefName: string | null } | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [selectedMealTypes, setSelectedMealTypes] = useState<string[]>([]);
@@ -975,6 +976,9 @@ export default function SwipeScreen() {
           toast.success(`Added ${missingIngredients.length} items from "${recipe.name}" to grocery list`);
         }}
         onChefClick={(chefId, chefName) => {
+          if (previewRecipe) {
+            setRecipeToRestoreAfterChefClose(previewRecipe);
+          }
           setPendingChefProfile({ chefId, chefName });
           setPreviewOpen(false);
           setPreviewRecipe(null);
@@ -1137,10 +1141,21 @@ export default function SwipeScreen() {
         chefId={selectedChefId}
         chefName={selectedChefName}
         open={!!selectedChefId}
+        onNavigateToProfile={() => {
+          setRecipeToRestoreAfterChefClose(null);
+        }}
         onOpenChange={(open) => {
           if (!open) {
             setSelectedChefId(null);
             setSelectedChefName(null);
+            if (recipeToRestoreAfterChefClose) {
+              const recipeToRestore = recipeToRestoreAfterChefClose;
+              setRecipeToRestoreAfterChefClose(null);
+              window.requestAnimationFrame(() => {
+                setPreviewRecipe(recipeToRestore);
+                setPreviewOpen(true);
+              });
+            }
           }
         }}
       />
