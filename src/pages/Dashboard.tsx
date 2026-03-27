@@ -434,13 +434,10 @@ export default function Dashboard() {
       const userId = sessionData.session?.user?.id;
 
       if (userId) {
-        const { data } = await supabase.from("profiles").select("display_name, avatar_url").eq("user_id", userId).maybeSingle();
+        const { data } = await supabase.from("profiles").select("display_name").eq("user_id", userId).maybeSingle();
         if (data) {
           if (data.display_name) {
             setDisplayName(data.display_name);
-          }
-          if ((data as any).avatar_url) {
-            setChefAvatarUrl((data as any).avatar_url);
           }
           setProfileLoaded(true);
           return;
@@ -452,7 +449,7 @@ export default function Dashboard() {
       setProfileLoaded(true);
     };
     loadProfile();
-  }, [setChefAvatarUrl, storeDisplayName]);
+  }, [storeDisplayName]);
 
   useEffect(() => {
     if (!displayName && storeDisplayName) {
