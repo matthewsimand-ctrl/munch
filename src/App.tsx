@@ -35,7 +35,7 @@ const SpotlightTutorial = lazy(() => import("./components/SpotlightTutorial"));
 
 const queryClient = new QueryClient();
 const ENABLE_SPOTLIGHT_TUTORIAL = false;
-const ENABLE_CLOUD_STORE_SYNC = true;
+const ENABLE_CLOUD_STORE_SYNC = false;
 const ENABLE_GLOBAL_FEEDBACK_PROVIDERS = true;
 const ENABLE_STARTUP_DEBUG =
   new URLSearchParams(window.location.search).has("debug-startup") ||
@@ -273,8 +273,11 @@ function AppRoutes() {
 
   useEffect(() => {
     // Runs only once on mount — reads current values via refs, not stale closure deps.
-    const syncStoreOwner = (nextUserId: string | null) => {
-      if (storeOwnerUserIdRef.current && storeOwnerUserIdRef.current !== nextUserId) {
+    const syncStoreOwner = (nextUserId: string | null, reason: "initial" | "auth-change" | "signed-out") => {
+      const switchedUsers = Boolean(storeOwnerUserIdRef.current && nextUserId && storeOwnerUserIdRef.current !== nextUserId);
+      const explicitSignOut = reason === "signed-out" && Boolean(storeOwnerUserIdRef.current);
+
+      if (switchedUsers || explicitSignOut) {
         resetStoreRef.current();
       }
       storeOwnerUserIdRef.current = nextUserId;
@@ -282,11 +285,11 @@ function AppRoutes() {
     };
 
     void supabase.auth.getSession().then(({ data: { session } }) => {
-      syncStoreOwner(session?.user?.id ?? null);
+      syncStoreOwner(session?.user?.id ?? null, "initial");
     });
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      syncStoreOwner(session?.user?.id ?? null);
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      syncStoreOwner(session?.user?.id ?? null, event === "SIGNED_OUT" ? "signed-out" : "auth-change");
     });
 
     return () => {

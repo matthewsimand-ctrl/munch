@@ -10,6 +10,17 @@ type InstacartLineItem = {
   unit?: string;
 };
 
+function parseJsonSafely(text: string) {
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return null;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -88,12 +99,13 @@ Deno.serve(async (req) => {
     });
 
     const responseText = await response.text();
-    const responseData = responseText ? JSON.parse(responseText) : null;
+    const responseData = parseJsonSafely(responseText);
 
     if (!response.ok) {
       const message =
         (typeof responseData?.message === 'string' && responseData.message.trim()) ||
         (typeof responseData?.error === 'string' && responseData.error.trim()) ||
+        responseText.trim() ||
         'Instacart export failed.';
       console.error('create-instacart-shopping-list error:', response.status, responseText);
       return new Response(
@@ -107,7 +119,11 @@ Deno.serve(async (req) => {
 
     if (!productsLinkUrl) {
       return new Response(
-        JSON.stringify({ success: false, error: 'Instacart did not return a shopping link.' }),
+        JSON.stringify({
+          success: false,
+          error: 'Instacart did not return a shopping link.',
+          details: responseData ?? responseText.trim() || null,
+        }),
         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
