@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import MobileActionButton from "@/components/MobileActionButton";
 import PremiumFeatureButton from "@/components/PremiumFeatureButton";
 import { usePremiumGate } from "@/hooks/usePremiumGate";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const CATEGORIES = ["All", "Produce", "Dairy", "Meat & Fish", "Dry Goods", "Pasta / Noodles", "Condiments", "Bakery", "Frozen", "Other"];
 const CATEGORY_ICONS: Record<string, string> = {
@@ -51,12 +52,14 @@ function PantryItemRow({
   onEdit,
   onAdjustQty,
   dataTutorial,
+  compact = false,
 }: {
   item: PantryItem;
   onRemove: () => void;
   onEdit: (field: "quantity", value: string) => void;
   onAdjustQty: (delta: number) => void;
   dataTutorial?: string;
+  compact?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [qty, setQty] = useState(item.quantity ?? "");
@@ -74,15 +77,15 @@ function PantryItemRow({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, x: 16 }}
       data-tutorial={dataTutorial}
-      className="flex items-center gap-3 px-4 py-3 rounded-xl group hover:bg-orange-50/50 transition-colors"
+      className={`flex items-center gap-3 rounded-xl group hover:bg-orange-50/50 transition-colors ${compact ? "px-3 py-2.5" : "px-4 py-3"}`}
     >
       <img
         src={itemImage.src}
         alt={itemImage.alt}
-        className="w-10 h-10 rounded-xl object-cover shrink-0 border border-stone-200 bg-white"
+        className={`${compact ? "w-9 h-9 rounded-lg" : "w-10 h-10 rounded-xl"} object-cover shrink-0 border border-stone-200 bg-white`}
       />
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-stone-800 truncate">{item.name}</p>
+        <p className={`${compact ? "text-[13px]" : "text-sm"} font-semibold text-stone-800 truncate`}>{item.name}</p>
         <div className="mt-1 flex items-center gap-1">
           {showDecrease && (
             <button
@@ -121,7 +124,7 @@ function PantryItemRow({
         </div>
       </div>
       <span
-        className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+        className={`font-semibold px-2 py-0.5 rounded-full ${compact ? "text-[9px]" : "text-[10px]"}`}
         style={{ background: "rgba(249,115,22,0.08)", color: "#C2410C" }}
       >
         {itemImage.matched ? `${cat} match` : cat}
@@ -137,6 +140,7 @@ function PantryItemRow({
 }
 
 export default function PantryScreen({ embedded = false }: { embedded?: boolean }) {
+  const isMobile = useIsMobile();
   const {
     pantryList,
     addPantryItem,
@@ -476,11 +480,11 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
           className="absolute inset-0 opacity-20"
           style={{ backgroundImage: "radial-gradient(circle, #FDA97440 1px, transparent 1px)", backgroundSize: "20px 20px" }}
         />
-        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-5 sm:py-6">
-          <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
+          <div className="mb-3 flex flex-col gap-3 sm:mb-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1">Your kitchen</p>
-              <h1 className="text-2xl font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+              <h1 className="text-xl font-bold text-stone-900 sm:text-2xl" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
                 Pantry
               </h1>
               <p className="text-xs text-stone-400 mt-1">
@@ -488,7 +492,7 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
                 {isKitchenMode && <span className="ml-2 font-semibold text-orange-500">Shared with {activeKitchenName || "Kitchen"}</span>}
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+            <div className={`flex gap-2 ${isMobile ? "-mx-1 overflow-x-auto px-1 pb-1 scrollbar-hide" : "flex-wrap items-center sm:justify-end"}`}>
               <div className="min-w-0">
                 {isPremium ? (
                   <button
@@ -506,7 +510,7 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
                   onClick={() => openPremiumPage("Pantry Upload")}
                   disabled={importingReceipt}
                   variant="soft"
-                  className="h-9 w-auto rounded-xl px-3 text-[11px]"
+                  className="h-9 w-auto shrink-0 rounded-xl px-3 text-[11px]"
                   trailing={renderActionHelp("Upload lets you take a picture of a receipt or fridge, or upload a saved file.", { align: "start" })}
                 />
                 )}
@@ -527,7 +531,7 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
                   label="Fridge Cleanup"
                   onClick={() => openPremiumPage("Fridge Cleanup")}
                   variant="soft"
-                  className="h-9 w-auto rounded-xl px-3 text-[11px]"
+                  className="h-9 w-auto shrink-0 rounded-xl px-3 text-[11px]"
                   disabled={generatingRecipe}
                   trailing={renderActionHelp("Fridge Cleanup uses AI to suggest a recipe based on what is already in your pantry.", { align: "end" })}
                 />
@@ -536,12 +540,12 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
           </div>
 
           {/* Stat row */}
-          <div className="flex items-center gap-4">
+          <div className={`flex items-center gap-4 ${isMobile ? "overflow-x-auto pb-1 scrollbar-hide" : ""}`}>
             {[
               { label: "In stock", value: pantryItems?.length ?? 0, color: "#10B981" },
               { label: "Categories", value: Object.keys(groupedCounts).length - 1, color: "#F97316" },
             ].map(({ label, value, color }) => (
-              <div key={label} className="flex items-center gap-2">
+              <div key={label} className="flex items-center gap-2 shrink-0">
                 <div className="w-2 h-2 rounded-full" style={{ background: color }} />
                 <span className="text-xs font-semibold text-stone-500">{value} {label}</span>
               </div>
@@ -673,7 +677,7 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
         </DialogContent>
       </Dialog>
 
-      <div className={`max-w-6xl mx-auto px-4 sm:px-6 ${embedded ? "pt-3" : "py-4 sm:py-5"} space-y-5 pb-6 sm:pb-8`}>
+      <div className={`max-w-6xl mx-auto px-4 sm:px-6 ${embedded ? "pt-3" : "py-4 sm:py-5"} space-y-4 sm:space-y-5 pb-6 sm:pb-8`}>
 
         {/* Add form */}
         {!embedded && (
@@ -737,7 +741,7 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search your pantry…"
-              className="w-full pl-10 pr-4 py-3 rounded-xl border text-base text-stone-700 placeholder:text-stone-300 outline-none focus:border-orange-300 transition-colors"
+              className={`w-full pl-10 pr-4 ${isMobile ? "py-2.5" : "py-3"} rounded-xl border text-base text-stone-700 placeholder:text-stone-300 outline-none focus:border-orange-300 transition-colors`}
               style={{ background: "#fff", borderColor: "rgba(0,0,0,0.09)" }}
             />
             {search && (
@@ -746,7 +750,27 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
               </button>
             )}
           </div>
-          <div className="relative sm:w-52">
+          <div className={`${isMobile ? "grid grid-cols-2 gap-3" : "relative sm:w-52"}`}>
+            {isMobile ? (
+              <>
+                <button
+                  onClick={() => setAddDialogOpen(true)}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-orange-200 bg-white px-3 py-2.5 text-sm font-semibold text-orange-700"
+                >
+                  <Plus size={14} /> Add item
+                </button>
+                <select
+                  value={sortMode}
+                  onChange={(e) => setSortMode(e.target.value as "recent" | "category")}
+                  className="appearance-none w-full rounded-xl border px-3 py-2.5 text-sm font-semibold text-stone-600 outline-none"
+                  style={{ background: "#fff", borderColor: "rgba(0,0,0,0.09)" }}
+                >
+                  <option value="recent">Recent</option>
+                  <option value="category">Category</option>
+                </select>
+              </>
+            ) : (
+            <div className="relative sm:w-52">
             <select
               value={sortMode}
               onChange={(e) => setSortMode(e.target.value as "recent" | "category")}
@@ -757,6 +781,8 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
               <option value="category">Category</option>
             </select>
             <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
+            </div>
+            )}
           </div>
         </div>
 
@@ -843,6 +869,7 @@ export default function PantryScreen({ embedded = false }: { embedded?: boolean 
                         updatePantryItem?.(item.id, { quantity });
                       }
                     }}
+                    compact={isMobile}
                   />
                 ))}
               </AnimatePresence>

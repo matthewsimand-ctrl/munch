@@ -775,10 +775,10 @@ export default function Dashboard() {
             )}
             <div className="relative flex flex-col gap-4 sm:gap-6 sm:flex-row sm:items-start sm:justify-between">
               <div className="max-w-xl">
-                <p className={`text-[11px] font-bold uppercase tracking-[0.22em] ${heroImageReady ? "text-orange-200" : "text-orange-100"}`}>
+                <p className={`text-[11px] font-bold uppercase tracking-[0.22em] ${heroImageReady ? "text-orange-50" : "text-orange-100"}`}>
                   {greeting}
                 </p>
-                <h2 className={`mt-2 text-[2rem] font-bold leading-none sm:mt-3 sm:text-5xl ${heroImageReady ? "text-orange-400" : "text-white"}`} style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+                <h2 className={`mt-2 text-[2rem] font-bold leading-none sm:mt-3 sm:text-5xl ${heroImageReady ? "text-white" : "text-white"}`} style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
                   {heroHeading}
                 </h2>
                 <div className="mt-2.5 flex flex-wrap items-center gap-2">
@@ -786,17 +786,18 @@ export default function Dashboard() {
                     <Award className="h-3.5 w-3.5 text-amber-200" />
                     Level {levelInfo.level}
                   </span>
-                  <span className="inline-flex items-center rounded-full border border-white/20 bg-black/15 px-3 py-1 text-[11px] font-semibold text-orange-100">
+                  <span className="inline-flex items-center rounded-full border border-white/20 bg-black/15 px-3 py-1 text-[11px] font-semibold text-white/90">
                     {levelInfo.current}/{levelInfo.needed} XP to next level
                   </span>
                 </div>
-                <p className={`mt-3 text-[10px] font-bold uppercase tracking-[0.22em] sm:text-[11px] ${heroImageReady ? "text-orange-300/95" : "text-stone-200"}`}>
+                <p className={`mt-3 text-[10px] font-bold uppercase tracking-[0.22em] sm:text-[11px] ${heroImageReady ? "text-orange-100" : "text-stone-200"}`}>
                   {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
                 </p>
-                <p className="mt-3 max-w-md text-sm font-semibold leading-6 text-white/92 sm:mt-5 sm:text-base">
+                <p className="mt-3 max-w-md text-sm font-semibold leading-6 text-white sm:mt-5 sm:text-base">
                   Your kitchen snapshot is ready, with tailored picks, pantry-aware inspiration, and your next meal at a glance.
                 </p>
               </div>
+              {!isMobile && (
               <div className="flex flex-wrap items-center gap-2 self-start sm:justify-end">
                 <button
                   onClick={() => setNotificationsOpen(true)}
@@ -835,8 +836,35 @@ export default function Dashboard() {
                 </button>
                 <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
               </div>
+              )}
             </div>
           </div>
+
+          {isMobile ? (
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setNotificationsOpen(true)}
+                className="relative flex items-center justify-center gap-2 rounded-2xl border border-orange-100 bg-white px-4 py-3 text-sm font-semibold text-stone-700 shadow-[0_8px_24px_rgba(28,25,23,0.05)]"
+              >
+                <Bell size={16} className="text-orange-500" />
+                Notifications
+                {unreadCount > 0 && (
+                  <span className="absolute right-3 top-2 inline-flex min-w-5 items-center justify-center rounded-full bg-orange-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/settings", { state: { openAvatarEditor: true } })}
+                className="flex items-center justify-center gap-2 rounded-2xl border border-orange-100 bg-white px-4 py-3 text-sm font-semibold text-stone-700 shadow-[0_8px_24px_rgba(28,25,23,0.05)]"
+              >
+                <Camera size={16} className="text-orange-500" />
+                Edit avatar
+              </button>
+            </div>
+          ) : null}
 
           {isMobile ? (
             <div className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-1 scrollbar-hide">
@@ -1259,11 +1287,11 @@ export default function Dashboard() {
       </div>
 
       <Dialog open={avatarDialogOpen} onOpenChange={handleAvatarDialogOpenChange}>
-        <DialogContent className="max-h-[94vh] max-w-6xl overflow-hidden p-0">
+        <DialogContent className="max-h-[82vh] max-w-6xl overflow-hidden p-0 sm:max-h-[90vh]">
           <DialogHeader>
             <DialogTitle className="px-4 pt-4 sm:px-6 sm:pt-6">Customize your avatar</DialogTitle>
           </DialogHeader>
-          <div className="max-h-[calc(94vh-64px)] overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6">
+          <div className="max-h-[calc(82vh-64px)] overflow-y-auto px-4 pb-4 sm:max-h-[calc(90vh-64px)] sm:px-6 sm:pb-6">
             <AvatarStudio
               config={avatarConfig}
               onChange={updateAvatarConfig}

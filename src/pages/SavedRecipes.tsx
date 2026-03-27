@@ -262,7 +262,7 @@ export default function MyRecipesScreen() {
   const { loaded: exploreLoaded, loadFeed } = useBrowseFeed();
   const { data: dbRecipes = [] } = useDbRecipes();
   const [search, setSearch] = useState("");
-  const [view, setView] = useState<"grid" | "list">("grid");
+  const [view, setView] = useState<"grid" | "list">(isMobile ? "list" : "grid");
   const [sortBy, setSortBy] = useState(SORT_OPTIONS[0]);
   const [activeCuisine, setActiveCuisine] = useState("All");
   const [activeFolder, setActiveFolder] = useState<string | null>(null);
@@ -279,6 +279,12 @@ export default function MyRecipesScreen() {
   const [hideImportTabs, setHideImportTabs] = useState(false);
   const [recipeToDelete, setRecipeToDelete] = useState<Recipe | null>(null);
   const [recipeToEdit, setRecipeToEdit] = useState<Recipe | null>(null);
+
+  useEffect(() => {
+    if (isMobile) {
+      setView("list");
+    }
+  }, [isMobile]);
 
   useEffect(() => {
     const loadName = async () => {
@@ -367,7 +373,7 @@ export default function MyRecipesScreen() {
         style={{ background: "linear-gradient(135deg,#FFF7ED 0%,#FFFAF5 100%)", borderColor: "rgba(249,115,22,0.12)" }}
       >
         <div className="max-w-6xl mx-auto">
-          <div className="mb-4 flex flex-col gap-4 sm:mb-5 lg:flex-row lg:items-start lg:justify-between">
+          <div className="mb-3 flex flex-col gap-3 sm:mb-5 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1">Your collection</p>
               <h1 className="text-xl font-bold text-stone-900 sm:text-2xl" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
@@ -375,18 +381,18 @@ export default function MyRecipesScreen() {
               </h1>
               <p className="text-xs text-stone-400 mt-1">{savedRecipes.length} saved recipe{savedRecipes.length !== 1 ? "s" : ""}</p>
             </div>
-            <div className="flex flex-wrap items-center gap-2" data-tutorial="recipes-nav">
+            <div className={`flex items-center gap-2 ${isMobile ? "-mx-1 overflow-x-auto px-1 pb-1 scrollbar-hide" : "flex-wrap"}`} data-tutorial="recipes-nav">
               <button
                 onClick={() => navigate("/saved")}
                 data-tutorial="my-recipes-page-tab"
-                className={`min-w-0 flex-1 px-3 py-2 rounded-xl text-[11px] font-semibold sm:flex-none sm:text-xs ${activeTab === "mine" ? "bg-orange-500 text-white" : "bg-white border border-stone-200 text-stone-600"}`}
+                className={`min-w-0 shrink-0 flex-1 px-3 py-2 rounded-xl text-[11px] font-semibold sm:flex-none sm:text-xs ${activeTab === "mine" ? "bg-orange-500 text-white" : "bg-white border border-stone-200 text-stone-600"}`}
               >
                 Recipes
               </button>
               <button
                 onClick={() => navigate("/cookbooks")}
                 data-tutorial="cookbooks-tab"
-                className={`min-w-0 flex-1 px-3 py-2 rounded-xl text-[11px] font-semibold sm:flex-none sm:text-xs ${activeTab === "cookbooks" ? "bg-orange-500 text-white" : "bg-white border border-stone-200 text-stone-600"}`}
+                className={`min-w-0 shrink-0 flex-1 px-3 py-2 rounded-xl text-[11px] font-semibold sm:flex-none sm:text-xs ${activeTab === "cookbooks" ? "bg-orange-500 text-white" : "bg-white border border-stone-200 text-stone-600"}`}
               >
                 Cookbooks
               </button>
@@ -423,6 +429,7 @@ export default function MyRecipesScreen() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+              {!isMobile && (
               <button
                 onClick={() => setView(view === "grid" ? "list" : "grid")}
                 className="h-9 w-9 rounded-xl bg-white border border-stone-200 flex items-center justify-center text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
@@ -430,6 +437,7 @@ export default function MyRecipesScreen() {
               >
                 {view === "grid" ? <List size={16} /> : <Grid3X3 size={16} />}
               </button>
+              )}
             </div>
           </div>
 
@@ -457,7 +465,26 @@ export default function MyRecipesScreen() {
           </div>
 
           {/* Sort */}
-          <div className="relative sm:w-auto">
+          <div className={`relative ${isMobile ? "grid grid-cols-2 gap-3" : "sm:w-auto"}`}>
+            {isMobile ? (
+              <>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="w-full appearance-none rounded-xl border px-3 py-2.5 text-sm font-semibold text-stone-600 outline-none cursor-pointer"
+                  style={{ background: "#fff", borderColor: "rgba(0,0,0,0.09)" }}
+                >
+                  {SORT_OPTIONS.map((o) => <option key={o}>{o}</option>)}
+                </select>
+                <button
+                  onClick={() => setMobileAddSheetOpen(true)}
+                  className="rounded-xl border border-orange-200 bg-white px-3 py-2.5 text-sm font-semibold text-orange-700"
+                >
+                  Add recipe
+                </button>
+              </>
+            ) : (
+            <div className="relative sm:w-auto">
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
@@ -467,6 +494,8 @@ export default function MyRecipesScreen() {
               {SORT_OPTIONS.map((o) => <option key={o}>{o}</option>)}
             </select>
             <ArrowUpDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
+            </div>
+            )}
           </div>
         </div>
 
@@ -514,7 +543,7 @@ export default function MyRecipesScreen() {
           </div>
         ) : (
           <AnimatePresence>
-            <div className={view === "grid" ? "grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 sm:gap-5" : "space-y-1"}>
+            <div className={view === "grid" ? "grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 sm:gap-5" : `${isMobile ? "space-y-2" : "space-y-1"}`}>
               {filtered.map((recipe, index) => (
                 <RecipeCard
                   key={recipe.id}

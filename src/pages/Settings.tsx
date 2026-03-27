@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useStore } from '@/lib/store';
 import { useBrowseFeed } from '@/hooks/useBrowseFeed';
@@ -90,6 +90,7 @@ function SettingsCard({
 
 export default function Settings() {
   const isMobile = useIsMobile();
+  const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { openPremiumPage } = usePremiumGate();
@@ -226,6 +227,14 @@ export default function Settings() {
   useEffect(() => {
     void loadFeed();
   }, [loadFeed]);
+
+  useEffect(() => {
+    const state = location.state as { openAvatarEditor?: boolean } | null;
+    if (state?.openAvatarEditor) {
+      setAvatarDialogOpen(true);
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.pathname, location.state, navigate]);
 
   const avatarBuilderPreview = buildMunchAvatarUrl(avatarConfig);
   const heroImageOptions = useMemo(
@@ -823,11 +832,11 @@ export default function Settings() {
       </div>
 
       <Dialog open={avatarDialogOpen} onOpenChange={setAvatarDialogOpen}>
-        <DialogContent className="max-h-[94vh] max-w-6xl overflow-hidden p-0">
+        <DialogContent className="max-h-[82vh] max-w-6xl overflow-hidden p-0 sm:max-h-[90vh]">
           <DialogHeader>
             <DialogTitle className="px-4 pt-4 sm:px-6 sm:pt-6">Customize your avatar</DialogTitle>
           </DialogHeader>
-          <div className="max-h-[calc(94vh-64px)] overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6">
+          <div className="max-h-[calc(82vh-64px)] overflow-y-auto px-4 pb-4 sm:max-h-[calc(90vh-64px)] sm:px-6 sm:pb-6">
             <AvatarStudio
               config={avatarConfig}
               onChange={(updates) => setAvatarConfig((current) => createMunchAvatarConfig({ ...current, ...updates }))}

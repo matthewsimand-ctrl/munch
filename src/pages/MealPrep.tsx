@@ -18,6 +18,7 @@ import { calculateMatch } from "@/lib/matchLogic";
 import { useKitchenMealPlan } from "@/hooks/useKitchenMealPlan";
 import { useKitchenGroceryList } from "@/hooks/useKitchenGroceryList";
 import { applyRecipeImageFallback, getRecipeImageSrc } from "@/lib/recipeImage";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MEAL_TYPES = ["Breakfast", "Lunch", "Dinner"] as const;
@@ -113,6 +114,7 @@ function MealSlot({
 }
 
 export default function MealPrepScreen() {
+  const isMobile = useIsMobile();
   const navigate = useNavigate();
   const { mealPlan, addMealPlanItem, removeMealPlanItem, clearMealPlanWeek, savedApiRecipes, likedRecipes, likeRecipe, addCustomGroceryItem, pantryList, activeKitchenId, activeKitchenName } = useStore();
   const { isPremium } = usePremiumAccess();
@@ -807,7 +809,7 @@ export default function MealPrepScreen() {
         style={{ background: "linear-gradient(135deg,#FFF7ED 0%,#FFFAF5 100%)", borderColor: "rgba(249,115,22,0.12)" }}
       >
         <div className="mx-auto max-w-6xl px-4 py-4 pr-16 sm:px-6 sm:py-6 sm:pr-20 md:pr-24">
-          <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0">
               <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1">Planning</p>
               <h1 className="text-xl font-bold text-stone-900 sm:text-2xl" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
@@ -818,22 +820,22 @@ export default function MealPrepScreen() {
               )}
               <p className="text-xs text-stone-400 mt-1">{plannedCount} of {totalSlots} slots filled</p>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className={`flex gap-2 ${isMobile ? "-mx-1 overflow-x-auto px-1 pb-1 scrollbar-hide" : "flex-wrap items-center"}`}>
               <button
                 onClick={() => setShowExportModal(true)}
-                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-stone-200 text-sm font-semibold text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
+                className="flex shrink-0 items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-stone-200 text-sm font-semibold text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
               >
                 <Download size={14} /> Export
               </button>
               <button
                 onClick={() => setShowSurpriseSourceModal(true)}
-                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-stone-200 text-sm font-semibold text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
+                className="flex shrink-0 items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-stone-200 text-sm font-semibold text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
               >
                 <Shuffle size={14} /> Auto Plan
               </button>
               <button
                 onClick={handleResetWeek}
-                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-stone-200 text-sm font-semibold text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
+                className="flex shrink-0 items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-stone-200 text-sm font-semibold text-stone-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
               >
                 <RotateCcw size={14} /> Reset Week
               </button>
@@ -869,6 +871,57 @@ export default function MealPrepScreen() {
 
       {/* Planner grid */}
       <div className="mx-auto max-w-[1440px] px-4 py-4 sm:px-6 sm:py-6">
+        {isMobile ? (
+          <div className="-mx-1 flex snap-x snap-mandatory gap-4 overflow-x-auto px-1 pb-2 scrollbar-hide">
+            {DAYS.map((day) => {
+              const dayMeals = plannedMeals.filter((m) => m.day === day);
+              return (
+                <div
+                  key={day}
+                  className="min-w-[86%] snap-start rounded-[1.75rem] border border-orange-100 bg-white p-4 shadow-[0_12px_30px_rgba(28,25,23,0.06)]"
+                >
+                  <div className="mb-4 flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-orange-500">{day}</p>
+                      <p className="mt-1 text-lg font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+                        {dayMeals.length > 0 ? `${dayMeals.length} meals planned` : "Open day"}
+                      </p>
+                    </div>
+                    <span className="rounded-full bg-orange-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-orange-600">
+                      {dayMeals.length}/3 filled
+                    </span>
+                  </div>
+                  <div className="space-y-2.5">
+                    {MEAL_TYPES.map((mealType) => {
+                      const meal = getMeal(day, mealType);
+                      return (
+                        <MealSlot
+                          key={`${day}-${mealType}`}
+                          day={day}
+                          mealType={mealType}
+                          meal={meal}
+                          onAdd={() => setShowAddModal({ day, mealType })}
+                          onRemove={() => {
+                            if (isKitchenMode) {
+                              void kitchenMealPlan.removeMeal(meal!.id);
+                            } else {
+                              removeMealPlanItem?.(meal!.id);
+                            }
+                            toast.success("Removed from plan");
+                          }}
+                          onMealClick={() => meal && setShowMealActionModal(meal)}
+                          onDragMeal={() => meal && setDraggedMealId(meal.id)}
+                          onDropMeal={() => moveMeal(day, mealType)}
+                          isDropTarget={!!draggedMealId && (!meal || meal.id !== draggedMealId)}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
         <div className="overflow-x-auto pb-2">
           <div className="grid min-w-[980px] grid-cols-7 gap-4 xl:min-w-0">
           {/* Day headers */}
@@ -915,6 +968,7 @@ export default function MealPrepScreen() {
           ))}
         </div>
         </div>
+        )}
 
         {/* Summary cards */}
         {plannedCount > 0 && (
