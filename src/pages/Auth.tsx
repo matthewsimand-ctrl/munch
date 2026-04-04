@@ -42,7 +42,7 @@ export default function Auth() {
         return;
       }
 
-      if (session && event !== "PASSWORD_RECOVERY" && !isResetMode) {
+      if (session && (event as string) !== "PASSWORD_RECOVERY" && !isResetMode) {
         navigate(nextPath, { replace: true });
       }
     });

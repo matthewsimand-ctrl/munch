@@ -122,7 +122,7 @@ Deno.serve(async (req) => {
         JSON.stringify({
           success: false,
           error: 'Instacart did not return a shopping link.',
-          details: responseData ?? responseText.trim() || null,
+          details: responseData ?? (responseText.trim() || null),
         }),
         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );

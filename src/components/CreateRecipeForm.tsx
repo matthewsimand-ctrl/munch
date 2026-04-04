@@ -387,7 +387,7 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
         cook_time: cookTime.trim() || '30 min',
         difficulty,
         cuisine: cuisine.trim() || null,
-        chef: isOriginalRecipe ? (chef.trim() || null) : null,
+        chef: isOriginalRecipe ? (chefUsername ? `@${chefUsername}` : chefDisplayName || initialRecipe?.chef || null) : null,
         ingredients,
         tags,
         instructions: stepList,
