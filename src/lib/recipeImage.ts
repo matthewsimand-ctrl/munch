@@ -23,6 +23,7 @@ const RECIPE_IMAGE_PLACEHOLDERS = new Set([
   '/placeholder.svg',
   'placeholder.svg',
 ]);
+const MAX_INLINE_RECIPE_IMAGE_CHARS = 2000;
 
 export function getRecipeImageSrc(imageUrl: string | null | undefined) {
   const trimmed = String(imageUrl || '').trim();
@@ -30,7 +31,11 @@ export function getRecipeImageSrc(imageUrl: string | null | undefined) {
     return RECIPE_IMAGE_FALLBACK_DATA_URI;
   }
 
-  if (trimmed.startsWith('data:image/') || trimmed.startsWith('blob:')) {
+  if (trimmed.startsWith('data:image/')) {
+    return trimmed.length <= MAX_INLINE_RECIPE_IMAGE_CHARS ? trimmed : RECIPE_IMAGE_FALLBACK_DATA_URI;
+  }
+
+  if (trimmed.startsWith('blob:')) {
     return trimmed;
   }
 
