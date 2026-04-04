@@ -296,8 +296,11 @@ export default function SwipeScreen() {
   const {
     recipes,
     loading,
+    loadingMore,
     loaded,
     loadFeed,
+    loadMore,
+    hasMore,
     searchFeed,
     searchResults,
     searchLoading,
@@ -606,6 +609,26 @@ export default function SwipeScreen() {
       loadFeed();
     }
   }, [loaded, loadFeed]);
+
+  useEffect(() => {
+    if (activeSearchQuery) return;
+    if (!hasMore || loading || loadingMore) return;
+
+    const remainingCards = filtered.length - cardIndex;
+    if (remainingCards <= 8) {
+      void loadMore();
+    }
+  }, [activeSearchQuery, cardIndex, filtered.length, hasMore, loadMore, loading, loadingMore]);
+
+  useEffect(() => {
+    if (activeSearchQuery) return;
+    if (!hasMore || loading || loadingMore) return;
+    if (activeFilterCount === 0) return;
+
+    if (filtered.length < 12) {
+      void loadMore();
+    }
+  }, [activeFilterCount, activeSearchQuery, filtered.length, hasMore, loadMore, loading, loadingMore]);
 
   useEffect(() => {
     clearExpiredDislikes(dislikeCleanupCutoffRef.current);

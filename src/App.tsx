@@ -7,6 +7,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useStore } from "@/lib/store";
 import AppLayout from "@/components/AppLayout";
+import { useCloudStoreSync } from "@/hooks/useCloudStoreSync";
 
 const Index = lazy(() => import("./pages/Index"));
 const Onboarding = lazy(() => import("./pages/Onboarding"));
@@ -49,6 +50,7 @@ function AppRoutes() {
   const resetStoreRef = useRef(resetStore);
   const setStoreOwnerUserIdRef = useRef(setStoreOwnerUserId);
   const storeOwnerUserIdRef = useRef(storeOwnerUserId);
+  useCloudStoreSync();
 
   useEffect(() => {
     resetStoreRef.current = resetStore;

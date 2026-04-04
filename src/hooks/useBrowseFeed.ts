@@ -13,6 +13,7 @@ const MAX_CACHED_BROWSE_RECIPES = 80;
 const MAX_BROWSE_CACHE_CHARS = 250000;
 const MAX_RECOMMENDATION_CANDIDATES = 180;
 const MAX_TASTE_PROFILE_LIKES = 24;
+const BROWSE_PAGE_SIZE = 36;
 
 // ✅ MealDB fetch constants — kept small to prevent main-thread saturation.
 // Reduced from 26 letters to avoid freezing production on cold-start edge function timeouts.
@@ -395,6 +396,9 @@ export function useBrowseFeed(options?: { includeMealDbFallback?: boolean; enabl
   const [searchLoading, setSearchLoading] = useState(false);
   const [activeSearchQuery, setActiveSearchQuery] = useState('');
   const [kitchenPantryNames, setKitchenPantryNames] = useState<string[]>([]);
+  const [browseOffset, setBrowseOffset] = useState(cachedInitialRecipes.length);
+  const [hasMore, setHasMore] = useState(cachedInitialRecipes.length >= BROWSE_PAGE_SIZE);
+  const [loadingMore, setLoadingMore] = useState(false);
   const {
     likedRecipes,
     savedApiRecipes,
@@ -497,13 +501,17 @@ export function useBrowseFeed(options?: { includeMealDbFallback?: boolean; enabl
 
       const edgePromise = (async () => {
         const { data, error } = await invokeAppFunction('search-recipes', {
-          body: { mode: 'browse' },
+          body: { mode: 'browse', offset: 0, limit: BROWSE_PAGE_SIZE },
         });
         if (error) throw error;
 
-        return (data?.recipes || [])
+        return {
+          recipes: (data?.recipes || [])
           .map(normalizeRecipe)
-          .filter((recipe): recipe is BrowseRecipe => Boolean(recipe) && !likedIds.has(String(recipe.id)));
+          .filter((recipe): recipe is BrowseRecipe => Boolean(recipe) && !likedIds.has(String(recipe.id))),
+          nextOffset: typeof data?.nextOffset === 'number' ? data.nextOffset : BROWSE_PAGE_SIZE,
+          hasMore: Boolean(data?.hasMore),
+        };
       })();
 
       const quickFallbackPromise = fetchPublicRecipesFallback()
@@ -514,11 +522,11 @@ export function useBrowseFeed(options?: { includeMealDbFallback?: boolean; enabl
       });
 
       const earlyResult = await Promise.race([
-        edgePromise.then((results) => ({ type: 'edge' as const, recipes: results })).catch((error) => {
+        edgePromise.then((results) => ({ type: 'edge' as const, ...results })).catch((error) => {
           console.error('Browse feed edge fallback triggered:', error);
-          return { type: 'edge' as const, recipes: [] as BrowseRecipe[] };
+          return { type: 'edge' as const, recipes: [] as BrowseRecipe[], nextOffset: 0, hasMore: false };
         }),
-        quickFallbackPromise.then((results) => ({ type: 'public' as const, recipes: results })).catch(() => ({ type: 'public' as const, recipes: [] as BrowseRecipe[] })),
+        quickFallbackPromise.then((results) => ({ type: 'public' as const, recipes: results, nextOffset: results.length, hasMore: results.length >= BROWSE_PAGE_SIZE })).catch(() => ({ type: 'public' as const, recipes: [] as BrowseRecipe[], nextOffset: 0, hasMore: false })),
         timeoutPromise,
       ]);
 
@@ -526,11 +534,18 @@ export function useBrowseFeed(options?: { includeMealDbFallback?: boolean; enabl
         const earlyCurated = curateBrowseCatalog(dedupeRecipes(earlyResult.recipes));
         if (earlyCurated.length > 0) {
           setRecipes(earlyCurated);
+          setBrowseOffset(earlyResult.nextOffset);
+          setHasMore(earlyResult.hasMore);
         }
       }
 
+      let remoteHasMore = false;
+      let remoteNextOffset = BROWSE_PAGE_SIZE;
       try {
-        fetched = await edgePromise;
+        const result = await edgePromise;
+        fetched = result.recipes;
+        remoteHasMore = result.hasMore;
+        remoteNextOffset = result.nextOffset;
       } catch (edgeError) {
         console.error('Browse feed edge fallback triggered:', edgeError);
       }
@@ -587,6 +602,8 @@ export function useBrowseFeed(options?: { includeMealDbFallback?: boolean; enabl
       }
 
       setRecipes(nextRecipes);
+      setBrowseOffset(remoteNextOffset || nextRecipes.length);
+      setHasMore(remoteHasMore);
 
       // Write cache in a deferred task so it doesn't block the render
       window.setTimeout(() => writeCachedBrowseFeed(nextRecipes), 0);
@@ -598,6 +615,35 @@ export function useBrowseFeed(options?: { includeMealDbFallback?: boolean; enabl
       setLoading(false);
     }
   }, [enabled, loaded, loading, likedRecipes, savedApiRecipes, userProfile, effectivePantryNames, diversifyBrowseOrder, includeMealDbFallback]);
+
+  const loadMore = useCallback(async () => {
+    if (!enabled || loading || loadingMore || !hasMore || activeSearchQuery) return;
+
+    setLoadingMore(true);
+    try {
+      const likedIds = new Set(likedRecipes);
+      const { data, error } = await invokeAppFunction('search-recipes', {
+        body: { mode: 'browse', offset: browseOffset, limit: BROWSE_PAGE_SIZE },
+      });
+
+      if (error) throw error;
+
+      const fetched = (data?.recipes || [])
+        .map(normalizeRecipe)
+        .filter((recipe): recipe is BrowseRecipe => Boolean(recipe) && !likedIds.has(String(recipe.id)));
+
+      const deduped = dedupeRecipes([...recipes, ...fetched]);
+      const curated = curateBrowseCatalog(deduped);
+      setRecipes(curated);
+      setBrowseOffset(typeof data?.nextOffset === 'number' ? data.nextOffset : browseOffset + fetched.length);
+      setHasMore(Boolean(data?.hasMore));
+      window.setTimeout(() => writeCachedBrowseFeed(curated), 0);
+    } catch (error) {
+      console.error('Browse feed load more error:', error);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [activeSearchQuery, browseOffset, enabled, hasMore, likedRecipes, loading, loadingMore, recipes]);
 
   const searchFeed = useCallback(async (query: string) => {
     const trimmedQuery = query.trim();
@@ -669,8 +715,11 @@ export function useBrowseFeed(options?: { includeMealDbFallback?: boolean; enabl
   return {
     recipes,
     loading,
+    loadingMore,
     loaded,
     loadFeed,
+    loadMore,
+    hasMore,
     searchFeed,
     searchResults,
     searchLoading,

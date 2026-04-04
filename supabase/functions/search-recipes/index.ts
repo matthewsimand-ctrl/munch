@@ -109,6 +109,7 @@ interface NormalizedRecipe {
 const EXTERNAL_CACHE_TTL_DAYS = 14;
 const BROWSE_CACHE_WARM_THRESHOLD = 520;
 const BROWSE_RESPONSE_LIMIT = 760;
+const DEFAULT_BROWSE_PAGE_SIZE = 36;
 const BROWSE_SOURCE_CAPS: Record<string, number> = {
   Spoonacular: 140,
   Tasty: 110,
@@ -352,6 +353,29 @@ function countBySource(recipes: NormalizedRecipe[]) {
     acc[source] = (acc[source] || 0) + 1;
     return acc;
   }, {});
+}
+
+function normalizeOffset(value: unknown) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && numeric > 0 ? Math.floor(numeric) : 0;
+}
+
+function normalizeLimit(value: unknown, fallback: number, max: number) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) return fallback;
+  return Math.min(Math.floor(numeric), max);
+}
+
+function paginateRecipes<T>(recipes: T[], offset: number, limit: number) {
+  const items = recipes.slice(offset, offset + limit);
+  const nextOffset = offset + items.length;
+  return {
+    items,
+    offset,
+    nextOffset,
+    total: recipes.length,
+    hasMore: nextOffset < recipes.length,
+  };
 }
 
 async function cacheExternalRecipes(recipes: NormalizedRecipe[]): Promise<void> {
@@ -709,7 +733,7 @@ serve(async (req) => {
   }
 
   try {
-    const { query, mode } = await req.json();
+    const { query, mode, offset, limit } = await req.json();
     const RAPIDAPI_KEY = Deno.env.get('RAPIDAPI_KEY') || '';
     const SPOONACULAR_API_KEY = Deno.env.get('SPOONACULAR_API_KEY') || '';
     console.log('Search recipes env status', {
@@ -719,6 +743,8 @@ serve(async (req) => {
     });
 
     if (mode === 'browse') {
+      const browseOffset = normalizeOffset(offset);
+      const browseLimit = normalizeLimit(limit, DEFAULT_BROWSE_PAGE_SIZE, 120);
       console.log('Browse mode: loading catalog...');
       const [publicRecipes, cachedExternalRecipes] = await Promise.all([
         fetchPublicRecipes(),
@@ -795,7 +821,15 @@ serve(async (req) => {
 
       // Strip raw_api_payload to reduce response size (~90% smaller)
       const lightweight = unique.map(({ raw_api_payload, ...rest }) => rest);
-      return new Response(JSON.stringify({ recipes: lightweight, debug }), {
+      const page = paginateRecipes(lightweight, browseOffset, browseLimit);
+      return new Response(JSON.stringify({
+        recipes: page.items,
+        debug,
+        total: page.total,
+        offset: page.offset,
+        nextOffset: page.nextOffset,
+        hasMore: page.hasMore,
+      }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -856,7 +890,14 @@ serve(async (req) => {
 
     // Strip raw_api_payload to reduce response size
     const lightweight = recipes.map(({ raw_api_payload, ...rest }: any) => rest);
-    return new Response(JSON.stringify({ recipes: lightweight, debug }), {
+    return new Response(JSON.stringify({
+      recipes: lightweight,
+      debug,
+      total: lightweight.length,
+      offset: 0,
+      nextOffset: lightweight.length,
+      hasMore: false,
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
