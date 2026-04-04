@@ -11,9 +11,10 @@ import { canPubliclyShareImportedUrlRecipe, isImportedUrlRecipe } from '@/lib/im
 const BROWSE_FEED_CACHE_KEY = 'munch:browse-feed-cache:v3';
 const MAX_CACHED_BROWSE_RECIPES = 80;
 const MAX_BROWSE_CACHE_CHARS = 250000;
-const MAX_RECOMMENDATION_CANDIDATES = 180;
+const MAX_RECOMMENDATION_CANDIDATES = 120;
 const MAX_TASTE_PROFILE_LIKES = 24;
 const BROWSE_PAGE_SIZE = 36;
+const PUBLIC_BROWSE_FALLBACK_LIMIT = 96;
 
 // ✅ MealDB fetch constants — kept small to prevent main-thread saturation.
 // Reduced from 26 letters to avoid freezing production on cold-start edge function timeouts.
@@ -286,13 +287,14 @@ async function fetchPublicRecipesFallback(): Promise<BrowseRecipe[]> {
     .select('id, name, image, cook_time, difficulty, ingredients, instructions, tags, source, source_url, cuisine, chef, created_by, servings')
     .eq('is_public', true)
     .order('created_at', { ascending: false })
-    .limit(450);
+    .limit(PUBLIC_BROWSE_FALLBACK_LIMIT);
 
   if (error) throw error;
 
   return (data || [])
     .map(normalizeRecipe)
-    .filter((recipe): recipe is BrowseRecipe => Boolean(recipe) && isBrowseVisibleRecipe(recipe));
+    .filter((recipe): recipe is BrowseRecipe => Boolean(recipe) && isBrowseVisibleRecipe(recipe))
+    .slice(0, PUBLIC_BROWSE_FALLBACK_LIMIT);
 }
 
 async function fetchMealDbBrowseFallback(): Promise<BrowseRecipe[]> {
@@ -359,6 +361,7 @@ function normalizeStringArray(value: unknown): string[] {
 
 function normalizeRecipe(raw: any): BrowseRecipe | null {
   const name = String(raw?.name || '').trim();
+  const image = sanitizeCachedImage(raw?.image);
   const ingredients = normalizeIngredients(raw?.ingredients, raw?.raw_api_payload);
   const instructions = normalizeStringArray(raw?.instructions);
 
@@ -367,7 +370,7 @@ function normalizeRecipe(raw: any): BrowseRecipe | null {
   return {
     id: String(raw.id),
     name,
-    image: String(raw.image || '/placeholder.svg'),
+    image: image || '/placeholder.svg',
     cook_time: String(raw.cook_time || '30 min'),
     difficulty: String(raw.difficulty || 'Intermediate'),
     ingredients,
