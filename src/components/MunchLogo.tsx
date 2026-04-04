@@ -83,7 +83,7 @@ function LogoArt({
     <div ref={wrapperRef} className="relative shrink-0 overflow-hidden" style={{ width: size, height: size }}>
       <img
         src={munchLogo}
-        alt="Munch logo"
+        alt="munch logo"
         className="absolute max-w-none select-none"
         style={{
           width: `${(SOURCE_WIDTH / CROP_SIZE) * size}px`,
@@ -109,7 +109,7 @@ export function MunchLogo({
   className,
   size = 44,
   showWordmark = true,
-  wordmark = "Munch",
+  wordmark = "munch",
   wordmarkClassName,
   subtitle,
   subtitleClassName,

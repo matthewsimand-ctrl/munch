@@ -6,6 +6,7 @@ import type { MatchResult } from '@/lib/matchLogic';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Clock, BarChart3, Check, ShoppingCart, MapPin, ChefHat, Users, Heart, Play, Sparkles, ExternalLink, FileText, Share2, Maximize2, Minimize2, Loader2 } from 'lucide-react';
 import MatchBadge from '@/components/MatchBadge';
 import RecipeTweakDialog from '@/components/RecipeTweakDialog';
@@ -197,6 +198,7 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
   /** True while we're waiting to find out if the iframe will load successfully */
   const [iframeLoading, setIframeLoading] = useState(false);
   const [iframeReady, setIframeReady] = useState(false);
+  const [recipeDetailTab, setRecipeDetailTab] = useState<'ingredients' | 'instructions'>('ingredients');
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const embedFallbackTimeoutRef = useRef<number | null>(null);
   const { activeKitchenId, activeKitchenName } = useStore();
@@ -252,6 +254,7 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
     if (!recipe || !open) return;
     setImportedView('app');
     setIframeLoading(false);
+    setRecipeDetailTab(recipe.ingredients.length > 0 ? 'ingredients' : 'instructions');
   }, [normalizedSourceUrl, open, recipe?.id]);
 
   useEffect(() => {
@@ -583,9 +586,9 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
                   )}
                 </div>
               ) : (
-                <div className={isMobile ? "space-y-4" : "space-y-6"}>
-                  <div className={`grid gap-4 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:items-start ${isMobile ? 'gap-3' : ''}`}>
-                    <div className={`space-y-3 lg:sticky lg:top-0 ${isMobile ? 'space-y-2.5' : ''}`}>
+                <div className={isMobile ? "space-y-3.5" : "space-y-5"}>
+                  <div className={`grid gap-3.5 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:items-start ${isMobile ? 'gap-2.5' : ''}`}>
+                    <div className={`space-y-2 lg:sticky lg:top-0 ${isMobile ? 'space-y-1.5' : ''}`}>
                       <div className="overflow-hidden rounded-[1.4rem] border border-orange-100 bg-white shadow-[0_18px_40px_rgba(28,25,23,0.07)]">
                         <div className={`bg-stone-100 ${isMobile ? 'aspect-[16/9]' : 'aspect-[4/3]'}`}>
                           <img
@@ -668,91 +671,104 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
                       </div>
                     </div>
 
-                    <div className={`space-y-4 ${isMobile ? 'space-y-3.5' : ''}`}>
-                      {recipe.ingredients.length > 0 && (
-                        <section className="rounded-[1.4rem] border border-orange-100 bg-white p-3.5 shadow-[0_14px_34px_rgba(28,25,23,0.05)] sm:p-4">
-                          <div className="mb-3 flex flex-wrap items-center justify-between gap-2.5">
-                            <div className="flex items-center gap-2.5">
-                              <p className="text-[10px] font-bold uppercase tracking-widest text-orange-400">Ingredients</p>
-                              <span className="inline-flex items-center rounded-full bg-sky-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-sky-600">
-                                Smart Pantry Sync
-                              </span>
+                    <div className={`space-y-3 ${isMobile ? 'space-y-2.5' : ''}`}>
+                      {(recipe.ingredients.length > 0 || recipe.instructions.length > 0) && (
+                        <section className="rounded-[1.4rem] border border-orange-100 bg-white p-3 shadow-[0_14px_34px_rgba(28,25,23,0.05)] sm:p-3.5">
+                          <Tabs value={recipeDetailTab} onValueChange={(value) => setRecipeDetailTab(value as 'ingredients' | 'instructions')}>
+                            <div className="mb-2 flex flex-wrap items-center justify-between gap-2.5">
+                              <TabsList className="grid h-auto w-full max-w-[16rem] grid-cols-2 rounded-full border border-stone-200 bg-stone-50 p-1">
+                                <TabsTrigger value="ingredients" className="rounded-full px-4 py-2 text-[11px] font-semibold">
+                                  Ingredients
+                                </TabsTrigger>
+                                <TabsTrigger value="instructions" className="rounded-full px-4 py-2 text-[11px] font-semibold">
+                                  Instructions
+                                </TabsTrigger>
+                              </TabsList>
+                              {recipeDetailTab === 'ingredients' && recipe.ingredients.length > 0 && (
+                                <div className="inline-flex rounded-full border border-stone-200 bg-stone-50 p-1">
+                                  {SCALE_OPTIONS.map((option) => (
+                                    <button
+                                      key={option.label}
+                                      onClick={() => setPortionFactor(option.factor)}
+                                      className={`rounded-full px-3 py-1.5 text-[11px] font-semibold transition-colors ${portionFactor === option.factor ? 'bg-white text-orange-600 shadow-sm' : 'text-stone-500'}`}
+                                    >
+                                      {option.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
                             </div>
-                            <div className="inline-flex rounded-full border border-stone-200 bg-stone-50 p-1">
-                              {SCALE_OPTIONS.map((option) => (
-                                <button
-                                  key={option.label}
-                                  onClick={() => setPortionFactor(option.factor)}
-                                  className={`rounded-full px-3 py-1.5 text-[11px] font-semibold transition-colors ${portionFactor === option.factor ? 'bg-white text-orange-600 shadow-sm' : 'text-stone-500'}`}
-                                >
-                                  {option.label}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                          <div className="space-y-2">
-                            {recipe.ingredients.map((ing) => {
-                              const scaledIngredient = scaleIngredient(ing, portionFactor);
-                              const hasIngredient = normalizedMatchedIngredients.has(ing.toLowerCase().trim());
-                              return (
-                                <div
-                                  key={ing}
-                                  className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 ${hasIngredient
-                                    ? 'border-emerald-200 bg-white'
-                                    : 'border-stone-200 bg-white'
+
+                            <TabsContent value="ingredients" className="mt-0 space-y-2.5">
+                              <div className="flex items-center gap-2.5">
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-orange-400">Ingredients</p>
+                                <span className="inline-flex items-center rounded-full bg-sky-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-sky-600">
+                                  Smart Pantry Sync
+                                </span>
+                              </div>
+                              <div className="space-y-2">
+                                {recipe.ingredients.map((ing) => {
+                                  const scaledIngredient = scaleIngredient(ing, portionFactor);
+                                  const hasIngredient = normalizedMatchedIngredients.has(ing.toLowerCase().trim());
+                                  return (
+                                    <div
+                                      key={ing}
+                                      className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 ${hasIngredient
+                                        ? 'border-emerald-200 bg-white'
+                                        : 'border-stone-200 bg-white'
+                                      }`}
+                                    >
+                                      <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${hasIngredient ? 'bg-emerald-100 text-emerald-600' : 'bg-stone-100 text-stone-500'}`}>
+                                        {hasIngredient ? <Check className="h-3 w-3" /> : <ShoppingCart className="h-3 w-3" />}
+                                      </div>
+                                      <div className="min-w-0">
+                                        <p className="text-[11px] font-semibold leading-4 text-stone-900">{scaledIngredient}</p>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                              {displayMatch.missing.length > 0 && onAddMissingToGrocery && (
+                                <motion.button
+                                  onClick={handleAddMissingToGrocery}
+                                  data-tutorial="add-missing-button"
+                                  whileTap={{ scale: 0.98 }}
+                                  animate={addedToGrocery ? { scale: [1, 1.02, 1] } : { scale: 1 }}
+                                  transition={{ duration: 0.3 }}
+                                  className={`w-full rounded-xl border px-3 py-2.5 text-[12px] font-semibold inline-flex items-center justify-center gap-2 transition-colors ${addedToGrocery
+                                    ? 'border-emerald-500/60 bg-emerald-500/10 text-emerald-700'
+                                    : 'border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100/70'
                                   }`}
                                 >
-                                  <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${hasIngredient ? 'bg-emerald-100 text-emerald-600' : 'bg-stone-100 text-stone-500'}`}>
-                                    {hasIngredient ? <Check className="h-3 w-3" /> : <ShoppingCart className="h-3 w-3" />}
-                                  </div>
-                                  <div className="min-w-0">
-                                    <p className="text-[11px] font-semibold leading-4 text-stone-900">{scaledIngredient}</p>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                          {displayMatch.missing.length > 0 && onAddMissingToGrocery && (
-                            <motion.button
-                              onClick={handleAddMissingToGrocery}
-                              data-tutorial="add-missing-button"
-                              whileTap={{ scale: 0.98 }}
-                              animate={addedToGrocery ? { scale: [1, 1.02, 1] } : { scale: 1 }}
-                              transition={{ duration: 0.3 }}
-                              className={`mt-3 w-full rounded-xl border px-3 py-2.5 text-[12px] font-semibold inline-flex items-center justify-center gap-2 transition-colors ${addedToGrocery
-                                ? 'border-emerald-500/60 bg-emerald-500/10 text-emerald-700'
-                                : 'border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100/70'
-                              }`}
-                            >
-                              <motion.span
-                                animate={addedToGrocery ? { rotate: [0, -12, 12, 0] } : { rotate: 0 }}
-                                transition={{ duration: 0.35 }}
-                              >
-                                {addedToGrocery ? <Check className="h-4 w-4" /> : <ShoppingCart className="h-4 w-4" />}
-                              </motion.span>
-                              {addedToGrocery ? 'Added to grocery list' : `Add ${displayMatch.missing.length} missing ingredient${displayMatch.missing.length === 1 ? '' : 's'} to Grocery List`}
-                            </motion.button>
-                          )}
-                        </section>
-                      )}
+                                  <motion.span
+                                    animate={addedToGrocery ? { rotate: [0, -12, 12, 0] } : { rotate: 0 }}
+                                    transition={{ duration: 0.35 }}
+                                  >
+                                    {addedToGrocery ? <Check className="h-4 w-4" /> : <ShoppingCart className="h-4 w-4" />}
+                                  </motion.span>
+                                  {addedToGrocery ? 'Added to grocery list' : `Add ${displayMatch.missing.length} missing ingredient${displayMatch.missing.length === 1 ? '' : 's'} to Grocery List`}
+                                </motion.button>
+                              )}
+                            </TabsContent>
 
-                      {recipe.instructions.length > 0 && (
-                        <section className="rounded-[1.4rem] border border-orange-100 bg-white p-3.5 shadow-[0_14px_34px_rgba(28,25,23,0.05)] sm:p-4">
-                          <div className="mb-3">
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-orange-400">Instructions</p>
-                          </div>
-                          <ol className="space-y-4">
-                            {recipe.instructions.map((step, i) => (
-                              <li key={i} className="flex gap-3">
-                                <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange-500 text-sm font-bold text-white shadow-[0_8px_18px_rgba(249,115,22,0.22)]">
-                                  {i + 1}
-                                </span>
-                                <p className="pt-1 text-[13px] leading-6 text-stone-700">
-                                  {stripInstructionPrefix(step)}
-                                </p>
-                              </li>
-                            ))}
-                          </ol>
+                            <TabsContent value="instructions" className="mt-0">
+                              <div className="mb-2">
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-orange-400">Instructions</p>
+                              </div>
+                              <ol className="space-y-4">
+                                {recipe.instructions.map((step, i) => (
+                                  <li key={i} className="flex gap-3">
+                                    <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange-500 text-sm font-bold text-white shadow-[0_8px_18px_rgba(249,115,22,0.22)]">
+                                      {i + 1}
+                                    </span>
+                                    <p className="pt-1 text-[13px] leading-6 text-stone-700">
+                                      {stripInstructionPrefix(step)}
+                                    </p>
+                                  </li>
+                                ))}
+                              </ol>
+                            </TabsContent>
+                          </Tabs>
                         </section>
                       )}
 

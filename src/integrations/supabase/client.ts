@@ -4,13 +4,66 @@ import type { Database } from './types';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const AUTH_PERSISTENCE_KEY = 'munch.auth.persistence';
+const AUTH_PERSISTENCE_LOCAL = 'local';
+const AUTH_PERSISTENCE_SESSION = 'session';
+
+function getBrowserStorage(mode: string) {
+  if (typeof window === 'undefined') return null;
+  return mode === AUTH_PERSISTENCE_SESSION ? window.sessionStorage : window.localStorage;
+}
+
+function getPreferredPersistence() {
+  if (typeof window === 'undefined') return AUTH_PERSISTENCE_LOCAL;
+  return window.localStorage.getItem(AUTH_PERSISTENCE_KEY) === AUTH_PERSISTENCE_SESSION
+    ? AUTH_PERSISTENCE_SESSION
+    : AUTH_PERSISTENCE_LOCAL;
+}
+
+function getActiveStorage() {
+  return getBrowserStorage(getPreferredPersistence());
+}
+
+function getFallbackStorage() {
+  return getBrowserStorage(
+    getPreferredPersistence() === AUTH_PERSISTENCE_SESSION
+      ? AUTH_PERSISTENCE_LOCAL
+      : AUTH_PERSISTENCE_SESSION,
+  );
+}
+
+const authStorage = {
+  getItem(key: string) {
+    const activeStorage = getActiveStorage();
+    const fallbackStorage = getFallbackStorage();
+    return activeStorage?.getItem(key) ?? fallbackStorage?.getItem(key) ?? null;
+  },
+  setItem(key: string, value: string) {
+    const activeStorage = getActiveStorage();
+    const fallbackStorage = getFallbackStorage();
+    activeStorage?.setItem(key, value);
+    fallbackStorage?.removeItem(key);
+  },
+  removeItem(key: string) {
+    getBrowserStorage(AUTH_PERSISTENCE_LOCAL)?.removeItem(key);
+    getBrowserStorage(AUTH_PERSISTENCE_SESSION)?.removeItem(key);
+  },
+};
+
+export function setAuthPersistence(keepLoggedIn: boolean) {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(
+    AUTH_PERSISTENCE_KEY,
+    keepLoggedIn ? AUTH_PERSISTENCE_LOCAL : AUTH_PERSISTENCE_SESSION,
+  );
+}
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
-    storage: localStorage,
+    storage: authStorage,
     persistSession: true,
     autoRefreshToken: true,
   }
