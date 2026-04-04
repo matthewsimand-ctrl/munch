@@ -21,6 +21,26 @@ function parseJsonSafely(text: string) {
   }
 }
 
+function parseUrlSafely(value: unknown) {
+  if (typeof value !== 'string') return null;
+
+  try {
+    return new URL(value.trim());
+  } catch {
+    return null;
+  }
+}
+
+function isLocalHostname(hostname: string) {
+  const normalized = hostname.trim().toLowerCase();
+  return (
+    normalized === 'localhost' ||
+    normalized === '127.0.0.1' ||
+    normalized === '0.0.0.0' ||
+    normalized.endsWith('.local')
+  );
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -28,6 +48,10 @@ Deno.serve(async (req) => {
 
   try {
     const { title, lineItems, partnerLinkbackUrl } = await req.json();
+    const parsedPartnerLinkbackUrl = parseUrlSafely(partnerLinkbackUrl);
+    const useDevelopmentBaseUrl = parsedPartnerLinkbackUrl
+      ? isLocalHostname(parsedPartnerLinkbackUrl.hostname)
+      : false;
 
     const INSTACART_API_KEY = Deno.env.get('INSTACART_API_KEY');
     if (!INSTACART_API_KEY) {
@@ -37,7 +61,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    const apiBaseUrl = (Deno.env.get('INSTACART_API_BASE_URL') || 'https://connect.dev.instacart.tools').replace(/\/+$/, '');
+    const apiBaseUrl = (
+      Deno.env.get('INSTACART_API_BASE_URL') ||
+      (useDevelopmentBaseUrl ? 'https://connect.dev.instacart.tools' : 'https://connect.instacart.com')
+    ).replace(/\/+$/, '');
 
     const cleanTitle = typeof title === 'string' && title.trim() ? title.trim() : 'Munch Grocery List';
     const cleanLineItems = Array.isArray(lineItems)
@@ -81,10 +108,13 @@ Deno.serve(async (req) => {
       },
     };
 
-    if (typeof partnerLinkbackUrl === 'string' && partnerLinkbackUrl.trim()) {
+    if (
+      parsedPartnerLinkbackUrl &&
+      !isLocalHostname(parsedPartnerLinkbackUrl.hostname)
+    ) {
       payload.landing_page_configuration = {
         ...(payload.landing_page_configuration as Record<string, unknown>),
-        partner_linkback_url: partnerLinkbackUrl.trim(),
+        partner_linkback_url: parsedPartnerLinkbackUrl.toString(),
       };
     }
 
