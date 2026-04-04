@@ -58,7 +58,7 @@ export interface KitchenSummary {
 export type DashboardHeroImageMode = 'daily' | 'manual';
 
 const STORE_PERSIST_KEY = 'chefstack-storage-v2';
-const MAX_PERSISTED_STORE_CHARS = 750000;
+const MAX_PERSISTED_STORE_CHARS = 250000;
 
 const guardedLocalStorage = {
   getItem: (name: string) => {
@@ -103,8 +103,25 @@ function sanitizeStoredRecipe(recipe: any) {
   if (!recipe || typeof recipe !== 'object') return recipe;
 
   return {
-    ...recipe,
+    id: typeof recipe.id === 'string' ? recipe.id : '',
+    name: typeof recipe.name === 'string' ? recipe.name : '',
     image: sanitizeStoredImage(recipe.image),
+    cook_time: typeof recipe.cook_time === 'string' ? recipe.cook_time : '',
+    difficulty: typeof recipe.difficulty === 'string' ? recipe.difficulty : '',
+    ingredients: Array.isArray(recipe.ingredients) ? recipe.ingredients.slice(0, 40).map((item) => String(item).trim()).filter(Boolean) : [],
+    tags: Array.isArray(recipe.tags) ? recipe.tags.slice(0, 12).map((item) => String(item).trim()).filter(Boolean) : [],
+    instructions: Array.isArray(recipe.instructions) ? recipe.instructions.slice(0, 30).map((item) => String(item).trim()).filter(Boolean) : [],
+    cuisine: typeof recipe.cuisine === 'string' ? recipe.cuisine : null,
+    source: typeof recipe.source === 'string' ? recipe.source : undefined,
+    source_url: typeof recipe.source_url === 'string' ? recipe.source_url : undefined,
+    created_by: typeof recipe.created_by === 'string' ? recipe.created_by : null,
+    chef: typeof recipe.chef === 'string' ? recipe.chef : null,
+    is_public: typeof recipe.is_public === 'boolean' ? recipe.is_public : undefined,
+    servings: typeof recipe.servings === 'number' ? recipe.servings : undefined,
+    calories: typeof recipe.calories === 'number' ? recipe.calories : undefined,
+    protein: typeof recipe.protein === 'number' ? recipe.protein : undefined,
+    carbs: typeof recipe.carbs === 'number' ? recipe.carbs : undefined,
+    fat: typeof recipe.fat === 'number' ? recipe.fat : undefined,
     raw_api_payload: undefined,
   };
 }
@@ -781,14 +798,46 @@ export const useStore = create<AppState>()(
       name: STORE_PERSIST_KEY,
       storage: createJSONStorage(() => guardedLocalStorage),
       partialize: (state) => ({
-        ...state,
-        savedApiRecipes: Object.fromEntries(
-          Object.entries(state.savedApiRecipes).map(([id, recipe]) => [id, sanitizeStoredRecipe(recipe)]),
-        ),
+        storeOwnerUserId: state.storeOwnerUserId,
+        userProfile: state.userProfile,
+        pantryList: state.pantryList,
         mealPlan: state.mealPlan.map((item) => ({
           ...item,
           recipeSnapshot: item.recipeSnapshot ? sanitizeStoredRecipe(item.recipeSnapshot) : undefined,
         })),
+        likedRecipes: state.likedRecipes,
+        savedApiRecipes: Object.fromEntries(
+          Object.entries(state.savedApiRecipes).map(([id, recipe]) => [id, sanitizeStoredRecipe(recipe)]),
+        ),
+        cachedNutrition: {},
+        groceryRecipes: state.groceryRecipes,
+        customGroceryItems: state.customGroceryItems,
+        recipeMealTags: state.recipeMealTags,
+        recipeTags: state.recipeTags,
+        recipeIngredientOverrides: state.recipeIngredientOverrides,
+        recipeFolders: state.recipeFolders,
+        activeKitchenId: state.activeKitchenId,
+        activeKitchenName: state.activeKitchenName,
+        kitchenViewMode: state.kitchenViewMode,
+        displayName: state.displayName,
+        dashboardHeroImageMode: state.dashboardHeroImageMode,
+        dashboardHeroImageSeed: state.dashboardHeroImageSeed,
+        onboardingComplete: state.onboardingComplete,
+        isGuest: state.isGuest,
+        tutorialComplete: state.tutorialComplete,
+        showTutorial: state.showTutorial,
+        cookingStreak: state.cookingStreak,
+        lastCookedDate: state.lastCookedDate,
+        totalMealsCooked: state.totalMealsCooked,
+        cookedRecipeIds: state.cookedRecipeIds,
+        totalXp: state.totalXp,
+        earnedBadges: state.earnedBadges,
+        archiveBehavior: state.archiveBehavior,
+        chefAvatarUrl: state.chefAvatarUrl,
+        shareCustomRecipesByDefault: state.shareCustomRecipesByDefault,
+        recipeRatings: state.recipeRatings,
+        recipeCookCounts: state.recipeCookCounts,
+        cookModeTtsEnabled: state.cookModeTtsEnabled,
       }),
     }
   )
