@@ -506,13 +506,12 @@ export default function SwipeScreen() {
     });
   }, [filtered.length]);
 
-  const current = filtered[cardIndex] || null;
   const prev = previousRecipe;
+  const current = filtered[cardIndex] || null;
   const next = filtered[cardIndex + 1] || null;
-
   const currentMatch = current ? calculateMatch(pantryNames, current.ingredients || []) : null;
-  const nextMatch = next ? calculateMatch(pantryNames, next.ingredients || []) : null;
   const prevMatch = prev ? calculateMatch(pantryNames, prev.ingredients || []) : null;
+  const nextMatch = next ? calculateMatch(pantryNames, next.ingredients || []) : null;
 
   const advance = useCallback(() => setCardIndex((i) => i + 1), []);
 
@@ -539,7 +538,6 @@ export default function SwipeScreen() {
   }, [pendingChefProfile, previewOpen, previewRecipe]);
 
   const saveAndContinue = useCallback((recipe: Recipe, options?: { closePreview?: boolean }) => {
-    setPreviousRecipe(recipe);
     likeRecipe(recipe.id, recipe);
     triggerLikedAnimation(recipe.id);
     signalCardAction("save");
@@ -800,53 +798,60 @@ export default function SwipeScreen() {
                 )}
               </AnimatePresence>
               <AnimatePresence mode="popLayout">
-                {/* Previous Card (Left) */}
-                {prev && (
-                  <motion.div
-                    key={`prev-${prev.id}`}
-                    initial={{ opacity: 0, scale: 0.74, x: -56 }}
-                    animate={{ opacity: 0.34, scale: 0.82, x: -160 }}
-                    exit={{ opacity: 0, scale: 0.7, x: -220 }}
-                    transition={{ duration: 0.4 }}
-                    className="absolute left-1/2 top-1/2 z-0 hidden h-[340px] w-[250px] -translate-x-1/2 -translate-y-1/2 pointer-events-none sm:block"
-                    style={{ perspective: 1000 }}
-                  >
-                    <SwipeCard
-                      recipe={prev}
-                      matchPercent={prevMatch?.percentage ?? 0}
-                      onSwipeLeft={() => { }}
-                      onSwipeRight={() => { }}
-                      isTop={false}
-                      onOpenDetails={() => { }}
-                      onChefClick={() => { }}
-                    />
-                  </motion.div>
-                )}
+                <div className="pointer-events-none absolute inset-0 hidden items-center justify-center lg:flex">
+                  <div className="relative h-[470px] w-full max-w-[760px]">
+                    <div className="absolute left-4 top-1/2 h-[330px] w-[220px] -translate-y-1/2">
+                      {prev ? (
+                        <motion.div
+                          key={`prev-${prev.id}`}
+                          initial={{ opacity: 0, scale: 0.74, x: -16 }}
+                          animate={{ opacity: 0.24, scale: 0.82, x: 0 }}
+                          exit={{ opacity: 0, scale: 0.72, x: -28 }}
+                          transition={{ duration: 0.28 }}
+                          className="h-full w-full"
+                          style={{ perspective: 1000 }}
+                        >
+                          <SwipeCard
+                            recipe={prev}
+                            matchPercent={prevMatch?.percentage ?? 0}
+                            onSwipeLeft={() => {}}
+                            onSwipeRight={() => {}}
+                            isTop={false}
+                            onOpenDetails={() => {}}
+                            onChefClick={() => {}}
+                          />
+                        </motion.div>
+                      ) : null}
+                    </div>
 
-                {/* Next Card (Right) */}
-                {next && (
-                  <motion.div
-                    key={`next-${next.id}`}
-                    initial={{ opacity: 0, scale: 0.74, x: 56 }}
-                    animate={{ opacity: 0.34, scale: 0.82, x: 160 }}
-                    exit={{ opacity: 0, scale: 0.7, x: 220 }}
-                    transition={{ duration: 0.4 }}
-                    className="absolute left-1/2 top-1/2 z-0 hidden h-[340px] w-[250px] -translate-x-1/2 -translate-y-1/2 pointer-events-none sm:block"
-                    style={{ perspective: 1000 }}
-                  >
-                    <SwipeCard
-                      recipe={next}
-                      matchPercent={nextMatch?.percentage ?? 0}
-                      onSwipeLeft={() => { }}
-                      onSwipeRight={() => { }}
-                      isTop={false}
-                      onOpenDetails={() => { }}
-                      onChefClick={() => { }}
-                    />
-                  </motion.div>
-                )}
+                    <div className="absolute right-4 top-1/2 h-[330px] w-[220px] -translate-y-1/2">
+                      {next ? (
+                        <motion.div
+                          key={`next-${next.id}`}
+                          initial={{ opacity: 0, scale: 0.74, x: 16 }}
+                          animate={{ opacity: 0.24, scale: 0.82, x: 0 }}
+                          exit={{ opacity: 0, scale: 0.72, x: 28 }}
+                          transition={{ duration: 0.28 }}
+                          className="h-full w-full"
+                          style={{ perspective: 1000 }}
+                        >
+                          <SwipeCard
+                            recipe={next}
+                            matchPercent={nextMatch?.percentage ?? 0}
+                            onSwipeLeft={() => {}}
+                            onSwipeRight={() => {}}
+                            isTop={false}
+                            onOpenDetails={() => {}}
+                            onChefClick={() => {}}
+                          />
+                        </motion.div>
+                      ) : (
+                        <div className="h-full w-full rounded-3xl border border-stone-200/60 bg-white/35 shadow-[0_16px_40px_rgba(28,25,23,0.06)]" />
+                      )}
+                    </div>
+                  </div>
+                </div>
 
-                {/* Current Card (Center) */}
                 {current && (
                   <motion.div
                     key={`current-${current.id}`}
@@ -858,7 +863,7 @@ export default function SwipeScreen() {
                       transition: { duration: 0.2 }
                     }}
                     transition={{ type: 'spring', damping: 20, stiffness: 100 }}
-                    className="relative z-10 h-[330px] w-[260px] sm:h-[420px] sm:w-[310px]"
+                    className="relative z-10 h-[340px] w-[260px] sm:h-[440px] sm:w-[320px] lg:h-[470px] lg:w-[340px]"
                     style={{ perspective: 1000 }}
                   >
                     <AnimatePresence>
