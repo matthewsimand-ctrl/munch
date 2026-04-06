@@ -522,8 +522,7 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
       className="space-y-5 pb-1 text-stone-800"
       style={{ fontFamily: "'Inter', 'Plus Jakarta Sans', system-ui, sans-serif" }}
     >
-      <div className="overflow-hidden rounded-[1.8rem] border border-orange-100 bg-[linear-gradient(145deg,#FFF9F2_0%,#FFFFFF_52%,#FFF4E8_100%)] shadow-[0_18px_48px_rgba(249,115,22,0.08)]">
-        <div className="border-b border-orange-100/80 px-5 py-5 sm:px-6 sm:py-6">
+      <div className="border-b border-orange-100/80 px-1 pb-5 pt-1 sm:px-2 sm:pb-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-xl">
               <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-orange-500">{recipeTitle}</p>
@@ -553,9 +552,9 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
               </div>
             </div>
           </div>
-        </div>
+      </div>
 
-        <div className="grid gap-5 px-4 py-4 sm:px-6 sm:py-6 lg:grid-cols-[minmax(0,1.1fr)_320px]">
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1.18fr)_300px]">
           <div className="space-y-5">
             <RecipeFormPanel
               title="Quick Start"
@@ -689,7 +688,7 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
                   <label className="text-sm font-semibold text-stone-800">Ingredients *</label>
                   <span className="inline-flex items-center gap-1 text-[11px] text-stone-500"><Sparkles className="h-3 w-3" /> smart quantities</span>
                 </div>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_160px_auto]">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1.9fr)_126px_auto]">
                   <Input
                     value={ingredientInput}
                     onChange={e => {
@@ -723,7 +722,7 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
                     Add the ingredients one line at a time so the recipe scales cleanly later.
                   </div>
                 ) : ingredients.map((ingredient, index) => (
-                  <div key={`${ingredient}-${index}`} className="grid grid-cols-[96px_minmax(0,1fr)_40px] gap-2 rounded-[1.25rem] border border-stone-200 bg-white/92 p-2.5">
+                  <div key={`${ingredient}-${index}`} className="grid grid-cols-[74px_minmax(0,1fr)_40px] gap-2 rounded-[1.25rem] border border-stone-200 bg-white/92 p-2.5">
                     <Input
                       value={parseIngredientLine(ingredient).quantity}
                       onChange={(e) => updateIngredientPart(index, 'quantity', e.target.value)}
@@ -940,7 +939,6 @@ export default function CreateRecipeForm({ onClose, initialRecipe = null, mode =
             </div>
           </aside>
         </div>
-      </div>
 
       <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row">
         <Button onClick={handleSubmit} disabled={loading} className="h-12 flex-1 rounded-2xl bg-orange-500 text-white hover:bg-orange-600">

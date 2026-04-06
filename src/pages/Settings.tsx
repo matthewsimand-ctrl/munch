@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, LogOut, User, Users, Utensils, Trash2, Flame, Camera, ChefHat, Crown, MapPin, Compass, RotateCw, Pencil } from 'lucide-react';
+import { ArrowLeft, LogOut, User, Users, Utensils, Trash2, Camera, ChefHat, Crown, MapPin, RotateCw, Pencil } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Switch } from '@/components/ui/switch';
 import { useAiAgentCallsDisabled } from '@/hooks/useAiAgentCallsDisabled';
@@ -96,7 +96,7 @@ export default function Settings() {
   const { toast } = useToast();
   const { openPremiumPage } = usePremiumGate();
   const {
-    userProfile, setUserProfile, resetStore, resetTutorial,
+    userProfile, setUserProfile, resetStore,
     chefAvatarUrl, setChefAvatarUrl, shareCustomRecipesByDefault, setShareCustomRecipesByDefault,
     savedApiRecipes, mealPlan, dashboardHeroImageMode, dashboardHeroImageSeed,
     setDashboardHeroImageMode, setDashboardHeroImageSeed,
@@ -110,12 +110,12 @@ export default function Settings() {
   const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
   const [defaultServings, setDefaultServings] = useState(mapServingPreference(2));
   const [loading, setLoading] = useState(false);
+  const [settingsInitialized, setSettingsInitialized] = useState(false);
+  const [profileSaveState, setProfileSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const aiAgentCallsDisabled = useAiAgentCallsDisabled();
   const [premiumOverrideEnabled, setPremiumOverrideEnabled] = useState(getPremiumOverride());
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
-  const [showClearDataConfirm, setShowClearDataConfirm] = useState(false);
-  const [showResetTutorialConfirm, setShowResetTutorialConfirm] = useState(false);
   const [showUsernameChangeConfirm, setShowUsernameChangeConfirm] = useState(false);
   const [showDeleteAccountConfirm, setShowDeleteAccountConfirm] = useState(false);
   const [deleteAccountInput, setDeleteAccountInput] = useState('');
@@ -585,45 +585,6 @@ export default function Settings() {
             </section>
 
             <section className="space-y-4">
-              <SettingsSectionLabel icon={User} title="Account" />
-              <SettingsCard style={{ background: "linear-gradient(180deg,#FFFFFF 0%,#FFF8F2 100%)" }}>
-                <div className="space-y-4">
-                  <div className="rounded-[1.35rem] border border-orange-100 bg-white/85 p-4">
-                    <p className="text-sm font-semibold text-stone-900">Password reset</p>
-                    <p className="mt-1 text-sm text-stone-500">
-                      Send a secure reset link to {user?.email || 'your account email'} so you can choose a new password.
-                    </p>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleSendPasswordReset}
-                      disabled={loading || !user?.email}
-                      className="mt-4 rounded-xl border-orange-200 text-orange-700 hover:bg-orange-50"
-                    >
-                      Send Reset Email
-                    </Button>
-                  </div>
-
-                  <div className="rounded-[1.35rem] border border-red-200 bg-red-50/70 p-4">
-                    <p className="text-sm font-semibold text-stone-900">Delete account</p>
-                    <p className="mt-1 text-sm text-stone-600">
-                      Permanently delete your account and remove synced munch data across devices.
-                    </p>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setShowDeleteAccountConfirm(true)}
-                      className="mt-4 rounded-xl border-red-300 text-red-600 hover:bg-red-100 hover:text-red-700"
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Delete Account
-                    </Button>
-                  </div>
-                </div>
-              </SettingsCard>
-            </section>
-
-            <section className="space-y-4">
               <SettingsSectionLabel icon={Utensils} title="Cooking Preferences" />
               <SettingsCard style={{ background: "linear-gradient(180deg,#FFFFFF 0%,#FFF8F2 100%)" }}>
                 <div className="space-y-5">
@@ -894,47 +855,25 @@ export default function Settings() {
               </SettingsCard>
             </section>
 
-            <SettingsCard className="space-y-4" style={{ background: "linear-gradient(180deg,#FFFFFF 0%,#FFF5EA 100%)" }}>
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-stone-500">Save</p>
-                <p className="mt-1 text-lg font-bold text-stone-900" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>Keep your kitchen up to date</p>
-                <p className="mt-1 text-sm text-stone-500">Save profile, preference, and branding changes in one go.</p>
-              </div>
-              <Button onClick={handleSave} disabled={loading} className="w-full rounded-2xl bg-orange-500 text-white hover:bg-orange-600">
-                {loading ? 'Saving...' : 'Save Settings'}
-              </Button>
-            </SettingsCard>
-
             <SettingsCard className="space-y-3" style={{ background: "linear-gradient(180deg,#FFFFFF 0%,#FFF7F3 100%)", borderColor: "rgba(239,68,68,0.12)" }}>
-              <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-red-400">Danger zone</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-red-400">Account Actions</p>
               <Button variant="outline" className="w-full justify-start rounded-xl" onClick={() => setShowSignOutConfirm(true)}>
                 <LogOut className="mr-2 h-4 w-4" /> Sign Out
               </Button>
               <Button
                 variant="outline"
-                className="w-full justify-start rounded-xl"
-                onClick={() => {
-                  setUserProfile({ dietaryRestrictions: [], skillLevel: '', flavorProfiles: [], groceryLocation: '', groceryCurrency: 'USD' });
-                  useStore.setState({ onboardingComplete: false });
-                  toast({ title: 'Preferences reset!' });
-                  navigate('/onboarding');
-                }}
+                className="w-full justify-start rounded-xl border-orange-200 text-orange-700 hover:bg-orange-50"
+                onClick={() => void handleSendPasswordReset()}
+                disabled={loading || !user?.email}
               >
-                <Flame className="mr-2 h-4 w-4" /> Redo Onboarding
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start rounded-xl"
-                onClick={() => setShowResetTutorialConfirm(true)}
-              >
-                <Compass className="mr-2 h-4 w-4" /> Reset Tutorial
+                <User className="mr-2 h-4 w-4" /> Reset Password
               </Button>
               <Button
                 variant="outline"
                 className="w-full justify-start rounded-xl text-destructive border-destructive/30 hover:bg-destructive hover:text-destructive-foreground"
-                onClick={() => setShowClearDataConfirm(true)}
+                onClick={() => setShowDeleteAccountConfirm(true)}
               >
-                <Trash2 className="mr-2 h-4 w-4" /> Clear Local Data
+                <Trash2 className="mr-2 h-4 w-4" /> Delete Account
               </Button>
             </SettingsCard>
           </div>
@@ -1061,74 +1000,6 @@ export default function Settings() {
                 onClick={handleLogout}
               >
                 Sign Out
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showResetTutorialConfirm} onOpenChange={setShowResetTutorialConfirm}>
-        <DialogContent className="max-w-xs p-6 rounded-2xl">
-          <div className="flex flex-col items-center text-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 mb-2">
-              <Compass size={24} />
-            </div>
-            <DialogTitle className="text-xl font-bold font-display">Reset Tutorial</DialogTitle>
-            <p className="text-sm text-stone-500 pb-2">
-              Would you like to restart the guided tour from the beginning?
-            </p>
-            <div className="flex w-full gap-3 mt-4">
-              <Button
-                variant="outline"
-                className="flex-1 rounded-xl"
-                onClick={() => setShowResetTutorialConfirm(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                className="flex-1 rounded-xl bg-orange-500 hover:bg-orange-600 text-white"
-                onClick={() => {
-                  resetTutorial();
-                  setShowResetTutorialConfirm(false);
-                  toast({ title: 'Tutorial reset!' });
-                  window.scrollTo(0, 0);
-                  navigate('/dashboard');
-                }}
-              >
-                Reset
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showClearDataConfirm} onOpenChange={setShowClearDataConfirm}>
-        <DialogContent className="max-w-xs p-6 rounded-2xl">
-          <div className="flex flex-col items-center text-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center text-red-500 mb-2">
-              <Trash2 size={24} />
-            </div>
-            <DialogTitle className="text-xl font-bold font-display text-red-600">Clear Local Data</DialogTitle>
-            <p className="text-sm text-stone-500 pb-2">
-              This will wipe all local recipes, pantry items, and preferences from this device. <span className="font-bold">This cannot be undone.</span>
-            </p>
-            <div className="flex w-full gap-3 mt-4">
-              <Button
-                variant="outline"
-                className="flex-1 rounded-xl"
-                onClick={() => setShowClearDataConfirm(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                className="flex-1 rounded-xl bg-red-600 hover:bg-red-700 text-white"
-                onClick={() => {
-                  resetStore();
-                  setShowClearDataConfirm(false);
-                  toast({ title: 'Local data cleared' });
-                }}
-              >
-                Clear All
               </Button>
             </div>
           </div>

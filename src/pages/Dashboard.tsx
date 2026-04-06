@@ -1231,7 +1231,7 @@ export default function Dashboard() {
           <DialogHeader className="border-b border-orange-100/80 bg-gradient-to-br from-orange-50 via-white to-orange-50/60 px-5 py-4 text-left">
             <DialogTitle>Add recipe</DialogTitle>
           </DialogHeader>
-          <div className="max-h-[calc(100dvh-6rem)] overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
+          <div className="max-h-[calc(100dvh-6rem)] overflow-y-auto px-3 py-3 sm:px-4 sm:py-4">
             <CreateRecipeForm onClose={() => setShowManualRecipeDialog(false)} />
           </div>
         </DialogContent>
