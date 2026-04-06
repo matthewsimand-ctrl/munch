@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useStore } from '@/lib/store';
 import { useBrowseFeed } from '@/hooks/useBrowseFeed';
+import { invokeAppFunction } from '@/lib/functionClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -116,6 +117,8 @@ export default function Settings() {
   const [showClearDataConfirm, setShowClearDataConfirm] = useState(false);
   const [showResetTutorialConfirm, setShowResetTutorialConfirm] = useState(false);
   const [showUsernameChangeConfirm, setShowUsernameChangeConfirm] = useState(false);
+  const [showDeleteAccountConfirm, setShowDeleteAccountConfirm] = useState(false);
+  const [deleteAccountInput, setDeleteAccountInput] = useState('');
   const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
   const [heroImagePickerOpen, setHeroImagePickerOpen] = useState(false);
   const [avatarConfig, setAvatarConfig] = useState<MunchAvatarConfig>(() => createMunchAvatarConfig());
@@ -371,6 +374,74 @@ export default function Settings() {
     navigate('/auth', { replace: true });
   };
 
+  const handleSendPasswordReset = async () => {
+    const email = user?.email?.trim();
+    if (!email) {
+      toast({ title: 'Missing account email', variant: 'destructive' });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth?mode=reset`,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Password reset email sent',
+        description: `We sent a reset link to ${email}.`,
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Unable to send reset email',
+        description: error?.message || 'Please try again in a moment.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteAccountInput.trim().toUpperCase() !== 'DELETE') {
+      toast({
+        title: 'Type DELETE to continue',
+        description: 'This confirmation helps prevent accidental account removal.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await invokeAppFunction<{ success: boolean }>('delete-account', {
+        method: 'POST',
+      });
+
+      if (error) throw error;
+
+      resetStore();
+      await supabase.auth.signOut();
+      setShowDeleteAccountConfirm(false);
+      setDeleteAccountInput('');
+      navigate('/auth', { replace: true });
+      toast({
+        title: 'Account deleted',
+        description: 'Your munch account and associated data have been removed.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Unable to delete account',
+        description: error?.message || 'Please try again in a moment.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen pb-20" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", background: "linear-gradient(180deg,#FFF7F1 0%,#FFFAF5 30%,#FFF4EA 100%)" }}>
       <div className="mx-auto w-full max-w-7xl px-4 pb-10 pt-4 sm:px-6 sm:pt-6">
@@ -508,6 +579,45 @@ export default function Settings() {
                       {(!originalUsername || usernameEditUnlocked) && usernameStatus === 'invalid' && 'Use 3-24 lowercase letters, numbers, or underscores'}
                       {(!originalUsername || usernameEditUnlocked) && usernameStatus === 'idle' && 'People can use this to find and invite you'}
                     </p>
+                  </div>
+                </div>
+              </SettingsCard>
+            </section>
+
+            <section className="space-y-4">
+              <SettingsSectionLabel icon={User} title="Account" />
+              <SettingsCard style={{ background: "linear-gradient(180deg,#FFFFFF 0%,#FFF8F2 100%)" }}>
+                <div className="space-y-4">
+                  <div className="rounded-[1.35rem] border border-orange-100 bg-white/85 p-4">
+                    <p className="text-sm font-semibold text-stone-900">Password reset</p>
+                    <p className="mt-1 text-sm text-stone-500">
+                      Send a secure reset link to {user?.email || 'your account email'} so you can choose a new password.
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleSendPasswordReset}
+                      disabled={loading || !user?.email}
+                      className="mt-4 rounded-xl border-orange-200 text-orange-700 hover:bg-orange-50"
+                    >
+                      Send Reset Email
+                    </Button>
+                  </div>
+
+                  <div className="rounded-[1.35rem] border border-red-200 bg-red-50/70 p-4">
+                    <p className="text-sm font-semibold text-stone-900">Delete account</p>
+                    <p className="mt-1 text-sm text-stone-600">
+                      Permanently delete your account and remove synced munch data across devices.
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setShowDeleteAccountConfirm(true)}
+                      className="mt-4 rounded-xl border-red-300 text-red-600 hover:bg-red-100 hover:text-red-700"
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete Account
+                    </Button>
                   </div>
                 </div>
               </SettingsCard>
@@ -1019,6 +1129,55 @@ export default function Settings() {
                 }}
               >
                 Clear All
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={showDeleteAccountConfirm}
+        onOpenChange={(open) => {
+          setShowDeleteAccountConfirm(open);
+          if (!open) setDeleteAccountInput('');
+        }}
+      >
+        <DialogContent className="max-w-md p-6 rounded-2xl">
+          <div className="flex flex-col gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-500">
+              <Trash2 size={24} />
+            </div>
+            <DialogTitle className="text-xl font-bold font-display text-red-600">Delete account</DialogTitle>
+            <p className="text-sm text-stone-600">
+              This permanently removes your munch account and synced data. This action cannot be undone.
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="delete-account-confirmation">Type DELETE to confirm</Label>
+              <Input
+                id="delete-account-confirmation"
+                value={deleteAccountInput}
+                onChange={(e) => setDeleteAccountInput(e.target.value)}
+                placeholder="DELETE"
+                className="h-11 rounded-xl border-red-200 bg-white"
+              />
+            </div>
+            <div className="flex w-full gap-3 pt-2">
+              <Button
+                variant="outline"
+                className="flex-1 rounded-xl"
+                onClick={() => {
+                  setShowDeleteAccountConfirm(false);
+                  setDeleteAccountInput('');
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 rounded-xl bg-red-600 text-white hover:bg-red-700"
+                disabled={loading || deleteAccountInput.trim().toUpperCase() !== 'DELETE'}
+                onClick={() => void handleDeleteAccount()}
+              >
+                {loading ? 'Deleting...' : 'Delete Account'}
               </Button>
             </div>
           </div>

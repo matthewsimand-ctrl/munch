@@ -36,6 +36,7 @@ import munchLogo from "@/assets/munch-logo.webp";
 const WEEK_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MEAL_PREP_TYPES = new Set(["Breakfast", "Lunch", "Dinner"]);
 const DASHBOARD_HERO_FALLBACK_IMAGE = munchLogo;
+const DASHBOARD_COOKED_MEALS_HISTORY_LIMIT = 180;
 const DASHBOARD_STARTER_RECIPES: Recipe[] = [
   {
     id: "starter-sheet-pan-chicken",
@@ -77,6 +78,37 @@ const DASHBOARD_STARTER_RECIPES: Recipe[] = [
     servings: 2,
   },
 ];
+
+function getMonthChangeCopy(input: { current: number; previous: number; loading: boolean }) {
+  const { current, previous, loading } = input;
+
+  if (loading) {
+    return { text: "Checking monthly trend", toneClassName: "text-stone-500" };
+  }
+
+  if (previous === 0) {
+    if (current === 0) {
+      return { text: "No meals yet this month", toneClassName: "text-stone-500" };
+    }
+
+    return {
+      text: `${current} new meal${current === 1 ? "" : "s"} this month`,
+      toneClassName: "text-emerald-700",
+    };
+  }
+
+  const percentChange = Math.round(((current - previous) / previous) * 100);
+
+  if (percentChange > 0) {
+    return { text: `↗ +${percentChange}% from last month`, toneClassName: "text-emerald-700" };
+  }
+
+  if (percentChange < 0) {
+    return { text: `↘ ${Math.abs(percentChange)}% from last month`, toneClassName: "text-amber-700" };
+  }
+
+  return { text: "No change from last month", toneClassName: "text-stone-500" };
+}
 
 interface StatDef {
   label: string;
@@ -233,11 +265,47 @@ export default function Dashboard() {
   const [hideImportTabs, setHideImportTabs] = useState(false);
   const { isPremium } = usePremiumAccess();
   const { meal: currentPlannedMeal, nextMeal: nextPlannedMeal, loading: currentMealLoading } = useCurrentMealPlan(dashboardReady);
-  const { meals: cookedMeals, loading: cookedMealsLoading, estimateMealSavings } = useCookedMeals(12, dashboardReady);
+  const { meals: cookedMeals, loading: cookedMealsLoading, estimateMealSavings } = useCookedMeals(DASHBOARD_COOKED_MEALS_HISTORY_LIMIT, dashboardReady);
   const [estimatingMealId, setEstimatingMealId] = useState<string | null>(null);
   const nutritionSummary = useMemo(
     () => getConsumedNutritionSummary(cookedMeals, cachedNutrition),
     [cookedMeals, cachedNutrition],
+  );
+  const monthOverMonthMeals = useMemo(() => {
+    const now = new Date();
+    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+    let currentMonthMeals = 0;
+    let previousMonthMeals = 0;
+
+    for (const meal of cookedMeals) {
+      const cookedAt = new Date(meal.cooked_at);
+      if (Number.isNaN(cookedAt.getTime())) continue;
+
+      if (cookedAt >= currentMonthStart && cookedAt < nextMonthStart) {
+        currentMonthMeals += 1;
+        continue;
+      }
+
+      if (cookedAt >= previousMonthStart && cookedAt < currentMonthStart) {
+        previousMonthMeals += 1;
+      }
+    }
+
+    return {
+      currentMonthMeals,
+      previousMonthMeals,
+    };
+  }, [cookedMeals]);
+  const mealsMonthChange = useMemo(
+    () => getMonthChangeCopy({
+      current: monthOverMonthMeals.currentMonthMeals,
+      previous: monthOverMonthMeals.previousMonthMeals,
+      loading: cookedMealsLoading && cookedMeals.length === 0,
+    }),
+    [cookedMeals.length, cookedMealsLoading, monthOverMonthMeals.currentMonthMeals, monthOverMonthMeals.previousMonthMeals],
   );
 
   const upNextPlannedMeal = isPremium ? (nextPlannedMeal || currentPlannedMeal) : null;
@@ -570,7 +638,7 @@ export default function Dashboard() {
       label: "Meals Cooked",
       value: totalMealsCooked,
       icon: ChefHat,
-      detail: `${new Date().toLocaleDateString("en-US", { month: "long" }).toLowerCase()}`,
+      detail: `${monthOverMonthMeals.currentMonthMeals} this month`,
       tone: "bg-emerald-50 text-emerald-600",
     },
     {
@@ -739,7 +807,7 @@ export default function Dashboard() {
                       <p className="pb-1 text-sm font-semibold text-stone-600">{detail}</p>
                     </div>
                     {key === "meals" ? (
-                      <p className="mt-4 text-sm font-semibold text-emerald-700">↗ +15% from last month</p>
+                      <p className={`mt-4 text-sm font-semibold ${mealsMonthChange.toneClassName}`}>{mealsMonthChange.text}</p>
                     ) : (
                       <div className="mt-4 flex items-center -space-x-2">
                         {likedRecipes.slice(0, 3).map((id, index) => (
