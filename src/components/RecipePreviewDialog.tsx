@@ -240,6 +240,11 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
   // Only show the embedded web view when we're in web mode AND we haven't confirmed it's unavailable
   // AND we're not mid-load (iframeLoading hides the iframe behind a spinner overlay instead)
   const showEmbeddedWebView = Boolean(normalizedSourceUrl && importedRecipe && importedView === 'web' && webViewEnabled);
+  const baseDesktopWidthClass = showEmbeddedWebView
+    ? 'sm:max-w-5xl'
+    : mode === 'explore'
+      ? 'sm:max-w-4xl'
+      : 'sm:max-w-6xl';
   const normalizedMatchedIngredients = useMemo(
     () => new Set(displayMatch.matched.map((item) => item.toLowerCase().trim())),
     [displayMatch.matched],
@@ -248,7 +253,7 @@ const RecipePreviewDialog = forwardRef<HTMLDivElement, Props>(function RecipePre
     ? 'h-[calc(100dvh-0.75rem)] w-[calc(100vw-0.75rem)] max-w-[calc(100vw-0.75rem)] sm:h-[96vh] sm:w-[96vw] sm:max-w-[96vw]'
     : isMobile
       ? 'h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem)] max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem)] w-[calc(100vw-0.75rem)] max-w-[calc(100vw-0.75rem)]'
-      : `h-[calc(100dvh-0.75rem)] max-h-[calc(100dvh-0.75rem)] w-[calc(100vw-0.75rem)] max-w-[calc(100vw-0.75rem)] sm:h-[92vh] ${showEmbeddedWebView ? 'sm:max-w-5xl' : 'sm:max-w-6xl'}`;
+      : `h-[calc(100dvh-0.75rem)] max-h-[calc(100dvh-0.75rem)] w-[calc(100vw-0.75rem)] max-w-[calc(100vw-0.75rem)] sm:h-[92vh] ${baseDesktopWidthClass}`;
 
   useEffect(() => {
     if (!recipe || !open) return;

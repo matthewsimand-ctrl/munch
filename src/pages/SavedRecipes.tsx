@@ -170,7 +170,7 @@ function RecipeCard({
               <button
                 onClick={(e) => { e.stopPropagation(); onEdit(); }}
                 className="w-8 h-8 rounded-xl flex items-center justify-center text-stone-300 hover:text-orange-500 hover:bg-orange-50 transition-colors opacity-0 group-hover:opacity-100"
-                aria-label="Edit local recipe copy"
+                aria-label="Edit recipe"
               >
                 <PenSquare size={14} />
               </button>
@@ -207,7 +207,7 @@ function RecipeCard({
         <button
           onClick={(e) => { e.stopPropagation(); onEdit(); }}
           className="absolute top-2 right-11 w-7 h-7 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-orange-500"
-          aria-label="Edit local recipe copy"
+          aria-label="Edit recipe"
         >
           <PenSquare size={12} />
         </button>
@@ -688,28 +688,30 @@ export default function MyRecipesScreen() {
       </Dialog>
 
       <Dialog open={showManualRecipeDialog} onOpenChange={setShowManualRecipeDialog}>
-        <DialogContent className="w-[calc(100vw-1rem)] max-w-2xl overflow-hidden rounded-[1.5rem] border border-orange-100 bg-[#fffaf7] p-0 shadow-[0_24px_60px_rgba(249,115,22,0.14)] sm:rounded-[1.75rem]">
+        <DialogContent className="w-[calc(100vw-1rem)] max-w-[1120px] overflow-hidden rounded-[1.6rem] border border-orange-100 bg-[#fffaf7] p-0 shadow-[0_28px_80px_rgba(249,115,22,0.16)] sm:rounded-[1.9rem]">
           <DialogHeader className="border-b border-orange-100/80 bg-gradient-to-br from-orange-50 via-white to-orange-50/60 px-5 py-4 text-left">
-            <DialogTitle>Add Manual Recipe</DialogTitle>
+            <DialogTitle>Add recipe</DialogTitle>
           </DialogHeader>
-          <div className="max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-7.5rem)] overflow-y-auto px-4 py-4 sm:max-h-[calc(100dvh-6rem)] sm:px-6 sm:py-5">
+          <div className="max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-7.5rem)] overflow-y-auto px-4 py-4 sm:max-h-[calc(100dvh-5rem)] sm:px-6 sm:py-5">
             <CreateRecipeForm onClose={() => setShowManualRecipeDialog(false)} />
           </div>
         </DialogContent>
       </Dialog>
 
       <Dialog open={!!recipeToEdit} onOpenChange={(open) => !open && setRecipeToEdit(null)}>
-        <DialogContent className="w-[calc(100vw-1rem)] max-w-2xl max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem)] overflow-y-auto rounded-[1.5rem] sm:rounded-[1.75rem]">
-          <DialogHeader>
-            <DialogTitle>Edit Local Recipe</DialogTitle>
+        <DialogContent className="w-[calc(100vw-1rem)] max-w-[1120px] max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem)] overflow-y-auto rounded-[1.6rem] p-0 sm:rounded-[1.9rem]">
+          <DialogHeader className="border-b border-orange-100/80 bg-gradient-to-br from-orange-50 via-white to-orange-50/60 px-5 py-4 text-left">
+            <DialogTitle>Edit recipe</DialogTitle>
           </DialogHeader>
-          {recipeToEdit ? (
-            <CreateRecipeForm
-              initialRecipe={recipeToEdit}
-              mode="edit-local"
-              onClose={() => setRecipeToEdit(null)}
-            />
-          ) : null}
+          <div className="max-h-[calc(100dvh-5rem)] overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
+            {recipeToEdit ? (
+              <CreateRecipeForm
+                initialRecipe={recipeToEdit}
+                mode="edit-local"
+                onClose={() => setRecipeToEdit(null)}
+              />
+            ) : null}
+          </div>
         </DialogContent>
       </Dialog>
 
