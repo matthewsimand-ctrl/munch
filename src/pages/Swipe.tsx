@@ -55,12 +55,16 @@ function SwipeCard({
     animate(y, 0, { type: "spring", stiffness: 180, damping: 18, mass: 0.7 });
   };
 
+  const normalizedDifficulty = String(recipe.difficulty || "").toLowerCase();
   const diffBadge =
-    recipe.difficulty === "easy"
-      ? { label: "Easy", color: "#059669", bg: "#ECFDF5" }
-      : recipe.difficulty === "medium"
-        ? { label: "Med", color: "#D97706", bg: "#FFF3C4" }
-        : { label: "Hard", color: "#DC2626", bg: "#FEF2F2" };
+    normalizedDifficulty === "easy"
+      ? { label: "Easy", className: "bg-success/15 text-success" }
+      : normalizedDifficulty === "medium" || normalizedDifficulty === "intermediate"
+        ? { label: "Med", className: "bg-warning/20 text-warning-foreground" }
+        : { label: "Hard", className: "bg-destructive/15 text-destructive" };
+  const topChipClass = "inline-flex items-center gap-1.5 rounded-full border border-card/40 bg-card/90 px-2.5 py-1 text-xs font-bold text-primary shadow-sm text-shadow-soft";
+  const matchChipClass = "inline-flex items-center gap-1 rounded-full bg-primary/90 px-2.5 py-1 text-xs font-bold text-primary-foreground shadow-sm text-shadow-soft";
+  const overlayChipClass = "rounded-full border border-primary-foreground/20 bg-primary-foreground/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary-foreground text-shadow-soft";
 
   const sourceBadge = getRecipeSourceBadge(recipe);
   const resolvedSourceUrl = getResolvedRecipeSourceUrl(recipe);
@@ -101,19 +105,20 @@ function SwipeCard({
     >
       {/* Card */}
       <div
-        className="w-full h-full rounded-3xl overflow-hidden relative"
-        style={{ boxShadow: "0 20px 60px rgba(28,25,23,0.20), 0 4px 16px rgba(28,25,23,0.10)" }}
+        className="relative h-full w-full overflow-hidden rounded-3xl shadow-[0_20px_60px_hsl(var(--foreground)/0.20),0_4px_16px_hsl(var(--foreground)/0.10)]"
       >
         {/* Hero image */}
         <img
           src={getRecipeImageSrc(recipe.image)}
           alt={recipe.name}
           className="w-full h-full object-cover"
+          loading={isTop ? "eager" : "lazy"}
+          decoding="async"
           onError={applyRecipeImageFallback}
         />
 
         {/* Gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-foreground/85 via-foreground/10 to-transparent" />
 
         {/* Top badges */}
         <div className="absolute top-4 left-4 right-4 flex items-start justify-between">
@@ -125,27 +130,20 @@ function SwipeCard({
                   target="_blank"
                   rel="noreferrer"
                   onClick={(event) => event.stopPropagation()}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold"
-                  style={{ background: "rgba(255,255,255,0.92)", color: "#9A3412", backdropFilter: "blur(8px)" }}
+                  className={topChipClass}
                 >
                   <RecipeAttributionIcon recipe={recipe} sizeClassName="h-3.5 w-3.5" />
                   <span>{sourceBadge}</span>
                 </a>
               ) : (
-                <span
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold"
-                  style={{ background: "rgba(255,255,255,0.92)", color: "#9A3412", backdropFilter: "blur(8px)" }}
-                >
+                <span className={topChipClass}>
                   <RecipeAttributionIcon recipe={recipe} sizeClassName="h-3.5 w-3.5" />
                   <span>{sourceBadge}</span>
                 </span>
               )
             )}
             {matchPercent >= 80 && (
-              <span
-                className="px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1"
-                style={{ background: "rgba(249,115,22,0.90)", color: "#fff", backdropFilter: "blur(8px)" }}
-              >
+              <span className={matchChipClass}>
                 <Sparkles size={10} /> Great match!
               </span>
             )}
@@ -175,29 +173,22 @@ function SwipeCard({
         <div className="absolute bottom-0 left-0 right-0 p-5">
           <div className="flex items-center gap-2 mb-2">
             {recipe.cuisine && (
-              <span
-                className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
-                style={{ background: "rgba(255,255,255,0.15)", color: "#fff", backdropFilter: "blur(4px)" }}
-              >
+              <span className={overlayChipClass}>
                 {recipe.cuisine}
               </span>
             )}
             <span
-              className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
-              style={{ background: diffBadge.bg, color: diffBadge.color }}
+              className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${diffBadge.className}`}
             >
               {diffBadge.label}
             </span>
           </div>
 
-          <h2
-            className="text-white text-2xl font-bold leading-tight mb-3"
-            style={{ fontFamily: "'Fraunces', Georgia, serif", textShadow: "0 1px 8px rgba(0,0,0,0.4)" }}
-          >
+          <h2 className="mb-3 font-display text-2xl font-bold leading-tight text-primary-foreground text-shadow-strong">
             {recipe.name}
           </h2>
 
-          <div className="flex items-center gap-4 text-white/80 text-sm">
+          <div className="flex items-center gap-4 text-sm text-primary-foreground/80 text-shadow-soft">
             <span className="flex items-center gap-1.5">
               <Clock size={13} />
               {recipe.cook_time}
@@ -210,7 +201,7 @@ function SwipeCard({
                   ignoreCardTapRef.current = true;
                   onChefClick(resolvedChefId, resolvedChefName);
                 }}
-                className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-2 py-1 text-orange-100 hover:text-white hover:bg-white/15"
+                className="inline-flex items-center gap-1.5 rounded-full border border-primary-foreground/20 bg-primary-foreground/10 px-2 py-1 text-primary-foreground/90 text-shadow-soft hover:bg-primary-foreground/15 hover:text-primary-foreground"
               >
                 <RecipeAttributionIcon recipe={{ ...recipe, chef: resolvedChefName, created_by: resolvedChefId }} sizeClassName="h-3.5 w-3.5" className={isMunchRecipe ? "rounded-full bg-white/95 p-0.5" : ""} />
                 {resolvedChefName}
@@ -230,12 +221,12 @@ function SwipeCard({
             )}
           </div>
           {isImportedCommunityRecipe(recipe) && (
-            <p className="mt-2 text-xs text-orange-100/95 font-medium">
+            <p className="mt-2 text-xs font-medium text-primary-foreground/95 text-shadow-soft">
               {getRecipeSourceBadge(recipe)}
             </p>
           )}
           {(recipe.protein || recipe.carbs || recipe.fat) && (
-            <p className="mt-2 text-xs text-white/80">
+            <p className="mt-2 text-xs text-primary-foreground/80 text-shadow-soft">
               {recipe.protein ? `${Math.round(recipe.protein)}g protein` : null}
               {recipe.carbs ? ` • ${Math.round(recipe.carbs)}g carbs` : null}
               {recipe.fat ? ` • ${Math.round(recipe.fat)}g fat` : null}
@@ -637,27 +628,17 @@ export default function SwipeScreen() {
 
   return (
     <div
-      className="min-h-full flex flex-col"
-      style={{
-        fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
-        background: "#FFFAF5",
-      }}
+      className="flex min-h-full flex-col bg-background font-sans"
     >
 
       {/* Header */}
-      <div
-        className="border-b px-4 pt-4 pb-4 sm:px-6 sm:pt-6"
-        style={{ background: "linear-gradient(135deg,#FFF7ED 0%,#FFFAF5 100%)", borderColor: "rgba(249,115,22,0.12)" }}
-      >
+      <div className="border-b border-border/60 bg-gradient-to-br from-secondary via-background to-background px-4 pb-4 pt-4 sm:px-6 sm:pt-6">
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col gap-3 sm:gap-4">
             <div className="mb-2 flex items-start justify-between gap-4 sm:mb-1">
               <div>
                 <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1">Swipe to discover</p>
-                <h1
-                  className="text-xl font-bold text-stone-900 sm:text-2xl"
-                  style={{ fontFamily: "'Fraunces', Georgia, serif" }}
-                >
+                <h1 className="font-display text-xl font-bold text-stone-900 sm:text-2xl">
                   Find Recipes
                 </h1>
                 <p className="text-xs text-stone-400 mt-1">{Math.max(filtered.length - cardIndex, 0)} recipes matching your taste</p>
@@ -823,9 +804,9 @@ export default function SwipeScreen() {
                 {prev && (
                   <motion.div
                     key={`prev-${prev.id}`}
-                    initial={{ opacity: 0, scale: 0.6, x: -100, rotateY: 45 }}
-                    animate={{ opacity: 0.36, scale: 0.72, x: -220, rotateY: 35, filter: 'blur(8px)' }}
-                    exit={{ opacity: 0, scale: 0.5, x: -400 }}
+                    initial={{ opacity: 0, scale: 0.74, x: -56 }}
+                    animate={{ opacity: 0.34, scale: 0.82, x: -160 }}
+                    exit={{ opacity: 0, scale: 0.7, x: -220 }}
                     transition={{ duration: 0.4 }}
                     className="absolute left-1/2 top-1/2 z-0 hidden h-[340px] w-[250px] -translate-x-1/2 -translate-y-1/2 pointer-events-none sm:block"
                     style={{ perspective: 1000 }}
@@ -846,9 +827,9 @@ export default function SwipeScreen() {
                 {next && (
                   <motion.div
                     key={`next-${next.id}`}
-                    initial={{ opacity: 0, scale: 0.6, x: 100, rotateY: -45 }}
-                    animate={{ opacity: 0.36, scale: 0.72, x: 220, rotateY: -35, filter: 'blur(8px)' }}
-                    exit={{ opacity: 0, scale: 0.5, x: 400 }}
+                    initial={{ opacity: 0, scale: 0.74, x: 56 }}
+                    animate={{ opacity: 0.34, scale: 0.82, x: 160 }}
+                    exit={{ opacity: 0, scale: 0.7, x: 220 }}
                     transition={{ duration: 0.4 }}
                     className="absolute left-1/2 top-1/2 z-0 hidden h-[340px] w-[250px] -translate-x-1/2 -translate-y-1/2 pointer-events-none sm:block"
                     style={{ perspective: 1000 }}
@@ -870,7 +851,7 @@ export default function SwipeScreen() {
                   <motion.div
                     key={`current-${current.id}`}
                     initial={{ opacity: 0, scale: 0.8, y: 20 }}
-                    animate={{ opacity: 1, scale: 1, y: 0, x: 0, rotateY: 0, filter: 'blur(0px)' }}
+                    animate={{ opacity: 1, scale: 1, y: 0, x: 0 }}
                     exit={{
                       opacity: 0,
                       scale: 0.5,
