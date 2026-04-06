@@ -779,9 +779,9 @@ export default function SwipeScreen() {
         <div className="w-full max-w-5xl flex flex-col items-center">
           <div className="relative flex items-center justify-center h-[340px] sm:h-[470px] w-full">
           {(loading || isSearchPending) && filtered.length === 0 ? (
-            <div className="aspect-[3/4] rounded-3xl bg-stone-100 animate-pulse" />
+            <div className="w-[260px] shrink-0 rounded-3xl bg-stone-100 animate-pulse aspect-[31/42] sm:w-[310px]" />
           ) : cardIndex >= filtered.length ? (
-            <div className="w-[280px] sm:w-[320px] aspect-[3/4] rounded-3xl flex flex-col items-center justify-center gap-4 border-2 border-dashed border-stone-200 bg-white shadow-sm">
+            <div className="w-[280px] shrink-0 rounded-3xl flex flex-col items-center justify-center gap-4 border-2 border-dashed border-stone-200 bg-white shadow-sm aspect-[31/42] sm:w-[320px]">
               <span className="text-6xl">🍳</span>
               <div className="text-center">
                 <p className="font-bold text-stone-700" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
@@ -827,7 +827,7 @@ export default function SwipeScreen() {
                     animate={{ opacity: 0.36, scale: 0.72, x: -220, rotateY: 35, filter: 'blur(8px)' }}
                     exit={{ opacity: 0, scale: 0.5, x: -400 }}
                     transition={{ duration: 0.4 }}
-                    className="absolute z-0 hidden sm:block w-[250px] h-[340px] pointer-events-none"
+                    className="absolute left-1/2 top-1/2 z-0 hidden h-[340px] w-[250px] -translate-x-1/2 -translate-y-1/2 pointer-events-none sm:block"
                     style={{ perspective: 1000 }}
                   >
                     <SwipeCard
@@ -850,7 +850,7 @@ export default function SwipeScreen() {
                     animate={{ opacity: 0.36, scale: 0.72, x: 220, rotateY: -35, filter: 'blur(8px)' }}
                     exit={{ opacity: 0, scale: 0.5, x: 400 }}
                     transition={{ duration: 0.4 }}
-                    className="absolute z-0 hidden sm:block w-[250px] h-[340px] pointer-events-none"
+                    className="absolute left-1/2 top-1/2 z-0 hidden h-[340px] w-[250px] -translate-x-1/2 -translate-y-1/2 pointer-events-none sm:block"
                     style={{ perspective: 1000 }}
                   >
                     <SwipeCard
@@ -877,7 +877,7 @@ export default function SwipeScreen() {
                       transition: { duration: 0.2 }
                     }}
                     transition={{ type: 'spring', damping: 20, stiffness: 100 }}
-                    className="z-10 w-[260px] sm:w-[310px] h-[330px] sm:h-[420px]"
+                    className="relative z-10 h-[330px] w-[260px] sm:h-[420px] sm:w-[310px]"
                     style={{ perspective: 1000 }}
                   >
                     <AnimatePresence>
